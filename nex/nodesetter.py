@@ -26,7 +26,7 @@ sVec = bpy.types.NodeSocketVector
 
 
 NODE_YOFF, NODE_XOFF = 120, 70
-_MATHEXPRESSION_FUNCTIONS = [] #don't import that directly, use get_mathexp_functions, thanks.
+TAGGED = []
 
 
 class InvalidTypePassedToSocket(Exception):
@@ -38,16 +38,23 @@ def check_any_type(*args, types:tuple=None) -> bool:
     """Returns True if any argument in *args is an instance of any type in the 'types' tuple."""
     return any(isinstance(arg, types) for arg in args)
 
-def mathexpressionfct(func):
-    """decorator to easily store function names on an orderly manner at runtime"""
-    _MATHEXPRESSION_FUNCTIONS.append(func)
-    return func
+def tag_function(*tags):
+    """decorator to easily retrieve functions names by tag on an orderly manner at runtime"""
 
-def get_mathexp_functions(default_ng=None,):
+    def tag_update_decorator(fct):
+        """just mark function with tag"""
+        
+        TAGGED.append(fct)
+        fct.tags = tags
+        return fct
+
+    return tag_update_decorator
+    
+def get_nodesetter_functions(tag='', default_ng=None,):
     """get all functions and their names, depending on function types
     optionally, pass the default ng. The 'update_if_exists' functionality of the functions will be disabled"""
 
-    filtered_functions = _MATHEXPRESSION_FUNCTIONS[:]
+    filtered_functions = [f for f in TAGGED if (tag in f.tags)]
 
     # If a default node group argument is provided, use functools.partial to bind it
     if (default_ng):
@@ -55,16 +62,11 @@ def get_mathexp_functions(default_ng=None,):
 
     return filtered_functions
 
-def generate_documentation(fctsubset='float'):
+def generate_documentation(tag=''):
     """generate doc about function subset for user, we are collecting function name and arguments"""
 
-    match fctsubset:
-        case 'float':
-            functions = get_mathexp_functions()
-        case _:
-            raise Exception("Not Implemented")
     r = {}
-    for f in functions:
+    for f in get_nodesetter_functions(tag=tag):
         fargs = list(f.__code__.co_varnames[:f.__code__.co_argcount])
         if ('ng' in fargs):
             fargs.remove('ng')
@@ -200,7 +202,7 @@ def _vecmath(ng,
 
     return node.outputs[0]
 
-@mathexpressionfct
+@tag_function('mathex')
 def add(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -211,7 +213,7 @@ def add(ng,
         return _vecmath(ng,'ADD',a,b, update_if_exists=update_if_exists,)
     return _floatmath(ng,'ADD',a,b, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def sub(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -222,7 +224,7 @@ def sub(ng,
         return _vecmath(ng,'SUBTRACT',a,b, update_if_exists=update_if_exists,)
     return _floatmath(ng,'SUBTRACT',a,b, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def mult(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -233,7 +235,7 @@ def mult(ng,
         return _vecmath(ng,'MULTIPLY',a,b, update_if_exists=update_if_exists,)
     return _floatmath(ng,'MULTIPLY',a,b, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def div(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -244,7 +246,7 @@ def div(ng,
         return _vecmath(ng,'DIVIDE',a,b, update_if_exists=update_if_exists,)
     return _floatmath(ng,'DIVIDE',a,b, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def pow(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -255,7 +257,7 @@ def pow(ng,
         return _vecmath(ng,'POWER',a,n, update_if_exists=update_if_exists,)
     return _floatmath(ng,'POWER',a,n, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def log(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -264,7 +266,7 @@ def log(ng,
     """Logarithm A base B."""
     return _floatmath(ng,'LOGARITHM',a,b, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def sqrt(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -272,7 +274,7 @@ def sqrt(ng,
     """Square Root of A."""
     return _floatmath(ng,'SQRT',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def invsqrt(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -280,7 +282,7 @@ def invsqrt(ng,
     """1/ Square Root of A."""
     return _floatmath(ng,'INVERSE_SQRT',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def nroot(ng,
     a:sFlo|sInt|sBoo|float|int,
     n:sFlo|sInt|sBoo|float|int,
@@ -296,7 +298,7 @@ def nroot(ng,
     frame_nodes(ng, _x.node, _r.node, label='nRoot',)
     return _r
 
-@mathexpressionfct
+@tag_function('mathex')
 def abs(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     update_if_exists:str='',
@@ -306,7 +308,7 @@ def abs(ng,
         return _vecmath(ng,'ABSOLUTE',a, update_if_exists=update_if_exists,)
     return _floatmath(ng,'ABSOLUTE',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def neg(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     update_if_exists:str='',
@@ -316,7 +318,7 @@ def neg(ng,
     frame_nodes(ng, _r.node, label='Negate',)
     return _r
 
-@mathexpressionfct
+@tag_function('mathex')
 def min(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -325,7 +327,7 @@ def min(ng,
     """Minimum between A & B."""
     return _floatmath(ng,'MINIMUM',a,b, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def smin(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -335,7 +337,7 @@ def smin(ng,
     """Minimum between A & B considering a smoothing distance."""
     return _floatmath(ng,'SMOOTH_MIN',a,b,dist, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def max(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -344,7 +346,7 @@ def max(ng,
     """Maximum between A & B."""
     return _floatmath(ng,'MAXIMUM',a,b, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def smax(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -354,7 +356,7 @@ def smax(ng,
     """Maximum between A & B considering a smoothing distance."""
     return _floatmath(ng,'SMOOTH_MAX',a,b,dist, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def round(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -362,7 +364,7 @@ def round(ng,
     """Round a Float to an Integer."""
     return _floatmath(ng,'ROUND',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def floor(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     update_if_exists:str='',
@@ -372,7 +374,7 @@ def floor(ng,
         return _vecmath(ng,'FLOOR',a, update_if_exists=update_if_exists,)
     return _floatmath(ng,'FLOOR',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def ceil(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -380,7 +382,7 @@ def ceil(ng,
     """Ceil a Float to an Integer."""
     return _floatmath(ng,'CEIL',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def trunc(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -388,7 +390,7 @@ def trunc(ng,
     """Trunc a Float to an Integer."""
     return _floatmath(ng,'TRUNC',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def frac(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -396,7 +398,7 @@ def frac(ng,
     """Fraction.\nThe fraction part of A."""
     return _floatmath(ng,'FRACT',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def mod(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -407,7 +409,7 @@ def mod(ng,
         return _vecmath(ng,'MODULO',a,b, update_if_exists=update_if_exists,)
     return _floatmath(ng,'MODULO',a,b, update_if_exists=update_if_exists,)
     
-@mathexpressionfct
+@tag_function('mathex')
 def fmod(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -416,7 +418,7 @@ def fmod(ng,
     """Floored Modulo."""
     return _floatmath(ng,'FLOORED_MODULO',a,b, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def wrap(ng,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -426,7 +428,7 @@ def wrap(ng,
     """Wrap value to Range A B."""
     return _floatmath(ng,'WRAP',v,a,b, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def snap(ng,
     v:sFlo|sInt|sBoo|float|int,
     i:sFlo|sInt|sBoo|float|int, 
@@ -435,7 +437,7 @@ def snap(ng,
     """Snap to Increment."""
     return _floatmath(ng,'SNAP',v,i, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def pingpong(ng,
     v:sFlo|sInt|sBoo|float|int,
     scale:sFlo|sInt|sBoo|float|int,
@@ -444,7 +446,7 @@ def pingpong(ng,
     """PingPong. Wrap a value and every other cycles at cycle Scale."""
     return _floatmath(ng,'PINGPONG',v,scale, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def floordiv(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -460,7 +462,7 @@ def floordiv(ng,
     frame_nodes(ng, _x.node, _r.node, label='FloorDiv',)
     return _r
 
-@mathexpressionfct
+@tag_function('mathex')
 def sin(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -468,7 +470,7 @@ def sin(ng,
     """The Sine of A."""
     return _floatmath(ng,'SINE',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def cos(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -476,7 +478,7 @@ def cos(ng,
     """The Cosine of A."""
     return _floatmath(ng,'COSINE',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def tan(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -484,7 +486,7 @@ def tan(ng,
     """The Tangent of A."""
     return _floatmath(ng,'TANGENT',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def asin(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -492,7 +494,7 @@ def asin(ng,
     """The Arcsine of A."""
     return _floatmath(ng,'ARCSINE',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def acos(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -500,7 +502,7 @@ def acos(ng,
     """The Arccosine of A."""
     return _floatmath(ng,'ARCCOSINE',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def atan(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -508,7 +510,7 @@ def atan(ng,
     """The Arctangent of A."""
     return _floatmath(ng,'ARCTANGENT',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def hsin(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -516,7 +518,7 @@ def hsin(ng,
     """The Hyperbolic Sine of A."""
     return _floatmath(ng,'SINH',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def hcos(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -524,7 +526,7 @@ def hcos(ng,
     """The Hyperbolic Cosine of A."""
     return _floatmath(ng,'COSH',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def htan(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -532,7 +534,7 @@ def htan(ng,
     """The Hyperbolic Tangent of A."""
     return _floatmath(ng,'TANH',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def rad(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -540,7 +542,7 @@ def rad(ng,
     """Convert from Degrees to Radians."""
     return _floatmath(ng,'RADIANS',a, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def deg(ng,
     a:sFlo|sInt|sBoo|float|int,
     update_if_exists:str='',
@@ -610,7 +612,7 @@ def _mix(ng,
 
     return node.outputs[0]
 
-@mathexpressionfct
+@tag_function('mathex')
 def lerp(ng,
     f:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -620,7 +622,7 @@ def lerp(ng,
     """Mix.\nLinear Interpolation of value A and B from given factor."""
     return _mix(ng,'FLOAT',f,a,b, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def mix(ng,
     f:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -682,7 +684,7 @@ def _floatclamp(ng,
 
     return node.outputs[0]
 
-@mathexpressionfct
+@tag_function('mathex')
 def clamp(ng,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -692,7 +694,7 @@ def clamp(ng,
     """Clamp value between min an max."""
     return _floatclamp(ng,'MINMAX',v,a,b, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def clampr(ng,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -760,7 +762,7 @@ def _maprange(ng,
 
     return node.outputs[0]
 
-@mathexpressionfct
+@tag_function('mathex')
 def map(ng,
     val:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -772,7 +774,7 @@ def map(ng,
     """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
     return _maprange(ng,'FLOAT','LINEAR',val,a,b,x,y, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def mapst(ng,
     val:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -785,7 +787,7 @@ def mapst(ng,
     """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
     return _maprange(ng,'FLOAT','STEPPED',val,a,b,x,y,step, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def mapsmo(ng,
     val:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -797,7 +799,7 @@ def mapsmo(ng,
     """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
     return _maprange(ng,'FLOAT','SMOOTHSTEP',val,a,b,x,y, update_if_exists=update_if_exists,)
 
-@mathexpressionfct
+@tag_function('mathex')
 def mapsmoo(ng,
     val:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -809,11 +811,15 @@ def mapsmoo(ng,
     """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
     return _maprange(ng,'FLOAT','SMOOTHERSTEP',val,a,b,x,y, update_if_exists=update_if_exists,)
 
+@tag_function('nexscript')
 def separate_xyz(ng,
     v:sVec,
     update_if_exists:str='',
     ) -> tuple:
-    
+
+    if (type(v) is not sVec):
+        raise InvalidTypePassedToSocket(f"ArgsTypeError for separate_xyz(). Recieved unsupported type '{type(v).__name__}'")
+
     node = None
     needs_linking = False
     
@@ -832,7 +838,7 @@ def separate_xyz(ng,
         needs_linking = True
         if (update_if_exists):
             node.name = node.label = update_if_exists
-    
+
     if (needs_linking):
         link_sockets(v, node.inputs[0])
 

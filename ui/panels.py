@@ -118,7 +118,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                         col.separator()
 
                     from ..nex.nodesetter import generate_documentation
-                    doc = generate_documentation(fctsubset='float')
+                    doc = generate_documentation(tag='mathex')
                     for fname,fdoc in doc.items():
 
                         row = col.row()

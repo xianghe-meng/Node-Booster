@@ -537,7 +537,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                 return None
                         
             type_name = type(value).__name__
-            match type_name: 
+            match type_name:
 
                 case 'NexOutput':
                     raise NexError(f"Invalid use of Outputs. Cannot assign 'SocketOutput' to 'SocketInput'.")
