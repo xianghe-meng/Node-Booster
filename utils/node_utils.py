@@ -34,27 +34,28 @@ def get_node_absolute_location(node):
 
 def get_socket(ng, socket_name='Foo', in_out='OUTPUT',):
     """get a socket object from a nodetree input/output by name"""
-    
+
     sockets = ng.nodes["Group Output"].inputs if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs
-    for socket in sockets:
-        if (socket.name==socket_name):
-            return socket            
-    return None
+    r = [s for s in sockets if (s.name==socket_name)]
+    if (len(r)==0):
+        return None
+    elif (len(r)==1):
+        return r[0]
+    return r
 
 
-def get_socketui_from_socket_idx(ng, idx, in_out='OUTPUT',):
+def get_socketui_from_socket(ng, idx=None, in_out='OUTPUT', identifier=None,):
     """return a given socket index as an interface item, either find the socket by it's index, name or socketidentifier"""
     
-    #first we need to retrieve the socket identifier from index
-    identifier = None
-    sockets = ng.nodes["Group Output"].inputs if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs
-    for i,s in enumerate(sockets):
-        if (i==idx):
-            identifier = s.identifier
-            break
+    if (identifier is None):
+        sockets = ng.nodes["Group Output"].inputs if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs
+        for i,s in enumerate(sockets):
+            if (i==idx):
+                identifier = s.identifier
+                break
     
     if (identifier is None):
-        raise Exception("ERROR: get_socketui_from_socket_idx(): couldn't retrieve socket identifier..")
+        raise Exception("ERROR: get_socketui_from_socket(): couldn't retrieve socket identifier..")
     
     #then we retrieve thesocket interface item from identifier
     sockui = None
@@ -62,9 +63,11 @@ def get_socketui_from_socket_idx(ng, idx, in_out='OUTPUT',):
                if hasattr(itm,'identifier') and (itm.identifier == identifier)]
     if len(findgen):
         sockui = findgen[0]
-        
+        if len(findgen)>1:
+            print(f"WARNING: get_socketui_from_socket: multiple sockets with identifier '{identifier}' exists")
+
     if (sockui is None):
-        raise Exception("ERROR: get_socketui_from_socket_idx(): couldn't retrieve socket interface item..")
+        raise Exception("ERROR: get_socketui_from_socket(): couldn't retrieve socket interface item..")
     
     return sockui
 
@@ -103,10 +106,10 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
     #  - set a defaultval output can be done within the ng
 
     if (in_out=='OUTPUT'):
-        
+
         outnod = ng.nodes["Group Output"]
         sockets = outnod.inputs
-    
+
         #fine our socket
         if (socket is None):
             socket = sockets[idx]
@@ -177,29 +180,35 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
     return None
 
 
-def set_socket_label(ng, idx, in_out='OUTPUT', label=None,):
+def set_socket_label(ng, idx=None, in_out='OUTPUT', label=None, identifier=None,):
     """return the label of the given nodegroups output at given socket idx"""
-    
-    itm = get_socketui_from_socket_idx(ng, idx, in_out=in_out,)
+
+    itm = get_socketui_from_socket(ng,
+        idx=idx, in_out=in_out, identifier=identifier,
+        )
     itm.name = str(label)
-                
     return None  
 
 
-def get_socket_type(ng, idx, in_out='OUTPUT',):
+def get_socket_type(ng, idx=None, in_out='OUTPUT', identifier=None,):
     """return the type of the given nodegroups output at given socket idx"""
     
-    itm = get_socketui_from_socket_idx(ng, idx, in_out=in_out,)
+    itm = get_socketui_from_socket(ng,
+        idx=idx, in_out=in_out, identifier=identifier,
+        )
     return itm.socket_type
 
 
-def set_socket_type(ng, idx, in_out='OUTPUT', socket_type="NodeSocketFloat",):
+def set_socket_type(ng, idx=None, in_out='OUTPUT', socket_type="NodeSocketFloat", identifier=None,):
     """set socket type via bpy.ops.node.tree_socket_change_type() with manual override, context MUST be the geometry node editor"""
 
-    itm = get_socketui_from_socket_idx(ng, idx, in_out=in_out,)
+    itm = get_socketui_from_socket(ng,
+        idx=idx, in_out=in_out, identifier=identifier,
+        )
     itm.socket_type = socket_type
-
-    return None
+    
+    #blender bug: you might need to use this return value because the original socket before change will be dirty.
+    return get_socket_from_socketui(ng, itm, in_out=in_out)
 
 
 def create_socket(ng, in_out='OUTPUT', socket_type="NodeSocketFloat", socket_name="Value",):
@@ -208,18 +217,16 @@ def create_socket(ng, in_out='OUTPUT', socket_type="NodeSocketFloat", socket_nam
     #naive support for strandard socket.type notation
     if (socket_type.isupper()):
         socket_type = f'NodeSocket{socket_type.title()}'
-    
-    sockui = ng.interface.new_socket(socket_name, in_out=in_out, socket_type=socket_type,)
-    return sockui
 
-    #NOTE should't we return a NodeSocket Type directly?? Hmm
-    #return get_socket_from_socketui(ng, sockui, in_out=in_out) ????
+    sockui = ng.interface.new_socket(socket_name, in_out=in_out, socket_type=socket_type,)
+    sock = get_socket_from_socketui(ng, sockui, in_out=in_out)
+    return sock
 
 
 def remove_socket(ng, idx, in_out='OUTPUT',):
     """remove a nodegroup socket output at given index"""
         
-    itm = get_socketui_from_socket_idx(ng, idx, in_out=in_out,)
+    itm = get_socketui_from_socket(ng, idx, in_out=in_out,)
     ng.interface.remove(itm)
     
     return None 

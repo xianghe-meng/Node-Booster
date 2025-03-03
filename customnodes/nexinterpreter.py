@@ -26,38 +26,55 @@ from ..utils.node_utils import (
 )
 
 
-def transform_nex_script(pyscript:str, nextypes:list) -> str:
+def transform_nex_script(original_text:str, nextypes:list) -> str:
     """
-    Transforms a Nex script by first removing any comments and then replacing type declarations 
-    of the form: varname : TYPE = RESTOFTHELINE
-    with: varname = TYPE('varname', RESTOFTHELINE)
+    Transforms a Nex script:
+    - Remove comments
+    - Replace with custom Nex type declarations 
+        "VAR : TYPE = RESTOFTHELINE" → "VAR = TYPE('VAR', RESTOFTHELINE)"
+        "VAR : TYPE"                 → "VAR = TYPE('VAR', None)"
     """
 
-    #TODO will ; work in here?
-    #TODO(?) support x:infloat notations? to x=infloat('x',None)
+    #TODO support ';' python notation?
 
-    # Remove comments: delete anything from a '#' to the end of the line.
-    script_no_comments = re.sub(r'#.*', '', pyscript)
-
-    # Replacement function to inject the constructor call.
     def replacer(match):
-        varname, typename, rest = match.groups()
-        return f"{varname} = {typename}('{varname}', {rest.strip()})"
+        varname = match.group(1)
+        typename = match.group(2)
+        rest = match.group(3)
+        if (rest is None or rest.strip() == ''):
+              return f"{varname} = {typename}('{varname}', None)"
+        else: return f"{varname} = {typename}('{varname}', {rest.strip()})"
 
-    pattern = re.compile(rf"\b(\w+)\s*:\s*({'|'.join(nextypes)})\s*=\s*(.+)")
-    transformed = pattern.sub(replacer, script_no_comments)
-
-    return transformed
-
-def extract_nex_variables(script:str, nextypes:list) -> str:
-    """Extracts variable names and their Nex types from the given script."""
+    pattern = re.compile(rf"\b(\w+)\s*:\s*({'|'.join(nextypes)})\s*(?:=\s*(.+))?")
     
-    # Create a regex pattern to match lines like "varname : nexType = ..."
-    pattern = re.compile(
-        r"^\s*(\w+)\s*:\s*(" + "|".join(nextypes) + r")\s*=",
-        re.MULTILINE
-    )
-    return pattern.findall(script)
+    lines = []
+    for line in original_text.splitlines():
+
+        # Remove comments: delete anything from a '#' to the end of the line.
+        line = re.sub(r'#.*', '', line)
+
+        # ignore white lines
+        if (len(line)==0):
+            continue
+
+        #transform type hinting notation
+        line = pattern.sub(replacer, line)
+
+        lines.append(line)
+        continue
+
+    return '\n'.join(lines)
+
+# unused for now
+# def extract_nex_variables(script:str, nextypes:list) -> str:
+#     """Extracts variable names and their Nex types from the given script."""
+    
+#     # Create a regex pattern to match lines like "varname : nexType = ..."
+#     pattern = re.compile(
+#         r"^\s*(\w+)\s*:\s*(" + "|".join(nextypes) + r")\s*=",
+#         re.MULTILINE
+#     )
+#     return pattern.findall(script)
 
 
 class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
@@ -240,80 +257,33 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             return None
 
         user_script = self.user_textdata.as_string()
-
+        
+        #capture the inputs/outputs later on execution.
+        all_inputs_names = []
+        all_outputs_names = []
+        kwargs = all_inputs_names, all_outputs_names
+        
         #define all possible Nex types user can toy with
         nexintypes = {
             # NodeSocketBool
             # NodeSocketInt
-            'infloat': NexFactory(self, 'NexFloat',),
-            'invec': NexFactory(self, 'NexVec',),
-            # 'inauto': NexFactory(self, 'NexAuto',), #TODO for later.. maybe just 'in'.. problem with python linter then..
-            # NodeSocketVector
+            'infloat': NexFactory(self, 'NexFloat', '', *kwargs,),
+            'invec': NexFactory(self, 'NexVec', '', *kwargs,),
             # NodeSocketColor
             # NodeSocketRotation
             # NodeSocketMatrix
             }
         nexoutypes = {
-            'outbool': NexFactory(self, 'NexOutput', 'NodeSocketBool',),
-            'outint': NexFactory(self, 'NexOutput', 'NodeSocketInt',),
-            'outfloat': NexFactory(self, 'NexOutput', 'NodeSocketFloat',),
-            'outvec': NexFactory(self, 'NexOutput', 'NodeSocketVector',),
-            'outcol': NexFactory(self, 'NexOutput', 'NodeSocketColor',),
-            'outquat': NexFactory(self, 'NexOutput', 'NodeSocketRotation',),
-            'outmat': NexFactory(self, 'NexOutput', 'NodeSocketMatrix',),
-            # 'outauto': NexFactory(self, 'NexOutput',), #TODO for later.. maybe just 'out' ?
+            'outbool': NexFactory(self, 'NexOutput', 'NodeSocketBool', *kwargs,),
+            'outint': NexFactory(self, 'NexOutput', 'NodeSocketInt', *kwargs,),
+            'outfloat': NexFactory(self, 'NexOutput', 'NodeSocketFloat', *kwargs,),
+            'outvec': NexFactory(self, 'NexOutput', 'NodeSocketVector', *kwargs,),
+            'outcol': NexFactory(self, 'NexOutput', 'NodeSocketColor', *kwargs,),
+            'outquat': NexFactory(self, 'NexOutput', 'NodeSocketRotation', *kwargs,),
+            'outmat': NexFactory(self, 'NexOutput', 'NodeSocketMatrix', *kwargs,),
+            'outauto': NexFactory(self, 'NexOutput', '',                *kwargs,),
             }
         nextypes = {**nexintypes, **nexoutypes}
-
-        #make sure there are Nex types in the user expression
-        if not any(t in user_script for t in nextypes.keys()):
-            #cleanse all sockets and nodes then
-            self.cleanse_sockets()
-            self.cleanse_nodes()
-            # set error to True
-            set_socket_label(ng,0, label="VoidNexError",)
-            set_socket_defvalue(ng,0, value=True,)
-            # Display error
-            self.error_message = f"No Nex Found in Script. An example of Nex code can be found in 'Text Editor > Template > Booster Scripts'"
-            return None
-
-        #also make sure there are Nex outputs types in there..
-        if not any(t in user_script for t in nexoutypes.keys()):
-            # set error to True
-            set_socket_label(ng,0, label="NoOutputError",)
-            set_socket_defvalue(ng,0, value=True,)
-            # Display error
-            self.error_message = f"Mandatory Nex Outputs not in Script. An example of Nex code can be found in 'Text Editor > Template > Booster Scripts'"
-            return None
-
-        #exctract the variables from user script
-        nexvars = extract_nex_variables(user_script, nextypes.keys(),)
-        nexinvars = [nm for nm,tp in nexvars if tp.startswith('in')]
-        nexoutvars = [nm for nm,tp in nexvars if tp.startswith('out')]
-
-        #Check, make sure user is not using a protected term
-        for name in [nm for nm,tp in nexvars]:
-            if ('Error' not in name):
-                continue
-            # set error to True
-            set_socket_label(ng,0, label="ProtectedTermError",)
-            set_socket_defvalue(ng,0, value=True,)
-            # Display error
-            self.error_message = f"You cannot use the variable name 'Error'"
-            return None
-
-        #Check, make sure there's no name collision, will lead to errors
-        if (len(nexinvars)!=len(set(nexinvars))) or (len(nexoutvars)!=len(set(nexoutvars))):
-            # set error to True
-            set_socket_label(ng,0, label="CollisionError",)
-            set_socket_defvalue(ng,0, value=True,)
-            # Display error
-            self.error_message = f"Variables Collision, make sure to use different variable names."
-            return None
-
-        # swap to dictionaries
-        nexinvars = {nm:tp for nm,tp in nexvars if tp.startswith('in')}
-        nexoutvars = {nm:tp for nm,tp in nexvars if tp.startswith('out')}
 
         # Synthax:
         # replace varname:infloat=REST with varname=infloat('varname',REST) & remove comments
@@ -328,51 +298,16 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
               cache_script = cache_text.as_string()
         is_dirty = (final_script!=cache_script)
         
-        # If user modified the script, we rebuild we ensure sockets are correct, and rebuilt nodetree
+        # If user modified the script, the script will need a rebuild.
         if (is_dirty or rebuild):
 
-            # Clean up sockets no longer in nex vars
-            self.cleanse_sockets(
-                in_protectednames=list(nexinvars.keys()),
-                out_protectednames=list(nexoutvars.keys()),
-                )
-
-            # Create new sockets depending on vars
-            #inputs
-            for nm,tp in nexinvars.items():
-                sock = get_socket(ng, in_out='INPUT', socket_name=nm,)
-                if (sock is None):
-                    socktype = NEXEQUIVALENCE[tp]
-                    create_socket(ng, in_out='INPUT', socket_type=socktype, socket_name=nm,)
-            #outputs
-            for nm,tp in nexoutvars.items():
-                sock = get_socket(ng, in_out='OUTPUT', socket_name=nm,)
-                if (sock is None):
-                    socktype = NEXEQUIVALENCE[tp]
-                    create_socket(ng, in_out='OUTPUT', socket_type=socktype, socket_name=nm,)
-
-            # Make sure socket types are corresponding to their python evaluated values
-            #inputs
-            for idx,socket in enumerate(in_nod.outputs):
-                if (socket.type!='CUSTOM'):
-                    correctype = NEXEQUIVALENCE[nexinvars[socket.name]]
-                    current_type = get_socket_type(ng, idx, in_out='INPUT')
-                    if (current_type!=correctype):
-                        set_socket_type(ng, idx, in_out='INPUT', socket_type=correctype,)
-            #outputs
-            for idx,socket in enumerate(out_nod.inputs):
-                if ((socket.type!='CUSTOM') and (idx!=0)):
-                    correctype = NEXEQUIVALENCE[nexoutvars[socket.name]]
-                    current_type = get_socket_type(ng, idx, in_out='OUTPUT')
-                    if (current_type!=correctype):
-                        set_socket_type(ng, idx, in_out='OUTPUT', socket_type=correctype,)
-            
             #Clean up nodes.. we'll rebuild the nodetree
             self.cleanse_nodes()
 
-            # We set the first node active
-            # (node arrangement in nodesetter.py module is based on active)
+            # We set the first node active (node arrangement in nodesetter.py module is based on active)
             ng.nodes.active = in_nod
+            
+            #when initalizing the NexTypes, the inputs/outputs sockets will be created.
         
         # Namespace, we inject Nex types in user namespace
         exec_namespace = {}
@@ -394,8 +329,6 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
             print(f"ERROR(?): exec{i}")
             exec(final_script, exec_namespace, script_vars)
-
-            #return None
 
         try:
             exec(final_script, exec_namespace, script_vars)
@@ -422,9 +355,34 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             self.error_message = f"{type(e).__name__}. {e}. See console for traceback."
             return None
 
-        #we cache the script it correspond to current nodetree arrangements.
+        #check on vars..
+        #make sure there are Nex types in the user expression
+        if len(all_inputs_names + all_outputs_names)==0:
+            #cleanse all sockets and nodes then
+            self.cleanse_sockets()
+            self.cleanse_nodes()
+            # set error to True
+            set_socket_label(ng,0, label="VoidNexError",)
+            set_socket_defvalue(ng,0, value=True,)
+            # Display error
+            self.error_message = f"No Nex Found in Script. An example of Nex code can be found in 'Text Editor > Template > Booster Scripts'"
+            return None
+        #also make sure there are Nex outputs types in there..
+        if len(all_outputs_names)==0:
+            # set error to True
+            set_socket_label(ng,0, label="NoOutputError",)
+            set_socket_defvalue(ng,0, value=True,)
+            # Display error
+            self.error_message = f"Mandatory Outputs not Found. An example of Nex code can be found in 'Text Editor > Template > Booster Scripts'"
+            return None
+                
+        # Clean up leftover sockets from previous run which created sockets no longer in use
+        self.cleanse_sockets(
+            in_protectednames=all_inputs_names,
+            out_protectednames=all_outputs_names,
+            )
 
-        #keep track of modifications
+        #we cache the script it correspond to current nodetree arrangements, keep track of modifications
         if (cache_text is None):
             cache_text = bpy.data.texts.new(cache_name)
         if (is_dirty):

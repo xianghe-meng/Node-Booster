@@ -2,10 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# TODO support more operand 
-#  - __floordiv__
-#  - __modulo__
-
 # TODO implement NexVec
 #  - support between vec and vec
 #  - vec to float = error, float to vec == possible
@@ -23,8 +19,6 @@
 # TODO later 
 #  Better errors for user:
 #  - need better traceback error for NexError so user can at least now the line where it got all wrong.
-#  - it's a bit useless to see a Cannot add 'AnonymousVariable' of type.. with type.. 
-#    perhaps just don't tell the user varname if we can print the line?
 
 # TODO later
 #  Optimization:
@@ -92,28 +86,6 @@ class NexError(Exception):
         super().__init__(message)
 
 
-class Nex:
-    """parent class of all Nex subclasses"""
-
-    _instance_counter = 0 # - Needed to define nxid, see nxid note.
-    node_inst = None      # - the node affiliated with this Nex type
-    node_tree = None      # - the node.nodetree affiliated with this Nex type
-    nxstype = ''          # - the type of socket the Nex type is using
-    nxchar = ''           # - the short name of the nex type (for display reasons)
-
-    def __init__(*args, **kwargs):
-        nxsock = None  # - The most important part of a NexType, it's association with an output socket!
-        nxvname = None # - The name of the variable, if available. High change the variable will be anonymous. Unsure if it's needed to keep this
-        nxid = None    # - In order to not constantly rebuild the nodetree, but still update 
-                       # some python evaluated values to the nodetree constants (nodes starting with "C|" in the tree)
-                       # we need to have some sort of stable id for our nex Instances.
-                       # the problem is that these instances can be anonymous. So here i've decided to identify by instance generation count.
-
-    def __repr__(self):
-        return f"<{self.nxstype}{self.nxid}'{self.nxvname}'>"
-        #return f"<{type(self)}{self.nxid} nxvname='{self.nxvname}'  nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
-
-
 def generate_tag(NexType, function, *variables, start='F'):
     """generate an unique tag for a function and their args"""
 
@@ -123,7 +95,7 @@ def generate_tag(NexType, function, *variables, start='F'):
 
     argrepr = []
     for v in variables:
-        if isinstance(v,Nex):
+        if ('Nex' in type(v).__name__):
               argrepr.append(f"{v.nxchar}{v.nxid}")
         else: argrepr.append(f"Py{type(v).__name__.title()}")
 
@@ -176,8 +148,6 @@ def call_Nex_operand(NexType, sockfunc, *variables, uniquetag:str=None, NexTypeR
 #     newsock = create_constant_input(node_tree, nodetype, value, tag)
 #
 #     new.nxsock = newsock
-#     new.nxvname = 'AnonymousVariable'
-#
 #     return new
 
 
@@ -194,11 +164,49 @@ def py_to_Vec3(value):
         case _:
             raise Exception(f"Unsuported type for {value}")
 
+# oooooooooooo                         .                                  
+# `888'     `8                       .o8                                  
+#  888          .oooo.    .ooooo.  .o888oo  .ooooo.  oooo d8b oooo    ooo 
+#  888oooo8    `P  )88b  d88' `"Y8   888   d88' `88b `888""8P  `88.  .8'  
+#  888    "     .oP"888  888         888   888   888  888       `88..8'   
+#  888         d8(  888  888   .o8   888 . 888   888  888        `888'    
+# o888o        `Y888""8o `Y8bod8P'   "888" `Y8bod8P' d888b        .8'     
+#                                                             .o..P'      
+#                                                             `Y8P'       
 
-def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsocktype:str='',):
+def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsocktype:str='', ALLINPUTS=[], ALLOUTPUTS=[],):
     """return a nex type, which is simply an overloaded custom type that automatically arrange links and nodes and
-    set default values. The nextypes will/should only build the nodetree and links when neccessary"""
+    set default values. The nextypes will/should only build the nodetree and links when neccessary."""
 
+    # ooooo      ooo                       
+    # `888b.     `8'                       
+    #  8 `88b.    8   .ooooo.  oooo    ooo 
+    #  8   `88b.  8  d88' `88b  `88b..8P'  
+    #  8     `88b.8  888ooo888    Y888'    
+    #  8       `888  888    .o  .o8"'88b   
+    # o8o        `8  `Y8bod8P' o88'   888o 
+
+    class Nex:
+        """parent class of all Nex subclasses"""
+
+        # Per children class properties.
+        init_counter = 0     # - Needed to define nxid, see nxid note.
+        node_inst = None     # - The node affiliated with this Nex type.
+        node_tree = None     # - The node.nodetree affiliated with this Nex type.
+        nxstype = ''         # - The type of socket the Nex type is using.
+        nxchar = ''          # - The short name of the nex type (for display reasons)
+        
+        def __init__(*args, **kwargs):
+            nxsock = None  # - The most important part of a NexType, it's association with an output socket!
+            nxsnam = ''    # - The name of the socket (if the Nex instance is related to an input or output socket, if else will be blank)
+            nxid = None    # - In order to not constantly rebuild the nodetree, but still update 
+                           #    some python evaluated values to the nodetree constants (nodes starting with "C|" in the tree)
+                           #    we need to have some sort of stable id for our nex Instances.
+                           #    the problem is that these instances can be anonymous. So here i've decided to identify by instance generation count.
+
+        def __repr__(self):
+            return f"<{self.nxstype}{self.nxid}>"
+            #return f"<{type(self)}{self.nxid} nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
 
     # ooooo      ooo                       oooooooooooo oooo                          .   
     # `888b.     `8'                       `888'     `8 `888                        .o8   
@@ -210,17 +218,17 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                                                                                         
     class NexFloat(Nex):
         
-        _instance_counter = 0
+        init_counter = 0
         node_inst = factor_customnode_instance
         node_tree = node_inst.node_tree
         nxstype = 'NodeSocketFloat'
         nxchar = 'f'
 
-        def __init__(self, varname='', value=None, fromsocket=None, manualdef=False):
+        def __init__(self, socket_name='', value=None, fromsocket=None, manualdef=False,):
 
             #create a stable identifier for our NexObject
-            self.nxid = NexFloat._instance_counter
-            NexFloat._instance_counter += 1
+            self.nxid = NexFloat.init_counter
+            NexFloat.init_counter += 1
 
             #on some occation we might want to first initialize this new python object, and define it later (ot get the id)
             if (manualdef):
@@ -228,7 +236,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
 
             #initialize from a socket?
             if (fromsocket is not None):
-                self.nxsock, self.nxvname = fromsocket, 'AnonymousVariable'
+                self.nxsock = fromsocket
                 return None
             
             # Now, define different initialization depending on given value type
@@ -246,17 +254,36 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     raise NexError(f"Invalid use of Outputs. Cannot assign 'SocketOutput' to 'SocketInput'.")
 
                 # initial creation by assignation, we need to create a socket type
-                case 'int' | 'float' | 'bool':
-                    assert varname!='', "Nex Initialization should always define a varname."
-                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=varname,)
-                    assert outsock is not None, f"The socket '{varname}' do not exist in your node inputs."
-                    fval = float(value)
-                    set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT')
-                    self.nxsock, self.nxvname = outsock, varname
+                case 'NoneType' | 'int' | 'float' | 'bool':
+                    
+                    #ensure name chosen is correct
+                    assert socket_name!='', "Nex Initialization should always define a socket_name."
+                    if (socket_name in ALLINPUTS):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    ALLINPUTS.append(socket_name)
+
+                    #get socket, create if non existent
+                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    if (outsock is None):
+                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type='NodeSocketFloat', socket_name=socket_name,)
+                    elif (type(outsock) is list):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    #ensure type is correct, change type if necessary
+                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    if (current_type!='NodeSocketFloat'):
+                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type='NodeSocketFloat', identifier=outsock.identifier,)
+                    
+                    self.nxsock = outsock
+                    self.nxsnam = socket_name
+                    
+                    #ensure default value of socket in node instance
+                    if (value is not None):
+                        fval = float(value)
+                        set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
 
                 # wrong initialization?
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to 'SocketFloat'.")
+                    raise NexError(f"SocketTypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to 'SocketFloat'.")
 
             print(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:',self)
             return None
@@ -276,7 +303,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.add
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot add '{self.nxvname}' of type 'SocketFloat' to '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot add type 'SocketFloat' to '{type(other).__name__}'.")
             tag = generate_tag(NexFloat, sockfunc, self, other,)
             return call_Nex_operand(NexFloat, sockfunc, a, b, uniquetag=tag)
 
@@ -299,7 +326,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.sub
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot subtract '{self.nxvname}' of type 'SocketFloat' with '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot subtract type 'SocketFloat' with '{type(other).__name__}'.")
             tag = generate_tag(NexFloat, sockfunc, self, other,)
             return call_Nex_operand(NexFloat, sockfunc, a, b, uniquetag=tag)
 
@@ -331,7 +358,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.mult
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot multiply '{self.nxvname}' of type 'SocketFloat' with '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot multiply type 'SocketFloat' with '{type(other).__name__}'.")
             tag = generate_tag(NexFloat, sockfunc, self, other,)
             return call_Nex_operand(NexFloat, sockfunc, a, b, uniquetag=tag)
 
@@ -354,7 +381,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.div
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot divide '{self.nxvname}' of type 'SocketFloat' by '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot divide type 'SocketFloat' by '{type(other).__name__}'.")
             tag = generate_tag(NexFloat, sockfunc, self, other,)
             return call_Nex_operand(NexFloat, sockfunc, a, b, uniquetag=tag)
 
@@ -386,7 +413,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.pow
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot raise '{self.nxvname}' of type 'SocketFloat' to the power of '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot raise type 'SocketFloat' to the power of '{type(other).__name__}'.")
             tag = generate_tag(NexFloat, sockfunc, self, other,)
             return call_Nex_operand(NexFloat, sockfunc, a, b, uniquetag=tag)
 
@@ -418,7 +445,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.mod
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot compute '{self.nxvname}' of type 'SocketFloat' modulo '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot compute type 'SocketFloat' modulo '{type(other).__name__}'.")
             tag = generate_tag(NexFloat, sockfunc, self, other,)
             return call_Nex_operand(NexFloat, sockfunc, a, b, uniquetag=tag)
 
@@ -450,7 +477,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.floordiv
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot perform floor division on '{self.nxvname}' of type 'SocketFloat' with '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot perform floordiv on type 'SocketFloat' with '{type(other).__name__}'.")
             tag = generate_tag(NexFloat, sockfunc, self, other,)
             return call_Nex_operand(NexFloat, sockfunc, a, b, uniquetag=tag)
 
@@ -493,42 +520,61 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                                                                             
     class NexVec(Nex):
         
-        _instance_counter = 0
+        init_counter = 0
         node_inst = factor_customnode_instance
         node_tree = node_inst.node_tree
         nxstype = 'NodeSocketVector'
         nxchar = 'v'
 
-        def __init__(self, varname='', value=None, fromsocket=None, manualdef=False):
+        def __init__(self, socket_name='', value=None, fromsocket=None, manualdef=False,):
 
-            self.nxid = NexVec._instance_counter
-            NexVec._instance_counter += 1
+            self.nxid = NexVec.init_counter
+            NexVec.init_counter += 1
 
             if (manualdef):
                 return None
-
             if (fromsocket is not None):
-                self.nxsock, self.nxvname = fromsocket, 'AnonymousVariable'
+                self.nxsock = fromsocket
                 return None
-
+                        
             type_name = type(value).__name__
             match type_name: 
 
-                case _ if ('Nex' in type_name):
-                    raise NexError(f"Invalid use of Inputs. Cannot assign 'SocketInput' to 'SocketInput'.")
                 case 'NexOutput':
                     raise NexError(f"Invalid use of Outputs. Cannot assign 'SocketOutput' to 'SocketInput'.")
 
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    assert varname!='', "Nex Initialization should always define a varname."
-                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=varname,)
-                    assert outsock is not None, f"The socket '{varname}' do not exist in your node inputs."
-                    fval = py_to_Vec3(value)
-                    set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT')
-                    self.nxsock, self.nxvname = outsock, varname
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"Invalid use of Inputs. Cannot assign 'SocketInput' to 'SocketInput'.")                
+
+                case 'NoneType' | 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    
+                    #ensure name chosen is correct
+                    assert socket_name!='', "Nex Initialization should always define a socket_name."
+                    if (socket_name in ALLINPUTS):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    ALLINPUTS.append(socket_name)
+
+                    #get socket, create if non existent
+                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    if (outsock is None):
+                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type='NodeSocketVector', socket_name=socket_name,)
+                    elif (type(outsock) is list):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    #ensure type is correct, change type if necessary
+                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    if (current_type!='NodeSocketVector'):
+                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type='NodeSocketVector', identifier=outsock.identifier,)
+
+                    self.nxsock = outsock
+                    self.nxsnam = socket_name
+                    
+                    #ensure default value of socket in node instance
+                    if (value is not None):
+                        fval = py_to_Vec3(value)
+                        set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
 
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to 'SocketVector'.")
+                    raise NexError(f"SocketTypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to 'SocketVector'.")
 
             print(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:',self)
             return None
@@ -546,7 +592,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = py_to_Vec3(other)
                     sockfunc = nodesetter.add
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot add '{self.nxvname}' of type 'SocketVector' to '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot add type 'SocketVector' to '{type(other).__name__}'.")
             tag = generate_tag(NexVec, sockfunc, self, other,)
             return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
 
@@ -567,7 +613,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = py_to_Vec3(other)
                     sockfunc = nodesetter.sub
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot subtract '{self.nxvname}' of type 'SocketVector' with '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot subtract type 'SocketVector' with '{type(other).__name__}'.")
             tag = generate_tag(NexVec, sockfunc, self, other,)
             return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
 
@@ -598,7 +644,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = py_to_Vec3(other)
                     sockfunc = nodesetter.mult
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot multiply '{self.nxvname}' of type 'SocketVector' with '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot multiply type 'SocketVector' with '{type(other).__name__}'.")
             tag = generate_tag(NexVec, sockfunc, self, other,)
             return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
 
@@ -619,7 +665,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = py_to_Vec3(other)
                     sockfunc = nodesetter.div
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot divide '{self.nxvname}' of type 'SocketVector' by '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot divide type 'SocketVector' by '{type(other).__name__}'.")
             tag = generate_tag(NexVec, sockfunc, self, other,)
             return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
 
@@ -659,7 +705,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = py_to_Vec3(other)
                     sockfunc = nodesetter.mod
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot compute '{self.nxvname}' of type 'SocketVector' modulo '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot compute type 'SocketVector' modulo '{type(other).__name__}'.")
             tag = generate_tag(NexVec, sockfunc, self, other,)
             return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
 
@@ -690,7 +736,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self.nxsock ; b = py_to_Vec3(other)
                     sockfunc = nodesetter.floordiv
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot perform floor division on '{self.nxvname}' of type 'SocketVector' with '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot perform floordiv on type 'SocketVector' with '{type(other).__name__}'.")
             tag = generate_tag(NexVec, sockfunc, self, other,)
             return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
 
@@ -766,26 +812,24 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
         """A nex output is just a simple linking operation. We only assign to an output.
         After assinging the final output not a lot of other operations are possible"""
 
-        _instance_counter = 0
+        init_counter = 0
         node_inst = factor_customnode_instance
         node_tree = node_inst.node_tree
         nxstype = factory_outsocktype
         nxchar = 'o'
-
-        outsubtype = nxstype.replace("Node","")
-
-        def __init__(self, varname='', value=0.0):
-
-            assert varname!='', "NexOutput Initialization should always define a varname"
-            self.nxvname = varname
-
-            # create a stable identifier for our NexObject
-            self.nxid = NexOutput._instance_counter
-            NexOutput._instance_counter += 1
-
-            # add a socket to this object
-            outsock = get_socket(self.node_tree, in_out='OUTPUT', socket_name=varname,)
-            self.nxsock = outsock
+                        
+        def __init__(self, socket_name='', value=0.0):
+            
+            #ensure name chosen is correct. Outputs should always have a name, always!
+            assert socket_name!='', "NexOutput Initialization should always define a socket_name"
+            if (socket_name in ALLOUTPUTS):
+                raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+            ALLOUTPUTS.append(socket_name)
+            if ('Error' in socket_name):
+                raise NexError("SocketNameError. Cannot use 'Error' as an output socket.")
+                    
+            self.nxid = NexOutput.init_counter
+            NexOutput.init_counter += 1
 
             type_name = type(value).__name__
             match type_name:
@@ -796,19 +840,62 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
 
                 # we link another nextype
                 case _ if ('Nex' in type_name):
+
+                    #support for automatic types
+                    out_type = self.nxstype
+                    if (out_type==''):
+                        out_type = value.nxstype
+                    
+                    #get socket, create if non existent
+                    outsock = get_socket(self.node_tree, in_out='OUTPUT', socket_name=socket_name,)
+                    if (outsock is None):
+                        outsock = create_socket(self.node_tree, in_out='OUTPUT', socket_type=out_type, socket_name=socket_name,)
+                    elif (type(outsock) is list):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    #ensure type is correct, change type if necessary
+                    current_type = get_socket_type(self.node_tree, in_out='OUTPUT', identifier=outsock.identifier,)
+                    if (current_type!=out_type):
+                        outsock = set_socket_type(self.node_tree, in_out='OUTPUT', socket_type=out_type, identifier=outsock.identifier,)
+
+                    self.nxsock = outsock
+                    self.nxsnam = socket_name
+
+                    # simply link the sockets and see if it's valid
                     l = link_sockets(value.nxsock, outsock)
-                    # we might need to send a refresh signal before checking is_valid property?? if it works, it works
                     if (not l.is_valid):
-                        raise NexError(f"SocketTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to output socket of type '{self.outsubtype}'.")
+                        raise NexError(f"SocketTypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to output socket of type '{out_type}'.")
+
 
                 # or we simply output a default python constant value
                 case _:
+
                     newval, _, socktype = convert_pyvar_to_data(value)
+
+                    #support for automatic types
+                    out_type = self.nxstype
+                    if (out_type==''):
+                        out_type = socktype
+                        
+                    #get socket, create if non existent
+                    outsock = get_socket(self.node_tree, in_out='OUTPUT', socket_name=socket_name,)
+                    if (outsock is None):
+                        outsock = create_socket(self.node_tree, in_out='OUTPUT', socket_type=out_type, socket_name=socket_name,)
+                    elif (type(outsock) is list):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    #ensure type is correct, change type if necessary
+                    current_type = get_socket_type(self.node_tree, in_out='OUTPUT', identifier=outsock.identifier,)
+                    if (current_type!=out_type):
+                        outsock = set_socket_type(self.node_tree, in_out='OUTPUT', socket_type=out_type, identifier=outsock.identifier,)
+
+                    self.nxsock = outsock
+                    self.nxsnam = socket_name
+
                     # just do a try except to see if the var assignment to python is working.. easier.
                     try:
                         set_socket_defvalue(self.node_tree, value=newval, socket=outsock, in_out='OUTPUT',)
                     except Exception as e:
-                        raise NexError(f"SocketTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to output socket of type '{self.outsubtype}'.")
+                        print(e)
+                        raise NexError(f"SocketTypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to output socket of type '{out_type}'.")
 
 
     # return the class

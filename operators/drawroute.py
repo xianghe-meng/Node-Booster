@@ -464,7 +464,6 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                     s_old = l.from_socket
                     s_new = create_socket(self.node_tree, in_out='OUTPUT', 
                         socket_type=newtype, socket_name='Output',)
-                    s_new = get_socket_from_socketui(self.node_tree, s_new, in_out='OUTPUT')
                     self.node_tree.links.remove(l)
                     self.node_tree.links.new(s_old,s_new)
                     break
@@ -482,7 +481,6 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                     s_old = l.to_socket
                     s_new = create_socket(self.node_tree, in_out='INPUT', 
                         socket_type=newtype, socket_name='Input',)
-                    s_new = get_socket_from_socketui(self.node_tree, s_new, in_out='INPUT')
                     self.node_tree.links.new(s_new,s_old)
                     self.node_tree.links.remove(l)
                     break
