@@ -189,20 +189,19 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
     class Nex:
         """parent class of all Nex subclasses"""
 
-        # Per children class properties.
-        init_counter = 0     # - Needed to define nxid, see nxid note.
-        node_inst = None     # - The node affiliated with this Nex type.
-        node_tree = None     # - The node.nodetree affiliated with this Nex type.
-        nxstype = ''         # - The type of socket the Nex type is using.
-        nxchar = ''          # - The short name of the nex type (for display reasons)
-        
+        init_counter = 0  # - Needed to define nxid, see nxid note.
+        node_inst = None  # - The node affiliated with this Nex type.
+        node_tree = None  # - The node.nodetree affiliated with this Nex type.
+        nxstype = ''      # - The type of socket the Nex type is using.
+        nxchar = ''       # - The short name of the nex type (for display reasons)
+
         def __init__(*args, **kwargs):
-            nxsock = None  # - The most important part of a NexType, it's association with an output socket!
-            nxsnam = ''    # - The name of the socket (if the Nex instance is related to an input or output socket, if else will be blank)
-            nxid = None    # - In order to not constantly rebuild the nodetree, but still update 
-                           #    some python evaluated values to the nodetree constants (nodes starting with "C|" in the tree)
-                           #    we need to have some sort of stable id for our nex Instances.
-                           #    the problem is that these instances can be anonymous. So here i've decided to identify by instance generation count.
+            nxsock = None # - The most important part of a NexType, it's association with an output socket!
+            nxsnam = ''   # - The name of the socket (if the Nex instance is related to an input or output socket, if else will be blank)
+            nxid = None   # - In order to not constantly rebuild the nodetree, but still update 
+                          #    some python evaluated values to the nodetree constants (nodes starting with "C|" in the tree)
+                          #    we need to have some sort of stable id for our nex Instances.
+                          #    the problem is that these instances can be anonymous. So here i've decided to identify by instance generation count.
 
         def __repr__(self):
             return f"<{self.nxstype}{self.nxid}>"
@@ -827,7 +826,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
             ALLOUTPUTS.append(socket_name)
             if ('Error' in socket_name):
                 raise NexError("SocketNameError. Cannot use 'Error' as an output socket.")
-                    
+
             self.nxid = NexOutput.init_counter
             NexOutput.init_counter += 1
 
