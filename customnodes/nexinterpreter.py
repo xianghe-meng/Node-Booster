@@ -259,62 +259,37 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         user_script = self.user_textdata.as_string()
         
         #capture the inputs/outputs later on execution.
-        all_inputs_names = []
-        all_outputs_names = []
-        kwargs = all_inputs_names, all_outputs_names
         
         #define all possible Nex types & functions the user can toy with
-        #TODO maybe it's best that the factory is executed only once. There's a lot of procedural typedef here..
-        nexfunctions = NexFactory(self, 'NexFunctions',)
-        nexintypes = {
-            # NodeSocketBool
-            # NodeSocketInt
-            'infloat': NexFactory(self, 'NexFloat', '', *kwargs,),
-            'invec': NexFactory(self, 'NexVec', '', *kwargs,),
-            # NodeSocketColor
-            # NodeSocketRotation
-            # NodeSocketMatrix
-            }
-        nexoutypes = {
-            'outbool': NexFactory(self, 'NexOutput', 'NodeSocketBool', *kwargs,),
-            'outint': NexFactory(self, 'NexOutput', 'NodeSocketInt', *kwargs,),
-            'outfloat': NexFactory(self, 'NexOutput', 'NodeSocketFloat', *kwargs,),
-            'outvec': NexFactory(self, 'NexOutput', 'NodeSocketVector', *kwargs,),
-            'outcol': NexFactory(self, 'NexOutput', 'NodeSocketColor', *kwargs,),
-            'outquat': NexFactory(self, 'NexOutput', 'NodeSocketRotation', *kwargs,),
-            'outmat': NexFactory(self, 'NexOutput', 'NodeSocketMatrix', *kwargs,),
-            'outauto': NexFactory(self, 'NexOutput', '',                *kwargs,),
-            }
-        nextypes = {**nexintypes, **nexoutypes}
+        all_inputs_names = [] #capture on Nextype initalization.
+        all_outputs_names = []
+        nextoys = NexFactory(self, all_inputs_names, all_outputs_names,)
 
         # Synthax:
         # replace varname:infloat=REST with varname=infloat('varname',REST) & remove comments
         # much better workflow for artists to use python type indications IMO
-        final_script = transform_nex_script(user_script, nextypes.keys(),)
+        final_script = transform_nex_script(user_script, nextoys['nexusertypes'].keys(),)
         
         #did the user changes stuff in the script?
-        cache_script = ''
+        cached_script = ''
         cache_name = f".boostercache.{self.user_textdata.name}"
         cache_text = bpy.data.texts.get(cache_name)
         if (cache_text is not None):
-              cache_script = cache_text.as_string()
-        is_dirty = (final_script!=cache_script)
+              cached_script = cache_text.as_string()
+        is_dirty = (final_script!=cached_script)
         
         # If user modified the script, the script will need a rebuild.
         if (is_dirty or rebuild):
-
             #Clean up nodes.. we'll rebuild the nodetree
             self.cleanse_nodes()
-
             # We set the first node active (node arrangement in nodesetter.py module is based on active)
             ng.nodes.active = in_nod
-            
             #when initalizing the NexTypes, the inputs/outputs sockets will be created.
         
         # Namespace, we inject Nex types in user namespace
         exec_namespace = {}
-        exec_namespace.update(nextypes)
-        exec_namespace.update(nexfunctions)
+        exec_namespace.update(nextoys['nexusertypes'])
+        exec_namespace.update(nextoys['nexuserfunctions'])
         script_vars = {} #catch variables from exec?
 
         # for debug mode, we execute without try except to catch 'real' errors with more details. 
