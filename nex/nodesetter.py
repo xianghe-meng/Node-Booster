@@ -4,7 +4,7 @@
 
 # NOTE this module gather all kind of math function for sockets
 #  when executing these functions, it will create and link new nodes automatically, from sockets to sockets.
-#  the 'update_if_exists' parameter will only update potential default values of existing nodes.
+#  the '_reusedata' parameter will only update potential default values of existing nodes.
 
 
 import bpy 
@@ -52,12 +52,12 @@ def tag_function(*tags):
     
 def get_nodesetter_functions(tag='', default_ng=None,):
     """get all functions and their names, depending on function types
-    optionally, pass the default ng. The 'update_if_exists' functionality of the functions will be disabled"""
+    optionally, pass the default ng. The '_reusedata' functionality of the functions will be disabled"""
 
     filtered_functions = [f for f in TAGGED if (tag in f.tags)]
 
     # If a default node group argument is provided, use functools.partial to bind it
-    if (default_ng):
+    if (default_ng is not None):
         filtered_functions = [partial(f, default_ng,) for f in filtered_functions]
 
     return filtered_functions
@@ -99,17 +99,17 @@ def _floatmath(ng,
     val1:sFlo|sInt|sBoo|float|int=None,
     val2:sFlo|sInt|sBoo|float|int=None,
     val3:sFlo|sInt|sBoo|float|int=None,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """generic operation for adding a float math node and linking.
-    if 'update_if_exists' is passed the function shall only but update values of existing node, not adding new nodes"""
+    if '_reusedata' is passed the function shall only but update values of existing node, not adding new nodes"""
 
     node = None
     args = (val1, val2, val3,)
     needs_linking = False
 
-    if (update_if_exists):
-        node = ng.nodes.get(update_if_exists)
+    if (_reusedata):
+        node = ng.nodes.get(_reusedata)
 
     if (node is None):
         last = ng.nodes.active
@@ -123,8 +123,8 @@ def _floatmath(ng,
         ng.nodes.active = node #Always set the last node active for the final link
         
         needs_linking = True
-        if (update_if_exists):
-            node.name = node.label = update_if_exists #Tag the node, in order to avoid unessessary build
+        if (_reusedata):
+            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
     
     for i,val in enumerate(args):
         match val:
@@ -138,11 +138,9 @@ def _floatmath(ng,
                     node.inputs[i].default_value = val
                     assert_purple_node(node)
 
-            case None:
-                pass
+            case None: pass
 
-            case _:
-                raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatmath(). Recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatmath(). Recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
@@ -150,17 +148,17 @@ def _vecmath(ng,
     operation_type:str,
     val1:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
     val2:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sVec:
     """Generic operation for adding a vector math node and linking.
-    If 'update_if_exists' is provided, update the existing node; otherwise, create a new one."""
+    If '_reusedata' is provided, update the existing node; otherwise, create a new one."""
 
     node = None
     args = (val1, val2)
     needs_linking = False
 
-    if (update_if_exists):
-        node = ng.nodes.get(update_if_exists)
+    if (_reusedata):
+        node = ng.nodes.get(_reusedata)
 
     if (node is None):
         last = ng.nodes.active
@@ -173,8 +171,8 @@ def _vecmath(ng,
         ng.nodes.active = node
     
         needs_linking = True
-        if (update_if_exists):
-            node.name = node.label = update_if_exists
+        if (_reusedata):
+            node.name = node.label = _reusedata
 
     for i, val in enumerate(args):
         match val:
@@ -194,11 +192,9 @@ def _vecmath(ng,
                     node.inputs[i].default_value = val
                     assert_purple_node(node)
 
-            case None:
-                pass
+            case None: pass
 
-            case _:
-                raise InvalidTypePassedToSocket(f"ArgsTypeError for _vecmath(). Received unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _vecmath(). Received unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
@@ -206,115 +202,115 @@ def _vecmath(ng,
 def add(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo|sVec:
     """Addition.\nEquivalent to the '+' symbol."""
     if check_any_type(a,b,types=(Vector,sVec),):
-        return _vecmath(ng,'ADD',a,b, update_if_exists=update_if_exists,)
-    return _floatmath(ng,'ADD',a,b, update_if_exists=update_if_exists,)
+        return _vecmath(ng,'ADD',a,b, _reusedata=_reusedata,)
+    return _floatmath(ng,'ADD',a,b, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def sub(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo|sVec:
     """Subtraction.\nEquivalent to the '-' symbol."""
     if check_any_type(a,b,types=(Vector,sVec),):
-        return _vecmath(ng,'SUBTRACT',a,b, update_if_exists=update_if_exists,)
-    return _floatmath(ng,'SUBTRACT',a,b, update_if_exists=update_if_exists,)
+        return _vecmath(ng,'SUBTRACT',a,b, _reusedata=_reusedata,)
+    return _floatmath(ng,'SUBTRACT',a,b, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def mult(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo|sVec:
     """Multiplications.\nEquivalent to the '*' symbol."""
     if check_any_type(a,b,types=(Vector,sVec),):
-        return _vecmath(ng,'MULTIPLY',a,b, update_if_exists=update_if_exists,)
-    return _floatmath(ng,'MULTIPLY',a,b, update_if_exists=update_if_exists,)
+        return _vecmath(ng,'MULTIPLY',a,b, _reusedata=_reusedata,)
+    return _floatmath(ng,'MULTIPLY',a,b, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def div(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo|sVec:
     """Division.\nEquivalent to the '/' symbol."""
     if check_any_type(a,b,types=(Vector,sVec),):
-        return _vecmath(ng,'DIVIDE',a,b, update_if_exists=update_if_exists,)
-    return _floatmath(ng,'DIVIDE',a,b, update_if_exists=update_if_exists,)
+        return _vecmath(ng,'DIVIDE',a,b, _reusedata=_reusedata,)
+    return _floatmath(ng,'DIVIDE',a,b, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def pow(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo|sVec:
     """A Power n.\nEquivalent to the 'a**n' and '²' symbol."""
     if check_any_type(a,n,types=(Vector,sVec),):
-        return _vecmath(ng,'POWER',a,n, update_if_exists=update_if_exists,)
-    return _floatmath(ng,'POWER',a,n, update_if_exists=update_if_exists,)
+        return _vecmath(ng,'POWER',a,n, _reusedata=_reusedata,)
+    return _floatmath(ng,'POWER',a,n, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def log(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Logarithm A base B."""
-    return _floatmath(ng,'LOGARITHM',a,b, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'LOGARITHM',a,b, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def sqrt(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Square Root of A."""
-    return _floatmath(ng,'SQRT',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'SQRT',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def invsqrt(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """1/ Square Root of A."""
-    return _floatmath(ng,'INVERSE_SQRT',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'INVERSE_SQRT',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def nroot(ng,
     a:sFlo|sInt|sBoo|float|int,
     n:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """A Root N. a**(1/n.)"""
     
-    if (update_if_exists): #this function is created multiple nodes so we need multiple tag
-          _x = div(ng,1,n, update_if_exists=f"{update_if_exists}|inner",)
+    if (_reusedata): #this function is created multiple nodes so we need multiple tag
+          _x = div(ng,1,n, _reusedata=f"{_reusedata}|inner",)
     else: _x = div(ng,1,n,)
 
-    _r = pow(ng,a,_x, update_if_exists=update_if_exists,)
+    _r = pow(ng,a,_x, _reusedata=_reusedata,)
     frame_nodes(ng, _x.node, _r.node, label='nRoot',)
     return _r
 
 @tag_function('mathex')
 def abs(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo|sVec:
     """Absolute of A."""
     if check_any_type(a,types=(Vector,sVec),):
-        return _vecmath(ng,'ABSOLUTE',a, update_if_exists=update_if_exists,)
-    return _floatmath(ng,'ABSOLUTE',a, update_if_exists=update_if_exists,)
+        return _vecmath(ng,'ABSOLUTE',a, _reusedata=_reusedata,)
+    return _floatmath(ng,'ABSOLUTE',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def neg(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo|sVec:
     """Negate the value of A.\nEquivalent to the symbol '-x.'"""
-    _r = sub(ng,0,a, update_if_exists=update_if_exists,)
+    _r = sub(ng,0,a, _reusedata=_reusedata,)
     frame_nodes(ng, _r.node, label='Negate',)
     return _r
 
@@ -322,250 +318,250 @@ def neg(ng,
 def min(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Minimum between A & B."""
-    return _floatmath(ng,'MINIMUM',a,b, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'MINIMUM',a,b, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def smin(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     dist:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Minimum between A & B considering a smoothing distance."""
-    return _floatmath(ng,'SMOOTH_MIN',a,b,dist, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'SMOOTH_MIN',a,b,dist, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def max(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Maximum between A & B."""
-    return _floatmath(ng,'MAXIMUM',a,b, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'MAXIMUM',a,b, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def smax(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     dist:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Maximum between A & B considering a smoothing distance."""
-    return _floatmath(ng,'SMOOTH_MAX',a,b,dist, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'SMOOTH_MAX',a,b,dist, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def round(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Round a Float to an Integer."""
-    return _floatmath(ng,'ROUND',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'ROUND',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def floor(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo|sVec:
     """Floor a Float to an Integer."""
     if check_any_type(a,types=(Vector,sVec),):
-        return _vecmath(ng,'FLOOR',a, update_if_exists=update_if_exists,)
-    return _floatmath(ng,'FLOOR',a, update_if_exists=update_if_exists,)
+        return _vecmath(ng,'FLOOR',a, _reusedata=_reusedata,)
+    return _floatmath(ng,'FLOOR',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def ceil(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Ceil a Float to an Integer."""
-    return _floatmath(ng,'CEIL',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'CEIL',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def trunc(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Trunc a Float to an Integer."""
-    return _floatmath(ng,'TRUNC',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'TRUNC',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def frac(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Fraction.\nThe fraction part of A."""
-    return _floatmath(ng,'FRACT',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'FRACT',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def mod(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo|sVec:
     """Modulo.\nEquivalent to the '%' symbol."""
     if check_any_type(a,b,types=(Vector,sVec),):
-        return _vecmath(ng,'MODULO',a,b, update_if_exists=update_if_exists,)
-    return _floatmath(ng,'MODULO',a,b, update_if_exists=update_if_exists,)
+        return _vecmath(ng,'MODULO',a,b, _reusedata=_reusedata,)
+    return _floatmath(ng,'MODULO',a,b, _reusedata=_reusedata,)
     
 @tag_function('mathex')
 def fmod(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Floored Modulo."""
-    return _floatmath(ng,'FLOORED_MODULO',a,b, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'FLOORED_MODULO',a,b, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def wrap(ng,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Wrap value to Range A B."""
-    return _floatmath(ng,'WRAP',v,a,b, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'WRAP',v,a,b, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def snap(ng,
     v:sFlo|sInt|sBoo|float|int,
     i:sFlo|sInt|sBoo|float|int, 
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Snap to Increment."""
-    return _floatmath(ng,'SNAP',v,i, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'SNAP',v,i, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def pingpong(ng,
     v:sFlo|sInt|sBoo|float|int,
     scale:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """PingPong. Wrap a value and every other cycles at cycle Scale."""
-    return _floatmath(ng,'PINGPONG',v,scale, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'PINGPONG',v,scale, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def floordiv(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo|sVec:
     """Floor Division.\nEquivalent to the '//' symbol."""
 
-    if (update_if_exists): #this function is created multiple nodes so we need multiple tag
-          _x = div(ng,a,b,update_if_exists=f"{update_if_exists}|inner",)
+    if (_reusedata): #this function is created multiple nodes so we need multiple tag
+          _x = div(ng,a,b,_reusedata=f"{_reusedata}|inner",)
     else: _x = div(ng,a,b)
 
-    _r = floor(ng,_x,update_if_exists=update_if_exists)
+    _r = floor(ng,_x,_reusedata=_reusedata)
     frame_nodes(ng, _x.node, _r.node, label='FloorDiv',)
     return _r
 
 @tag_function('mathex')
 def sin(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """The Sine of A."""
-    return _floatmath(ng,'SINE',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'SINE',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def cos(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """The Cosine of A."""
-    return _floatmath(ng,'COSINE',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'COSINE',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def tan(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """The Tangent of A."""
-    return _floatmath(ng,'TANGENT',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'TANGENT',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def asin(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """The Arcsine of A."""
-    return _floatmath(ng,'ARCSINE',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'ARCSINE',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def acos(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """The Arccosine of A."""
-    return _floatmath(ng,'ARCCOSINE',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'ARCCOSINE',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def atan(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """The Arctangent of A."""
-    return _floatmath(ng,'ARCTANGENT',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'ARCTANGENT',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def hsin(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """The Hyperbolic Sine of A."""
-    return _floatmath(ng,'SINH',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'SINH',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def hcos(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """The Hyperbolic Cosine of A."""
-    return _floatmath(ng,'COSH',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'COSH',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def htan(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """The Hyperbolic Tangent of A."""
-    return _floatmath(ng,'TANH',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'TANH',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def rad(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Convert from Degrees to Radians."""
-    return _floatmath(ng,'RADIANS',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'RADIANS',a, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def deg(ng,
     a:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Convert from Radians to Degrees."""
-    return _floatmath(ng,'DEGREES',a, update_if_exists=update_if_exists,)
+    return _floatmath(ng,'DEGREES',a, _reusedata=_reusedata,)
 
 def _mix(ng,
     data_type:str,
     val1:sFlo|sInt|sBoo|float|int=None,
     val2:sFlo|sInt|sBoo|float|int=None,
     val3:sFlo|sInt|sBoo|float|int=None,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """generic operation for adding a mix node and linking.
-    if 'update_if_exists' is passed the function shall only but update values of existing node, not adding new nodes"""
+    if '_reusedata' is passed the function shall only but update values of existing node, not adding new nodes"""
 
     node = None
     args = (val1, val2, val3,)
     needs_linking = False
 
-    if (update_if_exists):
-        node = ng.nodes.get(update_if_exists)
+    if (_reusedata):
+        node = ng.nodes.get(_reusedata)
 
     if (node is None):
         last = ng.nodes.active
@@ -579,8 +575,8 @@ def _mix(ng,
         ng.nodes.active = node #Always set the last node active for the final link
         
         needs_linking = True
-        if (update_if_exists):
-            node.name = node.label = update_if_exists #Tag the node, in order to avoid unessessary build
+        if (_reusedata):
+            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
 
     # Need to choose socket depending on node data_type (hidden sockets)
     indexes = None
@@ -604,11 +600,9 @@ def _mix(ng,
                     node.inputs[i].default_value = val
                     assert_purple_node(node)
 
-            case None:
-                pass
+            case None: pass
 
-            case _:
-                raise InvalidTypePassedToSocket(f"ArgsTypeError for _mix(). Recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _mix(). Recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
@@ -617,27 +611,27 @@ def lerp(ng,
     f:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Mix.\nLinear Interpolation of value A and B from given factor."""
-    return _mix(ng,'FLOAT',f,a,b, update_if_exists=update_if_exists,)
+    return _mix(ng,'FLOAT',f,a,b, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def mix(ng,
     f:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo: 
     """Alternative notation to lerp() function."""
-    return lerp(ng,f,a,b, update_if_exists=update_if_exists,)
+    return lerp(ng,f,a,b, _reusedata=_reusedata,)
 
 def _floatclamp(ng,
     clamp_type:str,
     val1:sFlo|sInt|sBoo|float|int=None,
     val2:sFlo|sInt|sBoo|float|int=None,
     val3:sFlo|sInt|sBoo|float|int=None,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """generic operation for adding a mix node and linking"""
 
@@ -645,8 +639,8 @@ def _floatclamp(ng,
     args = (val1, val2, val3,)
     needs_linking = False
 
-    if (update_if_exists):
-        node = ng.nodes.get(update_if_exists)
+    if (_reusedata):
+        node = ng.nodes.get(_reusedata)
 
     if (node is None):
         last = ng.nodes.active
@@ -659,8 +653,8 @@ def _floatclamp(ng,
         ng.nodes.active = node #Always set the last node active for the final link
         
         needs_linking = True
-        if (update_if_exists):
-            node.name = node.label = update_if_exists #Tag the node, in order to avoid unessessary build
+        if (_reusedata):
+            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
 
     for i,val in enumerate(args):
         match val:
@@ -676,11 +670,9 @@ def _floatclamp(ng,
                     node.inputs[i].default_value = val
                     assert_purple_node(node)
 
-            case None:
-                pass
+            case None: pass
 
-            case _:
-                raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatclamp(). Recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatclamp(). Recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
@@ -689,20 +681,20 @@ def clamp(ng,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Clamp value between min an max."""
-    return _floatclamp(ng,'MINMAX',v,a,b, update_if_exists=update_if_exists,)
+    return _floatclamp(ng,'MINMAX',v,a,b, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def clampr(ng,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Clamp value between auto-defined min/max."""
-    return _floatclamp(ng,'RANGE',v,a,b, update_if_exists=update_if_exists,)
+    return _floatclamp(ng,'RANGE',v,a,b, _reusedata=_reusedata,)
 
 def _maprange(ng,
     data_type:str,
@@ -713,7 +705,7 @@ def _maprange(ng,
     val4:sFlo|sInt|sBoo|float|int=None,
     val5:sFlo|sInt|sBoo|float|int=None,
     val6:sFlo|sInt|sBoo|float|int=None,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """generic operation for adding a remap node and linking"""
 
@@ -721,8 +713,8 @@ def _maprange(ng,
     args = (val1, val2, val3, val4, val5, val6,)
     needs_linking = False
 
-    if (update_if_exists):
-        node = ng.nodes.get(update_if_exists)
+    if (_reusedata):
+        node = ng.nodes.get(_reusedata)
 
     if (node is None):
         last = ng.nodes.active
@@ -737,8 +729,8 @@ def _maprange(ng,
         ng.nodes.active = node #Always set the last node active for the final link
         
         needs_linking = True
-        if (update_if_exists):
-            node.name = node.label = update_if_exists #Tag the node, in order to avoid unessessary build
+        if (_reusedata):
+            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
 
     for i,val in enumerate(args):
         match val:
@@ -754,11 +746,9 @@ def _maprange(ng,
                     node.inputs[i].default_value = val
                     assert_purple_node(node)
 
-            case None:
-                pass
+            case None: pass
 
-            case _:
-                raise InvalidTypePassedToSocket(f"ArgsTypeError for _maprange(). Recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _maprange(). Recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
@@ -769,10 +759,10 @@ def map(ng,
     b:sFlo|sInt|sBoo|float|int,
     x:sFlo|sInt|sBoo|float|int,
     y:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
-    return _maprange(ng,'FLOAT','LINEAR',val,a,b,x,y, update_if_exists=update_if_exists,)
+    return _maprange(ng,'FLOAT','LINEAR',val,a,b,x,y, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def mapst(ng,
@@ -782,10 +772,10 @@ def mapst(ng,
     x:sFlo|sInt|sBoo|float|int,
     y:sFlo|sInt|sBoo|float|int,
     step:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
-    return _maprange(ng,'FLOAT','STEPPED',val,a,b,x,y,step, update_if_exists=update_if_exists,)
+    return _maprange(ng,'FLOAT','STEPPED',val,a,b,x,y,step, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def mapsmo(ng,
@@ -794,10 +784,10 @@ def mapsmo(ng,
     b:sFlo|sInt|sBoo|float|int,
     x:sFlo|sInt|sBoo|float|int,
     y:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
-    return _maprange(ng,'FLOAT','SMOOTHSTEP',val,a,b,x,y, update_if_exists=update_if_exists,)
+    return _maprange(ng,'FLOAT','SMOOTHSTEP',val,a,b,x,y, _reusedata=_reusedata,)
 
 @tag_function('mathex')
 def mapsmoo(ng,
@@ -806,16 +796,17 @@ def mapsmoo(ng,
     b:sFlo|sInt|sBoo|float|int,
     x:sFlo|sInt|sBoo|float|int,
     y:sFlo|sInt|sBoo|float|int,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> sFlo:
     """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
-    return _maprange(ng,'FLOAT','SMOOTHERSTEP',val,a,b,x,y, update_if_exists=update_if_exists,)
+    return _maprange(ng,'FLOAT','SMOOTHERSTEP',val,a,b,x,y, _reusedata=_reusedata,)
 
-@tag_function('nexscript')
+@tag_function('nexfct')
 def separate_xyz(ng,
     v:sVec,
-    update_if_exists:str='',
+    _reusedata:str='',
     ) -> tuple:
+    """Separate a SocketVector into 3 SocketFloat.\nTip: you can use python slicing notations to do that instead."""
 
     if (type(v) is not sVec):
         raise InvalidTypePassedToSocket(f"ArgsTypeError for separate_xyz(). Recieved unsupported type '{type(v).__name__}'")
@@ -823,8 +814,8 @@ def separate_xyz(ng,
     node = None
     needs_linking = False
     
-    if (update_if_exists):
-        node = ng.nodes.get(update_if_exists)
+    if (_reusedata):
+        node = ng.nodes.get(_reusedata)
     
     if (node is None):
         last = ng.nodes.active
@@ -836,13 +827,61 @@ def separate_xyz(ng,
         ng.nodes.active = node #Always set the last node active for the final link
         
         needs_linking = True
-        if (update_if_exists):
-            node.name = node.label = update_if_exists
+        if (_reusedata):
+            node.name = node.label = _reusedata
 
     if (needs_linking):
         link_sockets(v, node.inputs[0])
 
     return tuple(node.outputs)
+
+@tag_function('nexfct')
+def combine_xyz(ng,
+    x:sFlo|sInt|sBoo|float|int,
+    y:sFlo|sInt|sBoo|float|int,
+    z:sFlo|sInt|sBoo|float|int,
+    _reusedata:str='',
+    ) -> sVec:
+    """Combine 3 SocketFloat (or python values) into a SocketVector"""
+
+    node = None
+    needs_linking = False
+
+    if (_reusedata):
+        node = ng.nodes.get(_reusedata)
+
+    if (node is None):
+        last = ng.nodes.active
+        if last:
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0, 200,)
+        node = ng.nodes.new('ShaderNodeCombineXYZ')
+        node.location = location
+        ng.nodes.active = node
+        needs_linking = True
+        if (_reusedata):
+            node.name = node.label = _reusedata
+
+    for i, val in enumerate((x, y, z)):
+        match val:
+
+            case sFlo() | sInt() | sBoo():
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+
+            case float() | int() | bool():
+                if type(val) is bool:
+                    val = float(val)
+                if (node.inputs[i].default_value!=val):
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case None: pass
+
+            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for combine_xyz(). Received unsupported type '{type(val).__name__}'")
+
+    return node.outputs[0]
+
 
 
 #TODO support comparison functions

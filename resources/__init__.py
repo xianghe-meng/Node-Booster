@@ -61,7 +61,6 @@ def cust_icon(str_value):
 def load_icons():
 
     global PREVIEWS_ICONS
-    print(CURRENT_DIR)
     PREVIEWS_ICONS = get_previews_from_directory(CURRENT_DIR, extension=".png",)
 
     return None 

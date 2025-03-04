@@ -58,8 +58,7 @@ from ..utils.node_utils import (
 )
 
 
-NEXEQUIVALENCE = {
-
+NEXUSER_EQUIVALENCE = {
     #inputs
     'inbool':  'NodeSocketBool',
     'inint':   'NodeSocketInt',
@@ -68,7 +67,6 @@ NEXEQUIVALENCE = {
     'incol':   'NodeSocketColor',
     'inquat':  'NodeSocketRotation',
     'inmat':   'NodeSocketMatrix',
-
     #outputs
     'outbool': 'NodeSocketBool',
     'outint':  'NodeSocketInt',
@@ -77,14 +75,35 @@ NEXEQUIVALENCE = {
     'outcol':  'NodeSocketColor',
     'outquat': 'NodeSocketRotation',
     'outmat':  'NodeSocketMatrix',
-
-}
+    'outauto': 'Any..',
+    }
 
 
 class NexError(Exception):
     def __init__(self, message):
         super().__init__(message)
 
+
+def create_Nex_tag(sockfunc, *nex_or_py_variables, startchar='F',):
+    """generate an unique tag for a function and their args"""
+
+    NexType = None
+    for v in nex_or_py_variables:
+        if ('Nex' in type(v).__name__):
+            NexType = v
+            break
+    assert NexType is not None, f"Error, we should've found a Nex variable in {nex_or_py_variables}]"
+    
+    argtags = []
+    for v in nex_or_py_variables:
+        if ('Nex' in type(v).__name__):
+            argtags.append(f"{v.nxchar}{v.nxid}")
+            continue
+        argtags.append(f"PY{type(v).__name__.lower()[0]}{NexType.init_counter}")
+        continue
+
+    uniquetag = f"{startchar}|{NexType.nxchar}.{sockfunc.__name__}({','.join(argtags)})"
+    return uniquetag
 
 def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None,):
     """call the sockfunc related to the operand with sockets of our NexTypes, and return a 
@@ -94,27 +113,18 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
     link the nodes if there's no need to do so, as a Nex script can be executed very frequently. 
     
     We tag them using the Nex id and types to ensure uniqueness of our values. If a tag already exists, 
-    the 'update_if_exists' parameter of the nodesetter functions will make sure to only update the values
+    the '_reusedata' parameter of the nodesetter functions will make sure to only update the values
     of an existing node that already exists"""
     
     # Below, We generate an unique tag from the function and args & transoform nex args to sockets
     # ex: 'F|f.pow(f4,f5)'
-    #     'F|f.mult(f2,Py6Int)' 
+    #     'F|f.mult(f2,Py6Int)'
 
-    argtags = []
-    sock_or_py_variables = []
-    for v in nex_or_py_variables:
-        if ('Nex' in type(v).__name__):
-            argtags.append(f"{v.nxchar}{v.nxid}")
-            sock_or_py_variables.append(v.nxsock)
-            continue
-        argtags.append(f"PY{type(v).__name__.lower()[0]}{NexType.init_counter}")
-        sock_or_py_variables.append(v)
-        continue
-    uniquetag = f"F|{NexType.nxchar}.{sockfunc.__name__}({','.join(argtags)})"
+    uniquetag = create_Nex_tag(sockfunc, *nex_or_py_variables)
+    sock_or_py_variables = [v.nxsock if ('Nex' in type(v).__name__) else v for v in nex_or_py_variables]
 
     try:
-        r = sockfunc(NexType.node_tree, *sock_or_py_variables, update_if_exists=uniquetag,)
+        r = sockfunc(NexType.node_tree, *sock_or_py_variables, _reusedata=uniquetag,)
 
     except nodesetter.InvalidTypePassedToSocket as e:
         msg = f"SocketTypeError. Function '{sockfunc.__name__}' Expected parameters in " + str(e).split('Expected parameters in ')[1]
@@ -125,12 +135,11 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
         raise
 
     # Then return a Nextype..
-    # Support for multi outputs & if output type is not the same as input with NexReturnType
-    if type(r) is tuple:
+    # (Support for multi outputs & if output type is not the same as input with NexReturnType)
+    if (type(r) is tuple):
         if (NexReturnType is not None):
             return tuple(NexReturnType(fromsocket=s) for s in r)
         return tuple(NexType(fromsocket=s) for s in r)
-
     return NexType(fromsocket=r)
 
 
@@ -171,7 +180,7 @@ def py_to_Vec3(value):
 #                                                             .o..P'      
 #                                                             `Y8P'       
 
-def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsocktype:str='', ALLINPUTS=[], ALLOUTPUTS=[],):
+def NexFactory(factor_customnode_instance, factory_itmname:str, factory_outsocktype:str='', ALLINPUTS=[], ALLOUTPUTS=[],):
     """return a nex type, which is simply an overloaded custom type that automatically arrange links and nodes and
     set default values. The nextypes will/should only build the nodetree and links when neccessary."""
 
@@ -821,10 +830,51 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                         print(e)
                         raise NexError(f"SocketTypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to output socket of type '{out_type}'.")
 
+    # 88""Yb 888888 888888 88   88 88""Yb 88b 88     
+    # 88__dP 88__     88   88   88 88__dP 88Yb88     
+    # 88"Yb  88""     88   Y8   8P 88"Yb  88 Y88     
+    # 88  Yb 888888   88   `YbodP' 88  Yb 88  Y8     
+    
+    # return a dict of Nex functions? All functions are defined in nodesetter and expect socket types, so we need to wrap the types into Nex                                                                      
+    if (factory_itmname=='NexFunctions'):
+        
+        def autosetNexType(socket):
+            """automatically convert a node socket to Nex"""
+            match socket:
+                # case bpy.types.NodeSocketBool(): return NexBool(fromsocket=socket)
+                # case bpy.types.NodeSocketInt(): return NexInt(fromsocket=socket)
+                case bpy.types.NodeSocketFloat(): return NexFloat(fromsocket=socket)
+                case bpy.types.NodeSocketVector(): return NexVec(fromsocket=socket)
+                # case bpy.types.NodeSocketColor(): return NexCol(fromsocket=socket)
+                # case bpy.types.NodeSocketRotation(): return NexQuat(fromsocket=socket)
+                # case bpy.types.NodeSocketMatrix(): return NexMtx(fromsocket=socket)
+                case _: raise Exception(f"ERROR: autosetNexType(): Unrecognized '{socket}' of type '{type(socket).__name__}'")
+            return None
+
+        def sockfunction_Nex_wrapper(sockfunc, default_ng=None,):
+            """wrap a nodesetter function to transform it into a Nex functions, nodesetter fct always expecting socket or py variables
+            & return sockets or tuple of sockets. Function similar to 'call_Nex_operand' but more general"""
+            def wrapped_func(*args, **kwargs):
+                #define reuse taga unique tag to ensure the function is not generated on each nex script run
+                kwargs['_reusedata'] = create_Nex_tag(sockfunc, *args, startchar='nF',)
+                #define default fct args with default ng & convert nex to sockets
+                newargs = []
+                newargs += [default_ng]
+                newargs += [v.nxsock if ('Nex' in type(v).__name__) else v for v in args] #we did that previously with 'sock_or_py_variables'
+                #execute the function
+                r = sockfunc(*newargs, **kwargs)
+                #automatically convert socket returns to nex
+                if (type(r) is tuple):
+                    return tuple(autosetNexType(s) for s in r)
+                return autosetNexType(r)
+            return wrapped_func
+
+        ng = factor_customnode_instance.node_tree
+        return {f.__name__ : sockfunction_Nex_wrapper(f, default_ng=ng) for f in nodesetter.get_nodesetter_functions(tag='nexfct')}
 
     # return the class
-    ReturnClass = locals().get(factory_classname)
+    ReturnClass = locals().get(factory_itmname)
     if (ReturnClass is None):
-        raise Exception(f"Type '{factory_classname}' not supported")
+        raise Exception(f"Factory error: Type '{factory_itmname}' not supported")
 
     return ReturnClass

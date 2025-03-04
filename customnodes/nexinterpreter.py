@@ -11,7 +11,7 @@ import re, traceback
 
 from ..__init__ import get_addon_prefs
 from ..resources import cust_icon
-from ..nex.nextypes import NexFactory, NexError, NEXEQUIVALENCE
+from ..nex.nextypes import NexFactory, NexError
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     get_socket,
@@ -263,7 +263,9 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         all_outputs_names = []
         kwargs = all_inputs_names, all_outputs_names
         
-        #define all possible Nex types user can toy with
+        #define all possible Nex types & functions the user can toy with
+        #TODO maybe it's best that the factory is executed only once. There's a lot of procedural typedef here..
+        nexfunctions = NexFactory(self, 'NexFunctions',)
         nexintypes = {
             # NodeSocketBool
             # NodeSocketInt
@@ -312,6 +314,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         # Namespace, we inject Nex types in user namespace
         exec_namespace = {}
         exec_namespace.update(nextypes)
+        exec_namespace.update(nexfunctions)
         script_vars = {} #catch variables from exec?
 
         # for debug mode, we execute without try except to catch 'real' errors with more details. 
