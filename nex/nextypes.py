@@ -862,6 +862,25 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
     
     # Return our premade types and function that the factory made for the specific NexInterpreter node context.                                                                     
 
+    nextoys = {}
+    nextoys['nexusertypes'] = {
+        # 'inbool':NexBool,
+        # 'inint':NexInt,
+        'infloat':NexFloat,
+        'invec':NexVec,
+        # 'incol':NexCol,
+        # 'inquat':NexQuat,
+        # 'inmat':NexMtx,
+        'outbool':NexOutputBool,
+        'outint':NexOutputInt,
+        'outfloat':NexOutputFloat,
+        'outvec':NexOutputVec,
+        'outcol':NexOutputCol,
+        'outquat':NexOutputQuat,
+        'outmat':NexOutputMtx,
+        'outauto':NexOutputAuto,
+        }
+
     def autosetNexType(socket):
         """automatically convert a node socket to Nex"""
         match socket:
@@ -886,33 +905,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             newargs += [default_ng]
             newargs += [v.nxsock if ('Nex' in type(v).__name__) else v for v in args] #we did that previously with 'sock_or_py_variables'
             #execute the function
-            r = sockfunc(*newargs, **kwargs)
+            try:
+                r = sockfunc(*newargs, **kwargs)
+            except nodesetter.InvalidTypePassedToSocket as e:
+                msg = f"SocketTypeError. Function '{sockfunc.__name__}' Expected parameters in " + str(e).split('Expected parameters in ')[1]
+                raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.
+            except Exception as e:
+                print(f"ERROR: sockfunction_Nex_wrapper.sockfunc() caught error {type(e).__name__}")
+                raise
             #automatically convert socket returns to nex
             if (type(r) is tuple):
                 return tuple(autosetNexType(s) for s in r)
             return autosetNexType(r)
         return wrapped_func
 
-    NexFunctions = {f.__name__ : sockfunction_Nex_wrapper(f, default_ng=NODEINSTANCE.node_tree) for f in nodesetter.get_nodesetter_functions(tag='nexfct')}
+    generalfuncs = {f.__name__ : sockfunction_Nex_wrapper(f, default_ng=NODEINSTANCE.node_tree) for f in nodesetter.get_nodesetter_functions(tag='nexgeneral')}
 
-    nextoys = {}
-    nextoys['nexusertypes'] = {
-        # 'inbool':NexBool,
-        # 'inint':NexInt,
-        'infloat':NexFloat,
-        'invec':NexVec,
-        # 'incol':NexCol,
-        # 'inquat':NexQuat,
-        # 'inmat':NexMtx,
-        'outbool':NexOutputBool,
-        'outint':NexOutputInt,
-        'outfloat':NexOutputFloat,
-        'outvec':NexOutputVec,
-        'outcol':NexOutputCol,
-        'outquat':NexOutputQuat,
-        'outmat':NexOutputMtx,
-        'outauto':NexOutputAuto,
-        }
-    nextoys['nexuserfunctions'] = NexFunctions
+    nextoys['nexuserfunctions'] = {}
+    nextoys['nexuserfunctions'].update(generalfuncs)
     
     return nextoys

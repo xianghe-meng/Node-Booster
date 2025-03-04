@@ -9,7 +9,7 @@
 
 import bpy 
 
-import inspect
+import math
 from functools import partial
 from mathutils import Vector
 
@@ -38,7 +38,7 @@ def check_any_type(*args, types:tuple=None) -> bool:
     """Returns True if any argument in *args is an instance of any type in the 'types' tuple."""
     return any(isinstance(arg, types) for arg in args)
 
-def tag_function(*tags):
+def user_domain(*tags):
     """decorator to easily retrieve functions names by tag on an orderly manner at runtime"""
 
     def tag_update_decorator(fct):
@@ -70,6 +70,8 @@ def generate_documentation(tag=''):
         fargs = list(f.__code__.co_varnames[:f.__code__.co_argcount])
         if ('ng' in fargs):
             fargs.remove('ng')
+        if ('_reusedata' in fargs):
+            fargs.remove('_reusedata')
         fstr = f'{f.__name__}({", ".join(fargs)})'
         r[f.__name__] = {'repr':fstr, 'doc':f.__doc__,}
 
@@ -129,7 +131,7 @@ def _floatmath(ng,
     for i,val in enumerate(args):
         match val:
 
-            case sFlo():
+            case sFlo() | sInt() | sBoo():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -177,7 +179,7 @@ def _vecmath(ng,
     for i, val in enumerate(args):
         match val:
 
-            case sVec() | sFlo():
+            case sVec() | sFlo() | sInt() | sBoo():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -198,62 +200,62 @@ def _vecmath(ng,
 
     return node.outputs[0]
 
-@tag_function('mathex')
+@user_domain('mathex')
 def add(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Addition.\nEquivalent to the '+' symbol."""
-    if check_any_type(a,b,types=(Vector,sVec),):
+    if check_any_type(a,b,types=(sVec,),):
         return _vecmath(ng,'ADD',a,b, _reusedata=_reusedata,)
     return _floatmath(ng,'ADD',a,b, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def sub(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Subtraction.\nEquivalent to the '-' symbol."""
-    if check_any_type(a,b,types=(Vector,sVec),):
+    if check_any_type(a,b,types=(sVec,),):
         return _vecmath(ng,'SUBTRACT',a,b, _reusedata=_reusedata,)
     return _floatmath(ng,'SUBTRACT',a,b, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def mult(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Multiplications.\nEquivalent to the '*' symbol."""
-    if check_any_type(a,b,types=(Vector,sVec),):
+    if check_any_type(a,b,types=(sVec,),):
         return _vecmath(ng,'MULTIPLY',a,b, _reusedata=_reusedata,)
     return _floatmath(ng,'MULTIPLY',a,b, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def div(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Division.\nEquivalent to the '/' symbol."""
-    if check_any_type(a,b,types=(Vector,sVec),):
+    if check_any_type(a,b,types=(sVec,),):
         return _vecmath(ng,'DIVIDE',a,b, _reusedata=_reusedata,)
     return _floatmath(ng,'DIVIDE',a,b, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def pow(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """A Power n.\nEquivalent to the 'a**n' and '²' symbol."""
-    if check_any_type(a,n,types=(Vector,sVec),):
+    if check_any_type(a,n,types=(sVec,),):
         return _vecmath(ng,'POWER',a,n, _reusedata=_reusedata,)
     return _floatmath(ng,'POWER',a,n, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def log(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -262,7 +264,7 @@ def log(ng,
     """Logarithm A base B."""
     return _floatmath(ng,'LOGARITHM',a,b, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def sqrt(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -270,7 +272,7 @@ def sqrt(ng,
     """Square Root of A."""
     return _floatmath(ng,'SQRT',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def invsqrt(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -278,7 +280,7 @@ def invsqrt(ng,
     """1/ Square Root of A."""
     return _floatmath(ng,'INVERSE_SQRT',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def nroot(ng,
     a:sFlo|sInt|sBoo|float|int,
     n:sFlo|sInt|sBoo|float|int,
@@ -294,17 +296,17 @@ def nroot(ng,
     frame_nodes(ng, _x.node, _r.node, label='nRoot',)
     return _r
 
-@tag_function('mathex')
+@user_domain('mathex')
 def abs(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Absolute of A."""
-    if check_any_type(a,types=(Vector,sVec),):
+    if check_any_type(a,types=(sVec,),):
         return _vecmath(ng,'ABSOLUTE',a, _reusedata=_reusedata,)
     return _floatmath(ng,'ABSOLUTE',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def neg(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
@@ -314,7 +316,7 @@ def neg(ng,
     frame_nodes(ng, _r.node, label='Negate',)
     return _r
 
-@tag_function('mathex')
+@user_domain('mathex')
 def min(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -323,7 +325,7 @@ def min(ng,
     """Minimum between A & B."""
     return _floatmath(ng,'MINIMUM',a,b, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def smin(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -333,7 +335,7 @@ def smin(ng,
     """Minimum between A & B considering a smoothing distance."""
     return _floatmath(ng,'SMOOTH_MIN',a,b,dist, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def max(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -342,7 +344,7 @@ def max(ng,
     """Maximum between A & B."""
     return _floatmath(ng,'MAXIMUM',a,b, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def smax(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -352,7 +354,7 @@ def smax(ng,
     """Maximum between A & B considering a smoothing distance."""
     return _floatmath(ng,'SMOOTH_MAX',a,b,dist, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def round(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -360,17 +362,17 @@ def round(ng,
     """Round a Float to an Integer."""
     return _floatmath(ng,'ROUND',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def floor(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Floor a Float to an Integer."""
-    if check_any_type(a,types=(Vector,sVec),):
+    if check_any_type(a,types=(sVec,),):
         return _vecmath(ng,'FLOOR',a, _reusedata=_reusedata,)
     return _floatmath(ng,'FLOOR',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def ceil(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -378,7 +380,7 @@ def ceil(ng,
     """Ceil a Float to an Integer."""
     return _floatmath(ng,'CEIL',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def trunc(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -386,7 +388,7 @@ def trunc(ng,
     """Trunc a Float to an Integer."""
     return _floatmath(ng,'TRUNC',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def frac(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -394,19 +396,19 @@ def frac(ng,
     """Fraction.\nThe fraction part of A."""
     return _floatmath(ng,'FRACT',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def mod(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Modulo.\nEquivalent to the '%' symbol."""
-    if check_any_type(a,b,types=(Vector,sVec),):
+    if check_any_type(a,b,types=(sVec,),):
         return _vecmath(ng,'MODULO',a,b, _reusedata=_reusedata,)
     return _floatmath(ng,'MODULO',a,b, _reusedata=_reusedata,)
     
-@tag_function('mathex')
-def fmod(ng,
+@user_domain('mathex')
+def flooredmod(ng,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -414,7 +416,7 @@ def fmod(ng,
     """Floored Modulo."""
     return _floatmath(ng,'FLOORED_MODULO',a,b, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def wrap(ng,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -424,7 +426,7 @@ def wrap(ng,
     """Wrap value to Range A B."""
     return _floatmath(ng,'WRAP',v,a,b, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def snap(ng,
     v:sFlo|sInt|sBoo|float|int,
     i:sFlo|sInt|sBoo|float|int, 
@@ -433,7 +435,7 @@ def snap(ng,
     """Snap to Increment."""
     return _floatmath(ng,'SNAP',v,i, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def pingpong(ng,
     v:sFlo|sInt|sBoo|float|int,
     scale:sFlo|sInt|sBoo|float|int,
@@ -442,7 +444,7 @@ def pingpong(ng,
     """PingPong. Wrap a value and every other cycles at cycle Scale."""
     return _floatmath(ng,'PINGPONG',v,scale, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def floordiv(ng,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -458,7 +460,7 @@ def floordiv(ng,
     frame_nodes(ng, _x.node, _r.node, label='FloorDiv',)
     return _r
 
-@tag_function('mathex')
+@user_domain('mathex')
 def sin(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -466,7 +468,7 @@ def sin(ng,
     """The Sine of A."""
     return _floatmath(ng,'SINE',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def cos(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -474,7 +476,7 @@ def cos(ng,
     """The Cosine of A."""
     return _floatmath(ng,'COSINE',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def tan(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -482,7 +484,7 @@ def tan(ng,
     """The Tangent of A."""
     return _floatmath(ng,'TANGENT',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def asin(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -490,7 +492,7 @@ def asin(ng,
     """The Arcsine of A."""
     return _floatmath(ng,'ARCSINE',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def acos(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -498,7 +500,7 @@ def acos(ng,
     """The Arccosine of A."""
     return _floatmath(ng,'ARCCOSINE',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def atan(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -506,7 +508,7 @@ def atan(ng,
     """The Arctangent of A."""
     return _floatmath(ng,'ARCTANGENT',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def hsin(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -514,7 +516,7 @@ def hsin(ng,
     """The Hyperbolic Sine of A."""
     return _floatmath(ng,'SINH',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def hcos(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -522,7 +524,7 @@ def hcos(ng,
     """The Hyperbolic Cosine of A."""
     return _floatmath(ng,'COSH',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def htan(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -530,7 +532,7 @@ def htan(ng,
     """The Hyperbolic Tangent of A."""
     return _floatmath(ng,'TANH',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def rad(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -538,7 +540,7 @@ def rad(ng,
     """Convert from Degrees to Radians."""
     return _floatmath(ng,'RADIANS',a, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def deg(ng,
     a:sFlo|sInt|sBoo|float|int,
     _reusedata:str='',
@@ -606,7 +608,7 @@ def _mix(ng,
 
     return node.outputs[0]
 
-@tag_function('mathex')
+@user_domain('mathex')
 def lerp(ng,
     f:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -616,7 +618,7 @@ def lerp(ng,
     """Mix.\nLinear Interpolation of value A and B from given factor."""
     return _mix(ng,'FLOAT',f,a,b, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def mix(ng,
     f:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -676,7 +678,7 @@ def _floatclamp(ng,
 
     return node.outputs[0]
 
-@tag_function('mathex')
+@user_domain('mathex')
 def clamp(ng,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -686,7 +688,7 @@ def clamp(ng,
     """Clamp value between min an max."""
     return _floatclamp(ng,'MINMAX',v,a,b, _reusedata=_reusedata,)
 
-@tag_function('mathex')
+@user_domain('mathex')
 def clampr(ng,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -752,8 +754,8 @@ def _maprange(ng,
 
     return node.outputs[0]
 
-@tag_function('mathex')
-def map(ng,
+@user_domain('mathex')
+def maplin(ng,
     val:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -764,8 +766,8 @@ def map(ng,
     """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
     return _maprange(ng,'FLOAT','LINEAR',val,a,b,x,y, _reusedata=_reusedata,)
 
-@tag_function('mathex')
-def mapst(ng,
+@user_domain('mathex')
+def mapstep(ng,
     val:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -777,8 +779,8 @@ def mapst(ng,
     """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
     return _maprange(ng,'FLOAT','STEPPED',val,a,b,x,y,step, _reusedata=_reusedata,)
 
-@tag_function('mathex')
-def mapsmo(ng,
+@user_domain('mathex')
+def mapsmooth(ng,
     val:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -789,8 +791,8 @@ def mapsmo(ng,
     """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
     return _maprange(ng,'FLOAT','SMOOTHSTEP',val,a,b,x,y, _reusedata=_reusedata,)
 
-@tag_function('mathex')
-def mapsmoo(ng,
+@user_domain('mathex')
+def mapsmoother(ng,
     val:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -801,7 +803,7 @@ def mapsmoo(ng,
     """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
     return _maprange(ng,'FLOAT','SMOOTHERSTEP',val,a,b,x,y, _reusedata=_reusedata,)
 
-@tag_function('nexfct')
+@user_domain('nexgeneral')
 def separate_xyz(ng,
     v:sVec,
     _reusedata:str='',
@@ -813,10 +815,10 @@ def separate_xyz(ng,
 
     node = None
     needs_linking = False
-    
+
     if (_reusedata):
         node = ng.nodes.get(_reusedata)
-    
+
     if (node is None):
         last = ng.nodes.active
         if (last):
@@ -835,7 +837,7 @@ def separate_xyz(ng,
 
     return tuple(node.outputs)
 
-@tag_function('nexfct')
+@user_domain('nexgeneral')
 def combine_xyz(ng,
     x:sFlo|sInt|sBoo|float|int,
     y:sFlo|sInt|sBoo|float|int,
