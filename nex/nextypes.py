@@ -128,7 +128,9 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
         r = sockfunc(NexType.node_tree, *sock_or_py_variables, _reusedata=uniquetag,)
 
     except nodesetter.InvalidTypePassedToSocket as e:
-        msg = f"SocketTypeError. Function '{sockfunc.__name__}' Expected parameters in " + str(e).split('Expected parameters in ')[1]
+        msg = str(e)
+        if ('Expected parameters in' in msg):
+            msg = f"SocketTypeError. Function '{sockfunc.__name__}' Expected parameters in " + str(e).split('Expected parameters in ')[1]
         raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.
 
     except Exception as e:
@@ -828,7 +830,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     # simply link the sockets and see if it's valid
                     l = link_sockets(value.nxsock, outsock)
                     if (not l.is_valid):
-                        raise NexError(f"SocketTypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to output socket of type '{out_type}'.")
+                        raise NexError(f"SocketTypeError. Cannot assign output '{socket_name}' of type '{self.nxstype}' to '{type(value).__name__}'.")
 
 
                 # or we simply output a default python constant value
@@ -860,7 +862,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                         set_socket_defvalue(self.node_tree, value=newval, socket=outsock, in_out='OUTPUT',)
                     except Exception as e:
                         print(e)
-                        raise NexError(f"SocketTypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to output socket of type '{out_type}'.")
+                        raise NexError(f"SocketTypeError. Cannot assign output '{socket_name}' of type '{self.nxstype}' to python '{type(value).__name__}'.")
 
     class NexOutputBool(NexOutput):
         nxstype = 'NodeSocketBool'
@@ -939,7 +941,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             try:
                 r = sockfunc(*newargs, **kwargs)
             except nodesetter.InvalidTypePassedToSocket as e:
-                msg = f"SocketTypeError. Function '{sockfunc.__name__}' Expected parameters in " + str(e).split('Expected parameters in ')[1]
+                msg = str(e)
+                if ('Expected parameters in' in msg):
+                    msg = f"SocketTypeError. Function '{sockfunc.__name__}' Expected parameters in " + str(e).split('Expected parameters in ')[1]
                 raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.
             except Exception as e:
                 print(f"ERROR: sockfunction_Nex_wrapper.sockfunc() caught error {type(e).__name__}")

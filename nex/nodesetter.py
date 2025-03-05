@@ -34,10 +34,15 @@ class InvalidTypePassedToSocket(Exception):
         super().__init__(message)
 
 
-def check_any_type(*args, types:tuple=None) -> bool:
+def anytype(*args, types:tuple=None) -> bool:
     """Returns True if any argument in *args is an instance of any type in the 'types' tuple."""
     return any(isinstance(arg, types) for arg in args)
 
+def convert_args(*args, toVector=False,) -> tuple:
+    if (toVector):
+        return [Vector((a,a,a)) if type(a) in (int,bool,float) else a for a in args]
+    return None
+    
 def user_domain(*tags):
     """decorator to easily retrieve functions names by tag on an orderly manner at runtime"""
 
@@ -83,18 +88,21 @@ def assert_purple_node(node):
     #TODO maybe we set purple only if the value is continuously changing
     # clould do that by storing a node['initialvalue'] = value and check if it's changing
 
-    if not node.use_custom_color:
+    if (not node.use_custom_color):
         node.use_custom_color = True
         node.color = [0.5, 0.2, 0.6]
     
     return None
 
 
-# 88b 88  dP"Yb  8888b.  888888 .dP"Y8     .dP"Y8 888888 888888 888888 888888 88""Yb     888888  dP""b8 888888 .dP"Y8 
-# 88Yb88 dP   Yb  8I  Yb 88__   `Ybo."     `Ybo." 88__     88     88   88__   88__dP     88__   dP   `"   88   `Ybo." 
-# 88 Y88 Yb   dP  8I  dY 88""   o.`Y8b     o.`Y8b 88""     88     88   88""   88"Yb      88""   Yb        88   o.`Y8b 
-# 88  Y8  YbodP  8888Y"  888888 8bodP'     8bodP' 888888   88     88   888888 88  Yb     88      YboodP   88   8bodP' 
-
+# oooooooooooo                                       .    o8o                                 
+# `888'     `8                                     .o8    `"'                                 
+#  888         oooo  oooo  ooo. .oo.    .ooooo.  .o888oo oooo   .ooooo.  ooo. .oo.    .oooo.o 
+#  888oooo8    `888  `888  `888P"Y88b  d88' `"Y8   888   `888  d88' `88b `888P"Y88b  d88(  "8 
+#  888    "     888   888   888   888  888         888    888  888   888  888   888  `"Y88b.  
+#  888          888   888   888   888  888   .o8   888 .  888  888   888  888   888  o.  )88b 
+# o888o         `V88V"V8P' o888o o888o `Y8bod8P'   "888" o888o `Y8bod8P' o888o o888o 8""888P' 
+                                                                                            
 
 def _floatmath(ng,
     operation_type:str,
@@ -207,7 +215,7 @@ def add(ng,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Addition.\nEquivalent to the '+' symbol."""
-    if check_any_type(a,b,types=(sVec,),):
+    if anytype(a,b,types=(sVec,),):
         return _vecmath(ng,'ADD',a,b, _reusedata=_reusedata,)
     return _floatmath(ng,'ADD',a,b, _reusedata=_reusedata,)
 
@@ -218,7 +226,7 @@ def sub(ng,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Subtraction.\nEquivalent to the '-' symbol."""
-    if check_any_type(a,b,types=(sVec,),):
+    if anytype(a,b,types=(sVec,),):
         return _vecmath(ng,'SUBTRACT',a,b, _reusedata=_reusedata,)
     return _floatmath(ng,'SUBTRACT',a,b, _reusedata=_reusedata,)
 
@@ -229,7 +237,7 @@ def mult(ng,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Multiplications.\nEquivalent to the '*' symbol."""
-    if check_any_type(a,b,types=(sVec,),):
+    if anytype(a,b,types=(sVec,),):
         return _vecmath(ng,'MULTIPLY',a,b, _reusedata=_reusedata,)
     return _floatmath(ng,'MULTIPLY',a,b, _reusedata=_reusedata,)
 
@@ -240,7 +248,7 @@ def div(ng,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Division.\nEquivalent to the '/' symbol."""
-    if check_any_type(a,b,types=(sVec,),):
+    if anytype(a,b,types=(sVec,),):
         return _vecmath(ng,'DIVIDE',a,b, _reusedata=_reusedata,)
     return _floatmath(ng,'DIVIDE',a,b, _reusedata=_reusedata,)
 
@@ -251,7 +259,7 @@ def pow(ng,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """A Power n.\nEquivalent to the 'a**n' and '²' symbol."""
-    if check_any_type(a,n,types=(sVec,),):
+    if anytype(a,n,types=(sVec,),):
         return _vecmath(ng,'POWER',a,n, _reusedata=_reusedata,)
     return _floatmath(ng,'POWER',a,n, _reusedata=_reusedata,)
 
@@ -302,7 +310,7 @@ def abs(ng,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Absolute of A."""
-    if check_any_type(a,types=(sVec,),):
+    if anytype(a,types=(sVec,),):
         return _vecmath(ng,'ABSOLUTE',a, _reusedata=_reusedata,)
     return _floatmath(ng,'ABSOLUTE',a, _reusedata=_reusedata,)
 
@@ -368,7 +376,7 @@ def floor(ng,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Floor a Float to an Integer."""
-    if check_any_type(a,types=(sVec,),):
+    if anytype(a,types=(sVec,),):
         return _vecmath(ng,'FLOOR',a, _reusedata=_reusedata,)
     return _floatmath(ng,'FLOOR',a, _reusedata=_reusedata,)
 
@@ -403,7 +411,7 @@ def mod(ng,
     _reusedata:str='',
     ) -> sFlo|sVec:
     """Modulo.\nEquivalent to the '%' symbol."""
-    if check_any_type(a,b,types=(sVec,),):
+    if anytype(a,b,types=(sVec,),):
         return _vecmath(ng,'MODULO',a,b, _reusedata=_reusedata,)
     return _floatmath(ng,'MODULO',a,b, _reusedata=_reusedata,)
     
@@ -550,11 +558,11 @@ def deg(ng,
 
 def _mix(ng,
     data_type:str,
-    val1:sFlo|sInt|sBoo|float|int=None,
-    val2:sFlo|sInt|sBoo|float|int=None,
-    val3:sFlo|sInt|sBoo|float|int=None,
+    val1:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    val3:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     _reusedata:str='',
-    ) -> sFlo:
+    ) -> sFlo|sVec:
     """generic operation for adding a mix node and linking.
     if '_reusedata' is passed the function shall only but update values of existing node, not adding new nodes"""
 
@@ -573,27 +581,39 @@ def _mix(ng,
         node = ng.nodes.new('ShaderNodeMix')
         node.data_type = data_type
         node.clamp_factor = False
+        node.factor_mode = 'NON_UNIFORM'
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
-        
+
         needs_linking = True
         if (_reusedata):
             node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
 
     # Need to choose socket depending on node data_type (hidden sockets)
+    outidx = None
     indexes = None
     match data_type:
         case 'FLOAT':
+            outidx = 0
             indexes = (0,2,3)
+        case 'VECTOR':
+            outidx = 1
+            indexes = (1,4,5)
+            args = convert_args(*args, toVector=True,)
         case _:
             raise Exception("Integration Needed")
 
-    for i,val in zip(indexes,args):    
+    for i,val in zip(indexes,args):
         match val:
 
-            case sFlo():
+            case sFlo() | sInt() | sBoo() | sVec():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
+
+            case Vector():
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
 
             case float() | int() | bool():
                 if type(val) is bool:
@@ -606,25 +626,27 @@ def _mix(ng,
 
             case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _mix(). Recieved unsupported type '{type(val).__name__}'")
 
-    return node.outputs[0]
+    return node.outputs[outidx]
 
-@user_domain('mathex')
+@user_domain('mathex','nexgeneral')
 def lerp(ng,
-    f:sFlo|sInt|sBoo|float|int,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
+    f:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
-    ) -> sFlo:
+    ) -> sFlo|sVec:
     """Mix.\nLinear Interpolation of value A and B from given factor."""
+    if anytype(f,a,b,types=(sVec,Vector,),):
+        return _mix(ng,'VECTOR',f,a,b, _reusedata=_reusedata,)
     return _mix(ng,'FLOAT',f,a,b, _reusedata=_reusedata,)
 
-@user_domain('mathex')
+@user_domain('mathex','nexgeneral')
 def mix(ng,
-    f:sFlo|sInt|sBoo|float|int,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
+    f:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
-    ) -> sFlo: 
+    ) -> sFlo|sVec:
     """Alternative notation to lerp() function."""
     return lerp(ng,f,a,b, _reusedata=_reusedata,)
 
@@ -661,7 +683,7 @@ def _floatclamp(ng,
     for i,val in enumerate(args):
         match val:
 
-            case sFlo():
+            case sFlo() | sInt() | sBoo():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -701,14 +723,14 @@ def clampr(ng,
 def _maprange(ng,
     data_type:str,
     interpolation_type:str,
-    val1:sFlo|sInt|sBoo|float|int=None,
-    val2:sFlo|sInt|sBoo|float|int=None,
-    val3:sFlo|sInt|sBoo|float|int=None,
-    val4:sFlo|sInt|sBoo|float|int=None,
-    val5:sFlo|sInt|sBoo|float|int=None,
-    val6:sFlo|sInt|sBoo|float|int=None,
+    val1:sFlo|sInt|sBoo|float|int|Vector=None,
+    val2:sFlo|sInt|sBoo|float|int|Vector=None,
+    val3:sFlo|sInt|sBoo|float|int|Vector=None,
+    val4:sFlo|sInt|sBoo|float|int|Vector=None,
+    val5:sFlo|sInt|sBoo|float|int|Vector=None,
+    val6:sFlo|sInt|sBoo|float|int|Vector=None,
     _reusedata:str='',
-    ) -> sFlo:
+    ) -> sFlo|sVec:
     """generic operation for adding a remap node and linking"""
 
     node = None
@@ -734,12 +756,31 @@ def _maprange(ng,
         if (_reusedata):
             node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
 
-    for i,val in enumerate(args):
+    # Need to choose socket depending on node data_type (hidden sockets)
+    outidx = None
+    indexes = None
+    match data_type:
+        case 'FLOAT':
+            outidx = 0
+            indexes = (0,1,2,3,4,5)
+        case 'FLOAT_VECTOR':
+            outidx = 1
+            indexes = (6,7,8,9,10,11)
+            args = convert_args(*args, toVector=True,)
+        case _:
+            raise Exception("Integration Needed")
+
+    for i,val in zip(indexes,args):
         match val:
 
-            case sFlo():
+            case sFlo() | sInt() | sBoo() | sVec():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
+
+            case Vector():
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
 
             case float() | int() | bool():
                 if type(val) is bool:
@@ -752,55 +793,63 @@ def _maprange(ng,
 
             case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _maprange(). Recieved unsupported type '{type(val).__name__}'")
 
-    return node.outputs[0]
+    return node.outputs[outidx]
 
-@user_domain('mathex')
+@user_domain('mathex','nexgeneral')
 def maplin(ng,
-    val:sFlo|sInt|sBoo|float|int,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
-    x:sFlo|sInt|sBoo|float|int,
-    y:sFlo|sInt|sBoo|float|int,
+    val:sFlo|sInt|sBoo|float|int|Vector,
+    a:sFlo|sInt|sBoo|float|int|Vector,
+    b:sFlo|sInt|sBoo|float|int|Vector,
+    x:sFlo|sInt|sBoo|float|int|Vector,
+    y:sFlo|sInt|sBoo|float|int|Vector,
     _reusedata:str='',
-    ) -> sFlo:
+    ) -> sFlo|sVec:
     """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
+    if anytype(val,a,b,x,y,types=(sVec,Vector,),):
+        return _maprange(ng,'FLOAT_VECTOR','LINEAR',val,a,b,x,y, _reusedata=_reusedata,)
     return _maprange(ng,'FLOAT','LINEAR',val,a,b,x,y, _reusedata=_reusedata,)
 
-@user_domain('mathex')
+@user_domain('mathex','nexgeneral')
 def mapstep(ng,
-    val:sFlo|sInt|sBoo|float|int,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
-    x:sFlo|sInt|sBoo|float|int,
-    y:sFlo|sInt|sBoo|float|int,
-    step:sFlo|sInt|sBoo|float|int,
+    val:sFlo|sInt|sBoo|float|int|Vector,
+    a:sFlo|sInt|sBoo|float|int|Vector,
+    b:sFlo|sInt|sBoo|float|int|Vector,
+    x:sFlo|sInt|sBoo|float|int|Vector,
+    y:sFlo|sInt|sBoo|float|int|Vector,
+    step:sFlo|sInt|sBoo|float|int|Vector,
     _reusedata:str='',
-    ) -> sFlo:
+    ) -> sFlo|sVec:
     """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
+    if anytype(val,a,b,x,y,step,types=(sVec,Vector,),):
+        return _maprange(ng,'FLOAT_VECTOR','STEPPED',val,a,b,x,y,step, _reusedata=_reusedata,)
     return _maprange(ng,'FLOAT','STEPPED',val,a,b,x,y,step, _reusedata=_reusedata,)
 
-@user_domain('mathex')
+@user_domain('mathex','nexgeneral')
 def mapsmooth(ng,
-    val:sFlo|sInt|sBoo|float|int,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
-    x:sFlo|sInt|sBoo|float|int,
-    y:sFlo|sInt|sBoo|float|int,
+    val:sFlo|sInt|sBoo|float|int|Vector,
+    a:sFlo|sInt|sBoo|float|int|Vector,
+    b:sFlo|sInt|sBoo|float|int|Vector,
+    x:sFlo|sInt|sBoo|float|int|Vector,
+    y:sFlo|sInt|sBoo|float|int|Vector,
     _reusedata:str='',
-    ) -> sFlo:
+    ) -> sFlo|sVec:
     """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
+    if anytype(val,a,b,x,y,types=(sVec,Vector,),):
+        return _maprange(ng,'FLOAT_VECTOR','SMOOTHSTEP',val,a,b,x,y, _reusedata=_reusedata,)
     return _maprange(ng,'FLOAT','SMOOTHSTEP',val,a,b,x,y, _reusedata=_reusedata,)
 
-@user_domain('mathex')
+@user_domain('mathex','nexgeneral')
 def mapsmoother(ng,
-    val:sFlo|sInt|sBoo|float|int,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
-    x:sFlo|sInt|sBoo|float|int,
-    y:sFlo|sInt|sBoo|float|int,
+    val:sFlo|sInt|sBoo|float|int|Vector,
+    a:sFlo|sInt|sBoo|float|int|Vector,
+    b:sFlo|sInt|sBoo|float|int|Vector,
+    x:sFlo|sInt|sBoo|float|int|Vector,
+    y:sFlo|sInt|sBoo|float|int|Vector,
     _reusedata:str='',
-    ) -> sFlo:
+    ) -> sFlo|sVec:
     """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
+    if anytype(val,a,b,x,y,types=(sVec,Vector,),):
+        return _maprange(ng,'FLOAT_VECTOR','SMOOTHERSTEP',val,a,b,x,y, _reusedata=_reusedata,)
     return _maprange(ng,'FLOAT','SMOOTHERSTEP',val,a,b,x,y, _reusedata=_reusedata,)
 
 @user_domain('nexgeneral')
