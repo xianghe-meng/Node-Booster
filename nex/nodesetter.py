@@ -4,7 +4,7 @@
 
 # NOTE this module gather all kind of math function for sockets
 #  when executing these functions, it will create and link new nodes automatically, from sockets to sockets.
-#  the '_reusedata' parameter will only update potential default values of existing nodes.
+#  the 'reusenode' parameter will only update potential default values of existing nodes.
 
 
 import bpy 
@@ -55,15 +55,20 @@ def user_domain(*tags):
 
     return tag_update_decorator
     
-def get_nodesetter_functions(tag='', default_ng=None,):
+def get_nodesetter_functions(tag='', get_names=False, partialdefaults:tuple=None,):
     """get all functions and their names, depending on function types
-    optionally, pass the default ng. The '_reusedata' functionality of the functions will be disabled"""
+    optionally, pass the default ng. The 'reusenode' functionality of the functions will be disabled"""
 
-    filtered_functions = [f for f in TAGGED if (tag in f.tags)]
+    if (tag==''):
+          filtered_functions = TAGGED[:]
+    else: filtered_functions = [f for f in TAGGED if (tag in f.tags)]
+    
+    if (get_names):
+        return [f.__name__ for f in filtered_functions]
 
     # If a default node group argument is provided, use functools.partial to bind it
-    if (default_ng is not None):
-        filtered_functions = [partial(f, default_ng,) for f in filtered_functions]
+    if (partialdefaults is not None):
+        filtered_functions = [partial(f, *partialdefaults,) for f in filtered_functions]
 
     return filtered_functions
 
@@ -75,8 +80,8 @@ def generate_documentation(tag=''):
         fargs = list(f.__code__.co_varnames[:f.__code__.co_argcount])
         if ('ng' in fargs):
             fargs.remove('ng')
-        if ('_reusedata' in fargs):
-            fargs.remove('_reusedata')
+        if ('reusenode' in fargs):
+            fargs.remove('reusenode')
         fstr = f'{f.__name__}({", ".join(fargs)})'
         r[f.__name__] = {'repr':fstr, 'doc':f.__doc__,}
 
@@ -104,22 +109,21 @@ def assert_purple_node(node):
 # o888o         `V88V"V8P' o888o o888o `Y8bod8P'   "888" o888o `Y8bod8P' o888o o888o 8""888P' 
                                                                                             
 
-def _floatmath(ng,
+def _floatmath(ng, reusenode:str,
     operation_type:str,
     val1:sFlo|sInt|sBoo|float|int=None,
     val2:sFlo|sInt|sBoo|float|int=None,
     val3:sFlo|sInt|sBoo|float|int=None,
-    _reusedata:str='',
     ) -> sFlo:
     """generic operation for adding a float math node and linking.
-    if '_reusedata' is passed the function shall only but update values of existing node, not adding new nodes"""
+    if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
 
     node = None
     args = (val1, val2, val3,)
     needs_linking = False
 
-    if (_reusedata):
-        node = ng.nodes.get(_reusedata)
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
 
     if (node is None):
         last = ng.nodes.active
@@ -133,8 +137,8 @@ def _floatmath(ng,
         ng.nodes.active = node #Always set the last node active for the final link
         
         needs_linking = True
-        if (_reusedata):
-            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
+        if (reusenode):
+            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
     
     for i,val in enumerate(args):
         match val:
@@ -154,22 +158,21 @@ def _floatmath(ng,
 
     return node.outputs[0]
 
-def _vecmath(ng,
+def _vecmath(ng, reusenode:str,
     operation_type:str,
     val1:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
     val2:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
     val3:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
-    _reusedata:str='',
     ) -> sVec:
     """Generic operation for adding a vector math node and linking.
-    If '_reusedata' is provided, update the existing node; otherwise, create a new one."""
+    If 'reusenode' is provided, update the existing node; otherwise, create a new one."""
 
     node = None
     args = (val1, val2, val3)
     needs_linking = False
 
-    if (_reusedata):
-        node = ng.nodes.get(_reusedata)
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
 
     if (node is None):
         last = ng.nodes.active
@@ -182,14 +185,14 @@ def _vecmath(ng,
         ng.nodes.active = node
     
         needs_linking = True
-        if (_reusedata):
-            node.name = node.label = _reusedata
+        if (reusenode):
+            node.name = node.label = reusenode
 
     #need to define different input/output depending on operation..
     outidx = 0
     indexes = (0,1,2)
     match operation_type:
-        case 'DOT_PRODUCT' | 'LENGTH':
+        case 'DOT_PRODUCT'|'LENGTH'|'DISTANCE':
             outidx = 1
             
     for i,val in zip(indexes,args):
@@ -216,22 +219,21 @@ def _vecmath(ng,
 
     return node.outputs[outidx]
 
-def _mix(ng,
+def _mix(ng, reusenode:str,
     data_type:str,
     val1:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     val3:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """generic operation for adding a mix node and linking.
-    if '_reusedata' is passed the function shall only but update values of existing node, not adding new nodes"""
+    if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
 
     node = None
     args = (val1, val2, val3,)
     needs_linking = False
 
-    if (_reusedata):
-        node = ng.nodes.get(_reusedata)
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
 
     if (node is None):
         last = ng.nodes.active
@@ -246,8 +248,8 @@ def _mix(ng,
         ng.nodes.active = node #Always set the last node active for the final link
 
         needs_linking = True
-        if (_reusedata):
-            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
+        if (reusenode):
+            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
 
     # Need to choose socket depending on node data_type (hidden sockets)
     outidx = None
@@ -288,12 +290,11 @@ def _mix(ng,
 
     return node.outputs[outidx]
 
-def _floatclamp(ng,
+def _floatclamp(ng, reusenode:str,
     clamp_type:str,
     val1:sFlo|sInt|sBoo|float|int=None,
     val2:sFlo|sInt|sBoo|float|int=None,
     val3:sFlo|sInt|sBoo|float|int=None,
-    _reusedata:str='',
     ) -> sFlo:
     """generic operation for adding a mix node and linking"""
 
@@ -301,8 +302,8 @@ def _floatclamp(ng,
     args = (val1, val2, val3,)
     needs_linking = False
 
-    if (_reusedata):
-        node = ng.nodes.get(_reusedata)
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
 
     if (node is None):
         last = ng.nodes.active
@@ -315,8 +316,8 @@ def _floatclamp(ng,
         ng.nodes.active = node #Always set the last node active for the final link
         
         needs_linking = True
-        if (_reusedata):
-            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
+        if (reusenode):
+            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
 
     for i,val in enumerate(args):
         match val:
@@ -338,7 +339,7 @@ def _floatclamp(ng,
 
     return node.outputs[0]
 
-def _maprange(ng,
+def _maprange(ng, reusenode:str,
     data_type:str,
     interpolation_type:str,
     val1:sFlo|sInt|sBoo|float|int|Vector=None,
@@ -347,7 +348,6 @@ def _maprange(ng,
     val4:sFlo|sInt|sBoo|float|int|Vector=None,
     val5:sFlo|sInt|sBoo|float|int|Vector=None,
     val6:sFlo|sInt|sBoo|float|int|Vector=None,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """generic operation for adding a remap node and linking"""
 
@@ -355,8 +355,8 @@ def _maprange(ng,
     args = (val1, val2, val3, val4, val5, val6,)
     needs_linking = False
 
-    if (_reusedata):
-        node = ng.nodes.get(_reusedata)
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
 
     if (node is None):
         last = ng.nodes.active
@@ -371,8 +371,8 @@ def _maprange(ng,
         ng.nodes.active = node #Always set the last node active for the final link
         
         needs_linking = True
-        if (_reusedata):
-            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
+        if (reusenode):
+            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
 
     # Need to choose socket depending on node data_type (hidden sockets)
     outidx = None
@@ -414,428 +414,382 @@ def _maprange(ng,
     return node.outputs[outidx]
 
 @user_domain('mathex')
-def add(ng,
+def add(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Addition.\nEquivalent to the '+' symbol."""
     if anytype(a,b,types=(sVec,),):
-        return _vecmath(ng,'ADD',a,b, _reusedata=_reusedata,)
-    return _floatmath(ng,'ADD',a,b, _reusedata=_reusedata,)
+        return _vecmath(ng,reusenode, 'ADD',a,b)
+    return _floatmath(ng,reusenode, 'ADD',a,b)
 
 @user_domain('mathex')
-def sub(ng,
+def sub(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Subtraction.\nEquivalent to the '-' symbol."""
     if anytype(a,b,types=(sVec,),):
-        return _vecmath(ng,'SUBTRACT',a,b, _reusedata=_reusedata,)
-    return _floatmath(ng,'SUBTRACT',a,b, _reusedata=_reusedata,)
+        return _vecmath(ng,reusenode, 'SUBTRACT',a,b)
+    return _floatmath(ng,reusenode, 'SUBTRACT',a,b)
 
 @user_domain('mathex')
-def mult(ng,
+def mult(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Multiplications.\nEquivalent to the '*' symbol."""
     if anytype(a,b,types=(sVec,),):
-        return _vecmath(ng,'MULTIPLY',a,b, _reusedata=_reusedata,)
-    return _floatmath(ng,'MULTIPLY',a,b, _reusedata=_reusedata,)
+        return _vecmath(ng,reusenode, 'MULTIPLY',a,b)
+    return _floatmath(ng,reusenode, 'MULTIPLY',a,b)
 
 @user_domain('mathex')
-def div(ng,
+def div(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Division.\nEquivalent to the '/' symbol."""
     if anytype(a,b,types=(sVec,),):
-        return _vecmath(ng,'DIVIDE',a,b, _reusedata=_reusedata,)
-    return _floatmath(ng,'DIVIDE',a,b, _reusedata=_reusedata,)
+        return _vecmath(ng,reusenode, 'DIVIDE',a,b)
+    return _floatmath(ng,reusenode, 'DIVIDE',a,b)
 
 @user_domain('mathex')
-def pow(ng,
+def pow(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """A Power n.\nEquivalent to the 'a**n' and '²' symbol."""
     if anytype(a,n,types=(sVec,),):
-        return _vecmath(ng,'POWER',a,n, _reusedata=_reusedata,)
-    return _floatmath(ng,'POWER',a,n, _reusedata=_reusedata,)
+        return _vecmath(ng,reusenode, 'POWER',a,n)
+    return _floatmath(ng,reusenode, 'POWER',a,n)
 
 @user_domain('mathex')
-def log(ng,
+def log(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Logarithm A base B."""
-    return _floatmath(ng,'LOGARITHM',a,b, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'LOGARITHM',a,b)
 
 @user_domain('mathex')
-def sqrt(ng,
+def sqrt(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Square Root of A."""
-    return _floatmath(ng,'SQRT',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'SQRT',a)
 
 @user_domain('mathex')
-def invsqrt(ng,
+def invsqrt(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """1/ Square Root of A."""
-    return _floatmath(ng,'INVERSE_SQRT',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'INVERSE_SQRT',a)
 
 @user_domain('mathex')
-def nroot(ng,
+def nroot(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     n:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """A Root N. a**(1/n.)"""
     
-    if (_reusedata): #this function is created multiple nodes so we need multiple tag
-          _x = div(ng,1,n, _reusedata=f"{_reusedata}|inner",)
-    else: _x = div(ng,1,n,)
+    if (reusenode): #this function is created multiple nodes so we need multiple tag
+          _x = div(ng,f"{reusenode}|inner", 1,n)
+    else: _x = div(ng,'', 1,n,)
 
-    _r = pow(ng,a,_x, _reusedata=_reusedata,)
+    _r = pow(ng,reusenode, a,_x)
     frame_nodes(ng, _x.node, _r.node, label='nRoot',)
     return _r
 
 @user_domain('mathex')
-def abs(ng,
+def abs(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Absolute of A."""
     if anytype(a,types=(sVec,),):
-        return _vecmath(ng,'ABSOLUTE',a, _reusedata=_reusedata,)
-    return _floatmath(ng,'ABSOLUTE',a, _reusedata=_reusedata,)
+        return _vecmath(ng,reusenode, 'ABSOLUTE',a)
+    return _floatmath(ng,reusenode, 'ABSOLUTE',a)
 
 @user_domain('mathex')
-def neg(ng,
+def neg(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Negate the value of A.\nEquivalent to the symbol '-x.'"""
-    _r = sub(ng,0,a, _reusedata=_reusedata,)
+    _r = sub(ng,reusenode, 0,a)
     frame_nodes(ng, _r.node, label='Negate',)
     return _r
 
 @user_domain('mathex')
-def min(ng,
+def min(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Minimum between A & B."""
-    return _floatmath(ng,'MINIMUM',a,b, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'MINIMUM',a,b)
 
 @user_domain('mathex')
-def smin(ng,
+def smin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     dist:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Minimum between A & B considering a smoothing distance."""
-    return _floatmath(ng,'SMOOTH_MIN',a,b,dist, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'SMOOTH_MIN',a,b,dist)
 
 @user_domain('mathex')
-def max(ng,
+def max(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Maximum between A & B."""
-    return _floatmath(ng,'MAXIMUM',a,b, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'MAXIMUM',a,b)
 
 @user_domain('mathex')
-def smax(ng,
+def smax(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     dist:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Maximum between A & B considering a smoothing distance."""
-    return _floatmath(ng,'SMOOTH_MAX',a,b,dist, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'SMOOTH_MAX',a,b,dist)
 
 @user_domain('mathex')
-def round(ng,
+def round(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Round a Float to an Integer."""
-    return _floatmath(ng,'ROUND',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'ROUND',a)
 
 @user_domain('mathex')
-def floor(ng,
+def floor(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Floor a Float to an Integer."""
     if anytype(a,types=(sVec,),):
-        return _vecmath(ng,'FLOOR',a, _reusedata=_reusedata,)
-    return _floatmath(ng,'FLOOR',a, _reusedata=_reusedata,)
+        return _vecmath(ng,reusenode, 'FLOOR',a)
+    return _floatmath(ng,reusenode, 'FLOOR',a)
 
 @user_domain('mathex')
-def ceil(ng,
+def ceil(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Ceil a Float to an Integer."""
-    return _floatmath(ng,'CEIL',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'CEIL',a)
 
 @user_domain('mathex')
-def trunc(ng,
+def trunc(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Trunc a Float to an Integer."""
-    return _floatmath(ng,'TRUNC',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'TRUNC',a)
 
 @user_domain('mathex')
-def frac(ng,
+def frac(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Fraction.\nThe fraction part of A."""
-    return _floatmath(ng,'FRACT',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'FRACT',a)
 
 @user_domain('mathex')
-def mod(ng,
+def mod(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Modulo.\nEquivalent to the '%' symbol."""
     if anytype(a,b,types=(sVec,),):
-        return _vecmath(ng,'MODULO',a,b, _reusedata=_reusedata,)
-    return _floatmath(ng,'MODULO',a,b, _reusedata=_reusedata,)
+        return _vecmath(ng,reusenode, 'MODULO',a,b)
+    return _floatmath(ng,reusenode, 'MODULO',a,b)
     
 @user_domain('mathex')
-def flooredmod(ng,
+def flooredmod(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Floored Modulo."""
-    return _floatmath(ng,'FLOORED_MODULO',a,b, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'FLOORED_MODULO',a,b)
 
 @user_domain('mathex')
-def wrap(ng,
+def wrap(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Wrap value to Range A B."""
-    return _floatmath(ng,'WRAP',v,a,b, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'WRAP',v,a,b)
 
 @user_domain('mathex')
-def snap(ng,
+def snap(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int,
     i:sFlo|sInt|sBoo|float|int, 
-    _reusedata:str='',
     ) -> sFlo:
     """Snap to Increment."""
-    return _floatmath(ng,'SNAP',v,i, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'SNAP',v,i)
 
 @user_domain('mathex')
-def pingpong(ng,
+def pingpong(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int,
     scale:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """PingPong. Wrap a value and every other cycles at cycle Scale."""
-    return _floatmath(ng,'PINGPONG',v,scale, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'PINGPONG',v,scale)
 
 @user_domain('mathex')
-def floordiv(ng,
+def floordiv(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Floor Division.\nEquivalent to the '//' symbol."""
 
-    if (_reusedata): #this function is created multiple nodes so we need multiple tag
-          _x = div(ng,a,b,_reusedata=f"{_reusedata}|inner",)
-    else: _x = div(ng,a,b)
+    if (reusenode): #this function is created multiple nodes so we need multiple tag
+          _x = div(ng,f"{reusenode}|inner", a,b)
+    else: _x = div(ng,'', a,b)
 
-    _r = floor(ng,_x,_reusedata=_reusedata)
+    _r = floor(ng,reusenode, _x)
     frame_nodes(ng, _x.node, _r.node, label='FloorDiv',)
     return _r
 
 @user_domain('mathex')
-def sin(ng,
+def sin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """The Sine of A."""
-    return _floatmath(ng,'SINE',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'SINE',a)
 
 @user_domain('mathex')
-def cos(ng,
+def cos(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """The Cosine of A."""
-    return _floatmath(ng,'COSINE',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'COSINE',a)
 
 @user_domain('mathex')
-def tan(ng,
+def tan(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """The Tangent of A."""
-    return _floatmath(ng,'TANGENT',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'TANGENT',a)
 
 @user_domain('mathex')
-def asin(ng,
+def asin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """The Arcsine of A."""
-    return _floatmath(ng,'ARCSINE',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'ARCSINE',a)
 
 @user_domain('mathex')
-def acos(ng,
+def acos(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """The Arccosine of A."""
-    return _floatmath(ng,'ARCCOSINE',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'ARCCOSINE',a)
 
 @user_domain('mathex')
-def atan(ng,
+def atan(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """The Arctangent of A."""
-    return _floatmath(ng,'ARCTANGENT',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'ARCTANGENT',a)
 
 @user_domain('mathex')
-def hsin(ng,
+def hsin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """The Hyperbolic Sine of A."""
-    return _floatmath(ng,'SINH',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'SINH',a)
 
 @user_domain('mathex')
-def hcos(ng,
+def hcos(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """The Hyperbolic Cosine of A."""
-    return _floatmath(ng,'COSH',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'COSH',a)
 
 @user_domain('mathex')
-def htan(ng,
+def htan(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """The Hyperbolic Tangent of A."""
-    return _floatmath(ng,'TANH',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'TANH',a)
 
 @user_domain('mathex')
-def rad(ng,
+def rad(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Convert from Degrees to Radians."""
-    return _floatmath(ng,'RADIANS',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'RADIANS',a)
 
 @user_domain('mathex')
-def deg(ng,
+def deg(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Convert from Radians to Degrees."""
-    return _floatmath(ng,'DEGREES',a, _reusedata=_reusedata,)
+    return _floatmath(ng,reusenode, 'DEGREES',a)
 
 @user_domain('nexgeneral')
-def cross(ng,
+def cross(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sVec:
     """Vector Cross Product.\nThe cross product between vector A an B."""
-    return _vecmath(ng,'CROSS_PRODUCT',vecA,vecB, _reusedata=_reusedata,)
+    return _vecmath(ng,reusenode, 'CROSS_PRODUCT',vecA,vecB)
 
 @user_domain('nexgeneral')
-def dot(ng,
+def dot(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sVec:
     """Vector Dot Product.\nA dot B."""
-    return _vecmath(ng,'DOT_PRODUCT',vecA,vecB, _reusedata=_reusedata,)
+    return _vecmath(ng,reusenode, 'DOT_PRODUCT',vecA,vecB)
 
 @user_domain('nexgeneral')
-def project(ng,
+def project(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sVec:
     """Vector Projection.\nProject A onto B."""
-    return _vecmath(ng,'PROJECT',vecA,vecB, _reusedata=_reusedata,)
+    return _vecmath(ng,reusenode, 'PROJECT',vecA,vecB)
 
 @user_domain('nexgeneral')
-def faceforward(ng,
+def faceforward(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecI:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecR:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sVec:
     """Vector Faceforward.\nFaceforward operation between a given vector, an incident and a reference."""
-    return _vecmath(ng,'FACEFORWARD',vecA,vecI,vecR, _reusedata=_reusedata,)
+    return _vecmath(ng,reusenode, 'FACEFORWARD',vecA,vecI,vecR)
 
 @user_domain('nexgeneral')
-def reflect(ng,
+def reflect(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sVec:
     """Vector Reflection.\nReflect A onto B."""
-    return _vecmath(ng,'PROJECT',vecA,vecB, _reusedata=_reusedata,)
+    return _vecmath(ng,reusenode, 'PROJECT',vecA,vecB)
 
 @user_domain('nexgeneral')
-def distance(ng,
+def distance(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo:
     """Vector Distance.\nThe distance between location A & B."""
-    return _vecmath(ng,'DISTANCE',vecA,vecB, _reusedata=_reusedata,)
+    return _vecmath(ng,reusenode, 'DISTANCE',vecA,vecB)
 
 @user_domain('nexgeneral')
-def normalize(ng,
+def normalize(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sVec:
     """Vector Normalization.\nNormalize A."""
-    return _vecmath(ng,'NORMALIZE',vecA, _reusedata=_reusedata,)
+    return _vecmath(ng,reusenode, 'NORMALIZE',vecA)
 
 @user_domain('nexgeneral')
-def length(ng,
+def length(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo:
     """Vector Length.\nThe distance length of A."""
-    return _vecmath(ng,'LENGTH',vecA, _reusedata=_reusedata,)
+    return _vecmath(ng,reusenode, 'LENGTH',vecA)
 
 @user_domain('nexgeneral')
-def separate_xyz(ng,
+def separate_xyz(ng, reusenode:str,
     vecA:sVec,
-    _reusedata:str='',
     ) -> tuple:
     """Separate a SocketVector into 3 SocketFloat.\nTip: you can use python slicing notations to do that instead."""
 
@@ -845,8 +799,8 @@ def separate_xyz(ng,
     node = None
     needs_linking = False
 
-    if (_reusedata):
-        node = ng.nodes.get(_reusedata)
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
 
     if (node is None):
         last = ng.nodes.active
@@ -858,8 +812,8 @@ def separate_xyz(ng,
         ng.nodes.active = node #Always set the last node active for the final link
         
         needs_linking = True
-        if (_reusedata):
-            node.name = node.label = _reusedata
+        if (reusenode):
+            node.name = node.label = reusenode
 
     if (needs_linking):
         link_sockets(vecA, node.inputs[0])
@@ -867,19 +821,18 @@ def separate_xyz(ng,
     return tuple(node.outputs)
 
 @user_domain('nexgeneral')
-def combine_xyz(ng,
+def combine_xyz(ng, reusenode:str,
     x:sFlo|sInt|sBoo|float|int,
     y:sFlo|sInt|sBoo|float|int,
     z:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sVec:
     """Combine 3 SocketFloat (or python values) into a SocketVector"""
 
     node = None
     needs_linking = False
 
-    if (_reusedata):
-        node = ng.nodes.get(_reusedata)
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
 
     if (node is None):
         last = ng.nodes.active
@@ -890,8 +843,8 @@ def combine_xyz(ng,
         node.location = location
         ng.nodes.active = node
         needs_linking = True
-        if (_reusedata):
-            node.name = node.label = _reusedata
+        if (reusenode):
+            node.name = node.label = reusenode
 
     for i, val in enumerate((x, y, z)):
         match val:
@@ -914,103 +867,95 @@ def combine_xyz(ng,
     return node.outputs[0]
 
 @user_domain('mathex','nexgeneral')
-def lerp(ng,
+def lerp(ng, reusenode:str,
     f:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Mix.\nLinear Interpolation of value A and B from given factor."""
     if anytype(f,a,b,types=(sVec,Vector,),):
-        return _mix(ng,'VECTOR',f,a,b, _reusedata=_reusedata,)
-    return _mix(ng,'FLOAT',f,a,b, _reusedata=_reusedata,)
+        return _mix(ng,reusenode, 'VECTOR',f,a,b)
+    return _mix(ng,reusenode, 'FLOAT',f,a,b)
 
 @user_domain('mathex','nexgeneral')
-def mix(ng,
+def mix(ng, reusenode:str,
     f:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Alternative notation to lerp() function."""
-    return lerp(ng,f,a,b, _reusedata=_reusedata,)
+    return lerp(ng,reusenode, f,a,b)
 
 @user_domain('mathex')
-def clamp(ng,
+def clamp(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Clamp value between min an max."""
-    return _floatclamp(ng,'MINMAX',v,a,b, _reusedata=_reusedata,)
+    return _floatclamp(ng,reusenode, 'MINMAX',v,a,b)
 
 @user_domain('mathex')
-def clampr(ng,
+def clampr(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
     ) -> sFlo:
     """Clamp value between auto-defined min/max."""
-    return _floatclamp(ng,'RANGE',v,a,b, _reusedata=_reusedata,)
+    return _floatclamp(ng,reusenode, 'RANGE',v,a,b)
 
 @user_domain('mathex','nexgeneral')
-def maplin(ng,
+def maplin(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
     b:sFlo|sInt|sBoo|float|int|Vector,
     x:sFlo|sInt|sBoo|float|int|Vector,
     y:sFlo|sInt|sBoo|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
     if anytype(v,a,b,x,y,types=(sVec,Vector,),):
-        return _maprange(ng,'FLOAT_VECTOR','LINEAR',v,a,b,x,y, _reusedata=_reusedata,)
-    return _maprange(ng,'FLOAT','LINEAR',v,a,b,x,y, _reusedata=_reusedata,)
+        return _maprange(ng,reusenode, 'FLOAT_VECTOR','LINEAR',v,a,b,x,y)
+    return _maprange(ng,reusenode, 'FLOAT','LINEAR',v,a,b,x,y)
 
 @user_domain('mathex','nexgeneral')
-def mapstep(ng,
+def mapstep(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
     b:sFlo|sInt|sBoo|float|int|Vector,
     x:sFlo|sInt|sBoo|float|int|Vector,
     y:sFlo|sInt|sBoo|float|int|Vector,
     step:sFlo|sInt|sBoo|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
     if anytype(v,a,b,x,y,step,types=(sVec,Vector,),):
-        return _maprange(ng,'FLOAT_VECTOR','STEPPED',v,a,b,x,y,step, _reusedata=_reusedata,)
-    return _maprange(ng,'FLOAT','STEPPED',v,a,b,x,y,step, _reusedata=_reusedata,)
+        return _maprange(ng,reusenode, 'FLOAT_VECTOR','STEPPED',v,a,b,x,y,step)
+    return _maprange(ng,reusenode, 'FLOAT','STEPPED',v,a,b,x,y,step)
 
 @user_domain('mathex','nexgeneral')
-def mapsmooth(ng,
+def mapsmooth(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
     b:sFlo|sInt|sBoo|float|int|Vector,
     x:sFlo|sInt|sBoo|float|int|Vector,
     y:sFlo|sInt|sBoo|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
     if anytype(v,a,b,x,y,types=(sVec,Vector,),):
-        return _maprange(ng,'FLOAT_VECTOR','SMOOTHSTEP',v,a,b,x,y, _reusedata=_reusedata,)
-    return _maprange(ng,'FLOAT','SMOOTHSTEP',v,a,b,x,y, _reusedata=_reusedata,)
+        return _maprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHSTEP',v,a,b,x,y)
+    return _maprange(ng,reusenode, 'FLOAT','SMOOTHSTEP',v,a,b,x,y)
 
 @user_domain('mathex','nexgeneral')
-def mapsmoother(ng,
+def mapsmoother(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
     b:sFlo|sInt|sBoo|float|int|Vector,
     x:sFlo|sInt|sBoo|float|int|Vector,
     y:sFlo|sInt|sBoo|float|int|Vector,
-    _reusedata:str='',
     ) -> sFlo|sVec:
     """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
     if anytype(v,a,b,x,y,types=(sVec,Vector,),):
-        return _maprange(ng,'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y, _reusedata=_reusedata,)
-    return _maprange(ng,'FLOAT','SMOOTHERSTEP',v,a,b,x,y, _reusedata=_reusedata,)
+        return _maprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y)
+    return _maprange(ng,reusenode, 'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
 
 
 

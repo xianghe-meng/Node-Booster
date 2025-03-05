@@ -56,7 +56,7 @@ DOCSYMBOLS = {
 }
 
 #Store the math function used to set the nodetree
-USER_FNAMES = [f.__name__ for f in get_nodesetter_functions(tag='mathex')]
+USER_FNAMES = get_nodesetter_functions(tag='mathex', get_names=True)
 
 
 def replace_superscript_exponents(expr: str, algebric_notation:bool=False,) -> str:
@@ -118,7 +118,7 @@ def execute_math_function_expression(customnode=None, expression:str=None,
     # ex 'a' will become 'ng.nodes["foo"].outputs[1]'
     api_expression = replace_exact_tokens(expression, {**varsapi, **constapi},)
 
-    user_functions_partials = get_nodesetter_functions(tag='mathex', default_ng=node_tree)
+    user_functions_partials = get_nodesetter_functions(tag='mathex', partialdefaults=(node_tree,''),)
     user_function_namespace = {f.func.__name__:f for f in user_functions_partials}
     
     # Define the namespace of the execution, and include our functions
@@ -142,9 +142,9 @@ def execute_math_function_expression(customnode=None, expression:str=None,
             fname = e.split('()')[0]
             if ('() missing' in e) and ('required positional argument' in e):
                 nbr = e.split('() missing ')[1][0]
-                raise Exception(f"Function '{fname}' needs {nbr} more Params")                    
+                raise Exception(f"Function '{fname}' needs {nbr} more Param(s)")                    
             elif ('() takes' in e) and ('positional argument' in e):
-                raise Exception(f"Function '{fname}' recieved Extra Params")
+                raise Exception(f"Function '{fname}' recieved Extra Param(s)")
         
         raise Exception("Wrong Arguments Given")
 

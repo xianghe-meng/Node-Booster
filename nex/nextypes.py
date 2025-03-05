@@ -39,6 +39,7 @@ import bpy
 import traceback
 from collections.abc import Iterable
 from mathutils import Vector
+from functools import partial
 
 from ..__init__ import dprint
 from ..nex.pytonode import convert_pyvar_to_data
@@ -114,7 +115,7 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
     link the nodes if there's no need to do so, as a Nex script can be executed very frequently. 
     
     We tag them using the Nex id and types to ensure uniqueness of our values. If a tag already exists, 
-    the '_reusedata' parameter of the nodesetter functions will make sure to only update the values
+    the 'reusenode' parameter of the nodesetter functions will make sure to only update the values
     of an existing node that already exists"""
     
     # Below, We generate an unique tag from the function and args & transoform nex args to sockets
@@ -125,8 +126,8 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
     sock_or_py_variables = [v.nxsock if ('Nex' in type(v).__name__) else v for v in nex_or_py_variables]
 
     try:
-        r = sockfunc(NexType.node_tree, *sock_or_py_variables, _reusedata=uniquetag,)
-
+        #call the socket functions with partials posargs
+        r = sockfunc(NexType.node_tree, uniquetag, *sock_or_py_variables,)
     except nodesetter.InvalidTypePassedToSocket as e:
         msg = str(e)
         if ('Expected parameters in' in msg):
@@ -932,14 +933,24 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         & return sockets or tuple of sockets. Function similar to 'call_Nex_operand' but more general"""
         def wrapped_func(*args, **kwargs):
             #define reuse taga unique tag to ensure the function is not generated on each nex script run
-            kwargs['_reusedata'] = create_Nex_tag(sockfunc, *args, startchar='nF',)
-            #define default fct args with default ng & convert nex to sockets
-            newargs = []
-            newargs += [default_ng]
-            newargs += [v.nxsock if ('Nex' in type(v).__name__) else v for v in args] #we did that previously with 'sock_or_py_variables'
+            uniquetag = create_Nex_tag(sockfunc, *args, startchar='nF',)
+            partialsockfunc = partial(sockfunc, default_ng, uniquetag)
+            #sockfunc expect nodesockets, not nex..
+            args = [v.nxsock if ('Nex' in type(v).__name__) else v for v in args] #we did that previously with 'sock_or_py_variables'
             #execute the function
             try:
-                r = sockfunc(*newargs, **kwargs)
+                r = partialsockfunc(*args, **kwargs)
+            except TypeError as e:
+                #Cook better error message to end user
+                e = str(e)
+                if ('()' in e):
+                    fname = e.split('()')[0]
+                    if ('() missing' in e) and ('required positional argument' in e):
+                        nbr = e.split('() missing ')[1][0]
+                        raise NexError(f"Function '{fname}' needs {nbr} more Param(s)")
+                    elif ('() takes' in e) and ('positional argument' in e):
+                        raise NexError(f"Function '{fname}' recieved Extra Param(s)")
+                raise
             except nodesetter.InvalidTypePassedToSocket as e:
                 msg = str(e)
                 if ('Expected parameters in' in msg):
