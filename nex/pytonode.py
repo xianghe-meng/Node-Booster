@@ -21,6 +21,10 @@ def convert_pyvar_to_data(py_variable):
     matrix_special_label = ''
     if (type(value) in {tuple, list, set, Vector, Euler, bpy.types.bpy_prop_array}):
 
+        if type(value) in {tuple, list, set}:
+            if any('Nex' in type(e).__name__ for e in value):
+                raise TypeError(f"'{type(value).__name__.title()}' containing SocketTypes not supported.")
+
         value = list(value)
         n = len(value)
 
@@ -41,7 +45,7 @@ def convert_pyvar_to_data(py_variable):
             value =  Matrix([value[i*4:(i+1)*4] for i in range(4)])
 
         else:
-            raise TypeError(f"'{type(value).__name__.title()}' of len {n} not supported")
+            raise TypeError(f"'{type(value).__name__.title()}' of len {n} not supported.")
 
     # then we define the socket type string & the potential socket label
     match value:

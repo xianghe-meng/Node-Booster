@@ -55,6 +55,7 @@ from ..utils.node_utils import (
     set_socket_label,
     link_sockets,
     create_constant_input,
+    frame_nodes,
 )
 
 
@@ -721,19 +722,49 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 yield self[i]
 
         def __getitem__(self, key):
-            nexouts = call_Nex_operand(NexVec, nodesetter.separate_xyz, self, NexReturnType=NexFloat,)
-            #vec[i]
-            if isinstance(key, int):
-                if key not in (0,1,2):
-                    raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
-                return nexouts[key]
-            #vec[:i]
-            elif isinstance(key, slice):
-                indices = range(*key.indices(3))
-                return tuple(nexouts[i] for i in indices)
-            else:
-                raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
+            """suport x = vec[0], x,y,z = vec ect.."""
+
+            components = call_Nex_operand(NexVec, nodesetter.separate_xyz, self, NexReturnType=NexFloat,)
+
+            match key:
+
+                case int(): #vec[i]
+                    if key not in (0,1,2):
+                        raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+                    return components[key]
+
+                case slice(): #vec[:i]
+                    indices = range(*key.indices(3))
+                    return tuple(components[i] for i in indices)
+
+                case _:
+                    raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
     
+        def __setitem__(self, key, value):
+            """support x[0] += a+b"""
+
+            components = call_Nex_operand(NexVec, nodesetter.separate_xyz, self, NexReturnType=NexFloat)
+
+            match key:
+                case 0: components = value, components[1], components[2]
+                case 1: components = components[0], value, components[2]
+                case 2: components = components[0], components[1], value
+                case slice():
+                    raise NexError("IndexError. Slice in VectorSocket[:] not supported.")
+                    #NOTE for now support for 'x[:] = x[0]*1,x[1]+2,3 ' will not work
+                case _:
+                    raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+
+            new = call_Nex_operand(NexFloat, nodesetter.combine_xyz, 
+                components[0], components[1], components[2],
+                NexReturnType=NexVec,)
+
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+
+            frame_nodes(self.node_tree, components[0].nxsock.node, new.nxsock.node, label=f'v.setitem[{key}]',)
+            return None
+
     # ooooo      ooo                         .oooooo.                   .   
     # `888b.     `8'                        d8P'  `Y8b                .o8   
     #  8 `88b.    8   .ooooo.  oooo    ooo 888      888 oooo  oooo  .o888oo 
