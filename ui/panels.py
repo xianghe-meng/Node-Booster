@@ -313,6 +313,27 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                         )
                     panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-extra-nodes-and-functionalities-for-nodeeditors"
 
+                header, panel = layout.panel("doc_glossid", default_closed=True,)
+                header.label(text="Glossary",)
+                if (panel):
+
+                    col = panel.column()
+
+                    from ..nex.nodesetter import generate_documentation
+                    doc = generate_documentation(tag='nexgeneral')
+                    for fname,fdoc in doc.items():
+
+                        row = col.row()
+                        row.scale_y = 0.65
+                        row.box().label(text=fdoc['repr'],)
+
+                        col.separator(factor=0.5)
+
+                        word_wrap(layout=col, alert=False, active=True, max_char='auto',
+                            char_auto_sidepadding=0.95, context=context, string=fdoc['doc'], alignment='LEFT',
+                            )
+                        col.separator()
+                        
                 header, panel = layout.panel("dev_panelid", default_closed=True,)
                 header.label(text="Development",)
                 if (panel):

@@ -158,13 +158,14 @@ def _vecmath(ng,
     operation_type:str,
     val1:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
     val2:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
+    val3:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
     _reusedata:str='',
     ) -> sVec:
     """Generic operation for adding a vector math node and linking.
     If '_reusedata' is provided, update the existing node; otherwise, create a new one."""
 
     node = None
-    args = (val1, val2)
+    args = (val1, val2, val3)
     needs_linking = False
 
     if (_reusedata):
@@ -184,7 +185,14 @@ def _vecmath(ng,
         if (_reusedata):
             node.name = node.label = _reusedata
 
-    for i, val in enumerate(args):
+    #need to define different input/output depending on operation..
+    outidx = 0
+    indexes = (0,1,2)
+    match operation_type:
+        case 'DOT_PRODUCT' | 'LENGTH':
+            outidx = 1
+            
+    for i,val in zip(indexes,args):
         match val:
 
             case sVec() | sFlo() | sInt() | sBoo():
@@ -206,7 +214,204 @@ def _vecmath(ng,
 
             case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _vecmath(). Received unsupported type '{type(val).__name__}'")
 
+    return node.outputs[outidx]
+
+def _mix(ng,
+    data_type:str,
+    val1:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    val3:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    _reusedata:str='',
+    ) -> sFlo|sVec:
+    """generic operation for adding a mix node and linking.
+    if '_reusedata' is passed the function shall only but update values of existing node, not adding new nodes"""
+
+    node = None
+    args = (val1, val2, val3,)
+    needs_linking = False
+
+    if (_reusedata):
+        node = ng.nodes.get(_reusedata)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0,200,)
+        node = ng.nodes.new('ShaderNodeMix')
+        node.data_type = data_type
+        node.clamp_factor = False
+        node.factor_mode = 'NON_UNIFORM'
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        needs_linking = True
+        if (_reusedata):
+            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
+
+    # Need to choose socket depending on node data_type (hidden sockets)
+    outidx = None
+    indexes = None
+    match data_type:
+        case 'FLOAT':
+            outidx = 0
+            indexes = (0,2,3)
+        case 'VECTOR':
+            outidx = 1
+            indexes = (1,4,5)
+            args = convert_args(*args, toVector=True,)
+        case _:
+            raise Exception("Integration Needed")
+
+    for i,val in zip(indexes,args):
+        match val:
+
+            case sFlo() | sInt() | sBoo() | sVec():
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+
+            case Vector():
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case float() | int() | bool():
+                if type(val) is bool:
+                    val = float(val)
+                if (node.inputs[i].default_value!=val):
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case None: pass
+
+            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _mix(). Recieved unsupported type '{type(val).__name__}'")
+
+    return node.outputs[outidx]
+
+def _floatclamp(ng,
+    clamp_type:str,
+    val1:sFlo|sInt|sBoo|float|int=None,
+    val2:sFlo|sInt|sBoo|float|int=None,
+    val3:sFlo|sInt|sBoo|float|int=None,
+    _reusedata:str='',
+    ) -> sFlo:
+    """generic operation for adding a mix node and linking"""
+
+    node = None
+    args = (val1, val2, val3,)
+    needs_linking = False
+
+    if (_reusedata):
+        node = ng.nodes.get(_reusedata)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0,200,)
+        node = ng.nodes.new('ShaderNodeClamp')
+        node.clamp_type = clamp_type
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+        
+        needs_linking = True
+        if (_reusedata):
+            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
+
+    for i,val in enumerate(args):
+        match val:
+
+            case sFlo() | sInt() | sBoo():
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+
+            case float() | int() | bool():
+                if type(val) is bool:
+                    val = float(val)
+                if (node.inputs[i].default_value!=val):
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case None: pass
+
+            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatclamp(). Recieved unsupported type '{type(val).__name__}'")
+
     return node.outputs[0]
+
+def _maprange(ng,
+    data_type:str,
+    interpolation_type:str,
+    val1:sFlo|sInt|sBoo|float|int|Vector=None,
+    val2:sFlo|sInt|sBoo|float|int|Vector=None,
+    val3:sFlo|sInt|sBoo|float|int|Vector=None,
+    val4:sFlo|sInt|sBoo|float|int|Vector=None,
+    val5:sFlo|sInt|sBoo|float|int|Vector=None,
+    val6:sFlo|sInt|sBoo|float|int|Vector=None,
+    _reusedata:str='',
+    ) -> sFlo|sVec:
+    """generic operation for adding a remap node and linking"""
+
+    node = None
+    args = (val1, val2, val3, val4, val5, val6,)
+    needs_linking = False
+
+    if (_reusedata):
+        node = ng.nodes.get(_reusedata)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0,200,)
+        node = ng.nodes.new('ShaderNodeMapRange')
+        node.data_type = data_type
+        node.interpolation_type = interpolation_type
+        node.clamp = False
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+        
+        needs_linking = True
+        if (_reusedata):
+            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
+
+    # Need to choose socket depending on node data_type (hidden sockets)
+    outidx = None
+    indexes = None
+    match data_type:
+        case 'FLOAT':
+            outidx = 0
+            indexes = (0,1,2,3,4,5)
+        case 'FLOAT_VECTOR':
+            outidx = 1
+            indexes = (6,7,8,9,10,11)
+            args = convert_args(*args, toVector=True,)
+        case _:
+            raise Exception("Integration Needed")
+
+    for i,val in zip(indexes,args):
+        match val:
+
+            case sFlo() | sInt() | sBoo() | sVec():
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+
+            case Vector():
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case float() | int() | bool():
+                if type(val) is bool:
+                    val = float(val)
+                if (node.inputs[i].default_value!=val):
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case None: pass
+
+            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _maprange(). Recieved unsupported type '{type(val).__name__}'")
+
+    return node.outputs[outidx]
 
 @user_domain('mathex')
 def add(ng,
@@ -556,311 +761,86 @@ def deg(ng,
     """Convert from Radians to Degrees."""
     return _floatmath(ng,'DEGREES',a, _reusedata=_reusedata,)
 
-def _mix(ng,
-    data_type:str,
-    val1:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
-    val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
-    val3:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+@user_domain('nexgeneral')
+def cross(ng,
+    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
-    ) -> sFlo|sVec:
-    """generic operation for adding a mix node and linking.
-    if '_reusedata' is passed the function shall only but update values of existing node, not adding new nodes"""
+    ) -> sVec:
+    """Vector Cross Product.\nThe cross product between vector A an B."""
+    return _vecmath(ng,'CROSS_PRODUCT',vecA,vecB, _reusedata=_reusedata,)
 
-    node = None
-    args = (val1, val2, val3,)
-    needs_linking = False
-
-    if (_reusedata):
-        node = ng.nodes.get(_reusedata)
-
-    if (node is None):
-        last = ng.nodes.active
-        if (last):
-              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
-        else: location = (0,200,)
-        node = ng.nodes.new('ShaderNodeMix')
-        node.data_type = data_type
-        node.clamp_factor = False
-        node.factor_mode = 'NON_UNIFORM'
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-
-        needs_linking = True
-        if (_reusedata):
-            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
-
-    # Need to choose socket depending on node data_type (hidden sockets)
-    outidx = None
-    indexes = None
-    match data_type:
-        case 'FLOAT':
-            outidx = 0
-            indexes = (0,2,3)
-        case 'VECTOR':
-            outidx = 1
-            indexes = (1,4,5)
-            args = convert_args(*args, toVector=True,)
-        case _:
-            raise Exception("Integration Needed")
-
-    for i,val in zip(indexes,args):
-        match val:
-
-            case sFlo() | sInt() | sBoo() | sVec():
-                if needs_linking:
-                    link_sockets(val, node.inputs[i])
-
-            case Vector():
-                if node.inputs[i].default_value[:] != val[:]:
-                    node.inputs[i].default_value = val
-                    assert_purple_node(node)
-
-            case float() | int() | bool():
-                if type(val) is bool:
-                    val = float(val)
-                if (node.inputs[i].default_value!=val):
-                    node.inputs[i].default_value = val
-                    assert_purple_node(node)
-
-            case None: pass
-
-            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _mix(). Recieved unsupported type '{type(val).__name__}'")
-
-    return node.outputs[outidx]
-
-@user_domain('mathex','nexgeneral')
-def lerp(ng,
-    f:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+@user_domain('nexgeneral')
+def dot(ng,
+    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
-    ) -> sFlo|sVec:
-    """Mix.\nLinear Interpolation of value A and B from given factor."""
-    if anytype(f,a,b,types=(sVec,Vector,),):
-        return _mix(ng,'VECTOR',f,a,b, _reusedata=_reusedata,)
-    return _mix(ng,'FLOAT',f,a,b, _reusedata=_reusedata,)
+    ) -> sVec:
+    """Vector Dot Product.\nA dot B."""
+    return _vecmath(ng,'DOT_PRODUCT',vecA,vecB, _reusedata=_reusedata,)
 
-@user_domain('mathex','nexgeneral')
-def mix(ng,
-    f:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+@user_domain('nexgeneral')
+def project(ng,
+    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
-    ) -> sFlo|sVec:
-    """Alternative notation to lerp() function."""
-    return lerp(ng,f,a,b, _reusedata=_reusedata,)
+    ) -> sVec:
+    """Vector Projection.\nProject A onto B."""
+    return _vecmath(ng,'PROJECT',vecA,vecB, _reusedata=_reusedata,)
 
-def _floatclamp(ng,
-    clamp_type:str,
-    val1:sFlo|sInt|sBoo|float|int=None,
-    val2:sFlo|sInt|sBoo|float|int=None,
-    val3:sFlo|sInt|sBoo|float|int=None,
+@user_domain('nexgeneral')
+def faceforward(ng,
+    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vecI:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vecR:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    _reusedata:str='',
+    ) -> sVec:
+    """Vector Faceforward.\nFaceforward operation between a given vector, an incident and a reference."""
+    return _vecmath(ng,'FACEFORWARD',vecA,vecI,vecR, _reusedata=_reusedata,)
+
+@user_domain('nexgeneral')
+def reflect(ng,
+    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    _reusedata:str='',
+    ) -> sVec:
+    """Vector Reflection.\nReflect A onto B."""
+    return _vecmath(ng,'PROJECT',vecA,vecB, _reusedata=_reusedata,)
+
+@user_domain('nexgeneral')
+def distance(ng,
+    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
     ) -> sFlo:
-    """generic operation for adding a mix node and linking"""
+    """Vector Distance.\nThe distance between location A & B."""
+    return _vecmath(ng,'DISTANCE',vecA,vecB, _reusedata=_reusedata,)
 
-    node = None
-    args = (val1, val2, val3,)
-    needs_linking = False
+@user_domain('nexgeneral')
+def normalize(ng,
+    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    _reusedata:str='',
+    ) -> sVec:
+    """Vector Normalization.\nNormalize A."""
+    return _vecmath(ng,'NORMALIZE',vecA, _reusedata=_reusedata,)
 
-    if (_reusedata):
-        node = ng.nodes.get(_reusedata)
-
-    if (node is None):
-        last = ng.nodes.active
-        if (last):
-              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
-        else: location = (0,200,)
-        node = ng.nodes.new('ShaderNodeClamp')
-        node.clamp_type = clamp_type
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-        
-        needs_linking = True
-        if (_reusedata):
-            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
-
-    for i,val in enumerate(args):
-        match val:
-
-            case sFlo() | sInt() | sBoo():
-                if needs_linking:
-                    link_sockets(val, node.inputs[i])
-
-            case float() | int() | bool():
-                if type(val) is bool:
-                    val = float(val)
-                if (node.inputs[i].default_value!=val):
-                    node.inputs[i].default_value = val
-                    assert_purple_node(node)
-
-            case None: pass
-
-            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatclamp(). Recieved unsupported type '{type(val).__name__}'")
-
-    return node.outputs[0]
-
-@user_domain('mathex')
-def clamp(ng,
-    v:sFlo|sInt|sBoo|float|int,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
+@user_domain('nexgeneral')
+def length(ng,
+    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     _reusedata:str='',
     ) -> sFlo:
-    """Clamp value between min an max."""
-    return _floatclamp(ng,'MINMAX',v,a,b, _reusedata=_reusedata,)
-
-@user_domain('mathex')
-def clampr(ng,
-    v:sFlo|sInt|sBoo|float|int,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
-    _reusedata:str='',
-    ) -> sFlo:
-    """Clamp value between auto-defined min/max."""
-    return _floatclamp(ng,'RANGE',v,a,b, _reusedata=_reusedata,)
-
-def _maprange(ng,
-    data_type:str,
-    interpolation_type:str,
-    val1:sFlo|sInt|sBoo|float|int|Vector=None,
-    val2:sFlo|sInt|sBoo|float|int|Vector=None,
-    val3:sFlo|sInt|sBoo|float|int|Vector=None,
-    val4:sFlo|sInt|sBoo|float|int|Vector=None,
-    val5:sFlo|sInt|sBoo|float|int|Vector=None,
-    val6:sFlo|sInt|sBoo|float|int|Vector=None,
-    _reusedata:str='',
-    ) -> sFlo|sVec:
-    """generic operation for adding a remap node and linking"""
-
-    node = None
-    args = (val1, val2, val3, val4, val5, val6,)
-    needs_linking = False
-
-    if (_reusedata):
-        node = ng.nodes.get(_reusedata)
-
-    if (node is None):
-        last = ng.nodes.active
-        if (last):
-              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
-        else: location = (0,200,)
-        node = ng.nodes.new('ShaderNodeMapRange')
-        node.data_type = data_type
-        node.interpolation_type = interpolation_type
-        node.clamp = False
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-        
-        needs_linking = True
-        if (_reusedata):
-            node.name = node.label = _reusedata #Tag the node, in order to avoid unessessary build
-
-    # Need to choose socket depending on node data_type (hidden sockets)
-    outidx = None
-    indexes = None
-    match data_type:
-        case 'FLOAT':
-            outidx = 0
-            indexes = (0,1,2,3,4,5)
-        case 'FLOAT_VECTOR':
-            outidx = 1
-            indexes = (6,7,8,9,10,11)
-            args = convert_args(*args, toVector=True,)
-        case _:
-            raise Exception("Integration Needed")
-
-    for i,val in zip(indexes,args):
-        match val:
-
-            case sFlo() | sInt() | sBoo() | sVec():
-                if needs_linking:
-                    link_sockets(val, node.inputs[i])
-
-            case Vector():
-                if node.inputs[i].default_value[:] != val[:]:
-                    node.inputs[i].default_value = val
-                    assert_purple_node(node)
-
-            case float() | int() | bool():
-                if type(val) is bool:
-                    val = float(val)
-                if (node.inputs[i].default_value!=val):
-                    node.inputs[i].default_value = val
-                    assert_purple_node(node)
-
-            case None: pass
-
-            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _maprange(). Recieved unsupported type '{type(val).__name__}'")
-
-    return node.outputs[outidx]
-
-@user_domain('mathex','nexgeneral')
-def maplin(ng,
-    val:sFlo|sInt|sBoo|float|int|Vector,
-    a:sFlo|sInt|sBoo|float|int|Vector,
-    b:sFlo|sInt|sBoo|float|int|Vector,
-    x:sFlo|sInt|sBoo|float|int|Vector,
-    y:sFlo|sInt|sBoo|float|int|Vector,
-    _reusedata:str='',
-    ) -> sFlo|sVec:
-    """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
-    if anytype(val,a,b,x,y,types=(sVec,Vector,),):
-        return _maprange(ng,'FLOAT_VECTOR','LINEAR',val,a,b,x,y, _reusedata=_reusedata,)
-    return _maprange(ng,'FLOAT','LINEAR',val,a,b,x,y, _reusedata=_reusedata,)
-
-@user_domain('mathex','nexgeneral')
-def mapstep(ng,
-    val:sFlo|sInt|sBoo|float|int|Vector,
-    a:sFlo|sInt|sBoo|float|int|Vector,
-    b:sFlo|sInt|sBoo|float|int|Vector,
-    x:sFlo|sInt|sBoo|float|int|Vector,
-    y:sFlo|sInt|sBoo|float|int|Vector,
-    step:sFlo|sInt|sBoo|float|int|Vector,
-    _reusedata:str='',
-    ) -> sFlo|sVec:
-    """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
-    if anytype(val,a,b,x,y,step,types=(sVec,Vector,),):
-        return _maprange(ng,'FLOAT_VECTOR','STEPPED',val,a,b,x,y,step, _reusedata=_reusedata,)
-    return _maprange(ng,'FLOAT','STEPPED',val,a,b,x,y,step, _reusedata=_reusedata,)
-
-@user_domain('mathex','nexgeneral')
-def mapsmooth(ng,
-    val:sFlo|sInt|sBoo|float|int|Vector,
-    a:sFlo|sInt|sBoo|float|int|Vector,
-    b:sFlo|sInt|sBoo|float|int|Vector,
-    x:sFlo|sInt|sBoo|float|int|Vector,
-    y:sFlo|sInt|sBoo|float|int|Vector,
-    _reusedata:str='',
-    ) -> sFlo|sVec:
-    """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
-    if anytype(val,a,b,x,y,types=(sVec,Vector,),):
-        return _maprange(ng,'FLOAT_VECTOR','SMOOTHSTEP',val,a,b,x,y, _reusedata=_reusedata,)
-    return _maprange(ng,'FLOAT','SMOOTHSTEP',val,a,b,x,y, _reusedata=_reusedata,)
-
-@user_domain('mathex','nexgeneral')
-def mapsmoother(ng,
-    val:sFlo|sInt|sBoo|float|int|Vector,
-    a:sFlo|sInt|sBoo|float|int|Vector,
-    b:sFlo|sInt|sBoo|float|int|Vector,
-    x:sFlo|sInt|sBoo|float|int|Vector,
-    y:sFlo|sInt|sBoo|float|int|Vector,
-    _reusedata:str='',
-    ) -> sFlo|sVec:
-    """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
-    if anytype(val,a,b,x,y,types=(sVec,Vector,),):
-        return _maprange(ng,'FLOAT_VECTOR','SMOOTHERSTEP',val,a,b,x,y, _reusedata=_reusedata,)
-    return _maprange(ng,'FLOAT','SMOOTHERSTEP',val,a,b,x,y, _reusedata=_reusedata,)
+    """Vector Length.\nThe distance length of A."""
+    return _vecmath(ng,'LENGTH',vecA, _reusedata=_reusedata,)
 
 @user_domain('nexgeneral')
 def separate_xyz(ng,
-    v:sVec,
+    vecA:sVec,
     _reusedata:str='',
     ) -> tuple:
     """Separate a SocketVector into 3 SocketFloat.\nTip: you can use python slicing notations to do that instead."""
 
-    if (type(v) is not sVec):
-        raise InvalidTypePassedToSocket(f"ArgsTypeError for separate_xyz(). Recieved unsupported type '{type(v).__name__}'")
+    if (type(vecA) is not sVec):
+        raise InvalidTypePassedToSocket(f"ArgsTypeError for separate_xyz(). Recieved unsupported type '{type(vecA).__name__}'")
 
     node = None
     needs_linking = False
@@ -882,7 +862,7 @@ def separate_xyz(ng,
             node.name = node.label = _reusedata
 
     if (needs_linking):
-        link_sockets(v, node.inputs[0])
+        link_sockets(vecA, node.inputs[0])
 
     return tuple(node.outputs)
 
@@ -932,6 +912,105 @@ def combine_xyz(ng,
             case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for combine_xyz(). Received unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
+
+@user_domain('mathex','nexgeneral')
+def lerp(ng,
+    f:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    _reusedata:str='',
+    ) -> sFlo|sVec:
+    """Mix.\nLinear Interpolation of value A and B from given factor."""
+    if anytype(f,a,b,types=(sVec,Vector,),):
+        return _mix(ng,'VECTOR',f,a,b, _reusedata=_reusedata,)
+    return _mix(ng,'FLOAT',f,a,b, _reusedata=_reusedata,)
+
+@user_domain('mathex','nexgeneral')
+def mix(ng,
+    f:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    _reusedata:str='',
+    ) -> sFlo|sVec:
+    """Alternative notation to lerp() function."""
+    return lerp(ng,f,a,b, _reusedata=_reusedata,)
+
+@user_domain('mathex')
+def clamp(ng,
+    v:sFlo|sInt|sBoo|float|int,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    _reusedata:str='',
+    ) -> sFlo:
+    """Clamp value between min an max."""
+    return _floatclamp(ng,'MINMAX',v,a,b, _reusedata=_reusedata,)
+
+@user_domain('mathex')
+def clampr(ng,
+    v:sFlo|sInt|sBoo|float|int,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    _reusedata:str='',
+    ) -> sFlo:
+    """Clamp value between auto-defined min/max."""
+    return _floatclamp(ng,'RANGE',v,a,b, _reusedata=_reusedata,)
+
+@user_domain('mathex','nexgeneral')
+def maplin(ng,
+    v:sFlo|sInt|sBoo|float|int|Vector,
+    a:sFlo|sInt|sBoo|float|int|Vector,
+    b:sFlo|sInt|sBoo|float|int|Vector,
+    x:sFlo|sInt|sBoo|float|int|Vector,
+    y:sFlo|sInt|sBoo|float|int|Vector,
+    _reusedata:str='',
+    ) -> sFlo|sVec:
+    """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
+    if anytype(v,a,b,x,y,types=(sVec,Vector,),):
+        return _maprange(ng,'FLOAT_VECTOR','LINEAR',v,a,b,x,y, _reusedata=_reusedata,)
+    return _maprange(ng,'FLOAT','LINEAR',v,a,b,x,y, _reusedata=_reusedata,)
+
+@user_domain('mathex','nexgeneral')
+def mapstep(ng,
+    v:sFlo|sInt|sBoo|float|int|Vector,
+    a:sFlo|sInt|sBoo|float|int|Vector,
+    b:sFlo|sInt|sBoo|float|int|Vector,
+    x:sFlo|sInt|sBoo|float|int|Vector,
+    y:sFlo|sInt|sBoo|float|int|Vector,
+    step:sFlo|sInt|sBoo|float|int|Vector,
+    _reusedata:str='',
+    ) -> sFlo|sVec:
+    """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
+    if anytype(v,a,b,x,y,step,types=(sVec,Vector,),):
+        return _maprange(ng,'FLOAT_VECTOR','STEPPED',v,a,b,x,y,step, _reusedata=_reusedata,)
+    return _maprange(ng,'FLOAT','STEPPED',v,a,b,x,y,step, _reusedata=_reusedata,)
+
+@user_domain('mathex','nexgeneral')
+def mapsmooth(ng,
+    v:sFlo|sInt|sBoo|float|int|Vector,
+    a:sFlo|sInt|sBoo|float|int|Vector,
+    b:sFlo|sInt|sBoo|float|int|Vector,
+    x:sFlo|sInt|sBoo|float|int|Vector,
+    y:sFlo|sInt|sBoo|float|int|Vector,
+    _reusedata:str='',
+    ) -> sFlo|sVec:
+    """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
+    if anytype(v,a,b,x,y,types=(sVec,Vector,),):
+        return _maprange(ng,'FLOAT_VECTOR','SMOOTHSTEP',v,a,b,x,y, _reusedata=_reusedata,)
+    return _maprange(ng,'FLOAT','SMOOTHSTEP',v,a,b,x,y, _reusedata=_reusedata,)
+
+@user_domain('mathex','nexgeneral')
+def mapsmoother(ng,
+    v:sFlo|sInt|sBoo|float|int|Vector,
+    a:sFlo|sInt|sBoo|float|int|Vector,
+    b:sFlo|sInt|sBoo|float|int|Vector,
+    x:sFlo|sInt|sBoo|float|int|Vector,
+    y:sFlo|sInt|sBoo|float|int|Vector,
+    _reusedata:str='',
+    ) -> sFlo|sVec:
+    """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
+    if anytype(v,a,b,x,y,types=(sVec,Vector,),):
+        return _maprange(ng,'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y, _reusedata=_reusedata,)
+    return _maprange(ng,'FLOAT','SMOOTHERSTEP',v,a,b,x,y, _reusedata=_reusedata,)
 
 
 
