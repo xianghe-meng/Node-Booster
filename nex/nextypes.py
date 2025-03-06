@@ -730,42 +730,54 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             components = call_Nex_operand(NexVec, nodesetter.separate_xyz, self, NexReturnType=NexFloat,)
 
             match key:
-
+                
                 case int(): #vec[i]
                     if key not in (0,1,2):
                         raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
                     return components[key]
-
+                
                 case slice(): #vec[:i]
                     indices = range(*key.indices(3))
                     return tuple(components[i] for i in indices)
-
+                
                 case _:
                     raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
-    
+
         def __setitem__(self, key, value):
             """support x[0] += a+b"""
 
             components = call_Nex_operand(NexVec, nodesetter.separate_xyz, self, NexReturnType=NexFloat)
 
             match key:
-                case 0: components = value, components[1], components[2]
-                case 1: components = components[0], value, components[2]
-                case 2: components = components[0], components[1], value
+
+                case int(): #vec[i]
+                    if (key==0):
+                        new_components = value, components[1], components[2]
+                    elif (key==1):
+                        new_components = components[0], value, components[2]
+                    elif (key==2):
+                        new_components = components[0], components[1], value
+                    else:
+                        raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+
                 case slice():
-                    raise NexError("IndexError. Slice in VectorSocket[:] not supported.")
-                    #NOTE for now support for 'x[:] = x[0]*1,x[1]+2,3 ' will not work
+                    if (key!=slice(None,None,None)):
+                        raise NexError("Only [:] slicing is supported for SocketVector.")
+                    new_components = tuple(value)
+                    if (len(new_components)!=3):
+                        raise NexError("Slice assignment requires exactly 3 values.")
+
                 case _:
-                    raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+                    raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
 
             new = call_Nex_operand(NexFloat, nodesetter.combine_xyz, 
-                components[0], components[1], components[2],
+                new_components[0], new_components[1], new_components[2],
                 NexReturnType=NexVec,)
 
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
-            frame_nodes(self.node_tree, components[0].nxsock.node, new.nxsock.node, label=f'v.setitem[{key}]',)
+            frame_nodes(self.node_tree, components[0].nxsock.node, new.nxsock.node, label=f"v.setitem[{key if (type(key) is int) else ':'}]",)
             return None
 
     # ooooo      ooo                         .oooooo.                   .   
