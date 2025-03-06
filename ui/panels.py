@@ -320,7 +320,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     col = panel.column()
 
                     from ..nex.nodesetter import generate_documentation
-                    doc = generate_documentation(tag='nexgeneral')
+                    doc = generate_documentation(tag='nexcode')
                     for fname,fdoc in doc.items():
 
                         row = col.row()

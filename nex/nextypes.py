@@ -965,7 +965,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             return autosetNexType(r)
         return wrapped_func
 
-    generalfuncs = {f.__name__ : sockfunction_Nex_wrapper(f, default_ng=NODEINSTANCE.node_tree) for f in nodesetter.get_nodesetter_functions(tag='nexgeneral')}
+    generalfuncs = {f.__name__ : sockfunction_Nex_wrapper(f, default_ng=NODEINSTANCE.node_tree) for f in nodesetter.get_nodesetter_functions(tag='nexcode')}
 
     nextoys['nexuserfunctions'] = {}
     nextoys['nexuserfunctions'].update(generalfuncs)

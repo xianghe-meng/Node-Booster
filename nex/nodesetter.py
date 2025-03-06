@@ -46,15 +46,29 @@ def convert_args(*args, toVector=False,) -> tuple:
 def user_domain(*tags):
     """decorator to easily retrieve functions names by tag on an orderly manner at runtime"""
 
-    def tag_update_decorator(fct):
+    def decorator(fct):
         """just mark function with tag"""
         
         TAGGED.append(fct)
         fct.tags = tags
         return fct
 
-    return tag_update_decorator
-    
+    return decorator
+
+def user_doc(**kwarks):
+    """decorator to easily define user description depending on domain tag"""
+
+    def decorator(fct):
+        """just mark function with tag"""
+        d = getattr(fct,'_userdoc',None)
+        if (d is None):
+            d = fct._userdoc = {}
+        for k,v in kwarks.items():
+            d[k] = v
+        return fct
+
+    return decorator
+
 def get_nodesetter_functions(tag='', get_names=False, partialdefaults:tuple=None,):
     """get all functions and their names, depending on function types
     optionally, pass the default ng. The 'reusenode' functionality of the functions will be disabled"""
@@ -77,13 +91,21 @@ def generate_documentation(tag=''):
 
     r = {}
     for f in get_nodesetter_functions(tag=tag):
+
         fargs = list(f.__code__.co_varnames[:f.__code__.co_argcount])
         if ('ng' in fargs):
             fargs.remove('ng')
         if ('reusenode' in fargs):
             fargs.remove('reusenode')
         fstr = f'{f.__name__}({", ".join(fargs)})'
-        r[f.__name__] = {'repr':fstr, 'doc':f.__doc__,}
+
+        doc = 'Doc here...'
+        if hasattr(f,'_userdoc'):
+            if (tag in f._userdoc):
+                doc = f._userdoc[tag]
+
+        r[f.__name__] = {'repr':fstr, 'doc':doc,}
+        continue
 
     return r
 
@@ -414,83 +436,83 @@ def _maprange(ng, reusenode:str,
     return node.outputs[outidx]
 
 @user_domain('mathex')
+@user_doc(mathex="Addition.\nEquivalent to the '+' symbol.")
 def add(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    """Addition.\nEquivalent to the '+' symbol."""
     if anytype(a,b,types=(sVec,),):
         return _vecmath(ng,reusenode, 'ADD',a,b)
     return _floatmath(ng,reusenode, 'ADD',a,b)
 
 @user_domain('mathex')
+@user_doc(mathex="Subtraction.\nEquivalent to the '-' symbol.")
 def sub(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    """Subtraction.\nEquivalent to the '-' symbol."""
     if anytype(a,b,types=(sVec,),):
         return _vecmath(ng,reusenode, 'SUBTRACT',a,b)
     return _floatmath(ng,reusenode, 'SUBTRACT',a,b)
 
 @user_domain('mathex')
+@user_doc(mathex="Multiplications.\nEquivalent to the '*' symbol.")
 def mult(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    """Multiplications.\nEquivalent to the '*' symbol."""
     if anytype(a,b,types=(sVec,),):
         return _vecmath(ng,reusenode, 'MULTIPLY',a,b)
     return _floatmath(ng,reusenode, 'MULTIPLY',a,b)
 
 @user_domain('mathex')
+@user_doc(mathex="Division.\nEquivalent to the '/' symbol.")
 def div(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    """Division.\nEquivalent to the '/' symbol."""
     if anytype(a,b,types=(sVec,),):
         return _vecmath(ng,reusenode, 'DIVIDE',a,b)
     return _floatmath(ng,reusenode, 'DIVIDE',a,b)
 
 @user_domain('mathex')
+@user_doc(mathex="A Power n.\nEquivalent to the 'a**n' and '²' symbol.")
 def pow(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    """A Power n.\nEquivalent to the 'a**n' and '²' symbol."""
     if anytype(a,n,types=(sVec,),):
         return _vecmath(ng,reusenode, 'POWER',a,n)
     return _floatmath(ng,reusenode, 'POWER',a,n)
 
 @user_domain('mathex')
+@user_doc(mathex="Logarithm A base B.")
 def log(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Logarithm A base B."""
     return _floatmath(ng,reusenode, 'LOGARITHM',a,b)
 
 @user_domain('mathex')
+@user_doc(mathex="Square Root of A.")
 def sqrt(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Square Root of A."""
     return _floatmath(ng,reusenode, 'SQRT',a)
 
 @user_domain('mathex')
+@user_doc(mathex="1/ Square Root of A.")
 def invsqrt(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """1/ Square Root of A."""
     return _floatmath(ng,reusenode, 'INVERSE_SQRT',a)
 
 @user_domain('mathex')
+@user_doc(mathex="A Root N. a**(1/n.)")
 def nroot(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     n:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """A Root N. a**(1/n.)"""
     
     if (reusenode): #this function is created multiple nodes so we need multiple tag
           _x = div(ng,f"{reusenode}|inner", 1,n)
@@ -501,143 +523,143 @@ def nroot(ng, reusenode:str,
     return _r
 
 @user_domain('mathex')
+@user_doc(mathex="Absolute of A.")
 def abs(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    """Absolute of A."""
     if anytype(a,types=(sVec,),):
         return _vecmath(ng,reusenode, 'ABSOLUTE',a)
     return _floatmath(ng,reusenode, 'ABSOLUTE',a)
 
 @user_domain('mathex')
+@user_doc(mathex="Negate the value of A.\nEquivalent to the symbol '-x.'")
 def neg(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    """Negate the value of A.\nEquivalent to the symbol '-x.'"""
     _r = sub(ng,reusenode, 0,a)
     frame_nodes(ng, _r.node, label='Negate',)
     return _r
 
 @user_domain('mathex')
+@user_doc(mathex="Minimum between A & B.")
 def min(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Minimum between A & B."""
     return _floatmath(ng,reusenode, 'MINIMUM',a,b)
 
 @user_domain('mathex')
+@user_doc(mathex="Minimum between A & B considering a smoothing distance.")
 def smin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     dist:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Minimum between A & B considering a smoothing distance."""
     return _floatmath(ng,reusenode, 'SMOOTH_MIN',a,b,dist)
 
 @user_domain('mathex')
+@user_doc(mathex="Maximum between A & B.")
 def max(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Maximum between A & B."""
     return _floatmath(ng,reusenode, 'MAXIMUM',a,b)
 
 @user_domain('mathex')
+@user_doc(mathex="Maximum between A & B considering a smoothing distance.")
 def smax(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     dist:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Maximum between A & B considering a smoothing distance."""
     return _floatmath(ng,reusenode, 'SMOOTH_MAX',a,b,dist)
 
 @user_domain('mathex')
+@user_doc(mathex="Round a Float to an Integer.")
 def round(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Round a Float to an Integer."""
     return _floatmath(ng,reusenode, 'ROUND',a)
 
 @user_domain('mathex')
+@user_doc(mathex="Floor a Float to an Integer.")
 def floor(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    """Floor a Float to an Integer."""
     if anytype(a,types=(sVec,),):
         return _vecmath(ng,reusenode, 'FLOOR',a)
     return _floatmath(ng,reusenode, 'FLOOR',a)
 
 @user_domain('mathex')
+@user_doc(mathex="Ceil a Float to an Integer.")
 def ceil(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Ceil a Float to an Integer."""
     return _floatmath(ng,reusenode, 'CEIL',a)
 
 @user_domain('mathex')
+@user_doc(mathex="Trunc a Float to an Integer.")
 def trunc(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Trunc a Float to an Integer."""
     return _floatmath(ng,reusenode, 'TRUNC',a)
 
 @user_domain('mathex')
+@user_doc(mathex="Fraction.\nThe fraction part of A.")
 def frac(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Fraction.\nThe fraction part of A."""
     return _floatmath(ng,reusenode, 'FRACT',a)
 
 @user_domain('mathex')
+@user_doc(mathex="Modulo.\nEquivalent to the '%' symbol.")
 def mod(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    """Modulo.\nEquivalent to the '%' symbol."""
     if anytype(a,b,types=(sVec,),):
         return _vecmath(ng,reusenode, 'MODULO',a,b)
     return _floatmath(ng,reusenode, 'MODULO',a,b)
     
 @user_domain('mathex')
+@user_doc(mathex="Floored Modulo.")
 def flooredmod(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Floored Modulo."""
     return _floatmath(ng,reusenode, 'FLOORED_MODULO',a,b)
 
 @user_domain('mathex')
+@user_doc(mathex="Wrap value to Range A B.")
 def wrap(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Wrap value to Range A B."""
     return _floatmath(ng,reusenode, 'WRAP',v,a,b)
 
 @user_domain('mathex')
+@user_doc(mathex="Snap to Increment.")
 def snap(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int,
     i:sFlo|sInt|sBoo|float|int, 
     ) -> sFlo:
-    """Snap to Increment."""
     return _floatmath(ng,reusenode, 'SNAP',v,i)
 
 @user_domain('mathex')
+@user_doc(mathex="PingPong. Wrap a value and every other cycles at cycle Scale.")
 def pingpong(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int,
     scale:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """PingPong. Wrap a value and every other cycles at cycle Scale."""
     return _floatmath(ng,reusenode, 'PINGPONG',v,scale)
 
 @user_domain('mathex')
+@user_doc(mathex="Floor Division.\nEquivalent to the '//' symbol.")
 def floordiv(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    """Floor Division.\nEquivalent to the '//' symbol."""
 
     if (reusenode): #this function is created multiple nodes so we need multiple tag
           _x = div(ng,f"{reusenode}|inner", a,b)
@@ -648,150 +670,150 @@ def floordiv(ng, reusenode:str,
     return _r
 
 @user_domain('mathex')
+@user_doc(mathex="The Sine of A.")
 def sin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """The Sine of A."""
     return _floatmath(ng,reusenode, 'SINE',a)
 
 @user_domain('mathex')
+@user_doc(mathex="The Cosine of A.")
 def cos(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """The Cosine of A."""
     return _floatmath(ng,reusenode, 'COSINE',a)
 
 @user_domain('mathex')
+@user_doc(mathex="The Tangent of A.")
 def tan(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """The Tangent of A."""
     return _floatmath(ng,reusenode, 'TANGENT',a)
 
 @user_domain('mathex')
+@user_doc(mathex="The Arcsine of A.")
 def asin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """The Arcsine of A."""
     return _floatmath(ng,reusenode, 'ARCSINE',a)
 
 @user_domain('mathex')
+@user_doc(mathex="The Arccosine of A.")
 def acos(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """The Arccosine of A."""
     return _floatmath(ng,reusenode, 'ARCCOSINE',a)
 
 @user_domain('mathex')
+@user_doc(mathex="The Arctangent of A.")
 def atan(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """The Arctangent of A."""
     return _floatmath(ng,reusenode, 'ARCTANGENT',a)
 
 @user_domain('mathex')
+@user_doc(mathex="The Hyperbolic Sine of A.")
 def hsin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """The Hyperbolic Sine of A."""
     return _floatmath(ng,reusenode, 'SINH',a)
 
 @user_domain('mathex')
+@user_doc(mathex="The Hyperbolic Cosine of A.")
 def hcos(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """The Hyperbolic Cosine of A."""
     return _floatmath(ng,reusenode, 'COSH',a)
 
 @user_domain('mathex')
+@user_doc(mathex="The Hyperbolic Tangent of A.")
 def htan(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """The Hyperbolic Tangent of A."""
     return _floatmath(ng,reusenode, 'TANH',a)
 
 @user_domain('mathex')
+@user_doc(mathex="Convert from Degrees to Radians.")
 def rad(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Convert from Degrees to Radians."""
     return _floatmath(ng,reusenode, 'RADIANS',a)
 
 @user_domain('mathex')
+@user_doc(mathex="Convert from Radians to Degrees.")
 def deg(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Convert from Radians to Degrees."""
     return _floatmath(ng,reusenode, 'DEGREES',a)
 
-@user_domain('nexgeneral')
+@user_domain('nexcode')
+@user_doc(nexcode="Vector Cross Product.\nThe cross product between vector A an B.")
 def cross(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    """Vector Cross Product.\nThe cross product between vector A an B."""
     return _vecmath(ng,reusenode, 'CROSS_PRODUCT',vecA,vecB)
 
-@user_domain('nexgeneral')
+@user_domain('nexcode')
+@user_doc(nexcode="Vector Dot Product.\nA dot B.")
 def dot(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    """Vector Dot Product.\nA dot B."""
     return _vecmath(ng,reusenode, 'DOT_PRODUCT',vecA,vecB)
 
-@user_domain('nexgeneral')
+@user_domain('nexcode')
+@user_doc(nexcode="Vector Projection.\nProject A onto B.")
 def project(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    """Vector Projection.\nProject A onto B."""
     return _vecmath(ng,reusenode, 'PROJECT',vecA,vecB)
 
-@user_domain('nexgeneral')
+@user_domain('nexcode')
+@user_doc(nexcode="Vector Faceforward.\nFaceforward operation between a given vector, an incident and a reference.")
 def faceforward(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecI:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecR:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    """Vector Faceforward.\nFaceforward operation between a given vector, an incident and a reference."""
     return _vecmath(ng,reusenode, 'FACEFORWARD',vecA,vecI,vecR)
 
-@user_domain('nexgeneral')
+@user_domain('nexcode')
+@user_doc(nexcode="Vector Reflection.\nReflect A onto B.")
 def reflect(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    """Vector Reflection.\nReflect A onto B."""
     return _vecmath(ng,reusenode, 'PROJECT',vecA,vecB)
 
-@user_domain('nexgeneral')
+@user_domain('nexcode')
+@user_doc(nexcode="Vector Distance.\nThe distance between location A & B.")
 def distance(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
-    """Vector Distance.\nThe distance between location A & B."""
     return _vecmath(ng,reusenode, 'DISTANCE',vecA,vecB)
 
-@user_domain('nexgeneral')
+@user_domain('nexcode')
+@user_doc(nexcode="Vector Normalization.\nNormalize A.")
 def normalize(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    """Vector Normalization.\nNormalize A."""
     return _vecmath(ng,reusenode, 'NORMALIZE',vecA)
 
-@user_domain('nexgeneral')
+@user_domain('nexcode')
+@user_doc(nexcode="Vector Length.\nThe distance length of A.")
 def length(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
-    """Vector Length.\nThe distance length of A."""
     return _vecmath(ng,reusenode, 'LENGTH',vecA)
 
-@user_domain('nexgeneral')
+@user_domain('nexcode')
+@user_doc(nexcode="Separate a SocketVector into 3 SocketFloat.\nTip: you can use python slicing notations to do that instead.")
 def separate_xyz(ng, reusenode:str,
     vecA:sVec,
     ) -> tuple:
-    """Separate a SocketVector into 3 SocketFloat.\nTip: you can use python slicing notations to do that instead."""
 
     if (type(vecA) is not sVec):
         raise InvalidTypePassedToSocket(f"ArgsTypeError for separate_xyz(). Recieved unsupported type '{type(vecA).__name__}'")
@@ -820,13 +842,13 @@ def separate_xyz(ng, reusenode:str,
 
     return tuple(node.outputs)
 
-@user_domain('nexgeneral')
+@user_domain('nexcode')
+@user_doc(nexcode="Combine 3 SocketFloat (or python values) into a SocketVector.")
 def combine_xyz(ng, reusenode:str,
     x:sFlo|sInt|sBoo|float|int,
     y:sFlo|sInt|sBoo|float|int,
     z:sFlo|sInt|sBoo|float|int,
     ) -> sVec:
-    """Combine 3 SocketFloat (or python values) into a SocketVector"""
 
     node = None
     needs_linking = False
@@ -866,45 +888,46 @@ def combine_xyz(ng, reusenode:str,
 
     return node.outputs[0]
 
-@user_domain('mathex','nexgeneral')
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Mix.\nLinear Interpolation of value A and B from given factor.")
 def lerp(ng, reusenode:str,
     f:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    """Mix.\nLinear Interpolation of value A and B from given factor."""
     if anytype(f,a,b,types=(sVec,Vector,),):
         return _mix(ng,reusenode, 'VECTOR',f,a,b)
     return _mix(ng,reusenode, 'FLOAT',f,a,b)
 
-@user_domain('mathex','nexgeneral')
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Alternative notation to lerp() function.")
 def mix(ng, reusenode:str,
     f:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    """Alternative notation to lerp() function."""
     return lerp(ng,reusenode, f,a,b)
 
 @user_domain('mathex')
+@user_doc(mathex="Clamp value between min an max.")
 def clamp(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Clamp value between min an max."""
     return _floatclamp(ng,reusenode, 'MINMAX',v,a,b)
 
 @user_domain('mathex')
+@user_doc(mathex="Clamp value between auto-defined min/max.")
 def clampr(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    """Clamp value between auto-defined min/max."""
     return _floatclamp(ng,reusenode, 'RANGE',v,a,b)
 
-@user_domain('mathex','nexgeneral')
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Map Range.\nRemap a value from a fiven A,B range to a X,Y range.")
 def maplin(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
@@ -912,12 +935,12 @@ def maplin(ng, reusenode:str,
     x:sFlo|sInt|sBoo|float|int|Vector,
     y:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
-    """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
     if anytype(v,a,b,x,y,types=(sVec,Vector,),):
         return _maprange(ng,reusenode, 'FLOAT_VECTOR','LINEAR',v,a,b,x,y)
     return _maprange(ng,reusenode, 'FLOAT','LINEAR',v,a,b,x,y)
 
-@user_domain('mathex','nexgeneral')
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step.")
 def mapstep(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
@@ -926,12 +949,12 @@ def mapstep(ng, reusenode:str,
     y:sFlo|sInt|sBoo|float|int|Vector,
     step:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
-    """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
     if anytype(v,a,b,x,y,step,types=(sVec,Vector,),):
         return _maprange(ng,reusenode, 'FLOAT_VECTOR','STEPPED',v,a,b,x,y,step)
     return _maprange(ng,reusenode, 'FLOAT','STEPPED',v,a,b,x,y,step)
 
-@user_domain('mathex','nexgeneral')
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range.")
 def mapsmooth(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
@@ -939,12 +962,12 @@ def mapsmooth(ng, reusenode:str,
     x:sFlo|sInt|sBoo|float|int|Vector,
     y:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
-    """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
     if anytype(v,a,b,x,y,types=(sVec,Vector,),):
         return _maprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHSTEP',v,a,b,x,y)
     return _maprange(ng,reusenode, 'FLOAT','SMOOTHSTEP',v,a,b,x,y)
 
-@user_domain('mathex','nexgeneral')
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range.")
 def mapsmoother(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
@@ -952,7 +975,6 @@ def mapsmoother(ng, reusenode:str,
     x:sFlo|sInt|sBoo|float|int|Vector,
     y:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
-    """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
     if anytype(v,a,b,x,y,types=(sVec,Vector,),):
         return _maprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y)
     return _maprange(ng,reusenode, 'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
