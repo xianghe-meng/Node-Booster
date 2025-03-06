@@ -508,7 +508,7 @@ def invsqrt(ng, reusenode:str,
     return _floatmath(ng,reusenode, 'INVERSE_SQRT',a)
 
 @user_domain('mathex')
-@user_doc(mathex="A Root N. a**(1/n.)")
+@user_doc(mathex="A Root N. Equivalent to doing 'a**(1/n).'")
 def nroot(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     n:sFlo|sInt|sBoo|float|int,
@@ -811,7 +811,7 @@ def length(ng, reusenode:str,
     return _vecmath(ng,reusenode, 'LENGTH',vecA)
 
 @user_domain('nexcode')
-@user_doc(nexcode="Separate a SocketVector into 3 SocketFloat.\nTip: you can use python slicing notations to do that instead.")
+@user_doc(nexcode="Separate a SocketVector into 3 SocketFloat.\nTip: you can use python slicing notations 'myX, myY, myZ = VecA' to do that instead.")
 def separate_xyz(ng, reusenode:str,
     vecA:sVec,
     ) -> tuple:
@@ -890,7 +890,8 @@ def combine_xyz(ng, reusenode:str,
     return node.outputs[0]
 
 @user_domain('mathex','nexcode')
-@user_doc(mathex="Mix.\nLinear Interpolation of value A and B from given factor.")
+@user_doc(mathex="Mix.\nLinear Interpolation between value A and B from given factor F.")
+@user_doc(nexcode="Mix.\nLinear Interpolation between value A and B from given factor F.\nSupports SocketFloat, SocketBool, SocketInt, SocketVector implicitly. Can also work with python int, float, and Vector types.")
 def lerp(ng, reusenode:str,
     f:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -902,6 +903,7 @@ def lerp(ng, reusenode:str,
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Alternative notation to lerp() function.")
+@user_doc(nexcode="Alternative notation to lerp() function.")
 def mix(ng, reusenode:str,
     f:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -910,7 +912,7 @@ def mix(ng, reusenode:str,
     return lerp(ng,reusenode, f,a,b)
 
 @user_domain('mathex')
-@user_doc(mathex="Clamp value between min an max.")
+@user_doc(mathex="Clamping.\nClamp a value a between min a an max b.")
 def clamp(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -919,7 +921,7 @@ def clamp(ng, reusenode:str,
     return _floatclamp(ng,reusenode, 'MINMAX',v,a,b)
 
 @user_domain('mathex')
-@user_doc(mathex="Clamp value between auto-defined min/max.")
+@user_doc(mathex="AutoClamping.\nClamp a value a between auto-defined min/max a&b.")
 def clampr(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int,
     a:sFlo|sInt|sBoo|float|int,
@@ -928,7 +930,8 @@ def clampr(ng, reusenode:str,
     return _floatclamp(ng,reusenode, 'RANGE',v,a,b)
 
 @user_domain('mathex','nexcode')
-@user_doc(mathex="Map Range.\nRemap a value from a fiven A,B range to a X,Y range.")
+@user_doc(mathex="Map Range.\nRemap a value V from a given range A,B to another range X,Y.")
+@user_doc(nexcode="Map Range.\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat, SocketBool, SocketInt, SocketVector implicitly. Can also work with python int, float, and Vector types.")
 def maplin(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
@@ -941,7 +944,8 @@ def maplin(ng, reusenode:str,
     return _maprange(ng,reusenode, 'FLOAT','LINEAR',v,a,b,x,y)
 
 @user_domain('mathex','nexcode')
-@user_doc(mathex="Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step.")
+@user_doc(mathex="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.")
+@user_doc(nexcode="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\nSupports SocketFloat, SocketBool, SocketInt, SocketVector implicitly. Can also work with python int, float, and Vector types.")
 def mapstep(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
@@ -955,7 +959,8 @@ def mapstep(ng, reusenode:str,
     return _maprange(ng,reusenode, 'FLOAT','STEPPED',v,a,b,x,y,step)
 
 @user_domain('mathex','nexcode')
-@user_doc(mathex="Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range.")
+@user_doc(mathex="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.")
+@user_doc(nexcode="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat, SocketBool, SocketInt, SocketVector implicitly. Can also work with python int, float, and Vector types.")
 def mapsmooth(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
@@ -968,7 +973,8 @@ def mapsmooth(ng, reusenode:str,
     return _maprange(ng,reusenode, 'FLOAT','SMOOTHSTEP',v,a,b,x,y)
 
 @user_domain('mathex','nexcode')
-@user_doc(mathex="Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range.")
+@user_doc(mathex="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.")
+@user_doc(nexcode="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat, SocketBool, SocketInt, SocketVector implicitly. Can also work with python int, float, and Vector types.")
 def mapsmoother(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,

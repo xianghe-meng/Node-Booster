@@ -26,6 +26,25 @@ from ..utils.node_utils import (
 )
 
 
+NEXNOTATIONDOC = {
+    '+':{'name':"Addition",'desc':"Add between SocketFloat, SocketBool, SocketInt and SocketVector. Type conversion is implicit."},
+    '-':{'name':"Subtraction.",'desc':"Subtract between SocketFloat, SocketBool, SocketInt and SocketVector. Type conversion is implicit.\nYou are also able to negate using the 'x = -x' Notation as well."},
+    '*':{'name':"Multiplication.",'desc':"Multiply between SocketFloat, SocketBool, SocketInt and SocketVector. Type conversion is implicit."},
+    '**':{'name':"Power.",'desc':"Raise a SocketFloat, SocketBool or SocketInt."},
+    '/':{'name':"Division.",'desc':"Divide between SocketFloat, SocketBool, SocketInt and SocketVector. Type conversion is implicit."},
+    '//':{'name':"FloorDiv.",'desc':"Do a FloorDiv operation between SocketFloat, SocketBool, SocketInt and SocketVector. Type conversion is implicit."},
+    '%':{'name':"Modulo.",'desc':"Do a Modulo operation between SocketFloat, SocketBool, SocketInt and SocketVector. Type conversion is implicit."},
+    'abs(a)':{'name':"Absolute.",'desc':"Get the absolute value of a SocketFloat, SocketBool, SocketInt and SocketVector."},
+    'x.as_radian()':{'name':"to Radian.",'desc':"Return a Converted SocketFloat, SocketBool, SocketInt to radians SocketFloat values."},
+    'x.as_degree()':{'name':"to Degree.",'desc':"Return a Converted SocketFloat, SocketBool, SocketInt to degrees SocketFloat values."},
+    'vecA.x':{'name':"Get X.",'desc':"Get or Assign a SocketFloat value from the X axis of a chosen SocketVector.\nIs equivalent to the 'vecA[0]' notation."},
+    'vecA.y':{'name':"Get Y.",'desc':"Get or Assign a SocketFloat value from the Y axis of a chosen SocketVector.\nIs equivalent to the 'vecA[1]' notation."},
+    'vecA.z':{'name':"Get Z.",'desc':"Get or Assign a SocketFloat value from the Z axis of a chosen SocketVector.\nIs equivalent to the 'vecA[2]' notation."},
+    'vecA.xyz':{'name':"Get XYZ tuple.",'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding axes of a chosen SocketVector.\nIs equivalent to the 'vecA[:]' notation."},
+    'vecA.length()':{'name':"Vector Length.",'desc':"Return a SocketFloat value corresponding to the length of SocketVector."},
+}
+
+
 def transform_nex_script(original_text:str, nextypes:list) -> str:
     """
     Transforms a Nex script:

@@ -102,8 +102,8 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
 
                     col = panel.column()
 
-                    from ..customnodes.mathexpression import DOCSYMBOLS
-                    for symbol,v in DOCSYMBOLS.items():
+                    from ..customnodes.mathexpression import MATHEXPRESSIONDOC
+                    for symbol,v in MATHEXPRESSIONDOC.items():
 
                         desc = v['name']+'\n'+v['desc'] if v['desc'] else v['name']
                         row = col.row()
@@ -318,6 +318,21 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                 if (panel):
 
                     col = panel.column()
+
+                    from ..customnodes.nexinterpreter import NEXNOTATIONDOC
+                    for symbol,v in NEXNOTATIONDOC.items():
+
+                        desc = v['name']+'\n'+v['desc'] if v['desc'] else v['name']
+                        row = col.row()
+                        row.scale_y = 0.65
+                        row.box().label(text=symbol,)
+
+                        col.separator(factor=0.5)
+
+                        word_wrap(layout=col, alert=False, active=True, max_char='auto',
+                            char_auto_sidepadding=0.95, context=context, string=desc, alignment='LEFT',
+                            )
+                        col.separator()
 
                     from ..nex.nodesetter import generate_documentation
                     doc = generate_documentation(tag='nexcode')
