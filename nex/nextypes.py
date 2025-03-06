@@ -44,6 +44,7 @@ from functools import partial
 from ..__init__ import dprint
 from ..nex.pytonode import convert_pyvar_to_data
 from ..nex import nodesetter
+from ..utils.fct_utils import alltypes, anytype
 from ..utils.node_utils import (
     create_new_nodegroup,
     set_socket_defvalue,
@@ -995,15 +996,26 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
     def sockfunction_Nex_wrapper(sockfunc, default_ng=None,):
         """wrap a nodesetter function to transform it into a Nex functions, nodesetter fct always expecting socket or py variables
         & return sockets or tuple of sockets. Function similar to 'call_Nex_operand' but more general"""
+        
         def wrapped_func(*args, **kwargs):
+
+            # Some functions are simply overloads of existing python math functions and there's namespace collision (ex sin(a))
+            # If we are working only with python types, then we should't wrap any value!
+            if sockfunc.__name__ in ('cos','sin','tan'):
+                if not any(('Nex' in type(v).__name__) for v in args):
+                    return sockfunc(None,'NoneTags', *args, **kwargs)
+
             #define reuse taga unique tag to ensure the function is not generated on each nex script run
             uniquetag = create_Nex_tag(sockfunc, *args, startchar='nF',)
             partialsockfunc = partial(sockfunc, default_ng, uniquetag)
+
             #sockfunc expect nodesockets, not nex..
             args = [v.nxsock if ('Nex' in type(v).__name__) else v for v in args] #we did that previously with 'sock_or_py_variables'
+
             #execute the function
             try:
                 r = partialsockfunc(*args, **kwargs)
+
             except TypeError as e:
                 #Cook better error message to end user
                 e = str(e)
@@ -1015,18 +1027,22 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     elif ('() takes' in e) and ('positional argument' in e):
                         raise NexError(f"Function '{fname}' recieved Extra Param(s)")
                 raise
+
             except nodesetter.InvalidTypePassedToSocket as e:
                 msg = str(e)
                 if ('Expected parameters in' in msg):
                     msg = f"SocketTypeError. Function '{sockfunc.__name__}' Expected parameters in " + str(e).split('Expected parameters in ')[1]
                 raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.
+
             except Exception as e:
                 print(f"ERROR: sockfunction_Nex_wrapper.sockfunc() caught error {type(e).__name__}")
                 raise
+
             #automatically convert socket returns to nex
             if (type(r) is tuple):
                 return tuple(autosetNexType(s) for s in r)
             return autosetNexType(r)
+
         return wrapped_func
 
     generalfuncs = {f.__name__ : sockfunction_Nex_wrapper(f, default_ng=NODEINSTANCE.node_tree) for f in nodesetter.get_nodesetter_functions(tag='nexcode')}

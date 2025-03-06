@@ -14,7 +14,7 @@ from functools import partial
 from mathutils import Vector
 
 from ..utils.node_utils import link_sockets, frame_nodes
-
+from ..utils.fct_utils import alltypes, anytype
 
 sBoo = bpy.types.NodeSocketBool
 sInt = bpy.types.NodeSocketInt
@@ -33,10 +33,6 @@ class InvalidTypePassedToSocket(Exception):
     def __init__(self, message):
         super().__init__(message)
 
-
-def anytype(*args, types:tuple=None) -> bool:
-    """Returns True if any argument in *args is an instance of any type in the 'types' tuple."""
-    return any(isinstance(arg, types) for arg in args)
 
 def convert_args(*args, toVector=False,) -> tuple:
     if (toVector):
@@ -669,25 +665,40 @@ def floordiv(ng, reusenode:str,
     frame_nodes(ng, _x.node, _r.node, label='FloorDiv',)
     return _r
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="The Sine of A.")
+@user_doc(nexcode="The Sine of A.\nSupports SocketFloat, SocketBool, SocketInt, SocketVector.\nIf python types int, float are found 'math.sin' function will be used.")
 def sin(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec|float:
+    if alltypes(a,types=(float,int,)):
+        return math.sin(a)
+    elif anytype(a,types=(sVec,Vector,),):
+        return _vecmath(ng,reusenode, 'SINE',a)
     return _floatmath(ng,reusenode, 'SINE',a)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="The Cosine of A.")
+@user_doc(nexcode="The Cosine of A.\nSupports SocketFloat, SocketBool, SocketInt, SocketVector.\nIf python types int, float are found 'math.cos' function will be used.")
 def cos(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec|float:
+    if alltypes(a,types=(float,int,)):
+        return math.cos(a)
+    elif anytype(a,types=(sVec,Vector,),):
+        return _vecmath(ng,reusenode, 'COSINE',a)
     return _floatmath(ng,reusenode, 'COSINE',a)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="The Tangent of A.")
+@user_doc(nexcode="The Tangent of A.\nSupports SocketFloat, SocketBool, SocketInt, SocketVector.\nIf python types int, float are found 'math.tan' function will be used.")
 def tan(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec|float:
+    if alltypes(a,types=(float,int,)):
+        return math.tan(a)
+    elif anytype(a,types=(sVec,Vector,),):
+        return _vecmath(ng,reusenode, 'TANGENT',a)
     return _floatmath(ng,reusenode, 'TANGENT',a)
 
 @user_domain('mathex')
