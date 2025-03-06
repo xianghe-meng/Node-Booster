@@ -140,10 +140,10 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
 
     # Then return a Nextype..
     # (Support for multi outputs & if output type is not the same as input with NexReturnType)
+    if (NexReturnType is not None):
+        NexType = NexReturnType
     if (type(r) is tuple):
-        if (NexReturnType is not None):
-            return tuple(NexReturnType(fromsocket=s) for s in r)
-        return tuple(NexType(fromsocket=s) for s in r)
+        return tuple(NexType(fromsocket=s) for s in r)        
     return NexType(fromsocket=r)
 
 
@@ -460,8 +460,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"SocketTypeError. Cannot perform floordiv on type 'SocketFloat' with '{type(other).__name__}'.")
-            sockfunc = nodesetter.floordiv
-            return call_Nex_operand(NexFloat, sockfunc, *args,)
+            return call_Nex_operand(NexFloat, nodesetter.floordiv, *args,)
 
         def __rfloordiv__(self, other): # other // self
             type_name = type(other).__name__
@@ -486,6 +485,16 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __abs__(self): # abs(self)
             return call_Nex_operand(NexFloat, nodesetter.abs, self,)
 
+        # ---------------------
+        # NexFloat Custom Functions
+
+        def as_radian(self):
+            return call_Nex_operand(NexFloat, nodesetter.rad, self,)
+
+        def as_degree(self):
+            return call_Nex_operand(NexFloat, nodesetter.deg, self,)
+        
+        
     # ooooo      ooo                       oooooo     oooo                     
     # `888b.     `8'                        `888.     .8'                      
     #  8 `88b.    8   .ooooo.  oooo    ooo   `888.   .8'    .ooooo.   .ooooo.  
@@ -780,6 +789,49 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             frame_nodes(self.node_tree, components[0].nxsock.node, new.nxsock.node, label=f"v.setitem[{key if (type(key) is int) else ':'}]",)
             return None
 
+        # ---------------------
+        # NexVec Custom Properties
+
+        #Vec.x
+        @property
+        def x(self):
+            return self[0]
+        @x.setter
+        def x(self, value):
+            self[0] = value
+
+        #Vec.y
+        @property
+        def y(self):
+            return self[1]
+        @y.setter
+        def y(self, value):
+            self[1] = value
+
+        #Vec.z
+        @property
+        def z(self):
+            return self[2]
+        @z.setter
+        def z(self, value):
+            self[2] = value
+
+        #Vec.xyz
+        @property
+        def xyz(self):
+            return self[:]
+        @xyz.setter
+        def xyz(self, value):
+            if (type(value) is tuple and len(value)==3):
+                  self[:] = value
+            else: raise NexError("TypeError. Assignment to SocketVector.xyz is expected to be a tuple of length 3 containing sockets or Python values.")
+
+        # ---------------------
+        # NexVec Custom Functions
+
+        def length(self):
+            return call_Nex_operand(NexVec, nodesetter.length, self, NexReturnType=NexFloat,)
+        
     # ooooo      ooo                         .oooooo.                   .   
     # `888b.     `8'                        d8P'  `Y8b                .o8   
     #  8 `88b.    8   .ooooo.  oooo    ooo 888      888 oooo  oooo  .o888oo 

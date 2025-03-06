@@ -802,8 +802,9 @@ def normalize(ng, reusenode:str,
     ) -> sVec:
     return _vecmath(ng,reusenode, 'NORMALIZE',vecA)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Vector Length.\nThe distance length of A.")
+# This one has been implemented as vecA.length()
+# @user_domain('nexcode')
+# @user_doc(nexcode="Vector Length.\nThe distance length of A.")
 def length(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
