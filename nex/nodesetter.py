@@ -616,7 +616,7 @@ def mod(ng, reusenode:str,
     if anytype(a,b,types=(sVec,),):
         return _vecmath(ng,reusenode, 'MODULO',a,b)
     return _floatmath(ng,reusenode, 'MODULO',a,b)
-    
+
 @user_domain('mathex')
 @user_doc(mathex="Floored Modulo.")
 def flooredmod(ng, reusenode:str,
@@ -625,21 +625,27 @@ def flooredmod(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'FLOORED_MODULO',a,b)
 
-@user_domain('mathex')
-@user_doc(mathex="Wrap value to Range A B.")
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Wrapping.\nWrap a value V to Range A B.")
+@user_doc(nexcode="Wrapping.\nWrap a value V to Range A B.\nSupports SocketFloat, SocketBool, SocketInt, SocketVector implicitly. Can also work with python int, float, and Vector types.")
 def wrap(ng, reusenode:str,
-    v:sFlo|sInt|sBoo|float|int,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
+    v:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
+    if anytype(v,a,b,types=(sVec,Vector,),):
+        return _vecmath(ng,reusenode, 'WRAP',v,a,b)
     return _floatmath(ng,reusenode, 'WRAP',v,a,b)
 
-@user_domain('mathex')
-@user_doc(mathex="Snap to Increment.")
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Snapping.\nSnap a value V to the nearest increament I.")
+@user_doc(nexcode="Snapping.\nSnap a value V to the nearest increament I.\nSupports SocketFloat, SocketBool, SocketInt, SocketVector implicitly. Can also work with python int, float, and Vector types.")
 def snap(ng, reusenode:str,
-    v:sFlo|sInt|sBoo|float|int,
-    i:sFlo|sInt|sBoo|float|int, 
+    v:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    i:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
+    if anytype(v,i,types=(sVec,Vector,),):
+        return _vecmath(ng,reusenode, 'SNAP',v,i)
     return _floatmath(ng,reusenode, 'SNAP',v,i)
 
 @user_domain('mathex')
