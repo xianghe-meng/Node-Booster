@@ -487,13 +487,25 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         # ---------------------
         # NexFloat Custom Functions
 
-        def as_radian(self):
+        def as_radians(self):
             return call_Nex_operand(NexFloat, nodesetter.rad, self,)
 
-        def as_degree(self):
+        def as_degrees(self):
             return call_Nex_operand(NexFloat, nodesetter.deg, self,)
-        
-        
+
+        def round(self):
+            return call_Nex_operand(NexFloat, nodesetter.round, self,)
+
+        def floor(self):
+            return call_Nex_operand(NexFloat, nodesetter.floor, self,)
+
+        def ceil(self):
+            return call_Nex_operand(NexFloat, nodesetter.ceil, self,)
+
+        def trunc(self):
+            return call_Nex_operand(NexFloat, nodesetter.trunc, self,)
+
+
     # ooooo      ooo                       oooooo     oooo                     
     # `888b.     `8'                        `888.     .8'                      
     #  8 `88b.    8   .ooooo.  oooo    ooo   `888.   .8'    .ooooo.   .ooooo.  

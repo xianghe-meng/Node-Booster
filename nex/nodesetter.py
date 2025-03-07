@@ -431,6 +431,7 @@ def _maprange(ng, reusenode:str,
 
     return node.outputs[outidx]
 
+#covered in nexcode via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Addition.\nEquivalent to the '+' symbol.")
 def add(ng, reusenode:str,
@@ -441,6 +442,7 @@ def add(ng, reusenode:str,
         return _vecmath(ng,reusenode, 'ADD',a,b)
     return _floatmath(ng,reusenode, 'ADD',a,b)
 
+#covered in nexcode via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Subtraction.\nEquivalent to the '-' symbol.")
 def sub(ng, reusenode:str,
@@ -451,6 +453,7 @@ def sub(ng, reusenode:str,
         return _vecmath(ng,reusenode, 'SUBTRACT',a,b)
     return _floatmath(ng,reusenode, 'SUBTRACT',a,b)
 
+#covered in nexcode via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Multiplications.\nEquivalent to the '*' symbol.")
 def mult(ng, reusenode:str,
@@ -461,6 +464,7 @@ def mult(ng, reusenode:str,
         return _vecmath(ng,reusenode, 'MULTIPLY',a,b)
     return _floatmath(ng,reusenode, 'MULTIPLY',a,b)
 
+#covered in nexcode via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Division.\nEquivalent to the '/' symbol.")
 def div(ng, reusenode:str,
@@ -471,6 +475,7 @@ def div(ng, reusenode:str,
         return _vecmath(ng,reusenode, 'DIVIDE',a,b)
     return _floatmath(ng,reusenode, 'DIVIDE',a,b)
 
+#covered in nexcode via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="A Power n.\nEquivalent to the 'a**n' and '²' symbol.")
 def pow(ng, reusenode:str,
@@ -518,6 +523,7 @@ def nroot(ng, reusenode:str,
     frame_nodes(ng, _x.node, _r.node, label='nRoot',)
     return _r
 
+#covered in nexcode via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Absolute of A.")
 def abs(ng, reusenode:str,
@@ -527,6 +533,7 @@ def abs(ng, reusenode:str,
         return _vecmath(ng,reusenode, 'ABSOLUTE',a)
     return _floatmath(ng,reusenode, 'ABSOLUTE',a)
 
+#covered in nexcode via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Negate the value of A.\nEquivalent to the symbol '-x.'")
 def neg(ng, reusenode:str,
@@ -570,6 +577,7 @@ def smax(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'SMOOTH_MAX',a,b,dist)
 
+#covered in nexcode with NexFloat.round()
 @user_domain('mathex')
 @user_doc(mathex="Round a Float to an Integer.")
 def round(ng, reusenode:str,
@@ -577,6 +585,7 @@ def round(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'ROUND',a)
 
+#covered in nexcode with NexFloat.floor()
 @user_domain('mathex')
 @user_doc(mathex="Floor a Float to an Integer.")
 def floor(ng, reusenode:str,
@@ -586,6 +595,7 @@ def floor(ng, reusenode:str,
         return _vecmath(ng,reusenode, 'FLOOR',a)
     return _floatmath(ng,reusenode, 'FLOOR',a)
 
+#covered in nexcode with NexFloat.ceil()
 @user_domain('mathex')
 @user_doc(mathex="Ceil a Float to an Integer.")
 def ceil(ng, reusenode:str,
@@ -593,6 +603,7 @@ def ceil(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'CEIL',a)
 
+#covered in nexcode with NexFloat.trunc()
 @user_domain('mathex')
 @user_doc(mathex="Trunc a Float to an Integer.")
 def trunc(ng, reusenode:str,
@@ -607,6 +618,7 @@ def frac(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'FRACT',a)
 
+#covered in nexcode via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Modulo.\nEquivalent to the '%' symbol.")
 def mod(ng, reusenode:str,
@@ -656,6 +668,7 @@ def pingpong(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'PINGPONG',v,scale)
 
+#covered in nexcode via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Floor Division.\nEquivalent to the '//' symbol.")
 def floordiv(ng, reusenode:str,
@@ -749,6 +762,7 @@ def htan(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'TANH',a)
 
+#covered in nexcode with NexFloat.as_radians()
 @user_domain('mathex')
 @user_doc(mathex="Convert from Degrees to Radians.")
 def rad(ng, reusenode:str,
@@ -756,6 +770,7 @@ def rad(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'RADIANS',a)
 
+#covered in nexcode with NexFloat.as_degrees()
 @user_domain('mathex')
 @user_doc(mathex="Convert from Radians to Degrees.")
 def deg(ng, reusenode:str,
@@ -819,9 +834,7 @@ def normalize(ng, reusenode:str,
     ) -> sVec:
     return _vecmath(ng,reusenode, 'NORMALIZE',vecA)
 
-# This one has been implemented as vecA.length()
-# @user_domain('nexcode')
-# @user_doc(nexcode="Vector Length.\nThe distance length of A.")
+#covered in nexcode with NexVec.length()
 def length(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
