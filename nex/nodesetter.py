@@ -1015,7 +1015,32 @@ def mapsmoother(ng, reusenode:str,
         return _maprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y)
     return _maprange(ng,reusenode, 'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
 
+@user_domain('nexcode')
+@user_doc(nexcode="Position Attribute.\nGet the SocketVector Position attribute.")
+def getposition(ng, dummy:str,
+    ) -> sVec:
+    unique_id = 'C|getposition()'
+    node = ng.nodes.get(unique_id)
+    if (node is None):
+        node = ng.nodes.new('GeometryNodeInputPosition')
+        node.name = node.label = unique_id
+    return node.outputs[0]
 
+@user_domain('nexcode')
+@user_doc(nexcode="Normal Attribute.\nGet the SocketVector Normal attribute.")
+def getnormal(ng, dummy:str,
+    ) -> sVec:
+    unique_id = 'C|getnormal()'
+    node = ng.nodes.get(unique_id)
+    if (node is None):
+        node = ng.nodes.new('GeometryNodeInputNormal')
+        node.name = node.label = unique_id
+    return node.outputs[0]
+
+# TODO more attr input
+# def getid() -> Int
+# def getindex() -> Int
+# def getnamedattr(name) -> Dynamic
 
 #TODO support comparison functions
 # def equal(a, b,)

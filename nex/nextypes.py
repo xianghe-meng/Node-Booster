@@ -486,7 +486,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
         # ---------------------
         # NexFloat Custom Functions & Properties
-
+        
+        #NOTE read only properties are better for user not familiar with python () notation.
+        # is beginner friendly.
+        
         @property
         def radians(self):
             return call_Nex_operand(NexFloat, nodesetter.rad, self,)
@@ -1032,8 +1035,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
     def sockfunction_Nex_wrapper(sockfunc, default_ng=None,):
         """wrap a nodesetter function to transform it into a Nex functions, nodesetter fct always expecting socket or py variables
         & return sockets or tuple of sockets. Function similar to 'call_Nex_operand' but more general"""
-        
+
         def wrapped_func(*args, **kwargs):
+
+            uniquetag = None
 
             # Some functions are simply overloads of existing python math functions and there's namespace collision (ex sin(a))
             # If we are working only with python types, then we should't wrap any value!
@@ -1041,12 +1046,19 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 if not any(('Nex' in type(v).__name__) for v in args):
                     return sockfunc(None,'NoneTags', *args, **kwargs)
 
+            # Some functions do not require a unique tag.
+            if sockfunc.__name__ in ('getnormal','getposition'):
+                uniquetag = 'dummy'
+
             #define reuse taga unique tag to ensure the function is not generated on each nex script run
-            uniquetag = create_Nex_tag(sockfunc, *args, startchar='nF',)
+            if (uniquetag is None):
+                uniquetag = create_Nex_tag(sockfunc, *args, startchar='nF',)
+
+            #define a function with the first two args already defined
             partialsockfunc = partial(sockfunc, default_ng, uniquetag)
 
-            #sockfunc expect nodesockets, not nex..
-            args = [v.nxsock if ('Nex' in type(v).__name__) else v for v in args] #we did that previously with 'sock_or_py_variables'
+            #sockfunc expect nodesockets, not nextype, we need to convert their args to sockets.. (we did that previously with 'sock_or_py_variables')
+            args = [v.nxsock if ('Nex' in type(v).__name__) else v for v in args]
 
             #execute the function
             try:
