@@ -841,6 +841,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def length(self):
             return call_Nex_operand(NexVec, nodesetter.length, self, NexReturnType=NexFloat,)
         
+        def normalize(self):
+            return call_Nex_operand(NexVec, nodesetter.normalize, self,)
+        
     # ooooo      ooo                         .oooooo.                   .   
     # `888b.     `8'                        d8P'  `Y8b                .o8   
     #  8 `88b.    8   .ooooo.  oooo    ooo 888      888 oooo  oooo  .o888oo 

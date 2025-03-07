@@ -579,7 +579,7 @@ def smax(ng, reusenode:str,
 
 #covered in nexcode with NexFloat.round()
 @user_domain('mathex')
-@user_doc(mathex="Round a Float to an Integer.")
+@user_doc(mathex="Round a Float value.")
 def round(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
@@ -587,7 +587,7 @@ def round(ng, reusenode:str,
 
 #covered in nexcode with NexFloat.floor()
 @user_domain('mathex')
-@user_doc(mathex="Floor a Float to an Integer.")
+@user_doc(mathex="Floor a Float value.")
 def floor(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -597,7 +597,7 @@ def floor(ng, reusenode:str,
 
 #covered in nexcode with NexFloat.ceil()
 @user_domain('mathex')
-@user_doc(mathex="Ceil a Float to an Integer.")
+@user_doc(mathex="Ceil a Float value.")
 def ceil(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
@@ -605,7 +605,7 @@ def ceil(ng, reusenode:str,
 
 #covered in nexcode with NexFloat.trunc()
 @user_domain('mathex')
-@user_doc(mathex="Trunc a Float to an Integer.")
+@user_doc(mathex="Trunc a Float value.")
 def trunc(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
@@ -827,8 +827,7 @@ def distance(ng, reusenode:str,
     ) -> sFlo:
     return _vecmath(ng,reusenode, 'DISTANCE',vecA,vecB)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Vector Normalization.\nNormalize A.")
+#covered in nexcode with NexVec.normalize()
 def normalize(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:

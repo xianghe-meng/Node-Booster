@@ -46,6 +46,7 @@ NEXNOTATIONDOC = {
     'vecA.z':{'name':"Get Z.",'desc':"Get or Assign a SocketFloat value from the Z axis of a SocketVector.\nIs equivalent to the 'vecA[2]' notation."},
     'vecA.xyz':{'name':"Get XYZ tuple.",'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding axes of a SocketVector.\nIs equivalent to the 'vecA[:]' notation."},
     'vecA.length()':{'name':"Vector Length.",'desc':"Return a SocketFloat value corresponding to the length of SocketVector."},
+    'vecA.normalize()':{'name':"Noralization.",'desc':"Return a notmalized SocketVector."},
 }
 
 
