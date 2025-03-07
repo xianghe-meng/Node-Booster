@@ -41,12 +41,12 @@ NEXNOTATIONDOC = {
     'fA.floored':{'name':"Float Floor Operation.",'desc':"Return a floored SocketFloat value.\nRead-only property."},
     'fA.ceiled':{'name':"Float Ceil Operation.",'desc':"Return a ceiled SocketFloat value.\nRead-only property."},
     'fA.truncated':{'name':"Float Truncate Operation.",'desc':"Return a truncated SocketFloat value.\nRead-only property."},
-    'vecA.x':{'name':"Vector X.",'desc':"Get or Assign a SocketFloat value from the X axis of a SocketVector.\nIs equivalent to the 'vecA[0]' notation."},
-    'vecA.y':{'name':"Vector Y.",'desc':"Get or Assign a SocketFloat value from the Y axis of a SocketVector.\nIs equivalent to the 'vecA[1]' notation."},
-    'vecA.z':{'name':"Vector Z.",'desc':"Get or Assign a SocketFloat value from the Z axis of a SocketVector.\nIs equivalent to the 'vecA[2]' notation."},
-    'vecA.xyz':{'name':"Vector XYZ tuple.",'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding axes of a SocketVector.\nIs equivalent to the 'vecA[:]' notation."},
-    'vecA.length':{'name':"Vector Length.",'desc':"Return a SocketFloat value corresponding to the length of SocketVector.\nRead-only property."},
-    'vecA.normalized':{'name':"Vector Noralization.",'desc':"Return a notmalized SocketVector.\nRead-only property."},
+    'vA.x':{'name':"Vector X.",'desc':"Get or Assign a SocketFloat value from the X axis of a SocketVector.\nIs equivalent to the 'vA[0]' notation."},
+    'vA.y':{'name':"Vector Y.",'desc':"Get or Assign a SocketFloat value from the Y axis of a SocketVector.\nIs equivalent to the 'vA[1]' notation."},
+    'vA.z':{'name':"Vector Z.",'desc':"Get or Assign a SocketFloat value from the Z axis of a SocketVector.\nIs equivalent to the 'vA[2]' notation."},
+    'vA.xyz':{'name':"Vector XYZ tuple.",'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding axes of a SocketVector.\nIs equivalent to the 'vA[:]' notation."},
+    'vA.length':{'name':"Vector Length.",'desc':"Return a SocketFloat value corresponding to the length of SocketVector.\nRead-only property."},
+    'vA.normalized':{'name':"Vector Noralization.",'desc':"Return a notmalized SocketVector.\nRead-only property."},
 }
 
 

@@ -241,17 +241,17 @@ def _vecmath(ng, reusenode:str,
 def _verotate(ng, reusenode:str,
     rotation_type:str,
     invert:bool,
-    vecA:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
-    vecC:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
-    vecAx:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
-    floAn:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
-    vecEu:sFlo|sInt|sBoo|sVec|Vector|float|int=None,
+    vA:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
+    vC:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
+    vX:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
+    fA:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
+    vE:sFlo|sInt|sBoo|sVec|Vector|float|int=None,
     ) -> sVec:
     """Generic operation for adding a vector rotation node and linking.
     If 'reusenode' is provided, update the existing node; otherwise, create a new one."""
 
     node = None
-    args = (vecA,vecC,vecAx,floAn,vecEu)
+    args = (vA,vC,vX,fA,vE)
     needs_linking = False
 
     if (reusenode):
@@ -847,72 +847,72 @@ def deg(ng, reusenode:str,
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Cross Product.\nThe cross product between vector A an B.")
 def cross(ng, reusenode:str,
-    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return _vecmath(ng,reusenode, 'CROSS_PRODUCT',vecA,vecB)
+    return _vecmath(ng,reusenode, 'CROSS_PRODUCT',vA,vB)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Dot Product.\nA dot B.")
 def dot(ng, reusenode:str,
-    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return _vecmath(ng,reusenode, 'DOT_PRODUCT',vecA,vecB)
+    return _vecmath(ng,reusenode, 'DOT_PRODUCT',vA,vB)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Projection.\nProject A onto B.")
 def project(ng, reusenode:str,
-    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return _vecmath(ng,reusenode, 'PROJECT',vecA,vecB)
+    return _vecmath(ng,reusenode, 'PROJECT',vA,vB)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Faceforward.\nFaceforward operation between a given vector, an incident and a reference.")
 def faceforward(ng, reusenode:str,
-    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    vecI:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    vecR:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vI:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vR:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return _vecmath(ng,reusenode, 'FACEFORWARD',vecA,vecI,vecR)
+    return _vecmath(ng,reusenode, 'FACEFORWARD',vA,vI,vR)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Reflection.\nReflect A onto B.")
 def reflect(ng, reusenode:str,
-    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return _vecmath(ng,reusenode, 'PROJECT',vecA,vecB)
+    return _vecmath(ng,reusenode, 'PROJECT',vA,vB)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Distance.\nThe distance between location A & B.")
 def distance(ng, reusenode:str,
-    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    vecB:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
-    return _vecmath(ng,reusenode, 'DISTANCE',vecA,vecB)
+    return _vecmath(ng,reusenode, 'DISTANCE',vA,vB)
 
 #covered in nexcode with NexVec.normalized
 def normalize(ng, reusenode:str,
-    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return _vecmath(ng,reusenode, 'NORMALIZE',vecA)
+    return _vecmath(ng,reusenode, 'NORMALIZE',vA)
 
 #covered in nexcode with NexVec.length
 def length(ng, reusenode:str,
-    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
-    return _vecmath(ng,reusenode, 'LENGTH',vecA)
+    return _vecmath(ng,reusenode, 'LENGTH',vA)
 
 @user_domain('nexcode')
-@user_doc(nexcode="Separate a SocketVector into 3 SocketFloat.\nTip: you can use python slicing notations 'myX, myY, myZ = VecA' to do that instead.")
+@user_doc(nexcode="Separate a SocketVector into 3 SocketFloat.\nTip: you can use python slicing notations 'myX, myY, myZ = vA' to do that instead.")
 def separate_xyz(ng, reusenode:str,
-    vecA:sVec,
+    vA:sVec,
     ) -> tuple:
 
-    if (type(vecA) is not sVec):
-        raise InvalidTypePassedToSocket(f"ArgsTypeError for separate_xyz(). Recieved unsupported type '{type(vecA).__name__}'")
+    if (type(vA) is not sVec):
+        raise InvalidTypePassedToSocket(f"ArgsTypeError for separate_xyz(). Recieved unsupported type '{type(vA).__name__}'")
 
     node = None
     needs_linking = False
@@ -934,7 +934,7 @@ def separate_xyz(ng, reusenode:str,
             node.name = node.label = reusenode
 
     if (needs_linking):
-        link_sockets(vecA, node.inputs[0])
+        link_sockets(vA, node.inputs[0])
 
     return tuple(node.outputs)
 
@@ -987,21 +987,21 @@ def combine_xyz(ng, reusenode:str,
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Rotate (Euler).\nRotate a given Vector A with euler angle radians E, at optional center C.")
 def roteuler(ng, reusenode:str,
-    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    vecE:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    vecC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vE:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sVec:
-    return _verotate(ng, reusenode, 'EULER_XYZ',False, vecA,vecC,None,None,vecE,)
+    return _verotate(ng, reusenode, 'EULER_XYZ',False, vA,vC,None,None,vE,)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Rotate (Euler).\nRotate a given Vector A from defined axis X & angle radians F, at optional center C.")
 def rotaxis(ng, reusenode:str,
-    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    vecX:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    fa:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    vecC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vX:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    fA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sVec:
-    return _verotate(ng, reusenode, 'AXIS_ANGLE',False, vecA,vecC,vecX,fa,None,)
+    return _verotate(ng, reusenode, 'AXIS_ANGLE',False, vA,vC,vX,fA,None,)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Mix.\nLinear Interpolation between value A and B from given factor F.")
@@ -1102,7 +1102,7 @@ def mapsmoother(ng, reusenode:str,
 
 @user_domain('nexcode')
 @user_doc(nexcode="Position Attribute.\nGet the SocketVector Position attribute.")
-def getposition(ng, dummy:str,
+def getposition(ng, reusenode:str='dummy',
     ) -> sVec:
     unique_id = 'C|getposition()'
     node = ng.nodes.get(unique_id)
@@ -1113,7 +1113,7 @@ def getposition(ng, dummy:str,
 
 @user_domain('nexcode')
 @user_doc(nexcode="Normal Attribute.\nGet the SocketVector Normal attribute.")
-def getnormal(ng, dummy:str,
+def getnormal(ng, reusenode:str='dummy',
     ) -> sVec:
     unique_id = 'C|getnormal()'
     node = ng.nodes.get(unique_id)
