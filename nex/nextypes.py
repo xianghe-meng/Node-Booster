@@ -1059,6 +1059,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
             #sockfunc expect nodesockets, not nextype, we need to convert their args to sockets.. (we did that previously with 'sock_or_py_variables')
             args = [v.nxsock if ('Nex' in type(v).__name__) else v for v in args]
+            #support for tuple as vectors
+            args = [py_to_Vec3(v) if (isinstance(v,(tuple,list)) and len(v)==3 and all(isinstance(i,(float,int)) for i in v)) else v for v in args]
 
             #execute the function
             try:

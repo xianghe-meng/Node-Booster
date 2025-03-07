@@ -237,6 +237,72 @@ def _vecmath(ng, reusenode:str,
 
     return node.outputs[outidx]
 
+
+def _verotate(ng, reusenode:str,
+    rotation_type:str,
+    invert:bool,
+    vecA:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
+    vecC:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
+    vecAx:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
+    floAn:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
+    vecEu:sFlo|sInt|sBoo|sVec|Vector|float|int=None,
+    ) -> sVec:
+    """Generic operation for adding a vector rotation node and linking.
+    If 'reusenode' is provided, update the existing node; otherwise, create a new one."""
+
+    node = None
+    args = (vecA,vecC,vecAx,floAn,vecEu)
+    needs_linking = False
+
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0, 200)
+        node = ng.nodes.new('ShaderNodeVectorRotate')
+        node.rotation_type = rotation_type
+        node.invert = invert
+        node.location = location
+        ng.nodes.active = node
+    
+        needs_linking = True
+        if (reusenode):
+            node.name = node.label = reusenode
+
+    #need to define different input/output depending on operation..
+    for i,val in enumerate(args):
+        match val:
+
+            case sVec() | sFlo() | sInt() | sBoo():
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+
+            case Vector():
+                if (i==3):
+                    raise InvalidTypePassedToSocket(f"ArgsTypeError for _vecrotate(). Received unsupported type 'mathutils.Vector()' for angle parameter. Expected Float compatible type.")
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case float() | int():
+                if (i==3):
+                    if node.inputs[i].default_value != val:
+                        node.inputs[i].default_value = val
+                    continue
+                val = Vector((val,val,val))
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case None: pass
+
+            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _vecrotate(). Received unsupported type '{type(val).__name__}'")
+
+    return node.outputs[0]
+
 def _mix(ng, reusenode:str,
     data_type:str,
     val1:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
@@ -917,6 +983,25 @@ def combine_xyz(ng, reusenode:str,
             case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for combine_xyz(). Received unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
+
+@user_domain('nexcode')
+@user_doc(nexcode="Vector Rotate (Euler).\nRotate a given Vector A with euler angle radians E, at optional center C.")
+def roteuler(ng, reusenode:str,
+    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vecE:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vecC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    ) -> sVec:
+    return _verotate(ng, reusenode, 'EULER_XYZ',False, vecA,vecC,None,None,vecE,)
+
+@user_domain('nexcode')
+@user_doc(nexcode="Vector Rotate (Euler).\nRotate a given Vector A from defined axis X & angle radians F, at optional center C.")
+def rotaxis(ng, reusenode:str,
+    vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vecX:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    fa:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vecC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    ) -> sVec:
+    return _verotate(ng, reusenode, 'AXIS_ANGLE',False, vecA,vecC,vecX,fa,None,)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Mix.\nLinear Interpolation between value A and B from given factor F.")
