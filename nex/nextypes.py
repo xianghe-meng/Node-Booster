@@ -237,36 +237,34 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
         def __init__(self, socket_name='', value=None, fromsocket=None, manualdef=False,):
 
-            #create a stable identifier for our NexObject
+            # Important, we create a stable identifier for our Nex object
+            # used for building a tree we can recognize on second run
             self.nxid = NexFloat.init_counter
             NexFloat.init_counter += 1
 
+            #We have 3 Initialization method..
+
+            #1: Manual initialization
             #on some occation we might want to first initialize this new python object, and define it later (ot get the id)
             if (manualdef):
                 return None
 
-            #initialize from a socket?
+            #2: From socket initialization used 
             if (fromsocket is not None):
                 self.nxsock = fromsocket
                 return None
-            
-            # Now, define different initialization depending on given value type
-            # NOTE to avoid the pitfalls of name resolution within class definitions..
 
+            #3: User initialization that will create new a socket 'myvalue:infloat = 3' or 'myvalue = infloat('myvalue',3). 
+            # Define different initialization depending on given value type
             type_name = type(value).__name__
             match type_name: 
 
-                # is user toying with  output? output cannot be reused in any way..
-                case _ if ('NexOutput' in type_name):
-                    raise NexError(f"Invalid use of Outputs. Cannot assign 'SocketOutput' to 'SocketInput'.")
-
-                # a:infloat = anotherinfloat
                 case _ if ('Nex' in type_name):
-                    raise NexError(f"Invalid use of Inputs. Cannot assign 'SocketInput' to 'SocketInput'.")
+                    raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
 
-                # initial creation by assignation, we need to create a socket type
+                #the user can initialize a new nextype with a default value socket
                 case 'NoneType' | 'int' | 'float' | 'bool':
-                    
+
                     #ensure name chosen is correct
                     assert socket_name!='', "Nex Initialization should always define a socket_name."
                     if (socket_name in ALLINPUTS):
@@ -276,17 +274,17 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     #get socket, create if non existent
                     outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
-                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type='NodeSocketFloat', socket_name=socket_name,)
+                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
                     #ensure type is correct, change type if necessary
                     current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
-                    if (current_type!='NodeSocketFloat'):
-                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type='NodeSocketFloat', identifier=outsock.identifier,)
-                    
+                    if (current_type!=self.nxstype):
+                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+
                     self.nxsock = outsock
                     self.nxsnam = socket_name
-                    
+
                     #ensure default value of socket in node instance
                     if (value is not None):
                         fval = float(value)
@@ -526,12 +524,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             type_name = type(value).__name__
             match type_name:
 
-                case _ if ('NexOutput' in type_name):
-                    raise NexError(f"Invalid use of Outputs. Cannot assign 'SocketOutput' to 'SocketInput'.")
-
                 case _ if ('Nex' in type_name):
-                    raise NexError(f"Invalid use of Inputs. Cannot assign 'SocketInput' to 'SocketInput'.")                
-
+                    raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
+                
+                #the user can initialize a new nextype with a default value socket
                 case 'NoneType' | 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     
                     #ensure name chosen is correct
@@ -543,17 +539,17 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     #get socket, create if non existent
                     outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
-                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type='NodeSocketVector', socket_name=socket_name,)
+                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
                     #ensure type is correct, change type if necessary
                     current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
-                    if (current_type!='NodeSocketVector'):
-                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type='NodeSocketVector', identifier=outsock.identifier,)
+                    if (current_type!=self.nxstype):
+                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
 
                     self.nxsock = outsock
                     self.nxsnam = socket_name
-                    
+
                     #ensure default value of socket in node instance
                     if (value is not None):
                         fval = py_to_Vec3(value)
