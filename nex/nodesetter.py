@@ -577,7 +577,7 @@ def smax(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'SMOOTH_MAX',a,b,dist)
 
-#covered in nexcode with NexFloat.round()
+#covered in nexcode with NexFloat.rounded
 @user_domain('mathex')
 @user_doc(mathex="Round a Float value.")
 def round(ng, reusenode:str,
@@ -585,7 +585,7 @@ def round(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'ROUND',a)
 
-#covered in nexcode with NexFloat.floor()
+#covered in nexcode with NexFloat.floored
 @user_domain('mathex')
 @user_doc(mathex="Floor a Float value.")
 def floor(ng, reusenode:str,
@@ -595,7 +595,7 @@ def floor(ng, reusenode:str,
         return _vecmath(ng,reusenode, 'FLOOR',a)
     return _floatmath(ng,reusenode, 'FLOOR',a)
 
-#covered in nexcode with NexFloat.ceil()
+#covered in nexcode with NexFloat.ceiled
 @user_domain('mathex')
 @user_doc(mathex="Ceil a Float value.")
 def ceil(ng, reusenode:str,
@@ -603,7 +603,7 @@ def ceil(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'CEIL',a)
 
-#covered in nexcode with NexFloat.trunc()
+#covered in nexcode with NexFloat.truncated
 @user_domain('mathex')
 @user_doc(mathex="Trunc a Float value.")
 def trunc(ng, reusenode:str,
@@ -762,7 +762,7 @@ def htan(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'TANH',a)
 
-#covered in nexcode with NexFloat.as_radians()
+#covered in nexcode with NexFloat.radians
 @user_domain('mathex')
 @user_doc(mathex="Convert from Degrees to Radians.")
 def rad(ng, reusenode:str,
@@ -770,7 +770,7 @@ def rad(ng, reusenode:str,
     ) -> sFlo:
     return _floatmath(ng,reusenode, 'RADIANS',a)
 
-#covered in nexcode with NexFloat.as_degrees()
+#covered in nexcode with NexFloat.degrees
 @user_domain('mathex')
 @user_doc(mathex="Convert from Radians to Degrees.")
 def deg(ng, reusenode:str,
@@ -827,13 +827,13 @@ def distance(ng, reusenode:str,
     ) -> sFlo:
     return _vecmath(ng,reusenode, 'DISTANCE',vecA,vecB)
 
-#covered in nexcode with NexVec.normalize()
+#covered in nexcode with NexVec.normalized
 def normalize(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
     return _vecmath(ng,reusenode, 'NORMALIZE',vecA)
 
-#covered in nexcode with NexVec.length()
+#covered in nexcode with NexVec.length
 def length(ng, reusenode:str,
     vecA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:

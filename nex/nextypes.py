@@ -485,25 +485,49 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             return call_Nex_operand(NexFloat, nodesetter.abs, self,)
 
         # ---------------------
-        # NexFloat Custom Functions
+        # NexFloat Custom Functions & Properties
 
-        def as_radians(self):
+        @property
+        def radians(self):
             return call_Nex_operand(NexFloat, nodesetter.rad, self,)
+        @radians.setter
+        def radians(self,value):
+            raise NexError("AssignationError. SocketFloat.radians is read-only.")
 
-        def as_degrees(self):
+        @property
+        def degrees(self):
             return call_Nex_operand(NexFloat, nodesetter.deg, self,)
+        @degrees.setter
+        def degrees(self,value):
+            raise NexError("AssignationError. SocketFloat.degrees is read-only.")
 
-        def round(self):
+        @property
+        def rounded(self):
             return call_Nex_operand(NexFloat, nodesetter.round, self,)
+        @rounded.setter
+        def rounded(self,value):
+            raise NexError("AssignationError. SocketFloat.rounded is read-only.")
 
-        def floor(self):
+        @property
+        def floored(self):
             return call_Nex_operand(NexFloat, nodesetter.floor, self,)
+        @floored.setter
+        def floored(self,value):
+            raise NexError("AssignationError. SocketFloat.floored is read-only.")
 
-        def ceil(self):
+        @property
+        def ceiled(self):
             return call_Nex_operand(NexFloat, nodesetter.ceil, self,)
+        @ceiled.setter
+        def ceiled(self,value):
+            raise NexError("AssignationError. SocketFloat.ceiled is read-only.")
 
-        def trunc(self):
+        @property
+        def truncated(self):
             return call_Nex_operand(NexFloat, nodesetter.trunc, self,)
+        @truncated.setter
+        def truncated(self,value):
+            raise NexError("AssignationError. SocketFloat.truncated is read-only.")
 
 
     # ooooo      ooo                       oooooo     oooo                     
@@ -799,9 +823,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             return None
 
         # ---------------------
-        # NexVec Custom Properties
+        # NexVec Custom Functions & Properties
 
-        #Vec.x
         @property
         def x(self):
             return self[0]
@@ -809,7 +832,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def x(self, value):
             self[0] = value
 
-        #Vec.y
         @property
         def y(self):
             return self[1]
@@ -817,7 +839,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def y(self, value):
             self[1] = value
 
-        #Vec.z
         @property
         def z(self):
             return self[2]
@@ -825,7 +846,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def z(self, value):
             self[2] = value
 
-        #Vec.xyz
         @property
         def xyz(self):
             return self[:]
@@ -835,14 +855,19 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                   self[:] = value
             else: raise NexError("TypeError. Assignment to SocketVector.xyz is expected to be a tuple of length 3 containing sockets or Python values.")
 
-        # ---------------------
-        # NexVec Custom Functions
-
+        @property
         def length(self):
             return call_Nex_operand(NexVec, nodesetter.length, self, NexReturnType=NexFloat,)
-        
-        def normalize(self):
+        @length.setter
+        def length(self, value):
+            raise NexError("AssignationError. SocketVector.length is read-only.")
+
+        @property
+        def normalized(self):
             return call_Nex_operand(NexVec, nodesetter.normalize, self,)
+        @normalized.setter
+        def normalized(self, value):
+            raise NexError("AssignationError. SocketVector.normalized is read-only.")
         
     # ooooo      ooo                         .oooooo.                   .   
     # `888b.     `8'                        d8P'  `Y8b                .o8   
