@@ -485,52 +485,30 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             return call_Nex_operand(NexFloat, nodesetter.abs, self,)
 
         # ---------------------
+        # NexFloat Round
+        
+        def __round__(self): # round(self)
+            return call_Nex_operand(NexFloat, nodesetter.round, self,)
+
+        # ---------------------
         # NexFloat Custom Functions & Properties
         
         #NOTE read only properties are better for user not familiar with python () notation.
         # is beginner friendly.
         
         @property
-        def radians(self):
+        def as_radians(self):
             return call_Nex_operand(NexFloat, nodesetter.rad, self,)
-        @radians.setter
-        def radians(self,value):
-            raise NexError("AssignationError. SocketFloat.radians is read-only.")
+        @as_radians.setter
+        def as_radians(self,value):
+            raise NexError("AssignationError. SocketFloat.as_radians is read-only.")
 
         @property
-        def degrees(self):
+        def as_degrees(self):
             return call_Nex_operand(NexFloat, nodesetter.deg, self,)
-        @degrees.setter
-        def degrees(self,value):
-            raise NexError("AssignationError. SocketFloat.degrees is read-only.")
-
-        @property
-        def rounded(self):
-            return call_Nex_operand(NexFloat, nodesetter.round, self,)
-        @rounded.setter
-        def rounded(self,value):
-            raise NexError("AssignationError. SocketFloat.rounded is read-only.")
-
-        @property
-        def floored(self):
-            return call_Nex_operand(NexFloat, nodesetter.floor, self,)
-        @floored.setter
-        def floored(self,value):
-            raise NexError("AssignationError. SocketFloat.floored is read-only.")
-
-        @property
-        def ceiled(self):
-            return call_Nex_operand(NexFloat, nodesetter.ceil, self,)
-        @ceiled.setter
-        def ceiled(self,value):
-            raise NexError("AssignationError. SocketFloat.ceiled is read-only.")
-
-        @property
-        def truncated(self):
-            return call_Nex_operand(NexFloat, nodesetter.trunc, self,)
-        @truncated.setter
-        def truncated(self,value):
-            raise NexError("AssignationError. SocketFloat.truncated is read-only.")
+        @as_degrees.setter
+        def as_degrees(self,value):
+            raise NexError("AssignationError. SocketFloat.as_degrees is read-only.")
 
 
     # ooooo      ooo                       oooooo     oooo                     
@@ -758,6 +736,12 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             return call_Nex_operand(NexVec, nodesetter.abs, self,)
 
         # ---------------------
+        # NexVec Round
+        
+        def __round__(self): # round(self)
+            return call_Nex_operand(NexVec, nodesetter.round, self,)
+
+        # ---------------------
         # NexVec Itter
 
         #NOTE would be also nice to have NexVec.x .y .z maybe? hmm..
@@ -791,17 +775,19 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __setitem__(self, key, value):
             """support x[0] += a+b"""
 
-            components = call_Nex_operand(NexVec, nodesetter.separate_xyz, self, NexReturnType=NexFloat)
+            to_frame = []
 
             match key:
 
                 case int(): #vec[i]
+                    separated = call_Nex_operand(NexVec, nodesetter.separate_xyz, self, NexReturnType=NexFloat)
+                    to_frame.append(separated[0].nxsock.node)
                     if (key==0):
-                        new_components = value, components[1], components[2]
+                        new_components = value, separated[1], separated[2]
                     elif (key==1):
-                        new_components = components[0], value, components[2]
+                        new_components = separated[0], value, separated[2]
                     elif (key==2):
-                        new_components = components[0], components[1], value
+                        new_components = separated[0], separated[1], value
                     else:
                         raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
 
@@ -821,8 +807,11 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
             self.nxsock = new.nxsock
             self.nxid = new.nxid
-
-            frame_nodes(self.node_tree, components[0].nxsock.node, new.nxsock.node, label=f"v.setitem[{key if (type(key) is int) else ':'}]",)
+            to_frame.append(new.nxsock.node)
+    
+            frame_nodes(self.node_tree, *to_frame, 
+                label=f"v.setitem[{key if (type(key) is int) else ':'}]",
+                )
             return None
 
         # ---------------------
@@ -1052,7 +1041,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
             #define reuse taga unique tag to ensure the function is not generated on each nex script run
             if (uniquetag is None):
-                uniquetag = create_Nex_tag(sockfunc, *args, startchar='nF',)
+                uniquetag = create_Nex_tag(sockfunc, *args,)
 
             #define a function with the first two args already defined
             partialsockfunc = partial(sockfunc, default_ng, uniquetag)
