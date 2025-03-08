@@ -6,13 +6,13 @@
 # NOTE How does it works?
 # 1- Find the variables or constants with regex
 # 2- dynamically remove/create sockets accordingly
-# 3- transform the algebric expression into 'function expressions' using 'transform_math_expression'
-# 4- execute the function expression with using exec() with the namespace from nex.nodesetter, which will set the nodes in place.
+# 3- transform the algebric expression into ast 'function expressions' using see 'get_function_expression()'
+# 4- call the function using 'ast_function_caller()' functions names will correspond to the nodesetter.py 
+#    functions and will set up new nodes and links.
 
-# TODO (?) execute the functions from the 'ast' transformer directly? If **really** needed then.
 # TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
 
-#TODO add dynamic output type?
+#TODO add dynamic output type? see nodesetter.py todo at the end of the page
 #  - int(a) & all round, floor, ceil, trunc should return int then
 #  - bool(a)
 #  - sign(a) (to int)
@@ -21,8 +21,8 @@
 #  - isimpair(a)
 #  - ismultiple(a,b)
 #  - comparison <>== to bool
-# NOTE if we do so, then how can we support other nodetree later on?????
-# NOTE perhaps it is best to limit this to float for now. Rename it Float Math Expression?
+# NOTE if we do so, then how can we support other nodetree later on? Shader tree do not support bool and int sockets..
+#  so perhaps it is best to limit this to float for now. Rename it Float Math Expression?
 
 
 import bpy
@@ -92,113 +92,88 @@ def replace_superscript_exponents(expr: str, algebric_notation:bool=False,) -> s
     return expr
 
 
-def get_socket_python_api(node, identifier) -> str:
-    """return a python api string that can be executed from a given node and socket identifier"""
+def ast_function_caller(visited, node_tree=None, vareq:dict=None, consteq:dict=None):
+    """Recursively evaluates the transformed AST tree and calls its functions with their arguments.="""
     
-    idx = None
-    in_out_api = "inputs"
-    for sockets in (node.inputs, node.outputs):
-        for i,s in enumerate(sockets):
-            if (hasattr(s,'identifier') and (s.identifier==identifier)):
-                idx = i
-                if (s.is_output):
-                    in_out_api = "outputs"
-                break
-    
-    assert idx is not None, 'ERROR: get_socket_python_api(): Did not find socket idx..'
-    
-    return f"ng.nodes['{node.name}'].{in_out_api}[{idx}]"
-
-
-def execute_math_function_expression(customnode=None, expression:str=None, 
-    node_tree=None, varsapi:dict=None, constapi:dict=None,) -> None:
-    """Execute the functions to arrange the node_tree"""
-
-    # Replace the constants or variable with sockets API
-    # ex 'a' will become 'ng.nodes["foo"].outputs[1]'
-    api_expression = replace_exact_tokens(expression, {**varsapi, **constapi},)
-
     user_functions_partials = get_nodesetter_functions(tag='mathex', partialdefaults=(node_tree,''),)
     user_function_namespace = {f.func.__name__:f for f in user_functions_partials}
     
-    # Define the namespace of the execution, and include our functions
-    local_vars = {}
-    local_vars["ng"] = node_tree
-    local_vars.update(user_function_namespace)
-    
-    # we get rid of any blender builtin functions
-    global_vars = {"__builtins__": {}}
-
-    try:
-        # TODO port this to ast, only if the extension patform accepts the other py evaluation nodes relying on exec and eval
-        exec(api_expression, global_vars, local_vars)
-
-    except TypeError as e:
-        print(f"TypeError: execute_math_function_expression():\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
-
-        #Cook better error message to end user
-        e = str(e)
-        if ('()' in e):
-            fname = e.split('()')[0]
-            if ('() missing' in e) and ('required positional argument' in e):
-                nbr = e.split('() missing ')[1][0]
-                raise Exception(f"Function '{fname}' needs {nbr} more Param(s)")                    
-            elif ('() takes' in e) and ('positional argument' in e):
-                raise Exception(f"Function '{fname}' recieved Extra Param(s)")
+    def caller(node):
         
-        raise Exception("Wrong Arguments Given")
+        match node:
+            
+            # we found a function? we call it and evaluate their args.
+            case ast.Call():
 
-    except Exception as e:
-        print(f"{type(e).__name__}: execute_math_function_expression():\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
+                # First, evaluate all arguments recursively.
+                evaluated_args = [caller(arg) for arg in node.args]
 
-        #Cook better error message to end user
-        if ("'tuple' object" in str(e)):
-            raise Exception("Wrong use of '( , )' Synthax")
-        #User really need to have a VERY LONG expression to reach to that point..
-        if ('too many nested parentheses' in str(e)):
-            raise Exception("Expression too Large")
-        
-        raise Exception("Error on Execution")
+                # Evaluate the function part.
+                if isinstance(node.func, ast.Name):
+                    func_name = node.func.id
+                    if (func_name not in user_function_namespace):
+                        raise Exception(f"Function '{func_name}' not recognized.")
+
+                    func = user_function_namespace[func_name]
+                    # Call the function with the evaluated arguments.
+                    return func(*evaluated_args)
+
+                # In case the function part is a more complex expression,
+                # evaluate it recursively and then call it.
+                evaluated_func = caller(node.func)
+                return evaluated_func(*evaluated_args)
+
+            
+            # we found a variable name? need to get it's socket value
+            case ast.Name():
+                if (vareq is not None and node.id in vareq):
+                    return vareq[node.id]
+                elif (consteq is not None and node.id in consteq):
+                    return consteq[node.id]
+                raise Exception(f"Element '{node.id}' not recognized.")
+
+            # we found a constant? need to get it's socket value
+            case ast.Constant():
+                key = str(node.value)
+                if (consteq is not None and key in consteq):
+                    return consteq[key]
+                else:
+                    return node.value
+
+            # User messed up and created a tuple instead of a function?
+            case ast.Tuple():
+                raise Exception("Wrong use of '( , )' Synthax")
+
+            # Something else? what can it be?
+            case _:
+                raise Exception(f"Unknown ast type '{type(node).__name__}'.")
+
+    final_socket = caller(visited)
     
-    # When executing, the last one created should be the active node, 
-    # We still need to connect it to the ng output
+    # We still need to connect to the nodegroup output
     try:
         last = node_tree.nodes.active
-        
-        #this can only mean one thing, the user only inputed one single variable or constant
-        if (last is None):
-            if (customnode.elemVar):
-                last = node_tree.nodes['Group Input']
-            elif (customnode.elemConst):
-                for n in node_tree.nodes:
-                    if (n.type=='VALUE'):
-                        last = n
-                        break
-            
         out_node = node_tree.nodes['Group Output']
         out_node.location = (last.location.x+last.width+70, last.location.y-120,)
-        
-        sock1, sock2 = last.outputs[0], out_node.inputs[0]
-        link_sockets(sock1, sock2)
-        
+        link_sockets(final_socket, out_node.inputs[0])
+
     except Exception as e:
-        print(f"{type(e).__name__} FinalLinkError: execute_math_function_expression():\n  {e}")
-        raise Exception("Error on Final Link")
-    
-    return None     
+        print(f"{type(e).__name__} FinalLinkError: ast_function_caller():\n  {e}")
+        raise Exception("Error on Final Link. See console.")
+
+    return None
 
 
-class FunctionTransformer(ast.NodeTransformer):
+class AstTranformer(ast.NodeTransformer):
     """AST Transformer for converting math expressions into function-call expressions."""
 
     def __init__(self):
         super().__init__()
-        self.functions_used = set()
-    
+
     def visit_BinOp(self, node):
         # First, process child nodes.
         self.generic_visit(node)
-        
+
         # Map ast operators and transform to supported function names
         match node.op:
             case ast.Add():
@@ -216,11 +191,9 @@ class FunctionTransformer(ast.NodeTransformer):
             case ast.FloorDiv():
                 func_name = 'floordiv'
             case _:
-                print(f"FunctionTransformer `{node.op}` NotImplementedError")
+                print(f"AstTranformer `{node.op}` NotImplementedError")
                 raise Exception(f"Operator {node.op} not supported")
-        
-        self.functions_used.add(func_name)
-        
+
         # Replace binary op with a function call.
         return ast.Call(
             func=ast.Name(id=func_name, ctx=ast.Load()),
@@ -231,10 +204,8 @@ class FunctionTransformer(ast.NodeTransformer):
     def visit_UnaryOp(self, node):
         # Process child nodes first.
         self.generic_visit(node)
-        # Detect unary minus.
+        # Replace -X with neg(X)
         if isinstance(node.op, ast.USub):
-            self.functions_used.add('neg')
-            # Replace -X with neg(X)
             return ast.Call(
                 func=ast.Name(id='neg', ctx=ast.Load()),
                 args=[node.operand],
@@ -244,9 +215,6 @@ class FunctionTransformer(ast.NodeTransformer):
         return node
 
     def visit_Call(self, node):
-        # Record called function names.
-        if isinstance(node.func, ast.Name):
-            self.functions_used.add(node.func.id)
         self.generic_visit(node)
         return node
 
@@ -259,27 +227,19 @@ class FunctionTransformer(ast.NodeTransformer):
     def visit_Constant(self, node):
         return node
 
-    def transform_math_expression(self, math_express: str) -> str:
+    def get_function_expression(self, math_express: str) -> str:
         """Transforms a math expression into a function-call expression.
         Example: 'x*2 + (3-4/5)/3 + (x+y)**2' becomes 'add(mult(x,2),div(sub(3,div(4,5)),3),exp(add(x,y),2))'"""
         
         # Use the ast module to visit our equation
         try:
             tree = ast.parse(math_express, mode='eval')
-            transformed_node = self.visit(tree.body)
+            visited = self.visit(tree.body)
         except Exception as e:
-            print(f"FunctionTransformer ParsingError {type(e).__name__}:\n  Expression: `{math_express}`\n{e}")
+            print(f"AstTranformer ParsingError {type(e).__name__}:\n  Expression: `{math_express}`\n{e}")
             raise Exception("Math Expression Not Recognized")
         
-        # Ensure all functions used are available valid
-        for fname in self.functions_used:
-            if fname not in USER_FNAMES:
-                print(f"FunctionTransformer NamespaceError:\n  Element '{fname}' not in available functions.\n  Expression: `{math_express}`")
-                raise Exception(f"Unknown Function '{fname}'")
-        
-        # Then transform the ast into a function call sequence
-        func_express = str(ast.unparse(transformed_node))
-        return func_express
+        return visited
 
 
 class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
@@ -287,7 +247,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     • The sockets are limited to Float types. Consider this node a 'Float Math Expression' node.
     • Please See the 'NodeBooster > Active Node > Glossary' panel to see all functions and notation available and their descriptions.
     • If you wish to bake this node into a nodegroup, a bake operator is available in the 'NodeBooster > Active Node' panel.
-    • Under the hood, on each string field edit, the expression will be sanarized, then transformed into functions that will be executed to create a nodetree, see the breakdown of the process in the 'NodeBooster > Active Node > Development' panel."""
+    • Under the hood, on each string field edit, the expression will be sanarized, then transformed into functions that will be called to create a nodetree, see the breakdown of the process in the 'NodeBooster > Active Node > Development' panel."""
 
     bl_idname = "GeometryNodeNodeBoosterMathExpression"
     bl_label = "Math Expression"
@@ -299,7 +259,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         description="Sanatized expression, first layer of expression interpretation"
         )
     debug_fctexp : bpy.props.StringProperty(
-        description="Function expression, this function will be executed to create the nodetree."# variables will get replaced by sockets python API"
+        description="Function expression, this function will be executed to create the nodetree."
         )
     debug_nodes_quantity : bpy.props.IntProperty(
         name="Number of nodes in the nodetree",
@@ -308,9 +268,9 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
 
     def update_signal(self,context):
         """evaluate user expression and change the sockets implicitly"""
-        self.apply_math_expression()
+        self.apply_user_expression()
         return None 
-    
+
     user_mathexp : bpy.props.StringProperty(
         default="",
         name="Expression",
@@ -368,8 +328,9 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 
         return None
     
-    def sanatize_math_expression(self, expression) -> str:
-        """ensure the user expression is correct, sanatized it, and collect its element"""
+    def digest_user_expression(self, expression) -> str:
+        """regex transformers. We ensure the user expression is correct, if he is using correct symbols, 
+        we sanatized it, transform some notations and collect a maximum of its variable to create variable sockets or constant nodes later."""
 
         authorized_symbols = ALPHABET + DIGITS + '/*-+%.,()'
         
@@ -462,7 +423,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                             self.elemVar.add(esub)
                         else:
                             msg = f"Unknown Element '{esub}' of Composite '{e}'"
-                            print(f"Exception: sanatize_math_expression():\n{msg}")
+                            print(f"Exception: digest_user_expression():\n{msg}")
                             raise Exception(msg)
                             
                     # Insert inplicit multiplications
@@ -510,7 +471,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         return expression
     
-    def apply_macros_to_math_expression(self, expression) -> str:
+    def apply_macros(self, expression) -> str:
         """Replace macros such as 'Pi' 'eNum' or else..  by their values"""
         
         modified_expression = None
@@ -523,7 +484,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             
         return modified_expression
     
-    def store_equation_as_frame(self, text):
+    def store_equation(self, text):
         """we store the user text data as a frame"""
 
         ng = self.node_tree
@@ -542,68 +503,71 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
-    def apply_math_expression(self) -> None:
+    def apply_user_expression(self) -> None:
         """transform the math expression into sockets and nodes arrangements"""
-        
+
         # Support for automatically replacing uer symbols
         if (self.use_macros):
-            newexp = self.apply_macros_to_math_expression(self.user_mathexp)
-            if (newexp is not None):
-                self.user_mathexp = newexp
+            new = self.apply_macros(self.user_mathexp)
+            if (new is not None):
+                self.user_mathexp = new
                 # We just sent an update signal by modifying self.user_mathexp
                 # let's stop here then, the function will restart shortly and we don't have a recu error.
                 return None
-        
+
         ng = self.node_tree 
         in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
-        
+
         # Reset error message
         self.error_message = self.debug_sanatized = self.debug_fctexp = ""
-        
-        # Keepsafe the math expression within the group
-        self.store_equation_as_frame(self.user_mathexp)
-        
-        # First we make sure the user expression is correct
+
+        # Keepsafe the math expression within the group, might be useful later.
+        self.store_equation(self.user_mathexp)
+
+        # First we make sure the user expression is correct, & collect the variables!
         try:
-            rval = self.sanatize_math_expression(self.user_mathexp)
+            r = self.digest_user_expression(self.user_mathexp)
         except Exception as e:
             self.error_message = str(e)
             self.debug_sanatized = 'Failed'
             return None
-        
-        # Define the result of sanatize_math_expression
-        sanatized_expr = self.debug_sanatized = rval
+
+        # We store the digested expression for debug aid.
+        digested_expression = self.debug_sanatized = r
+        # running 'digest_user_expression()' collected all possible constants values or socket variable.
         elemVar, elemConst = self.elemVar, self.elemConst
-        
-        # Clear node tree
+
+        # Clean up the node tree, we are about to rebuild it!
         for node in list(ng.nodes).copy():
             if (node.name not in {"Group Input", "Group Output", "EquationStorage",}):
                 ng.nodes.remove(node)
-                
-        # Create new sockets depending on vars
+
+        # Create new sockets depending on collected variables.
         if (elemVar):
             current_vars = [s.name for s in in_nod.outputs]
             for var in elemVar:
                 if (var not in current_vars):
                     create_socket(ng, in_out='INPUT', socket_type="NodeSocketFloat", socket_name=var,)
-        
-        # Remove unused vars sockets
+
+        # Remove unused sockets
         idx_to_del = []
         for idx,socket in enumerate(in_nod.outputs):
             if ((socket.type!='CUSTOM') and (socket.name not in elemVar)):
                 idx_to_del.append(idx)
         for idx in reversed(idx_to_del):
             remove_socket(ng, idx, in_out='INPUT')
-        
-        # Let's collect equivalence between varnames/const and the pythonAPI
-        vareq, consteq = dict(), dict()
-        
-        # Fill equivalence dict with it's socket eq
-        if (elemVar):
-            for s in in_nod.outputs:
-                if (s.name in elemVar):
-                    vareq[s.name] = get_socket_python_api(in_nod, s.identifier)
 
+        # We need to collect the equivalence between the varnames and const and their pythonAPI socket representation
+        vareq, consteq = dict(), dict()
+
+        # Fill equivalence dict with it's socket eq
+        # Starts with variable sockets
+        if (elemVar):
+            for var_sock in in_nod.outputs:
+                if (var_sock.name in elemVar):
+                    vareq[var_sock.name] = var_sock
+                    continue
+        # Then constant sockets (new input nodes)
         # Add input for constant right below the vars group input
         if (elemConst):
             xloc, yloc = in_nod.location.x, in_nod.location.y-330
@@ -612,39 +576,51 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                     ng, 'ShaderNodeValue', float(const), const,
                     location=(xloc, yloc),
                     )
-                con_nod = con_sck.node
                 yloc -= 90
-                # Also fill const to socket equivalence dict
-                consteq[const] = get_socket_python_api(con_nod, con_sck.identifier)
+                consteq[const] = con_sck
                 continue
 
         # Give it a refresh signal, when we remove/create a lot of sockets, the customnode inputs/outputs need a kick
         self.update()
-        
+
         # if we don't have any elements to work with, quit
         if not (elemVar or elemConst):
             return None
-        
-        # Transform user expression into pure function expression
+
+        # Transform user expression containing '/*-+' notations into a function expression using the ast module
         try:
-            transformer = FunctionTransformer()
-            fctexp = transformer.transform_math_expression(sanatized_expr)
+            transformer = AstTranformer()
+            astfctexp = transformer.get_function_expression(digested_expression)
         except Exception as e:
             self.error_message = str(e)
             self.debug_fctexp = 'Failed'
             return None
-        
+
+        # We display the ast function expression as a debug helper
+        fctexp = str(ast.unparse(astfctexp))
         self.debug_fctexp = fctexp
         
-        # Execute the function expression to arrange the user nodetree
+        # We always set the input node as active, the nodetree offset arrangement is based on active node.
+        ng.nodes.active = in_nod
+
+        # Call the functions in ast order, this will arrange the nodetree!
         try:
-            execute_math_function_expression(
-                customnode=self, expression=fctexp, node_tree=ng, varsapi=vareq, constapi=consteq,
-                )
+            ast_function_caller(astfctexp, node_tree=ng, vareq=vareq, consteq=consteq,)
         except Exception as e:
-            self.error_message = str(e)
-            return None
+            
+            #Better error message for user if wrong args passed
+            e = str(e)
+            if ('()' in e):
+                fname = e.split('()')[0]
+                if ('() missing' in e) and ('required positional argument' in e):
+                    nbr = e.split('() missing ')[1][0]
+                    e = f"Function '{fname}' needs {nbr} more Param(s)"
+                elif ('() takes' in e) and ('positional argument' in e):
+                    e = f"Function '{fname}' recieved Extra Param(s)"
         
+            self.error_message = e
+            return None
+
         #we count the number of nodes
         self.debug_nodes_quantity = len(ng.nodes)
 
