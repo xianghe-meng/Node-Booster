@@ -259,7 +259,7 @@ def _vecelemfloatmath(ng, reusenode:str,
 
     rvec = combine_xyz(ng, f'{reusenode}|in.comb', *newfloats)
     frame_nodes(ng, floats[0].node, rvec.node,
-        label=reusenode,
+        label=f'{reusenode}|ewise',
         )
     return rvec
 
@@ -568,50 +568,68 @@ def div(ng, reusenode:str,
 
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
-@user_doc(mathex="A Power n.\nEquivalent to the 'a**n' and '²' symbol.")
+@user_doc(mathex="A Power N.\nEquivalent to the 'A**N' or '²' symbol.")
 def pow(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    n:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    n:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
-    if anytype(a,n,types=(sVec,),):
-        return _vecmath(ng,reusenode, 'POWER',a,n)
+    if anytype(a,types=(sVec,Vector),):
+        if not anytype(n,types=(sFlo,sInt,sBoo,float,int),):
+            raise InvalidTypePassedToSocket(f"ArgsTypeError for pow(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
+        return _vecelemfloatmath(ng,reusenode, 'POWER',a,n)
     return _floatmath(ng,reusenode, 'POWER',a,n)
 
-@user_domain('mathex')
-@user_doc(mathex="Logarithm A base B.")
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Logarithm A base N.")
+@user_doc(nexcode="Logarithm A base N.\nSupports SocketFloat and entry-wise SocketVector if N is float compatible.")
 def log(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
-    return _floatmath(ng,reusenode, 'LOGARITHM',a,b)
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    n:sFlo|sInt|sBoo|float|int,
+    ) -> sFlo|sVec:
+    if anytype(a,types=(sVec,Vector),):
+        if not anytype(n,types=(sFlo,sInt,sBoo,float,int),):
+            raise InvalidTypePassedToSocket(f"ArgsTypeError for log(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
+        return _vecelemfloatmath(ng,reusenode, 'LOGARITHM',a,n)
+    return _floatmath(ng,reusenode, 'LOGARITHM',a,n)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="Square Root of A.")
+@user_doc(nexcode="Square Root of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def sqrt(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec:
+    if anytype(a,types=(sVec,Vector),):
+        return _vecelemfloatmath(ng,reusenode, 'SQRT',a)
     return _floatmath(ng,reusenode, 'SQRT',a)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="1/ Square Root of A.")
+@user_doc(nexcode="1/ Square Root of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def invsqrt(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec:
+    if anytype(a,types=(sVec,Vector),):
+        return _vecelemfloatmath(ng,reusenode, 'INVERSE_SQRT',a)
     return _floatmath(ng,reusenode, 'INVERSE_SQRT',a)
 
-@user_domain('mathex')
-@user_doc(mathex="A Root N. Equivalent to doing 'a**(1/n).'")
+@user_domain('mathex','nexcode')
+@user_doc(mathex="A Root N.\nEquivalent to doing 'A**(1/N)'.")
+@user_doc(nexcode="A Root N.\nEquivalent to doing 'A**(1/N)'.\nSupports SocketFloat and entry-wise SocketVector if N is float compatible.")
 def nroot(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
-    
+    ) -> sFlo|sVec:
+
+    if anytype(a,types=(sVec,Vector),):
+        if not anytype(n,types=(sFlo,sInt,sBoo,float,int),):
+            raise InvalidTypePassedToSocket(f"ArgsTypeError for nroot(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
+
     if (reusenode): #this function is created multiple nodes so we need multiple tag
           _x = div(ng,f"{reusenode}|inner", 1,n)
     else: _x = div(ng,'', 1,n,)
 
     _r = pow(ng,reusenode, a,_x)
-    frame_nodes(ng, _x.node, _r.node,
+    frame_nodes(ng, _x.node, _r.node.parent if _r.node.parent else _r.node,
         label=reusenode if (reusenode) else 'nRoot',
         )
     return _r

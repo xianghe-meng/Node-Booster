@@ -96,7 +96,7 @@ def create_Nex_tag(sockfunc, *nex_or_py_variables, startchar='F',):
             NexType = v
             break
     assert NexType is not None, f"Error, we should've found a Nex variable in {nex_or_py_variables}]"
-    
+
     argtags = []
     for v in nex_or_py_variables:
         if ('Nex' in type(v).__name__):
@@ -111,14 +111,14 @@ def create_Nex_tag(sockfunc, *nex_or_py_variables, startchar='F',):
 def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None,):
     """call the sockfunc related to the operand with sockets of our NexTypes, and return a 
     new NexType from the newly formed socket.
-    
+
     Each new node the sockfuncs will create will be tagged, it is essential that we don't create & 
     link the nodes if there's no need to do so, as a Nex script can be executed very frequently. 
-    
+
     We tag them using the Nex id and types to ensure uniqueness of our values. If a tag already exists, 
     the 'reusenode' parameter of the nodesetter functions will make sure to only update the values
     of an existing node that already exists"""
-    
+
     # Below, We generate an unique tag from the function and args & transoform nex args to sockets
     # ex: 'F|f.pow(f4,f5)'
     #     'F|f.mult(f2,Py6Int)'
@@ -133,7 +133,7 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
         msg = str(e)
         if ('Expected parameters in' in msg):
             msg = f"SocketTypeError. Function '{sockfunc.__name__}' Expected parameters in " + str(e).split('Expected parameters in ')[1]
-        raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.
+        raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.. If the user see that error, the nextype didn't handle typing properly..
 
     except Exception as e:
         print(f"ERROR: call_Nex_operand.sockfunc() caught error {type(e).__name__}")
@@ -667,11 +667,21 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         # ---------------------
         # NexVec Power
 
-        def __pow__(self, other): #self ** other
-            raise NexError(f"SocketTypeError. Cannot raise a 'SocketVector'.") #TODO add a function for that in nodesetter. not comprised in vector math node of blender..
+        def __pow__(self, other):  # self ** other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat':
+                    args = self, other
+                case 'int' | 'float' | 'bool':
+                    args = self, float(other)
+                case 'NexVec' | 'Vector':
+                    raise NexError(f"SocketTypeError. Cannot raise a Vector to another Vector. Exponement must be float compatible.")
+                case _:
+                    raise NexError(f"SocketTypeError. Cannot raise 'SocketVector' to the power of '{type(other).__name__}'.")
+            return call_Nex_operand(NexVec, nodesetter.pow, *args,)
 
-        def __rpow__(self, other): #other ** self
-            raise NexError(f"SocketTypeError. Cannot raise a 'SocketVector'.") #TODO add a function for that in nodesetter. not comprised in vector math node of blender..
+        def __rpow__(self, other):  # other ** self
+            raise NexError(f"SocketTypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketVector'.")
 
         # ---------------------
         # NexVec Modulo
@@ -1062,9 +1072,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     fname = e.split('()')[0]
                     if ('() missing' in e) and ('required positional argument' in e):
                         nbr = e.split('() missing ')[1][0]
-                        raise NexError(f"Function '{fname}' needs {nbr} more Param(s)")
+                        raise NexError(f"Function {fname}() needs {nbr} more Param(s)")
                     elif ('() takes' in e) and ('positional argument' in e):
-                        raise NexError(f"Function '{fname}' recieved Extra Param(s)")
+                        raise NexError(f"Function {fname}() recieved Extra Param(s)")
                 raise
 
             except nodesetter.InvalidTypePassedToSocket as e:
