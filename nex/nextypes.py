@@ -675,7 +675,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case 'NexVec' | 'Vector':
-                    raise NexError(f"SocketTypeError. Cannot raise a Vector to another Vector. Exponement must be float compatible.")
+                    raise NexError(f"SocketTypeError. Cannot raise a Vector to another Vector. Exponent must be float compatible.")
                 case _:
                     raise NexError(f"SocketTypeError. Cannot raise 'SocketVector' to the power of '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.pow, *args,)
@@ -1041,7 +1041,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
             # Some functions are simply overloads of existing python math functions and there's namespace collision (ex sin(a))
             # If we are working only with python types, then we should't wrap any value!
-            if sockfunc.__name__ in ('cos','sin','tan'):
+            if sockfunc.__name__ in ('cos','sin','tan','acos','asin','atan','cosh','sinh','tanh'):
                 if not any(('Nex' in type(v).__name__) for v in args):
                     return sockfunc(None,'NoneTags', *args, **kwargs)
 

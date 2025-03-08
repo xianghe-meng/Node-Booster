@@ -814,8 +814,9 @@ def floordiv(ng, reusenode:str,
 def sin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec|float:
+    #If user is only using python type, we use the math function instead of creating new nodes
     if alltypes(a,types=(float,int,)):
-        return math.sin(a) #If user is only using python type, we use the math function instead of creating new nodes
+        return math.sin(a)
     elif anytype(a,types=(sVec,Vector,),):
         return _vecmath(ng,reusenode, 'SINE',a)
     return _floatmath(ng,reusenode, 'SINE',a)
@@ -826,8 +827,9 @@ def sin(ng, reusenode:str,
 def cos(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec|float:
+    #If user is only using python type, we use the math function instead of creating new nodes
     if alltypes(a,types=(float,int,)):
-        return math.cos(a) #If user is only using python type, we use the math function instead of creating new nodes
+        return math.cos(a)
     elif anytype(a,types=(sVec,Vector,),):
         return _vecmath(ng,reusenode, 'COSINE',a)
     return _floatmath(ng,reusenode, 'COSINE',a)
@@ -838,52 +840,89 @@ def cos(ng, reusenode:str,
 def tan(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec|float:
+    #If user is only using python type, we use the math function instead of creating new nodes
     if alltypes(a,types=(float,int,)):
-        return math.tan(a) #If user is only using python type, we use the math function instead of creating new nodes
+        return math.tan(a)
     elif anytype(a,types=(sVec,Vector,),):
         return _vecmath(ng,reusenode, 'TANGENT',a)
     return _floatmath(ng,reusenode, 'TANGENT',a)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="The Arcsine of A.")
+@user_doc(nexcode="The Arcsine of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def asin(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,types=(float,int,)):
+        return math.asin(a)
+    elif anytype(a,types=(sVec,),):
+        return _vecelemfloatmath(ng,reusenode, 'ARCSINE',a)
     return _floatmath(ng,reusenode, 'ARCSINE',a)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="The Arccosine of A.")
+@user_doc(nexcode="The Arccosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def acos(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,types=(float,int,)):
+        return math.acos(a)
+    elif anytype(a,types=(sVec,),):
+        return _vecelemfloatmath(ng,reusenode, 'ARCCOSINE',a)
     return _floatmath(ng,reusenode, 'ARCCOSINE',a)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="The Arctangent of A.")
+@user_doc(nexcode="The Arctangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def atan(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,types=(float,int,)):
+        return math.atan(a)
+    elif anytype(a,types=(sVec,),):
+        return _vecelemfloatmath(ng,reusenode, 'ARCTANGENT',a)
     return _floatmath(ng,reusenode, 'ARCTANGENT',a)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="The Hyperbolic Sine of A.")
-def hsin(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+@user_doc(nexcode="The Hyperbolic Sine of A.\nSupports SocketFloat and entry-wise SocketVector.")
+def sinh(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,types=(float,int,)):
+        return math.sinh(a)
+    elif anytype(a,types=(sVec,),):
+        return _vecelemfloatmath(ng,reusenode, 'SINH',a)
     return _floatmath(ng,reusenode, 'SINH',a)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="The Hyperbolic Cosine of A.")
-def hcos(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+@user_doc(nexcode="The Hyperbolic Cosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
+def cosh(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,types=(float,int,)):
+        return math.cosh(a)
+    elif anytype(a,types=(sVec,),):
+        return _vecelemfloatmath(ng,reusenode, 'COSH',a)
     return _floatmath(ng,reusenode, 'COSH',a)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="The Hyperbolic Tangent of A.")
-def htan(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+@user_doc(nexcode="The Hyperbolic Tangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
+def tanh(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,types=(float,int,)):
+        return math.tanh(a)
+    elif anytype(a,types=(sVec,),):
+        return _vecelemfloatmath(ng,reusenode, 'TANH',a)
     return _floatmath(ng,reusenode, 'TANH',a)
 
 #covered in nexcode with NexFloat.as_radians
