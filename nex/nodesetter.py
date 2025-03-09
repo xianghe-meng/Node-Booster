@@ -239,30 +239,6 @@ def _vecmath(ng, reusenode:str,
 
     return node.outputs[outidx]
 
-def _vecelemfloatmath(ng, reusenode:str,
-    operation_type:str,
-    vA:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
-    fB:sFlo|sInt|sBoo|float|int=None,
-    fC:sFlo|sInt|sBoo|float|int=None,
-    ) -> sVec:
-    """Apply float math to each element of the vector."""
-
-    floats = separate_xyz(ng, f'{reusenode}|in.sep', vA)
-    sepnode = floats[0].node
-    
-    newfloats = set()
-    for i,fE in enumerate(floats):
-        ng.nodes.active = sepnode
-        fN = _floatmath(ng,  f'{reusenode}|in{i}', operation_type, fE,fB,fC,)
-        newfloats.add(fN)
-        continue
-
-    rvec = combine_xyz(ng, f'{reusenode}|in.comb', *newfloats)
-    frame_nodes(ng, floats[0].node, rvec.node,
-        label=f'{reusenode}|ewise',
-        )
-    return rvec
-
 def _verotate(ng, reusenode:str,
     rotation_type:str,
     invert:bool,
@@ -405,7 +381,7 @@ def _floatclamp(ng, reusenode:str,
     val2:sFlo|sInt|sBoo|float|int=None,
     val3:sFlo|sInt|sBoo|float|int=None,
     ) -> sFlo:
-    """generic operation for adding a mix node and linking"""
+    """generic operation for using the floatclamp node"""
 
     node = None
     args = (val1, val2, val3,)
@@ -447,6 +423,33 @@ def _floatclamp(ng, reusenode:str,
             case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatclamp(). Recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
+
+def _vecelemfloatmath(ng, reusenode:str,
+    operation_type:str,
+    vA:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    fB:sFlo|sInt|sBoo|float|int=None,
+    fC:sFlo|sInt|sBoo|float|int=None,
+    ) -> sVec:
+    """Apply regular float math to each element of the vector."""
+
+    floats = separate_xyz(ng, f'{reusenode}|in.sep', vA)
+    sepnode = floats[0].node
+    
+    newfloats = set()
+    for i,fE in enumerate(floats):
+        ng.nodes.active = sepnode
+        if ('CLAMP:' in operation_type):
+              realoptype = operation_type.replace('CLAMP:','')
+              fN = _floatclamp(ng,  f'{reusenode}|in{i}', realoptype, fE,fB,fC,)
+        else: fN = _floatmath(ng,  f'{reusenode}|in{i}', operation_type, fE,fB,fC,)
+        newfloats.add(fN)
+        continue
+
+    rvec = combine_xyz(ng, f'{reusenode}|in.comb', *newfloats)
+    frame_nodes(ng, floats[0].node, rvec.node,
+        label=f'{reusenode}|ewise',
+        )
+    return rvec
 
 def _maprange(ng, reusenode:str,
     data_type:str,
@@ -574,7 +577,7 @@ def pow(ng, reusenode:str,
     n:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
     if anytype(a,types=(sVec,Vector),):
-        if not anytype(n,types=(sFlo,sInt,sBoo,float,int),):
+        if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
             raise InvalidTypePassedToSocket(f"ArgsTypeError for pow(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
         return _vecelemfloatmath(ng,reusenode, 'POWER',a,n)
     return _floatmath(ng,reusenode, 'POWER',a,n)
@@ -587,7 +590,7 @@ def log(ng, reusenode:str,
     n:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
     if anytype(a,types=(sVec,Vector),):
-        if not anytype(n,types=(sFlo,sInt,sBoo,float,int),):
+        if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
             raise InvalidTypePassedToSocket(f"ArgsTypeError for log(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
         return _vecelemfloatmath(ng,reusenode, 'LOGARITHM',a,n)
     return _floatmath(ng,reusenode, 'LOGARITHM',a,n)
@@ -621,7 +624,7 @@ def nroot(ng, reusenode:str,
     ) -> sFlo|sVec:
 
     if anytype(a,types=(sVec,Vector),):
-        if not anytype(n,types=(sFlo,sInt,sBoo,float,int),):
+        if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
             raise InvalidTypePassedToSocket(f"ArgsTypeError for nroot(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
 
     if (reusenode): #this function is created multiple nodes so we need multiple tag
@@ -761,7 +764,7 @@ def flooredmod(ng, reusenode:str,
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Wrapping.\nWrap a value V to Range A B.")
-@user_doc(nexcode="Wrapping.\nWrap a value V to Range A B.\nSupports SocketFloat and SocketVector.")
+@user_doc(nexcode="Wrapping.\nWrap a value V to Range A B.\nSupports SocketFloat and entry-wise SocketVector.")
 def wrap(ng, reusenode:str,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -1123,22 +1126,32 @@ def mix(ng, reusenode:str,
     ) -> sFlo|sVec:
     return lerp(ng,reusenode, f,a,b)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="Clamping.\nClamp a value a between min a an max b.")
+@user_doc(nexcode="Clamping.\nClamp a value a between min a an max b.\nSupports SocketFloat and entry-wise SocketVector.")
 def clamp(ng, reusenode:str,
-    v:sFlo|sInt|sBoo|float|int,
+    v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    ) -> sFlo|sVec:
+    if anytype(v,types=(sVec,Vector),):
+        if not alltypes(a,b,types=(sFlo,sInt,sBoo,float,int),):
+            raise InvalidTypePassedToSocket(f"ArgsTypeError for clamp(). Second/Third arguments must be a float compatible type. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
+        return _vecelemfloatmath(ng,reusenode, 'CLAMP:MINMAX',v,a,b)
     return _floatclamp(ng,reusenode, 'MINMAX',v,a,b)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="AutoClamping.\nClamp a value a between auto-defined min/max a&b.")
+@user_doc(nexcode="AutoClamping.\nClamp a value a between auto-defined min/max a&b.\nSupports SocketFloat and entry-wise SocketVector.")
 def clampr(ng, reusenode:str,
-    v:sFlo|sInt|sBoo|float|int,
+    v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    ) -> sFlo|sVec:
+    if anytype(v,types=(sVec,Vector),):
+        if not alltypes(a,b,types=(sFlo,sInt,sBoo,float,int),):
+            raise InvalidTypePassedToSocket(f"ArgsTypeError for clamp(). Second/Third arguments must be a float compatible type. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
+        return _vecelemfloatmath(ng,reusenode, 'CLAMP:RANGE',v,a,b)
     return _floatclamp(ng,reusenode, 'RANGE',v,a,b)
 
 @user_domain('mathex','nexcode')
