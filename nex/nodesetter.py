@@ -1127,8 +1127,8 @@ def mix(ng, reusenode:str,
     return lerp(ng,reusenode, f,a,b)
 
 @user_domain('mathex','nexcode')
-@user_doc(mathex="Clamping.\nClamp a value a between min a an max b.")
-@user_doc(nexcode="Clamping.\nClamp a value a between min a an max b.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(mathex="Clamping.\nClamp a value a between min A an max B.")
+@user_doc(nexcode="Clamping.\nClamp a value a between min A an max B.\nSupports SocketFloat and entry-wise SocketVector if A & B are float compatible.")
 def clamp(ng, reusenode:str,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int,
@@ -1141,9 +1141,9 @@ def clamp(ng, reusenode:str,
     return _floatclamp(ng,reusenode, 'MINMAX',v,a,b)
 
 @user_domain('mathex','nexcode')
-@user_doc(mathex="AutoClamping.\nClamp a value a between auto-defined min/max a&b.")
-@user_doc(nexcode="AutoClamping.\nClamp a value a between auto-defined min/max a&b.\nSupports SocketFloat and entry-wise SocketVector.")
-def clampr(ng, reusenode:str,
+@user_doc(mathex="AutoClamping.\nClamp a value a between auto-defined min/max A & B.")
+@user_doc(nexcode="AutoClamping.\nClamp a value a between auto-defined min/max A & B.\nSupports SocketFloat and entry-wise SocketVector if A & B are float compatible.")
+def clampauto(ng, reusenode:str,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -1157,7 +1157,7 @@ def clampr(ng, reusenode:str,
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Map Range.\nRemap a value V from a given range A,B to another range X,Y.")
 @user_doc(nexcode="Map Range.\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
-def maplin(ng, reusenode:str,
+def mapl(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
     b:sFlo|sInt|sBoo|float|int|Vector,
@@ -1171,7 +1171,7 @@ def maplin(ng, reusenode:str,
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.")
 @user_doc(nexcode="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\nSupports SocketFloat and SocketVector.")
-def mapstep(ng, reusenode:str,
+def mapst(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
     b:sFlo|sInt|sBoo|float|int|Vector,
@@ -1186,7 +1186,7 @@ def mapstep(ng, reusenode:str,
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.")
 @user_doc(nexcode="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
-def mapsmooth(ng, reusenode:str,
+def mapsmo(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
     b:sFlo|sInt|sBoo|float|int|Vector,
@@ -1200,7 +1200,7 @@ def mapsmooth(ng, reusenode:str,
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.")
 @user_doc(nexcode="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
-def mapsmoother(ng, reusenode:str,
+def mapsmoo(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
     b:sFlo|sInt|sBoo|float|int|Vector,
