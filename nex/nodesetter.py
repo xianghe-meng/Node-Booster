@@ -756,7 +756,7 @@ def mod(ng, reusenode:str,
 
 @user_domain('mathex')
 @user_doc(mathex="Floored Modulo.")
-def flooredmod(ng, reusenode:str,
+def floormod(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
