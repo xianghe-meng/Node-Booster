@@ -37,8 +37,6 @@ NEXNOTATIONDOC = {
     '%':{'name':"Modulo.",'desc':"Do a Modulo operation between SocketFloats and/or entry-wise SocketVectors. Type conversion is implicit."},
     'abs(a)':{'name':"Absolute.",'desc':"Get the absolute value of a SocketFloat or SocketVector."},
     'round(a)':{'name':"Round.",'desc':"Round a SocketFloat or SocketVector."},
-    'fA.as_radians':{'name':"Float as Radian.",'desc':"Return a converted SocketFloat value to radians.\n\nIs a read-only property."},
-    'fA.as_degrees':{'name':"Float as Degree.",'desc':"Return a converted SocketFloat value to degrees.\n\nIs a read-only property."},
     'vA.x':{'name':"Vector X.",'desc':"Get or Assign a SocketFloat value from the X axis of a SocketVector.\n\nIs equivalent to the 'vA[0]' notation."},
     'vA.y':{'name':"Vector Y.",'desc':"Get or Assign a SocketFloat value from the Y axis of a SocketVector.\n\nIs equivalent to the 'vA[1]' notation."},
     'vA.z':{'name':"Vector Z.",'desc':"Get or Assign a SocketFloat value from the Z axis of a SocketVector.\n\nIs equivalent to the 'vA[2]' notation."},

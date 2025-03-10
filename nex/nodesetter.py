@@ -43,19 +43,15 @@ def convert_args(*args, toVector=False,) -> tuple:
     
 def user_domain(*tags):
     """decorator to easily retrieve functions names by tag on an orderly manner at runtime"""
-
     def decorator(fct):
         """just mark function with tag"""
-        
         TAGGED.append(fct)
         fct.tags = tags
         return fct
-
     return decorator
 
 def user_doc(**kwarks):
     """decorator to easily define user description depending on domain tag"""
-
     def decorator(fct):
         """just mark function with tag"""
         d = getattr(fct,'_userdoc',None)
@@ -64,25 +60,24 @@ def user_doc(**kwarks):
         for k,v in kwarks.items():
             d[k] = v
         return fct
-
     return decorator
 
 def get_nodesetter_functions(tag='', get_names=False, partialdefaults:tuple=None,):
     """get all functions and their names, depending on function types
     optionally, pass the default ng. The 'reusenode' functionality of the functions will be disabled"""
 
-    if (tag==''):
-          filtered_functions = TAGGED[:]
-    else: filtered_functions = [f for f in TAGGED if (tag in f.tags)]
-    
+    assert tag!='', "Tag must be valid"
+    userfuncs = [f for f in TAGGED if (tag in f.tags)]
+
+    #return names only?
     if (get_names):
-        return [f.__name__ for f in filtered_functions]
+        return [f.__name__ for f in userfuncs]
 
     # If a default node group argument is provided, use functools.partial to bind it
     if (partialdefaults is not None):
-        filtered_functions = [partial(f, *partialdefaults,) for f in filtered_functions]
+        userfuncs = [partial(f, *partialdefaults,) for f in userfuncs]
 
-    return filtered_functions
+    return userfuncs
 
 def generate_documentation(tag=''):
     """generate doc about function subset for user, we are collecting function name and arguments"""
@@ -709,6 +704,7 @@ def mod(ng, reusenode:str,
         return _vecmath(ng,reusenode, 'MODULO',a,b)
     return _floatmath(ng,reusenode, 'MODULO',a,b)
 
+#not covered in Nex.. user can do floor(A%B)
 @user_domain('mathex')
 @user_doc(mathex="Floored Modulo.")
 def floormod(ng, reusenode:str,
@@ -888,21 +884,45 @@ def tanh(ng, reusenode:str,
         return _vecelemfloatmath(ng,reusenode, 'TANH',a)
     return _floatmath(ng,reusenode, 'TANH',a)
 
-#covered in nexcode with NexFloat.as_radians
 @user_domain('mathex')
-@user_doc(mathex="Convert from Degrees to Radians.")
+@user_doc(mathex="Convert a value from Degrees to Radians.")
 def rad(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,types=(float,int,)):
+        return math.radians(a)
+    elif anytype(a,types=(sVec,),):
+        return _vecelemfloatmath(ng,reusenode, 'RADIANS',a)
     return _floatmath(ng,reusenode, 'RADIANS',a)
 
-#covered in nexcode with NexFloat.as_degrees
+#same as above, just different user fct name.
+@user_domain('nexcode')
+@user_doc(nexcode="Convert a value from Degrees to Radians.\nSupports SocketFloat and entry-wise SocketVector.")
+def radians(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec:
+    return rad(ng,reusenode,a)
+
 @user_domain('mathex')
-@user_doc(mathex="Convert from Radians to Degrees.")
+@user_doc(mathex="Convert a value from Radians to Degrees.")
 def deg(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,types=(float,int,)):
+        return math.degrees(a)
+    elif anytype(a,types=(sVec,),):
+        return _vecelemfloatmath(ng,reusenode, 'DEGREES',a)
     return _floatmath(ng,reusenode, 'DEGREES',a)
+
+#same as above, just different user fct name.
+@user_domain('nexcode')
+@user_doc(nexcode="Convert a value from Radians to Degrees.\nSupports SocketFloat and entry-wise SocketVector.")
+def degrees(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> sFlo|sVec:
+    return deg(ng,reusenode,a)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Cross Product.\nThe cross product between vector A an B.")

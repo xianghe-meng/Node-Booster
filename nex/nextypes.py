@@ -492,23 +492,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
         # ---------------------
         # NexFloat Custom Functions & Properties
-        
-        #NOTE read only properties are better for user not familiar with python () notation.
-        # is beginner friendly.
-        
-        @property
-        def as_radians(self):
-            return call_Nex_operand(NexFloat, nodesetter.rad, self,)
-        @as_radians.setter
-        def as_radians(self,value):
-            raise NexError("AssignationError. SocketFloat.as_radians is read-only.")
-
-        @property
-        def as_degrees(self):
-            return call_Nex_operand(NexFloat, nodesetter.deg, self,)
-        @as_degrees.setter
-        def as_degrees(self,value):
-            raise NexError("AssignationError. SocketFloat.as_degrees is read-only.")
+        # ...
 
 
     # ooooo      ooo                       oooooo     oooo                     
@@ -1041,7 +1025,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
             # Some functions are simply overloads of existing python math functions and there's namespace collision (ex sin(a))
             # If we are working only with python types, then we should't wrap any value!
-            if sockfunc.__name__ in ('cos','sin','tan','acos','asin','atan','cosh','sinh','tanh'):
+            if sockfunc.__name__ in ('cos','sin','tan','acos','asin','atan','cosh','sinh','tanh','degrees','radians'):
                 if not any(('Nex' in type(v).__name__) for v in args):
                     return sockfunc(None,'NoneTags', *args, **kwargs)
 
