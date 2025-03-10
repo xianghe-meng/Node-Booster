@@ -95,14 +95,14 @@ def create_Nex_tag(sockfunc, *nex_or_py_variables, startchar='F',):
         if ('Nex' in type(v).__name__):
             NexType = v
             break
-    assert NexType is not None, f"Error, we should've found a Nex variable in {nex_or_py_variables}]"
+    assert NexType is not None, f"We should've found a Nex variable in  {sockfunc.__name__}{nex_or_py_variables}"
 
     argtags = []
     for v in nex_or_py_variables:
         if ('Nex' in type(v).__name__):
             argtags.append(f"{v.nxchar}{v.nxid}")
             continue
-        argtags.append(f"PY{type(v).__name__.lower()[0]}{NexType.init_counter}")
+        argtags.append(f"PY{type(v).__name__.lower()[0]}{NexType.init_counter}") #better support for python args? how to identify them properly given that their values can change?
         continue
 
     uniquetag = f"{startchar}|{NexType.nxchar}.{sockfunc.__name__}({','.join(argtags)})"
@@ -1019,6 +1019,11 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         """wrap a nodesetter function to transform it into a Nex functions, nodesetter fct always expecting socket or py variables
         & return sockets or tuple of sockets. Function similar to 'call_Nex_operand' but more general"""
 
+        #TODO What if user is using some Nexfunc on only python values?
+        # when we wrap a function we need a unique id tag so the nodetree construction stays stable cross execution. 
+        # The problem is that for now we can't generate a unique tag if the user is using a Nexfunction with only python values.
+        # Some of these functions supports only python args as they will execute math funcs instead. We need a better solution for handling pyvalue in the nodetree.
+
         def wrapped_func(*args, **kwargs):
 
             uniquetag = None
@@ -1028,8 +1033,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             if sockfunc.__name__ in ('cos','sin','tan','acos','asin','atan','cosh','sinh','tanh','degrees','radians'):
                 if not any(('Nex' in type(v).__name__) for v in args):
                     return sockfunc(None,'NoneTags', *args, **kwargs)
-
-            # Some functions do not require a unique tag.
+            # & Some functions do not require a unique tag.
             if sockfunc.__name__ in ('getp','getn'):
                 uniquetag = 'dummy'
 

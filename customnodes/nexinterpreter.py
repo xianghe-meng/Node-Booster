@@ -350,7 +350,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             set_socket_label(ng,0, label="PythonError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f"{type(e).__name__}. {e}. See console for traceback."
+            self.error_message = f"{type(e).__name__}. {e}.\nSee console for traceback."
             return None
 
         #check on vars..
