@@ -135,7 +135,7 @@ def _floatmath(ng, reusenode:str,
     val2:sFlo|sInt|sBoo|float|int=None,
     val3:sFlo|sInt|sBoo|float|int=None,
     ) -> sFlo:
-    """generic operation for adding a float math node and linking.
+    """generic operation for adding a float math node and linking. (also support clamp node).
     if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
 
     node = None
@@ -150,16 +150,23 @@ def _floatmath(ng, reusenode:str,
         if (last):
               location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
         else: location = (0,200,)
-        node = ng.nodes.new('ShaderNodeMath')
-        node.operation = operation_type
-        node.use_clamp = False
+
+        #floatmath also support clamp method. These two nodes are highly similar.
+        if operation_type.startswith('CLAMP:'):
+            node = ng.nodes.new('ShaderNodeClamp')
+            node.clamp_type = operation_type.replace('CLAMP:','')
+        else:
+            node = ng.nodes.new('ShaderNodeMath')
+            node.operation = operation_type
+            node.use_clamp = False
+
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
-        
+
         needs_linking = True
         if (reusenode):
             node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
-    
+
     for i,val in enumerate(args):
         match val:
 
@@ -174,7 +181,7 @@ def _floatmath(ng, reusenode:str,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatmath(). Recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatmath({operation_type}). Recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
@@ -375,55 +382,6 @@ def _mix(ng, reusenode:str,
 
     return node.outputs[outidx]
 
-def _floatclamp(ng, reusenode:str,
-    clamp_type:str,
-    val1:sFlo|sInt|sBoo|float|int=None,
-    val2:sFlo|sInt|sBoo|float|int=None,
-    val3:sFlo|sInt|sBoo|float|int=None,
-    ) -> sFlo:
-    """generic operation for using the floatclamp node"""
-
-    node = None
-    args = (val1, val2, val3,)
-    needs_linking = False
-
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
-
-    if (node is None):
-        last = ng.nodes.active
-        if (last):
-              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
-        else: location = (0,200,)
-        node = ng.nodes.new('ShaderNodeClamp')
-        node.clamp_type = clamp_type
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-        
-        needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
-
-    for i,val in enumerate(args):
-        match val:
-
-            case sFlo() | sInt() | sBoo():
-                if needs_linking:
-                    link_sockets(val, node.inputs[i])
-
-            case float() | int() | bool():
-                if type(val) is bool:
-                    val = float(val)
-                if (node.inputs[i].default_value!=val):
-                    node.inputs[i].default_value = val
-                    assert_purple_node(node)
-
-            case None: pass
-
-            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatclamp(). Recieved unsupported type '{type(val).__name__}'")
-
-    return node.outputs[0]
-
 def _vecelemfloatmath(ng, reusenode:str,
     operation_type:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
@@ -438,10 +396,7 @@ def _vecelemfloatmath(ng, reusenode:str,
     newfloats = set()
     for i,fE in enumerate(floats):
         ng.nodes.active = sepnode
-        if ('CLAMP:' in operation_type):
-              realoptype = operation_type.replace('CLAMP:','')
-              fN = _floatclamp(ng,  f'{reusenode}|in{i}', realoptype, fE,fB,fC,)
-        else: fN = _floatmath(ng,  f'{reusenode}|in{i}', operation_type, fE,fB,fC,)
+        fN = _floatmath(ng,  f'{reusenode}|in{i}', operation_type, fE,fB,fC,)
         newfloats.add(fN)
         continue
 
@@ -1136,9 +1091,9 @@ def clamp(ng, reusenode:str,
     ) -> sFlo|sVec:
     if anytype(v,types=(sVec,Vector),):
         if not alltypes(a,b,types=(sFlo,sInt,sBoo,float,int),):
-            raise InvalidTypePassedToSocket(f"ArgsTypeError for clamp(). Second/Third arguments must be a float compatible type. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
+            raise InvalidTypePassedToSocket(f"ArgsTypeError for clamp(). Second/Third arguments must be float compatible types. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
         return _vecelemfloatmath(ng,reusenode, 'CLAMP:MINMAX',v,a,b)
-    return _floatclamp(ng,reusenode, 'MINMAX',v,a,b)
+    return _floatmath(ng,reusenode, 'CLAMP:MINMAX',v,a,b)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="AutoClamping.\nClamp a value a between auto-defined min/max A & B.")
@@ -1150,9 +1105,9 @@ def clampauto(ng, reusenode:str,
     ) -> sFlo|sVec:
     if anytype(v,types=(sVec,Vector),):
         if not alltypes(a,b,types=(sFlo,sInt,sBoo,float,int),):
-            raise InvalidTypePassedToSocket(f"ArgsTypeError for clamp(). Second/Third arguments must be a float compatible type. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
+            raise InvalidTypePassedToSocket(f"ArgsTypeError for clamp(). Second/Third arguments must be float compatible types. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
         return _vecelemfloatmath(ng,reusenode, 'CLAMP:RANGE',v,a,b)
-    return _floatclamp(ng,reusenode, 'RANGE',v,a,b)
+    return _floatmath(ng,reusenode, 'CLAMP:RANGE',v,a,b)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Map Range.\nRemap a value V from a given range A,B to another range X,Y.")
@@ -1212,25 +1167,29 @@ def mapsmoo(ng, reusenode:str,
     return _maprange(ng,reusenode, 'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
 
 @user_domain('nexcode')
-@user_doc(nexcode="Position Attribute.\nGet the SocketVector Position attribute.")
-def getposition(ng, reusenode:str='dummy',
+@user_doc(nexcode="Position Attribute.\nGet the GeometryNode 'Position' SocketVector input attribute.")
+def getp(ng, reusenode:str='dummy',
     ) -> sVec:
-    unique_id = 'C|getposition()'
+    unique_id = 'C|getp()'
     node = ng.nodes.get(unique_id)
     if (node is None):
         node = ng.nodes.new('GeometryNodeInputPosition')
         node.name = node.label = unique_id
+        node.location = ng.nodes["Group Input"].location
+        node.location.y += 65*1
     return node.outputs[0]
 
 @user_domain('nexcode')
-@user_doc(nexcode="Normal Attribute.\nGet the SocketVector Normal attribute.")
-def getnormal(ng, reusenode:str='dummy',
+@user_doc(nexcode="Normal Attribute.\nGet the GeometryNode 'Normal' SocketVector input attribute.")
+def getn(ng, reusenode:str='dummy',
     ) -> sVec:
-    unique_id = 'C|getnormal()'
+    unique_id = 'C|getn()'
     node = ng.nodes.get(unique_id)
     if (node is None):
         node = ng.nodes.new('GeometryNodeInputNormal')
         node.name = node.label = unique_id
+        node.location = ng.nodes["Group Input"].location
+        node.location.y += 65*2
     return node.outputs[0]
 
 # TODO more attr input

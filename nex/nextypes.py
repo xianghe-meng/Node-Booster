@@ -1046,7 +1046,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     return sockfunc(None,'NoneTags', *args, **kwargs)
 
             # Some functions do not require a unique tag.
-            if sockfunc.__name__ in ('getnormal','getposition'):
+            if sockfunc.__name__ in ('getp','getn'):
                 uniquetag = 'dummy'
 
             #define reuse taga unique tag to ensure the function is not generated on each nex script run

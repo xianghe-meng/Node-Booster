@@ -27,13 +27,13 @@ from ..utils.node_utils import (
 
 
 NEXNOTATIONDOC = {
-    '+':{'name':"Addition",'desc':"Add between SocketFloat and SocketVector. Type conversion is implicit."},
-    '-':{'name':"Subtraction.",'desc':"Subtract between SocketFloat and SocketVector. Type conversion is implicit.\n\nYou are also able to negate using the 'x = -x' Notation as well."},
-    '*':{'name':"Multiplication.",'desc':"Multiply between SocketFloat and SocketVector. Type conversion is implicit."},
-    '**':{'name':"Power.",'desc':"Raise a SocketFloat."},
-    '/':{'name':"Division.",'desc':"Divide between SocketFloat and SocketVector. Type conversion is implicit."},
-    '//':{'name':"FloorDiv.",'desc':"Do a FloorDiv operation between SocketFloat and SocketVector. Type conversion is implicit."},
-    '%':{'name':"Modulo.",'desc':"Do a Modulo operation between SocketFloat and SocketVector. Type conversion is implicit."},
+    '+':{'name':"Addition",'desc':"Add between SocketFloats and/or SocketVectors. Type conversion is implicit."},
+    '-':{'name':"Subtraction.",'desc':"Subtract between SocketFloats and/or SocketVectors. Type conversion is implicit.\n\nYou are also able to negate using the 'x = -x' Notation as well."},
+    '*':{'name':"Multiplication.",'desc':"Multiply between SocketFloats and/or SocketVectors. Type conversion is implicit."},
+    '**':{'name':"Power.",'desc':"Raise SocketFloats and/or SocketVectors."},
+    '/':{'name':"Division.",'desc':"Divide between SocketFloats and/or SocketVectors. Type conversion is implicit."},
+    '//':{'name':"FloorDiv.",'desc':"Do a FloorDiv operation between SocketFloats and/or SocketVectors. Type conversion is implicit."},
+    '%':{'name':"Modulo.",'desc':"Do a Modulo operation between SocketFloats and/or entry-wise SocketVectors. Type conversion is implicit."},
     'abs(a)':{'name':"Absolute.",'desc':"Get the absolute value of a SocketFloat or SocketVector."},
     'round(a)':{'name':"Round.",'desc':"Round a SocketFloat or SocketVector."},
     'fA.as_radians':{'name':"Float as Radian.",'desc':"Return a converted SocketFloat value to radians.\n\nIs a read-only property."},
