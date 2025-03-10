@@ -102,7 +102,7 @@ def create_Nex_tag(sockfunc, *nex_or_py_variables, startchar='F',):
         if ('Nex' in type(v).__name__):
             argtags.append(f"{v.nxchar}{v.nxid}")
             continue
-        argtags.append(f"PY{type(v).__name__.lower()[0]}{NexType.init_counter}") #better support for python args? how to identify them properly given that their values can change?
+        argtags.append(f"p{type(v).__name__.lower()[0]}{NexType.init_counter}") #better support for python args? how to identify them properly given that their values can change?
         continue
 
     uniquetag = f"{startchar}|{NexType.nxchar}.{sockfunc.__name__}({','.join(argtags)})"
@@ -1028,9 +1028,12 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
             uniquetag = None
 
-            # User is using a Nex function with no Nextype involved?
+            # The user is using a NexFunction but he passed no NexType arguments?
             if not any(('Nex' in type(v).__name__) for v in args):
                 match sockfunc.__name__:
+                    # Name conflict with python bultin functions? If no NexType are involved, we simply call builtin function, disengage wrapper!
+                    case 'min': return min(*args, **kwargs)
+                    case 'max': return max(*args, **kwargs)
                     # Some functions are simply overloads of existing python math functions and there's namespace collision (ex sin(a)) then we should't wrap any value!
                     case 'cos'|'sin'|'tan'|'acos'|'asin'|'atan'|'cosh'|'sinh'|'tanh'|'sqrt'|'log'|'degrees'|'radians'|'floor'|'ceil'|'trunc':
                         uniquetag = 'dummy,ismathfct'
@@ -1038,7 +1041,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     case 'getp'|'getn':
                         uniquetag = 'dummy,isgetter'
                     case _:
-                        raise NexError(f"ArgTypeError. Function {sockfunc.__name__}() don't support python-only parameters.")
+                        raise NexError(f"ArgTypeError. Function {sockfunc.__name__}() doesn't support Python-only Params.")
 
             #define reuse taga unique tag to ensure the function is not generated on each nex script run
             if (uniquetag is None):
@@ -1088,9 +1091,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
         return wrapped_func
 
-    generalfuncs = {f.__name__ : sockfunction_Nex_wrapper(f, default_ng=NODEINSTANCE.node_tree) for f in nodesetter.get_nodesetter_functions(tag='nexcode')}
+    nexfunctions = {f.__name__ : sockfunction_Nex_wrapper(f, default_ng=NODEINSTANCE.node_tree) for f in nodesetter.get_nodesetter_functions(tag='nexcode')}
 
     nextoys['nexuserfunctions'] = {}
-    nextoys['nexuserfunctions'].update(generalfuncs)
+    nextoys['nexuserfunctions'].update(nexfunctions)
     
     return nextoys

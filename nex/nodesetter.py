@@ -84,12 +84,21 @@ def generate_documentation(tag=''):
 
     r = {}
     for f in get_nodesetter_functions(tag=tag):
-
+        
+        #collect args of this function
         fargs = list(f.__code__.co_varnames[:f.__code__.co_argcount])
+        
+        #remove strictly internal args from documentation
         if ('ng' in fargs):
             fargs.remove('ng')
         if ('reusenode' in fargs):
             fargs.remove('reusenode')
+        
+        # support for *args parameters?
+        if (f.__code__.co_flags & 0x04):  # Function has *args
+            fargs.append(f'a, b, c,.. ')
+        
+        #generate documentation function strings
         fstr = f'{f.__name__}({", ".join(fargs)})'
 
         doc = 'Doc here...'
@@ -475,6 +484,40 @@ def _maprange(ng, reusenode:str,
 
     return node.outputs[outidx]
 
+def _floatminmax(ng, reusenode:str,
+    operation_type:str,
+    *floats:sFlo|sInt|sBoo|float|int,
+    ) -> sFlo:
+    """generic operation to cover the max/min operation between a range or given float compatible itterable"""
+
+    assert operation_type in {'min','max'}
+    fullopname = 'MINIMUM' if operation_type=='min' else 'MAXIMUM'
+    
+    for o in floats:
+        if type(o) not in {sFlo, sInt, sBoo, float, int}:
+            raise InvalidTypePassedToSocket(f"ArgsTypeError. Cannot perform {operation_type}() operation on type '{type(o).__name__}'.") 
+    if len(floats) in {0,1}:
+        raise InvalidTypePassedToSocket(f"ArgsTypeError. Function {operation_type}() needs two Params or more.") 
+
+    to_frame = []
+
+    a = floats[0]
+    for i,o in enumerate(floats):
+        if (i==0):
+            continue
+        b = o
+        if (reusenode):
+              new = _floatmath(ng,f"{reusenode}|{i}", fullopname, a,b)
+        else: new = _floatmath(ng,'', fullopname, a,b)
+        a = new
+        to_frame.append(new.node)
+        continue
+
+    frame_nodes(ng, *to_frame,
+        label=reusenode if (reusenode) else f"{operation_type}(*floats)",
+        )
+    return new
+
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Addition.\nEquivalent to the '+' symbol.")
@@ -614,40 +657,6 @@ def neg(ng, reusenode:str,
         label=reusenode if (reusenode) else 'Negate',
         )
     return _r
-
-@user_domain('mathex')
-@user_doc(mathex="Minimum between A & B.")
-def min(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
-    return _floatmath(ng,reusenode, 'MINIMUM',a,b)
-
-@user_domain('mathex')
-@user_doc(mathex="Minimum between A & B considering a smoothing distance.")
-def smin(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
-    dist:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
-    return _floatmath(ng,reusenode, 'SMOOTH_MIN',a,b,dist)
-
-@user_domain('mathex')
-@user_doc(mathex="Maximum between A & B.")
-def max(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
-    return _floatmath(ng,reusenode, 'MAXIMUM',a,b)
-
-@user_domain('mathex')
-@user_doc(mathex="Maximum between A & B considering a smoothing distance.")
-def smax(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
-    dist:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
-    return _floatmath(ng,reusenode, 'SMOOTH_MAX',a,b,dist)
 
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
@@ -1098,6 +1107,42 @@ def rotaxis(ng, reusenode:str,
     vC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sVec:
     return _verotate(ng, reusenode, 'AXIS_ANGLE',False, vA,vC,vX,fA,None,)
+
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")
+@user_doc(nexcode="Minimum.\nGet the absolute minimal value across all passed arguments.\nArguments must be compatible with SocketFloat.")
+def min(ng, reusenode:str,
+    *floats:sFlo|sInt|sBoo|float|int,
+    ) -> sFlo:
+    return _floatminmax(ng,reusenode, 'min',*floats)
+
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Smooth Minimum\nGet the minimal value between A & B considering a smoothing distance to avoid abrupt transition.")
+@user_doc(nexcode="Smooth Minimum\nGet the minimal value between A & B considering a smoothing distance to avoid abrupt transition.\nSupports SocketFloats only.")
+def smin(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    dist:sFlo|sInt|sBoo|float|int,
+    ) -> sFlo:
+    return _floatmath(ng,reusenode, 'SMOOTH_MIN',a,b,dist)
+
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Maximum.\nGet the absolute maximal value across all passed arguments.")
+@user_doc(nexcode="Maximum.\nGet the absolute maximal value across all passed arguments.\nArguments must be compatible with SocketFloat.")
+def max(ng, reusenode:str,
+    *floats:sFlo|sInt|sBoo|float|int,
+    ) -> sFlo:
+    return _floatminmax(ng,reusenode, 'max',*floats)
+
+@user_domain('mathex','nexcode')
+@user_doc(mathex="Smooth Maximum\nGet the maximal value between A & B considering a smoothing distance to avoid abrupt transition.")
+@user_doc(nexcode="Smooth Maximum\nGet the maximal value between A & B considering a smoothing distance to avoid abrupt transition.\nSupports SocketFloats only.")
+def smax(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    dist:sFlo|sInt|sBoo|float|int,
+    ) -> sFlo:
+    return _floatmath(ng,reusenode, 'SMOOTH_MAX',a,b,dist)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Mix.\nLinear Interpolation between value A and B from given factor F.")
