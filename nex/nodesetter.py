@@ -724,7 +724,7 @@ def wrap(ng, reusenode:str,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    ) -> sFlo:
+    ) -> sFlo|sVec:
     if anytype(v,a,b,types=(sVec,Vector,),):
         return _vecmath(ng,reusenode, 'WRAP',v,a,b)
     return _floatmath(ng,reusenode, 'WRAP',v,a,b)
@@ -735,17 +735,22 @@ def wrap(ng, reusenode:str,
 def snap(ng, reusenode:str,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     i:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    ) -> sFlo:
+    ) -> sFlo|sVec:
     if anytype(v,i,types=(sVec,Vector,),):
         return _vecmath(ng,reusenode, 'SNAP',v,i)
     return _floatmath(ng,reusenode, 'SNAP',v,i)
 
-@user_domain('mathex')
+@user_domain('mathex','nexcode')
 @user_doc(mathex="PingPong.\nWrap a value and every other cycles at cycle Scale.")
+@user_doc(nexcode="PingPong.\nWrap a value and every other cycles at cycle Scale.\nSupports SocketFloat and entry-wise SocketVector if scale is float compatible.")
 def pingpong(ng, reusenode:str,
-    v:sFlo|sInt|sBoo|float|int,
+    v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     scale:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo:
+    ) -> sFlo|sVec:
+    if anytype(v,types=(sVec,Vector),):
+        if not alltypes(scale,types=(sFlo,sInt,sBoo,float,int),):
+            raise InvalidTypePassedToSocket(f"ArgsTypeError for pingpong(). Second argument must be a float compatible type. Recieved '{type(scale).__name__}'.")
+        return _vecelemfloatmath(ng,reusenode, 'PINGPONG',v,scale)
     return _floatmath(ng,reusenode, 'PINGPONG',v,scale)
 
 #covered in nexcode via python dunder overload
