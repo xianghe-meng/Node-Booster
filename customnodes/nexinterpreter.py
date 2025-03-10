@@ -36,13 +36,13 @@ NEXNOTATIONDOC = {
     '//':{'name':"FloorDiv.",'desc':"Do a FloorDiv operation between SocketFloats and/or SocketVectors. Type conversion is implicit."},
     '%':{'name':"Modulo.",'desc':"Do a Modulo operation between SocketFloats and/or entry-wise SocketVectors. Type conversion is implicit."},
     'abs(a)':{'name':"Absolute.",'desc':"Get the absolute value of a SocketFloat or SocketVector."},
-    'round(a)':{'name':"Round.",'desc':"Round a SocketFloat or SocketVector."},
+    'round(a)':{'name':"Round.",'desc':"Round a SocketFloat or entry-wise SocketVector.\n\nex: 1.49 will become 1\n1.51 will become 2."},
     'vA.x':{'name':"Vector X.",'desc':"Get or Assign a SocketFloat value from the X axis of a SocketVector.\n\nIs equivalent to the 'vA[0]' notation."},
     'vA.y':{'name':"Vector Y.",'desc':"Get or Assign a SocketFloat value from the Y axis of a SocketVector.\n\nIs equivalent to the 'vA[1]' notation."},
     'vA.z':{'name':"Vector Z.",'desc':"Get or Assign a SocketFloat value from the Z axis of a SocketVector.\n\nIs equivalent to the 'vA[2]' notation."},
     'vA.xyz':{'name':"Vector XYZ tuple.",'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding axes of a SocketVector.\n\nIs equivalent to the 'vA[:]' notation."},
     'vA.length':{'name':"Vector Length.",'desc':"Return a SocketFloat value corresponding to the length of SocketVector.\n\nIs a read-only property."},
-    'vA.normalized':{'name':"Vector Noralization.",'desc':"Return a notmalized SocketVector.\n\nIs a read-only property."},
+    'vA.normalized':{'name':"Vector Noralization.",'desc':"Return a normalized SocketVector.\n\nIs a read-only property."},
 }
 
 

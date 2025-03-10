@@ -539,6 +539,9 @@ def log(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,n,types=(float,int,)):
+        return math.log(a,n)
     if anytype(a,types=(sVec,Vector),):
         if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
             raise InvalidTypePassedToSocket(f"ArgsTypeError for log(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
@@ -551,13 +554,16 @@ def log(ng, reusenode:str,
 def sqrt(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,types=(float,int,)):
+        return math.sqrt(a)
     if anytype(a,types=(sVec,Vector),):
         return _vecelemfloatmath(ng,reusenode, 'SQRT',a)
     return _floatmath(ng,reusenode, 'SQRT',a)
 
 @user_domain('mathex','nexcode')
-@user_doc(mathex="1/ Square Root of A.")
-@user_doc(nexcode="1/ Square Root of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(mathex="Inverse Square Root of A.")
+@user_doc(nexcode="Inverse Square Root of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def invsqrt(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -645,7 +651,7 @@ def smax(ng, reusenode:str,
 
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
-@user_doc(mathex="Round a Float value.")
+@user_doc(mathex="Round a Float value.\nex: 1.49 will become 1\n1.51 will become 2.")
 def round(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -654,31 +660,40 @@ def round(ng, reusenode:str,
     return _floatmath(ng,reusenode, 'ROUND',a)
 
 @user_domain('mathex','nexcode')
-@user_doc(mathex="Floor a Float value.")
-@user_doc(nexcode="Floor a Float value.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(mathex="Floor a Float value.\nex: 1.51 will become 1\n-1.51 will become -2.")
+@user_doc(nexcode="Floor a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.51 will become 1\n-1.51 will become 2.")
 def floor(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,types=(float,int,)):
+        return math.floor(a)
     if anytype(a,types=(sVec,),):
         return _vecmath(ng,reusenode, 'FLOOR',a)
     return _floatmath(ng,reusenode, 'FLOOR',a)
 
 @user_domain('mathex','nexcode')
-@user_doc(mathex="Ceil a Float value.")
-@user_doc(nexcode="Ceil a Float value.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(mathex="Ceil a Float value.\nex: 1.01 will become 2\n-1.99 will become -1.")
+@user_doc(nexcode="Ceil a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.01 will become 2\n-1.99 will become 1.")
 def ceil(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,types=(float,int,)):
+        return math.ceil(a)
     if anytype(a,types=(sVec,),):
         return _vecmath(ng,reusenode, 'CEIL',a)
     return _floatmath(ng,reusenode, 'CEIL',a)
 
 @user_domain('mathex','nexcode')
-@user_doc(mathex="Trunc a Float value.")
-@user_doc(nexcode="Trunc a Float value.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(mathex="Trunc a Float value.\nex: 1.99 will become 1\n-1.99 will become -1.")
+@user_doc(nexcode="Trunc a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.99 will become 1\n-1.99 will become -1.")
 def trunc(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
+    #If user is only using python type, we use the math function instead of creating new nodes
+    if alltypes(a,types=(float,int,)):
+        return math.trunc(a)
     if anytype(a,types=(sVec,),):
         return _vecelemfloatmath(ng,reusenode, 'TRUNC',a)
     return _floatmath(ng,reusenode, 'TRUNC',a)

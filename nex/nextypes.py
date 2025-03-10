@@ -1028,14 +1028,17 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
             uniquetag = None
 
-            # Some functions are simply overloads of existing python math functions and there's namespace collision (ex sin(a))
-            # If we are working only with python types, then we should't wrap any value!
-            if sockfunc.__name__ in ('cos','sin','tan','acos','asin','atan','cosh','sinh','tanh','degrees','radians'):
-                if not any(('Nex' in type(v).__name__) for v in args):
-                    return sockfunc(None,'NoneTags', *args, **kwargs)
-            # & Some functions do not require a unique tag.
-            if sockfunc.__name__ in ('getp','getn'):
-                uniquetag = 'dummy'
+            # User is using a Nex function with no Nextype involved?
+            if not any(('Nex' in type(v).__name__) for v in args):
+                match sockfunc.__name__:
+                    # Some functions are simply overloads of existing python math functions and there's namespace collision (ex sin(a)) then we should't wrap any value!
+                    case 'cos'|'sin'|'tan'|'acos'|'asin'|'atan'|'cosh'|'sinh'|'tanh'|'sqrt'|'log'|'degrees'|'radians'|'floor'|'ceil'|'trunc':
+                        uniquetag = 'dummy,ismathfct'
+                    # & Some functions do not require a unique tag.
+                    case 'getp'|'getn':
+                        uniquetag = 'dummy,isgetter'
+                    case _:
+                        raise NexError(f"ArgTypeError. Function {sockfunc.__name__}() don't support python-only parameters.")
 
             #define reuse taga unique tag to ensure the function is not generated on each nex script run
             if (uniquetag is None):
@@ -1049,7 +1052,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             #support for tuple as vectors
             args = [py_to_Vec3(v) if (isinstance(v,(tuple,list)) and len(v)==3 and all(isinstance(i,(float,int)) for i in v)) else v for v in args]
 
-            #execute the function
+            #Call the Nex function
             try:
                 r = partialsockfunc(*args, **kwargs)
 
@@ -1075,7 +1078,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 print(f"ERROR: sockfunction_Nex_wrapper.sockfunc() caught error {type(e).__name__}")
                 raise
 
-            #automatically convert socket returns to nex
+            # Wrap return value as Nex as well
+
+            if (type(r) in (float,int)):
+                return r #exeption for math0.function see 'dummy,ismathfct'
             if (type(r) is tuple):
                 return tuple(autosetNexType(s) for s in r)
             return autosetNexType(r)
