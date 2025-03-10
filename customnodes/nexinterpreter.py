@@ -12,6 +12,7 @@ import re, traceback
 from ..__init__ import get_addon_prefs
 from ..resources import cust_icon
 from ..nex.nextypes import NexFactory, NexError
+from ..nex.nodesetter import generate_documentation
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     get_socket,
@@ -25,7 +26,7 @@ from ..utils.node_utils import (
     get_farest_node,
 )
 
-
+NEXFUNCDOC = generate_documentation(tag='nexcode')
 NEXNOTATIONDOC = {
     '+':{'name':"Addition",'desc':"Add between SocketFloats and/or SocketVectors. Type conversion is implicit."},
     '-':{'name':"Subtraction.",'desc':"Subtract between SocketFloats and/or SocketVectors. Type conversion is implicit.\n\nYou are also able to negate using the 'x = -x' Notation as well."},

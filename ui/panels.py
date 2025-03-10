@@ -102,8 +102,8 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
 
                     col = panel.column()
 
-                    from ..customnodes.mathexpression import MATHEXPRESSIONDOC
-                    for symbol,v in MATHEXPRESSIONDOC.items():
+                    from ..customnodes.mathexpression import MATHNOTATIONDOC
+                    for symbol,v in MATHNOTATIONDOC.items():
 
                         desc = v['name']+'\n'+v['desc'] if v['desc'] else v['name']
                         row = col.row()
@@ -117,9 +117,8 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                             )
                         col.separator()
 
-                    from ..nex.nodesetter import generate_documentation
-                    doc = generate_documentation(tag='mathex')
-                    for fname,fdoc in doc.items():
+                    from ..customnodes.mathexpression import MATHEXFUNCDOC
+                    for fname,fdoc in MATHEXFUNCDOC.items():
 
                         row = col.row()
                         row.scale_y = 0.65
@@ -334,9 +333,8 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                             )
                         col.separator()
 
-                    from ..nex.nodesetter import generate_documentation
-                    doc = generate_documentation(tag='nexcode')
-                    for fname,fdoc in doc.items():
+                    from ..customnodes.nexinterpreter import NEXFUNCDOC
+                    for fname,fdoc in NEXFUNCDOC.items():
 
                         row = col.row()
                         row.scale_y = 0.65

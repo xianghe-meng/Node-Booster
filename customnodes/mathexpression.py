@@ -31,7 +31,7 @@ import re, ast
 
 from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, is_float_compatible
 from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, create_constant_input
-from ..nex.nodesetter import get_nodesetter_functions
+from ..nex.nodesetter import get_nodesetter_functions, generate_documentation
 
 
 DIGITS = '0123456789'
@@ -41,7 +41,8 @@ IRRATIONALS = {'π':'3.1415927','𝑒':'2.7182818','φ':'1.6180339',}
 MACROS = {'Pi':'π','eNum':'𝑒','Gold':'φ',}
 SUPERSCRIPTS = {'⁰':'0', '¹':'1', '²':'2', '³':'3', '⁴':'4', '⁵':'5', '⁶':'6', '⁷':'7', '⁸':'8', '⁹':'9',}
 
-MATHEXPRESSIONDOC = {
+MATHEXFUNCDOC = generate_documentation(tag='mathex')
+MATHNOTATIONDOC = {
     '+':{'name':"Addition",'desc':""},
     '-':{'name':"Subtraction.",'desc':"Can be used to negate as well ex: -x"},
     '*':{'name':"Multiplication.",'desc':""},
