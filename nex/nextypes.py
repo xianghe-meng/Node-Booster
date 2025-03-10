@@ -1030,14 +1030,18 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
             # The user is using a NexFunction but he passed no NexType arguments?
             if not any(('Nex' in type(v).__name__) for v in args):
-                match sockfunc.__name__:
-                    # Name conflict with python bultin functions? If no NexType are involved, we simply call builtin function, disengage wrapper!
+                funcname = sockfunc.__name__
+                match funcname:
+                    # Name conflict with python bultin functions? 
+                    # If no NexType are involved, we simply call builtin function, no Nexwrapper!
                     case 'min': return min(*args, **kwargs)
                     case 'max': return max(*args, **kwargs)
-                    # Some functions are simply overloads of existing python math functions and there's namespace collision (ex sin(a)) then we should't wrap any value!
+                    # Name conflict with math module functions?
+                    # If no NexType are involved, we simply call builtin math function, no Nexwrapper!
                     case 'cos'|'sin'|'tan'|'acos'|'asin'|'atan'|'cosh'|'sinh'|'tanh'|'sqrt'|'log'|'degrees'|'radians'|'floor'|'ceil'|'trunc':
-                        uniquetag = 'dummy,ismathfct'
-                    # & Some functions do not require a unique tag.
+                        import math
+                        return getattr(math,funcname)(*args, **kwargs)
+                    # Some functions do not require a unique tag.
                     case 'getp'|'getn':
                         uniquetag = 'dummy,isgetter'
                     case _:

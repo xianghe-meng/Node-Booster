@@ -11,7 +11,6 @@
 
 import bpy 
 
-import math
 from functools import partial
 from mathutils import Vector
 
@@ -582,9 +581,9 @@ def log(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,n,types=(float,int,)):
-        return math.log(a,n)
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,n,types=(float,int,)):
+    #     return math.log(a,n)
     if anytype(a,types=(sVec,Vector),):
         if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
             raise InvalidTypePassedToSocket(f"ArgsTypeError for log(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
@@ -597,9 +596,9 @@ def log(ng, reusenode:str,
 def sqrt(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.sqrt(a)
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.sqrt(a)
     if anytype(a,types=(sVec,Vector),):
         return _vecelemfloatmath(ng,reusenode, 'SQRT',a)
     return _floatmath(ng,reusenode, 'SQRT',a)
@@ -674,9 +673,9 @@ def round(ng, reusenode:str,
 def floor(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.floor(a)
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.floor(a)
     if anytype(a,types=(sVec,),):
         return _vecmath(ng,reusenode, 'FLOOR',a)
     return _floatmath(ng,reusenode, 'FLOOR',a)
@@ -687,9 +686,9 @@ def floor(ng, reusenode:str,
 def ceil(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.ceil(a)
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.ceil(a)
     if anytype(a,types=(sVec,),):
         return _vecmath(ng,reusenode, 'CEIL',a)
     return _floatmath(ng,reusenode, 'CEIL',a)
@@ -700,9 +699,9 @@ def ceil(ng, reusenode:str,
 def trunc(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.trunc(a)
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.trunc(a)
     if anytype(a,types=(sVec,),):
         return _vecelemfloatmath(ng,reusenode, 'TRUNC',a)
     return _floatmath(ng,reusenode, 'TRUNC',a)
@@ -797,10 +796,10 @@ def floordiv(ng, reusenode:str,
 def sin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec|float:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.sin(a)
-    elif anytype(a,types=(sVec,Vector,),):
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.sin(a)
+    if anytype(a,types=(sVec,Vector,),):
         return _vecmath(ng,reusenode, 'SINE',a)
     return _floatmath(ng,reusenode, 'SINE',a)
 
@@ -810,10 +809,10 @@ def sin(ng, reusenode:str,
 def cos(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec|float:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.cos(a)
-    elif anytype(a,types=(sVec,Vector,),):
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.cos(a)
+    if anytype(a,types=(sVec,Vector,),):
         return _vecmath(ng,reusenode, 'COSINE',a)
     return _floatmath(ng,reusenode, 'COSINE',a)
 
@@ -823,10 +822,10 @@ def cos(ng, reusenode:str,
 def tan(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec|float:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.tan(a)
-    elif anytype(a,types=(sVec,Vector,),):
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.tan(a)
+    if anytype(a,types=(sVec,Vector,),):
         return _vecmath(ng,reusenode, 'TANGENT',a)
     return _floatmath(ng,reusenode, 'TANGENT',a)
 
@@ -836,10 +835,10 @@ def tan(ng, reusenode:str,
 def asin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.asin(a)
-    elif anytype(a,types=(sVec,),):
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.asin(a)
+    if anytype(a,types=(sVec,),):
         return _vecelemfloatmath(ng,reusenode, 'ARCSINE',a)
     return _floatmath(ng,reusenode, 'ARCSINE',a)
 
@@ -849,10 +848,10 @@ def asin(ng, reusenode:str,
 def acos(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.acos(a)
-    elif anytype(a,types=(sVec,),):
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.acos(a)
+    if anytype(a,types=(sVec,),):
         return _vecelemfloatmath(ng,reusenode, 'ARCCOSINE',a)
     return _floatmath(ng,reusenode, 'ARCCOSINE',a)
 
@@ -862,10 +861,10 @@ def acos(ng, reusenode:str,
 def atan(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.atan(a)
-    elif anytype(a,types=(sVec,),):
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.atan(a)
+    if anytype(a,types=(sVec,),):
         return _vecelemfloatmath(ng,reusenode, 'ARCTANGENT',a)
     return _floatmath(ng,reusenode, 'ARCTANGENT',a)
 
@@ -875,10 +874,10 @@ def atan(ng, reusenode:str,
 def sinh(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.sinh(a)
-    elif anytype(a,types=(sVec,),):
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.sinh(a)
+    if anytype(a,types=(sVec,),):
         return _vecelemfloatmath(ng,reusenode, 'SINH',a)
     return _floatmath(ng,reusenode, 'SINH',a)
 
@@ -888,10 +887,10 @@ def sinh(ng, reusenode:str,
 def cosh(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.cosh(a)
-    elif anytype(a,types=(sVec,),):
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.cosh(a)
+    if anytype(a,types=(sVec,),):
         return _vecelemfloatmath(ng,reusenode, 'COSH',a)
     return _floatmath(ng,reusenode, 'COSH',a)
 
@@ -901,10 +900,10 @@ def cosh(ng, reusenode:str,
 def tanh(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.tanh(a)
-    elif anytype(a,types=(sVec,),):
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.tanh(a)
+    if anytype(a,types=(sVec,),):
         return _vecelemfloatmath(ng,reusenode, 'TANH',a)
     return _floatmath(ng,reusenode, 'TANH',a)
 
@@ -913,10 +912,10 @@ def tanh(ng, reusenode:str,
 def rad(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.radians(a)
-    elif anytype(a,types=(sVec,),):
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.radians(a)
+    if anytype(a,types=(sVec,),):
         return _vecelemfloatmath(ng,reusenode, 'RADIANS',a)
     return _floatmath(ng,reusenode, 'RADIANS',a)
 
@@ -933,10 +932,10 @@ def radians(ng, reusenode:str,
 def deg(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    #If user is only using python type, we use the math function instead of creating new nodes
-    if alltypes(a,types=(float,int,)):
-        return math.degrees(a)
-    elif anytype(a,types=(sVec,),):
+    # #If user is only using python type, we use the math function instead of creating new nodes
+    # if alltypes(a,types=(float,int,)):
+    #     return math.degrees(a)
+    if anytype(a,types=(sVec,),):
         return _vecelemfloatmath(ng,reusenode, 'DEGREES',a)
     return _floatmath(ng,reusenode, 'DEGREES',a)
 
