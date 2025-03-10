@@ -2,19 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# TODO implement NexVec
-#  - support between vec and vec
-#  - vec to float = error, float to vec == possible
-#  - dunder operation between NexFloat et NexVec, see how NotImplemented pass the ball to the other class..
-#  - Vec itter and slicing? using separate? x,y,z = NexVex should work, x=Vex[0] should work for e in Vec should work as well.
-#  - float in vec should work as well
-
-# TODO implement functions
-#  - implement a few functions as test, see how a functions that can both work with Vec and Float will work
-#    because there will be name collision. perhaps could toy with namespace similar to cpp? Hmm. this would solve it
-
-# TODO implement NexBool
-#  - with Nexbool comes comparison operations. == <= ect..
+# NOTE implicit type conversion
+#  is it really a good idea to implicitly make functions and operand work cross types? ex: NexVec + NexFloat..
+#  Perhaps the typing should be a little stronger and user should convert their Nex type manually.
 
 # TODO later 
 #  Better errors for user:
@@ -28,10 +18,6 @@
 #    AS a Reminder: we are storing nodetree objects in there, we'll probably need to only store the nodetree name. & get rid of node_inst.
 #  - If we do a constant + Nex + constant + Nex + constant, we'll create 3 constant nodes. Unsure how to mitigate this.
 #    ideally we 
-
-# TODO nodes location
-# (?) Doing math operation on a value node for the first time should relocate the value node near it's math ope. Note that
-# if we optimize the note above, this thought is to be dismissed
 
 
 import bpy
@@ -132,7 +118,7 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
     except nodesetter.InvalidTypePassedToSocket as e:
         msg = str(e)
         if ('Expected parameters in' in msg):
-            msg = f"SocketTypeError. Function '{sockfunc.__name__}' Expected parameters in " + str(e).split('Expected parameters in ')[1]
+            msg = f"TypeError. Function {sockfunc.__name__}() Expected parameters in " + str(e).split('Expected parameters in ')[1]
         raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.. If the user see that error, the nextype didn't handle typing properly..
 
     except Exception as e:
@@ -215,10 +201,98 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                           #    we need to have some sort of stable id for our nex Instances.
                           #    the problem is that these instances can be anonymous. So here i've decided to identify by instance generation count.
 
+        # print the Nex ?
         def __repr__(self):
             return f"<{self.nxstype}{self.nxid}>"
             #return f"<{type(self)}{self.nxid} nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
 
+        # Nex python bool evaluation? Impossible.
+        def __bool__(self):
+            raise NexError(f"EvaluationError. Cannot evaluate '{type(self).__name__}' as a python boolean.")
+
+        # Nex Math Operand
+        def __add__(self, other): # self + other
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '+'.")
+        def __radd__(self, other): # other + self
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '+'.")
+        def __sub__(self, other): # self - other
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '-'.")
+        def __rsub__(self, other): # other - self
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '-'.")
+        def __mul__(self, other): # self * other
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '*'.")
+        def __rmul__(self, other): # other * self
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '*'.")
+        def __truediv__(self, other): # self / other
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '/'.")
+        def __rtruediv__(self, other): # other / self
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '/'.")
+        def __pow__(self, other): #self ** other
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '**'.")
+        def __rpow__(self, other): #other ** self
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '**'.")
+        def __mod__(self, other): # self % other
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '%'.")
+        def __rmod__(self, other): # other % self
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '%'.")
+        def __floordiv__(self, other): # self // other
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '//'.")
+        def __rfloordiv__(self, other): # other // self
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '//'.")
+        def __neg__(self): # -self
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '-a'.")
+        def __abs__(self): # abs(self)
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' has no abs() method.")
+        def __round__(self): # round(self)
+            return NotImplemented
+            raise NexError(f"TypeError.  '{type(self).__name__}' has no round() method.")
+
+        # Nex Itter
+        def __len__(self): #len(itter)
+            raise NexError(f"TypeError. '{type(self).__name__}' has no len() method.")
+        def __iter__(self): #for f in itter
+            raise NexError(f"TypeError. '{type(self).__name__}' is not an itterable.")
+        def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
+            raise NexError(f"TypeError. '{type(self).__name__}' is not an itterable.")
+        def __setitem__(self, key, value): #x[0] += a+b
+            raise NexError(f"TypeError. '{type(self).__name__}' is not an itterable.")
+
+        # Nex Comparisons
+        def __eq__(self, other): # self == other
+            return NotImplemented
+            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '=='.")
+        def __ne__(self, other): # self != other
+            return NotImplemented
+            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '!='.")
+        def __lt__(self, other): # self < other
+            return NotImplemented
+            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '<'.")
+        def __le__(self, other): # self <= other
+            return NotImplemented
+            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '<='.")
+        def __gt__(self, other): # self > other
+            return NotImplemented
+            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '>'.")
+        def __ge__(self, other): # self >= other
+            return NotImplemented
+            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '>='.")
+        
     # ooooo      ooo                       oooooooooooo oooo                          .   
     # `888b.     `8'                       `888'     `8 `888                        .o8   
     #  8 `88b.    8   .ooooo.  oooo    ooo  888          888   .ooooo.   .oooo.   .o888oo 
@@ -262,7 +336,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case _ if ('Nex' in type_name):
                     raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
 
-                #the user can initialize a new nextype with a default value socket
+                #Initialize a new nextype with a default value socket
                 case 'NoneType' | 'int' | 'float' | 'bool':
 
                     #ensure name chosen is correct
@@ -292,25 +366,25 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
                 # wrong initialization?
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to 'SocketFloat'.")
+                    raise NexError(f"TypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to 'SocketFloat'.")
 
-            print(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:',self)
+            dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
-
+        
         # ---------------------
         # NexFloat Additions
 
         def __add__(self, other): # self + other
             type_name = type(other).__name__
             match type_name:
-                case 'NexFloat':
+                case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
-                case 'NexVec':
+                case _ if ('Nex' in type_name):
                     return NotImplemented
                 case 'int' | 'float' | 'bool': 
                     args = self, float(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot add type 'SocketFloat' to '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot add type 'SocketFloat' to '{type(other).__name__}'.")
             return call_Nex_operand(NexFloat, nodesetter.add, *args,)
 
         def __radd__(self, other): # other + self
@@ -323,25 +397,27 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __sub__(self, other): # self - other
             type_name = type(other).__name__
             match type_name:
-                case 'NexFloat':
+                case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
-                case 'NexVec':
+                case _ if ('Nex' in type_name):
                     return NotImplemented
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot subtract type 'SocketFloat' with '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot subtract type 'SocketFloat' with '{type(other).__name__}'.")
             return call_Nex_operand(NexFloat, nodesetter.sub, *args,)
 
         def __rsub__(self, other): # other - self
             type_name = type(other).__name__
             match type_name:
-                case 'NexVec':
+                case 'NexInt' | 'NexBool':
+                    args = other, self
+                case _ if ('Nex' in type_name):
                     return NotImplemented
                 case 'int' | 'float' | 'bool':
                     args = float(other), self
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot subtract '{type(other).__name__}' with 'SocketFloat'.")
+                    raise NexError(f"TypeError. Cannot subtract '{type(other).__name__}' with 'SocketFloat'.")
             return call_Nex_operand(NexFloat, nodesetter.sub, *args,)
 
         # ---------------------
@@ -350,14 +426,14 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __mul__(self, other): # self * other
             type_name = type(other).__name__
             match type_name:
-                case 'NexFloat':
+                case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
-                case 'NexVec':
+                case _ if ('Nex' in type_name):
                     return NotImplemented
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot multiply type 'SocketFloat' with '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot multiply type 'SocketFloat' with '{type(other).__name__}'.")
             return call_Nex_operand(NexFloat, nodesetter.mult, *args,)
 
         def __rmul__(self, other): # other * self
@@ -370,25 +446,27 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __truediv__(self, other): # self / other
             type_name = type(other).__name__
             match type_name:
-                case 'NexFloat':
+                case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
-                case 'NexVec':
+                case _ if ('Nex' in type_name):
                     return NotImplemented
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot divide type 'SocketFloat' by '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot divide type 'SocketFloat' by '{type(other).__name__}'.")
             return call_Nex_operand(NexFloat, nodesetter.div, *args,)
 
         def __rtruediv__(self, other): # other / self
             type_name = type(other).__name__
             match type_name:
-                case 'NexVec':
+                case 'NexInt' | 'NexBool':
+                    args = other, self
+                case _ if ('Nex' in type_name):
                     return NotImplemented
                 case 'int' | 'float' | 'bool':
                     args = float(other), self
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot divide '{type(other).__name__}' by 'SocketFloat'.")
+                    raise NexError(f"TypeError. Cannot divide '{type(other).__name__}' by 'SocketFloat'.")
             return call_Nex_operand(NexFloat, nodesetter.div, *args,)
 
         # ---------------------
@@ -397,25 +475,27 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __pow__(self, other): #self ** other
             type_name = type(other).__name__
             match type_name:
-                case 'NexFloat':
+                case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
-                case 'NexVec':
+                case _ if ('Nex' in type_name):
                     return NotImplemented
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot raise type 'SocketFloat' to the power of '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot raise type 'SocketFloat' to the power of '{type(other).__name__}'.")
             return call_Nex_operand(NexFloat, nodesetter.pow, *args,)
 
         def __rpow__(self, other): #other ** self
             type_name = type(other).__name__
             match type_name:
-                case 'NexVec':
+                case 'NexInt' | 'NexBool':
+                    args = other, self
+                case _ if ('Nex' in type_name):
                     return NotImplemented
                 case 'int' | 'float' | 'bool':
                     args = float(other), self
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketFloat'.")
+                    raise NexError(f"TypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketFloat'.")
             return call_Nex_operand(NexFloat, nodesetter.pow, *args,)
 
         # ---------------------
@@ -424,25 +504,27 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __mod__(self, other): # self % other
             type_name = type(other).__name__
             match type_name:
-                case 'NexFloat':
+                case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
-                case 'NexVec':
+                case _ if ('Nex' in type_name):
                     return NotImplemented
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot compute type 'SocketFloat' modulo '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot compute type 'SocketFloat' modulo '{type(other).__name__}'.")
             return call_Nex_operand(NexFloat, nodesetter.mod, *args,)
 
         def __rmod__(self, other): # other % self
             type_name = type(other).__name__
             match type_name:
-                case 'NexVec':
+                case 'NexInt' | 'NexBool':
+                    args = other, self
+                case _ if ('Nex' in type_name):
                     return NotImplemented
                 case 'int' | 'float' | 'bool':
                     args = float(other), self
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketFloat'.")
+                    raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketFloat'.")
             return call_Nex_operand(NexFloat, nodesetter.mod, *args,)
 
         # ---------------------
@@ -451,25 +533,27 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __floordiv__(self, other): # self // other
             type_name = type(other).__name__
             match type_name:
-                case 'NexFloat':
+                case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
-                case 'NexVec':
+                case _ if ('Nex' in type_name):
                     return NotImplemented
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot perform floordiv on type 'SocketFloat' with '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot perform floordiv on type 'SocketFloat' with '{type(other).__name__}'.")
             return call_Nex_operand(NexFloat, nodesetter.floordiv, *args,)
 
         def __rfloordiv__(self, other): # other // self
             type_name = type(other).__name__
             match type_name:
-                case 'NexVec':
+                case 'NexInt' | 'NexBool':
+                    args = other, self
+                case _ if ('Nex' in type_name):
                     return NotImplemented
                 case 'int' | 'float' | 'bool':
                     args = float(other), self
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketFloat'.")
+                    raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketFloat'.")
             return call_Nex_operand(NexFloat, nodesetter.floordiv, *args,)
 
         # ---------------------
@@ -489,12 +573,188 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         
         def __round__(self): # round(self)
             return call_Nex_operand(NexFloat, nodesetter.round, self,)
+    
+        # ---------------------
+        # NexFloat Comparisons
+        #NOTE a==b==c will not work because and is involved and we cannot override it.. and/or/not keywords rely on python booleans type...
+
+        def __eq__(self, other): # self == other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+                case _ if ('Nex' in type_name):
+                    return NotImplemented
+                case 'int' | 'float' | 'bool':
+                    args = self, float(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketFloat' and '{type(other).__name__}'")
+            return call_Nex_operand(NexFloat, nodesetter.iseq, *args,  NexReturnType=NexBool,)
+
+        def __ne__(self, other): # self != other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+                case _ if ('Nex' in type_name):
+                    return NotImplemented
+                case 'int' | 'float' | 'bool':
+                    args = self, float(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketFloat' and '{type(other).__name__}'")
+            return call_Nex_operand(NexFloat, nodesetter.isnoteq, *args,  NexReturnType=NexBool,)
+
+        def __lt__(self, other): # self < other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+                case _ if ('Nex' in type_name):
+                    return NotImplemented
+                case 'int' | 'float' | 'bool':
+                    args = self, float(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '<' comparison between types 'SocketFloat' and '{type(other).__name__}'")
+            return call_Nex_operand(NexFloat, nodesetter.isless, *args,  NexReturnType=NexBool,)
+
+        def __le__(self, other): # self <= other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+                case _ if ('Nex' in type_name):
+                    return NotImplemented
+                case 'int' | 'float' | 'bool':
+                    args = self, float(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '<=' comparison between types 'SocketFloat' and '{type(other).__name__}'")
+            return call_Nex_operand(NexFloat, nodesetter.islesseq, *args,  NexReturnType=NexBool,)
+
+        def __gt__(self, other): # self > other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+                case _ if ('Nex' in type_name):
+                    return NotImplemented
+                case 'int' | 'float' | 'bool':
+                    args = self, float(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '>' comparison between types 'SocketFloat' and '{type(other).__name__}'")
+            return call_Nex_operand(NexFloat, nodesetter.isgreater, *args,  NexReturnType=NexBool,)
+
+        def __ge__(self, other): # self >= other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+                case _ if ('Nex' in type_name):
+                    return NotImplemented
+                case 'int' | 'float' | 'bool':
+                    args = self, float(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketFloat' and '{type(other).__name__}'")
+            return call_Nex_operand(NexFloat, nodesetter.isgreatereq, *args,  NexReturnType=NexBool,)
+
 
         # ---------------------
         # NexFloat Custom Functions & Properties
         # ...
 
+    # ooooo      ooo                       oooooooooo.                      oooo  
+    # `888b.     `8'                       `888'   `Y8b                     `888  
+    #  8 `88b.    8   .ooooo.  oooo    ooo  888     888  .ooooo.   .ooooo.   888  
+    #  8   `88b.  8  d88' `88b  `88b..8P'   888oooo888' d88' `88b d88' `88b  888  
+    #  8     `88b.8  888ooo888    Y888'     888    `88b 888   888 888   888  888  
+    #  8       `888  888    .o  .o8"'88b    888    .88P 888   888 888   888  888  
+    # o8o        `8  `Y8bod8P' o88'   888o o888bood8P'  `Y8bod8P' `Y8bod8P' o888o 
 
+    class NexBool(Nex):
+
+        init_counter = 0
+        node_inst = NODEINSTANCE
+        node_tree = node_inst.node_tree
+        nxstype = 'NodeSocketBool'
+        nxchar = 'b'
+
+        def __init__(self, socket_name='', value=None, fromsocket=None, manualdef=False,):
+
+            self.nxid = NexBool.init_counter
+            NexBool.init_counter += 1
+
+            if (manualdef):
+                return None
+            if (fromsocket is not None):
+                self.nxsock = fromsocket
+                return None
+
+            type_name = type(value).__name__
+            match type_name: 
+
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
+
+                #Initialize a new nextype with a default value socket
+                case 'NoneType' | 'bool':
+
+                    #ensure name chosen is correct
+                    assert socket_name!='', "Nex Initialization should always define a socket_name."
+                    if (socket_name in ALLINPUTS):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    ALLINPUTS.append(socket_name)
+
+                    #get socket, create if non existent
+                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    if (outsock is None):
+                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
+                    elif (type(outsock) is list):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    #ensure type is correct, change type if necessary
+                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    if (current_type!=self.nxstype):
+                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+
+                    self.nxsock = outsock
+                    self.nxsnam = socket_name
+
+                    #ensure default value of socket in node instance
+                    if (value is not None):
+                        set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=value, in_out='INPUT',)
+
+                # wrong initialization?
+                case _:
+                    raise NexError(f"TypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to 'SocketBool'.")
+
+            dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
+            return None
+
+        # ---------------------
+        # NexBool Comparisons
+        #NOTE a==b==c will not work because and is involved and we cannot override it.. and/or/not keywords rely on python booleans type...
+
+        def __eq__(self, other): # self == other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexBool' | 'bool':
+                    args = self, other
+                case _ if ('Nex' in type_name):
+                    return NotImplemented
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketBool' and '{type(other).__name__}'")
+            return call_Nex_operand(NexBool, nodesetter.iseq, *args, NexReturnType=NexBool,)
+
+        def __ne__(self, other): # self != other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexBool' | 'bool':
+                    args = self, other
+                case _ if ('Nex' in type_name):
+                    return NotImplemented
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketBool' and '{type(other).__name__}'")
+            return call_Nex_operand(NexBool, nodesetter.isnoteq, *args, NexReturnType=NexBool,)
+
+    
     # ooooo      ooo                       oooooo     oooo                     
     # `888b.     `8'                        `888.     .8'                      
     #  8 `88b.    8   .ooooo.  oooo    ooo   `888.   .8'    .ooooo.   .ooooo.  
@@ -528,7 +788,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case _ if ('Nex' in type_name):
                     raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
                 
-                #the user can initialize a new nextype with a default value socket
+                #Initialize a new nextype with a default value socket
                 case 'NoneType' | 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     
                     #ensure name chosen is correct
@@ -557,9 +817,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                         set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
 
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to 'SocketVector'.")
+                    raise NexError(f"TypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to 'SocketVector'.")
 
-            print(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:',self)
+            dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
 
         # ---------------------
@@ -568,12 +828,12 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __add__(self, other): # self + other
             type_name = type(other).__name__
             match type_name:
-                case 'NexVec' | 'NexFloat':
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = self, py_to_Vec3(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot add type 'SocketVector' to '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot add type 'SocketVector' to '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.add, *args,)
 
         def __radd__(self, other): # other + self
@@ -586,23 +846,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __sub__(self, other): # self - other
             type_name = type(other).__name__
             match type_name:
-                case 'NexVec' | 'NexFloat':
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = self, py_to_Vec3(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot subtract type 'SocketVector' with '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot subtract type 'SocketVector' with '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.sub, *args,)
 
         def __rsub__(self, other): # other - self
             type_name = type(other).__name__
             match type_name:
-                case 'NexFloat':
+                case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = other, self
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = py_to_Vec3(other), self
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot subtract '{type(other).__name__}' with 'SocketVector'.")
+                    raise NexError(f"TypeError. Cannot subtract '{type(other).__name__}' with 'SocketVector'.")
             return call_Nex_operand(NexVec, nodesetter.sub, *args,)
 
         # ---------------------
@@ -611,12 +871,12 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __mul__(self, other): # self * other
             type_name = type(other).__name__
             match type_name:
-                case 'NexVec' | 'NexFloat':
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = self, py_to_Vec3(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot multiply type 'SocketVector' with '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot multiply type 'SocketVector' with '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.mult, *args,)
 
         def __rmul__(self, other): # other * self
@@ -629,23 +889,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __truediv__(self, other): # self / other
             type_name = type(other).__name__
             match type_name:
-                case 'NexVec' | 'NexFloat':
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = self, py_to_Vec3(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot divide type 'SocketVector' by '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot divide type 'SocketVector' by '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.div, *args,)
 
         def __rtruediv__(self, other): # other / self
             type_name = type(other).__name__
             match type_name:
-                case 'NexFloat':
+                case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = other, self
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = py_to_Vec3(other), self
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot divide '{type(other).__name__}' by 'SocketVector'.")
+                    raise NexError(f"TypeError. Cannot divide '{type(other).__name__}' by 'SocketVector'.")
             return call_Nex_operand(NexVec, nodesetter.div, *args,)
 
         # ---------------------
@@ -654,18 +914,18 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __pow__(self, other):  # self ** other
             type_name = type(other).__name__
             match type_name:
-                case 'NexFloat':
+                case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case 'NexVec' | 'Vector':
-                    raise NexError(f"SocketTypeError. Cannot raise a Vector to another Vector. Exponent must be float compatible.")
+                    raise NexError(f"TypeError. Cannot raise a Vector to another Vector. Exponent must be float compatible.")
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot raise 'SocketVector' to the power of '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot raise 'SocketVector' to the power of '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.pow, *args,)
 
         def __rpow__(self, other):  # other ** self
-            raise NexError(f"SocketTypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketVector'.")
+            raise NexError(f"TypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketVector'.")
 
         # ---------------------
         # NexVec Modulo
@@ -673,23 +933,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __mod__(self, other): # self % other
             type_name = type(other).__name__
             match type_name:
-                case 'NexVec' | 'NexFloat':
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = self, py_to_Vec3(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot compute type 'SocketVector' modulo '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot compute type 'SocketVector' modulo '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.mod, *args,)
 
         def __rmod__(self, other): # other % self
             type_name = type(other).__name__
             match type_name:
-                case 'NexFloat':
+                case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = other, self
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = py_to_Vec3(other), self
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketVector'.")
+                    raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketVector'.")
             return call_Nex_operand(NexVec, nodesetter.mod, *args,)
 
         # ---------------------
@@ -698,23 +958,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def __floordiv__(self, other): # self // other
             type_name = type(other).__name__
             match type_name:
-                case 'NexVec' | 'NexFloat':
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = self, py_to_Vec3(other)
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot perform floordiv on type 'SocketVector' with '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot perform floordiv on type 'SocketVector' with '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.floordiv, *args,)
 
         def __rfloordiv__(self, other): # other // self
             type_name = type(other).__name__
             match type_name:
-                case 'NexFloat':
+                case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = other, self
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = py_to_Vec3(other), self
                 case _:
-                    raise NexError(f"SocketTypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketVector'.")
+                    raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketVector'.")
             return call_Nex_operand(NexVec, nodesetter.floordiv, *args,)
 
         # ---------------------
@@ -731,24 +991,21 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
         # ---------------------
         # NexVec Round
-        
+
         def __round__(self): # round(self)
             return call_Nex_operand(NexVec, nodesetter.round, self,)
 
         # ---------------------
         # NexVec Itter
 
-        #NOTE would be also nice to have NexVec.x .y .z maybe? hmm..
-
-        def __len__(self):
+        def __len__(self): #len(itter)
             return 3
 
-        def __iter__(self):
+        def __iter__(self): #for f in itter
             for i in range(3):
                 yield self[i]
 
-        def __getitem__(self, key):
-            """suport x = vec[0], x,y,z = vec ect.."""
+        def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
 
             components = call_Nex_operand(NexVec, nodesetter.separate_xyz, self, NexReturnType=NexFloat,)
 
@@ -766,8 +1023,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case _:
                     raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
 
-        def __setitem__(self, key, value):
-            """support x[0] += a+b"""
+        def __setitem__(self, key, value): #x[0] += a+b
 
             to_frame = []
 
@@ -807,6 +1063,76 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 label=f"v.setitem[{key if (type(key) is int) else ':'}]",
                 )
             return None
+
+        # ---------------------
+        # NexVec Comparisons
+        #NOTE a==b==c will not work because and is involved and we cannot override it.. and/or/not keywords rely on python booleans type...
+
+        def __eq__(self, other): # self == other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    args = self, py_to_Vec3(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketVector' and '{type(other).__name__}'")
+            return call_Nex_operand(NexVec, nodesetter.iseq, *args, NexReturnType=NexBool,)
+
+        def __ne__(self, other): # self != other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    args = self, py_to_Vec3(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketVector' and '{type(other).__name__}'")
+            return call_Nex_operand(NexVec, nodesetter.isnoteq, *args, NexReturnType=NexBool,)
+
+        def __lt__(self, other): # self < other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    args = self, py_to_Vec3(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '<' comparison between types 'SocketVector' and '{type(other).__name__}'")
+            return call_Nex_operand(NexVec, nodesetter.isless, *args, NexReturnType=NexBool,)
+
+        def __le__(self, other): # self <= other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    args = self, py_to_Vec3(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '<=' comparison between types 'SocketVector' and '{type(other).__name__}'")
+            return call_Nex_operand(NexVec, nodesetter.islesseq, *args, NexReturnType=NexBool,)
+
+        def __gt__(self, other): # self > other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    args = self, py_to_Vec3(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '>' comparison between types 'SocketVector' and '{type(other).__name__}'")
+            return call_Nex_operand(NexVec, nodesetter.isgreater, *args, NexReturnType=NexBool,)
+
+        def __ge__(self, other): # self >= other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    args = self, py_to_Vec3(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketVector' and '{type(other).__name__}'")
+            return call_Nex_operand(NexVec, nodesetter.isgreatereq, *args, NexReturnType=NexBool,)
 
         # ---------------------
         # NexVec Custom Functions & Properties
@@ -918,7 +1244,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     # simply link the sockets and see if it's valid
                     l = link_sockets(value.nxsock, outsock)
                     if (not l.is_valid):
-                        raise NexError(f"SocketTypeError. Cannot assign output '{socket_name}' of type '{self.nxstype}' to '{type(value).__name__}'.")
+                        raise NexError(f"TypeError. Cannot assign output '{socket_name}' of type '{self.nxstype}' to '{type(value).__name__}'.")
 
 
                 # or we simply output a default python constant value
@@ -950,7 +1276,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                         set_socket_defvalue(self.node_tree, value=newval, socket=outsock, in_out='OUTPUT',)
                     except Exception as e:
                         print(e)
-                        raise NexError(f"SocketTypeError. Cannot assign output '{socket_name}' of type '{self.nxstype}' to python '{type(value).__name__}'.")
+                        raise NexError(f"TypeError. Cannot assign output '{socket_name}' of type '{self.nxstype}' to python '{type(value).__name__}'.")
 
     class NexOutputBool(NexOutput):
         nxstype = 'NodeSocketBool'
@@ -985,7 +1311,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
     nextoys = {}
     nextoys['nexusertypes'] = {
-        # 'inbool':NexBool,
+        'inbool':NexBool,
         # 'inint':NexInt,
         'infloat':NexFloat,
         'invec':NexVec,
@@ -1005,7 +1331,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
     def autosetNexType(socket):
         """automatically convert a node socket to Nex"""
         match socket:
-            # case bpy.types.NodeSocketBool(): return NexBool(fromsocket=socket)
+            case bpy.types.NodeSocketBool(): return NexBool(fromsocket=socket)
             # case bpy.types.NodeSocketInt(): return NexInt(fromsocket=socket)
             case bpy.types.NodeSocketFloat(): return NexFloat(fromsocket=socket)
             case bpy.types.NodeSocketVector(): return NexVec(fromsocket=socket)
@@ -1079,7 +1405,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             except nodesetter.InvalidTypePassedToSocket as e:
                 msg = str(e)
                 if ('Expected parameters in' in msg):
-                    msg = f"SocketTypeError. Function '{sockfunc.__name__}' Expected parameters in " + str(e).split('Expected parameters in ')[1]
+                    msg = f"TypeError. Function {sockfunc.__name__}() Expected parameters in " + str(e).split('Expected parameters in ')[1]
                 raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.
 
             except Exception as e:

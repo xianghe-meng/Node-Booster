@@ -317,15 +317,15 @@ def generalverotate(ng, reusenode:str,
 
 def generalmix(ng, reusenode:str,
     data_type:str,
+    factor:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     val1:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
-    val3:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sFlo|sVec:
     """generic operation for adding a mix node and linking.
     if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
 
     node = None
-    args = (val1, val2, val3,)
+    args = (factor, val1, val2,)
     needs_linking = False
 
     if (reusenode):
@@ -413,17 +413,17 @@ def generalvecfloatmath(ng, reusenode:str,
 def generalmaprange(ng, reusenode:str,
     data_type:str,
     interpolation_type:str,
-    val1:sFlo|sInt|sBoo|float|int|Vector=None,
-    val2:sFlo|sInt|sBoo|float|int|Vector=None,
-    val3:sFlo|sInt|sBoo|float|int|Vector=None,
-    val4:sFlo|sInt|sBoo|float|int|Vector=None,
-    val5:sFlo|sInt|sBoo|float|int|Vector=None,
-    val6:sFlo|sInt|sBoo|float|int|Vector=None,
+    value:sFlo|sInt|sBoo|float|int|Vector=None,
+    from_min:sFlo|sInt|sBoo|float|int|Vector=None,
+    from_max:sFlo|sInt|sBoo|float|int|Vector=None,
+    to_min:sFlo|sInt|sBoo|float|int|Vector=None,
+    to_max:sFlo|sInt|sBoo|float|int|Vector=None,
+    steps:sFlo|sInt|sBoo|float|int|Vector=None,
     ) -> sFlo|sVec:
     """generic operation for adding a remap node and linking"""
 
     node = None
-    args = (val1, val2, val3, val4, val5, val6,)
+    args = (value, from_min, from_max, to_min, to_max, steps,)
     needs_linking = False
 
     if (reusenode):
@@ -517,6 +517,124 @@ def generalminmax(ng, reusenode:str,
         label=reusenode if (reusenode) else f"{operation_type}(*floats)",
         )
     return new
+
+def generalcompare(ng, reusenode:str,
+    data_type:str,
+    operation:str,
+    val1:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    epsilon:sFlo|sInt|sBoo|float|int=None,
+    ) -> sBoo:
+    """generic operation for comparison operation and linking.
+    if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
+
+    node = None
+    args = (val1, val2, epsilon,)
+    needs_linking = False
+
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0,200,)
+        node = ng.nodes.new('FunctionNodeCompare')
+        node.data_type = data_type
+        node.operation = operation
+        node.mode = 'ELEMENT' #for vector data_type
+        node.inputs[12].default_value = 0 #epsilon always set on 0
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        needs_linking = True
+        if (reusenode):
+            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
+
+    # Need to choose socket depending on node data_type (hidden sockets)
+    indexes = None
+    match data_type:
+        case 'FLOAT':
+            indexes = (0,1,12)
+        case 'VECTOR':
+            indexes = (4,5,12)
+            args = convert_args(*args, toVector=True,)
+        case _:
+            raise Exception("Integration Needed")
+
+    for i,val in zip(indexes,args):
+        match val:
+
+            case sFlo() | sInt() | sBoo() | sVec():
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+
+            case Vector():
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case float() | int() | bool():
+                if type(val) is bool:
+                    val = float(val)
+                if (node.inputs[i].default_value!=val):
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case None: pass
+
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalcompare('{data_type}','{operation}') recieved unsupported type '{type(val).__name__}'")
+
+    return node.outputs[0]
+
+def generalboolmath(ng, reusenode:str,
+    operation:str,
+    val1:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    ) -> sBoo:
+    """generic operation for BooleanMath.
+    if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
+
+    node = None
+    needs_linking = False
+
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0,200,)
+        node = ng.nodes.new('FunctionNodeBooleanMath')
+        node.operation = operation
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        needs_linking = True
+        if (reusenode):
+            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
+
+    for i,val in enumerate((val1,val2)):
+        match val:
+
+            case sFlo() | sInt() | sBoo() | sVec():
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+
+            case float() | int() | bool() | Vector():
+                if type(val) is not bool:
+                    val = bool(val)
+                if (node.inputs[i].default_value!=val):
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case None: pass
+
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalboolmath('{operation}') recieved unsupported type '{type(val).__name__}'")
+
+    return node.outputs[0]
 
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
@@ -1280,15 +1398,66 @@ def getn(ng, reusenode:str,
 # def getindex() -> Int
 # def getnamedattr(name) -> Dynamic
 
-#TODO support comparison functions
-# def equal(a, b,)
-# def notequal(a, b,)
-# def aequal(a, b, threshold,)
-# def anotequal(a, b, threshold,)
-# def issmaller(a, b,)
-# def isasmaller(a, b, threshold,)
-# def isbigger(a, b,)
-# def isabigger(a, b, threshold,)
-# def isbetween(a, x, y,)
-# def isabetween(a, x, y, threshold,)
-# def isbetweeneq(a, x, y,)
+#covered in nexcode via python dunder overload
+def iseq(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    )->sBoo:
+    if alltypes(a,b,types=(sBoo,bool),):
+        return generalboolmath(ng,reusenode, 'XNOR', a,b)
+    if anytype(a,b,types=(sVec,Vector,),):
+        return generalcompare(ng,reusenode, 'VECTOR','EQUAL', a,b,None)
+    return generalcompare(ng,reusenode, 'FLOAT','EQUAL', a,b,None)
+
+#covered in nexcode via python dunder overload
+def isnoteq(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    )->sBoo:
+    if alltypes(a,b,types=(sBoo,bool),):
+        return generalboolmath(ng,reusenode, 'XOR', a,b)
+    if anytype(a,b,types=(sVec,Vector,),):
+        return generalcompare(ng,reusenode, 'VECTOR','NOT_EQUAL', a,b,None)
+    return generalcompare(ng,reusenode, 'FLOAT','NOT_EQUAL', a,b,None)
+
+#covered in nexcode via python dunder overload
+def isless(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    )->sBoo:
+    if anytype(a,b,types=(sVec,Vector,),):
+        return generalcompare(ng,reusenode, 'VECTOR','LESS_THAN', a,b,None)
+    return generalcompare(ng,reusenode, 'FLOAT','LESS_THAN', a,b,None)
+
+#covered in nexcode via python dunder overload
+def islesseq(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    )->sBoo:
+    if anytype(a,b,types=(sVec,Vector,),):
+        return generalcompare(ng,reusenode, 'VECTOR','LESS_EQUAL', a,b,None)
+    return generalcompare(ng,reusenode, 'FLOAT','LESS_EQUAL', a,b,None)
+
+#covered in nexcode via python dunder overload
+def isgreater(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    )->sBoo:
+    if anytype(a,b,types=(sVec,Vector,),):
+        return generalcompare(ng,reusenode, 'VECTOR','GREATER_THAN', a,b,None)
+    return generalcompare(ng,reusenode, 'FLOAT','GREATER_THAN', a,b,None)
+
+#covered in nexcode via python dunder overload
+def isgreatereq(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    )->sBoo:
+    if anytype(a,b,types=(sVec,Vector,),):
+        return generalcompare(ng,reusenode, 'VECTOR','GREATER_EQUAL', a,b,None)
+    return generalcompare(ng,reusenode, 'FLOAT','GREATER_EQUAL', a,b,None)
+
+#TODO 
+#def allequal(*values)
+#def allbetween(min, max, *betweens)
+#TODO what about epsilon? problem is that epsilon is not supported for all operaiton type
+#def almosteq(a,b,epsilon)
