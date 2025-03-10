@@ -1040,12 +1040,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     # If no NexType are involved, we simply call builtin math function, no Nexwrapper!
                     case 'cos'|'sin'|'tan'|'acos'|'asin'|'atan'|'cosh'|'sinh'|'tanh'|'sqrt'|'log'|'degrees'|'radians'|'floor'|'ceil'|'trunc':
                         import math
-                        return getattr(math,funcname)(*args, **kwargs)
-                    # Some functions do not require a unique tag.
+                        mathfunction = getattr(math,funcname)
+                        return mathfunction(*args, **kwargs)
+                    # Some functions do not require to generate a unique tag.
                     case 'getp'|'getn':
-                        uniquetag = 'dummy,isgetter'
+                        uniquetag = f'F|{funcname}()'
                     case _:
-                        raise NexError(f"ArgTypeError. Function {sockfunc.__name__}() doesn't support Python-only Params.")
+                        raise NexError(f"ParamTypeError. Function {sockfunc.__name__}() didn't recieved any SocketType.")
 
             #define reuse taga unique tag to ensure the function is not generated on each nex script run
             if (uniquetag is None):
@@ -1087,8 +1088,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
             # Wrap return value as Nex as well
 
-            if (type(r) in (float,int)):
-                return r #exeption for math0.function see 'dummy,ismathfct'
+            if (type(r) in (bool,float,int,Vector)):
+                raise Exception(f"Function '{sockfunc}' returned a type float or int. This should never happen.")
+                return r
             if (type(r) is tuple):
                 return tuple(autosetNexType(s) for s in r)
             return autosetNexType(r)

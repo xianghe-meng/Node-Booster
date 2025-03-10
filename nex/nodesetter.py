@@ -132,7 +132,7 @@ def assert_purple_node(node):
 # o888o         `V88V"V8P' o888o o888o `Y8bod8P'   "888" o888o `Y8bod8P' o888o o888o 8""888P' 
                                                                                             
 
-def _floatmath(ng, reusenode:str,
+def generalfloatmath(ng, reusenode:str,
     operation_type:str,
     val1:sFlo|sInt|sBoo|float|int=None,
     val2:sFlo|sInt|sBoo|float|int=None,
@@ -155,9 +155,10 @@ def _floatmath(ng, reusenode:str,
         else: location = (0,200,)
 
         #floatmath also support clamp method. These two nodes are highly similar.
-        if operation_type.startswith('CLAMP:'):
+        if operation_type.startswith('CLAMP.'):
             node = ng.nodes.new('ShaderNodeClamp')
-            node.clamp_type = operation_type.replace('CLAMP:','')
+            clamp_type = operation_type.replace('CLAMP.','')
+            node.clamp_type = clamp_type
         else:
             node = ng.nodes.new('ShaderNodeMath')
             node.operation = operation_type
@@ -184,11 +185,11 @@ def _floatmath(ng, reusenode:str,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatmath({operation_type}). Recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalfloatmath({operation_type}) recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
-def _vecmath(ng, reusenode:str,
+def generalvecmath(ng, reusenode:str,
     operation_type:str,
     val1:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
@@ -245,11 +246,11 @@ def _vecmath(ng, reusenode:str,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _vecmath(). Received unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalvecmath('{operation_type}') recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[outidx]
 
-def _verotate(ng, reusenode:str,
+def generalverotate(ng, reusenode:str,
     rotation_type:str,
     invert:bool,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
@@ -293,7 +294,7 @@ def _verotate(ng, reusenode:str,
 
             case Vector():
                 if (i==3):
-                    raise InvalidTypePassedToSocket(f"ArgsTypeError for _vecrotate(). Received unsupported type 'mathutils.Vector()' for angle parameter. Expected Float compatible type.")
+                    raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalverotate('{rotation_type}') recieved unsupported type 'Vector' for angle parameter. Expected a Float compatible type.")
                 if node.inputs[i].default_value[:] != val[:]:
                     node.inputs[i].default_value = val
                     assert_purple_node(node)
@@ -310,11 +311,11 @@ def _verotate(ng, reusenode:str,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _vecrotate(). Received unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalverotate('{rotation_type}') recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
-def _mix(ng, reusenode:str,
+def generalmix(ng, reusenode:str,
     data_type:str,
     val1:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
@@ -381,11 +382,11 @@ def _mix(ng, reusenode:str,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _mix(). Recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalmix('{data_type}') recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[outidx]
 
-def _vecelemfloatmath(ng, reusenode:str,
+def generalvecfloatmath(ng, reusenode:str,
     operation_type:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     fB:sFlo|sInt|sBoo|float|int=None,
@@ -399,7 +400,7 @@ def _vecelemfloatmath(ng, reusenode:str,
     newfloats = set()
     for i,fE in enumerate(floats):
         ng.nodes.active = sepnode
-        fN = _floatmath(ng,  f'{reusenode}|in{i}', operation_type, fE,fB,fC,)
+        fN = generalfloatmath(ng,  f'{reusenode}|in{i}', operation_type, fE,fB,fC,)
         newfloats.add(fN)
         continue
 
@@ -409,7 +410,7 @@ def _vecelemfloatmath(ng, reusenode:str,
         )
     return rvec
 
-def _maprange(ng, reusenode:str,
+def generalmaprange(ng, reusenode:str,
     data_type:str,
     interpolation_type:str,
     val1:sFlo|sInt|sBoo|float|int|Vector=None,
@@ -479,11 +480,11 @@ def _maprange(ng, reusenode:str,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for _maprange(). Recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalmaprange('{data_type}','{interpolation_type}') recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[outidx]
 
-def _floatminmax(ng, reusenode:str,
+def generalminmax(ng, reusenode:str,
     operation_type:str,
     *floats:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
@@ -492,11 +493,11 @@ def _floatminmax(ng, reusenode:str,
     assert operation_type in {'min','max'}
     fullopname = 'MINIMUM' if operation_type=='min' else 'MAXIMUM'
     
+    if len(floats) in {0,1}:
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() needs two Params or more.") 
     for o in floats:
         if type(o) not in {sFlo, sInt, sBoo, float, int}:
-            raise InvalidTypePassedToSocket(f"ArgsTypeError. Cannot perform {operation_type}() operation on type '{type(o).__name__}'.") 
-    if len(floats) in {0,1}:
-        raise InvalidTypePassedToSocket(f"ArgsTypeError. Function {operation_type}() needs two Params or more.") 
+            raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() recieved unsupported type '{type(o).__name__}'.") 
 
     to_frame = []
 
@@ -506,8 +507,8 @@ def _floatminmax(ng, reusenode:str,
             continue
         b = o
         if (reusenode):
-              new = _floatmath(ng,f"{reusenode}|{i}", fullopname, a,b)
-        else: new = _floatmath(ng,'', fullopname, a,b)
+              new = generalfloatmath(ng,f"{reusenode}|{i}", fullopname, a,b)
+        else: new = generalfloatmath(ng,'', fullopname, a,b)
         a = new
         to_frame.append(new.node)
         continue
@@ -525,8 +526,8 @@ def add(ng, reusenode:str,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,b,types=(sVec,),):
-        return _vecmath(ng,reusenode, 'ADD',a,b)
-    return _floatmath(ng,reusenode, 'ADD',a,b)
+        return generalvecmath(ng,reusenode, 'ADD',a,b)
+    return generalfloatmath(ng,reusenode, 'ADD',a,b)
 
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
@@ -536,8 +537,8 @@ def sub(ng, reusenode:str,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,b,types=(sVec,),):
-        return _vecmath(ng,reusenode, 'SUBTRACT',a,b)
-    return _floatmath(ng,reusenode, 'SUBTRACT',a,b)
+        return generalvecmath(ng,reusenode, 'SUBTRACT',a,b)
+    return generalfloatmath(ng,reusenode, 'SUBTRACT',a,b)
 
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
@@ -547,8 +548,8 @@ def mult(ng, reusenode:str,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,b,types=(sVec,),):
-        return _vecmath(ng,reusenode, 'MULTIPLY',a,b)
-    return _floatmath(ng,reusenode, 'MULTIPLY',a,b)
+        return generalvecmath(ng,reusenode, 'MULTIPLY',a,b)
+    return generalfloatmath(ng,reusenode, 'MULTIPLY',a,b)
 
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
@@ -558,8 +559,8 @@ def div(ng, reusenode:str,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,b,types=(sVec,),):
-        return _vecmath(ng,reusenode, 'DIVIDE',a,b)
-    return _floatmath(ng,reusenode, 'DIVIDE',a,b)
+        return generalvecmath(ng,reusenode, 'DIVIDE',a,b)
+    return generalfloatmath(ng,reusenode, 'DIVIDE',a,b)
 
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
@@ -570,9 +571,9 @@ def pow(ng, reusenode:str,
     ) -> sFlo|sVec:
     if anytype(a,types=(sVec,Vector),):
         if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
-            raise InvalidTypePassedToSocket(f"ArgsTypeError for pow(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
-        return _vecelemfloatmath(ng,reusenode, 'POWER',a,n)
-    return _floatmath(ng,reusenode, 'POWER',a,n)
+            raise InvalidTypePassedToSocket(f"ParamTypeError. Function pow(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
+        return generalvecfloatmath(ng,reusenode, 'POWER',a,n)
+    return generalfloatmath(ng,reusenode, 'POWER',a,n)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Logarithm A base N.")
@@ -586,9 +587,9 @@ def log(ng, reusenode:str,
     #     return math.log(a,n)
     if anytype(a,types=(sVec,Vector),):
         if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
-            raise InvalidTypePassedToSocket(f"ArgsTypeError for log(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
-        return _vecelemfloatmath(ng,reusenode, 'LOGARITHM',a,n)
-    return _floatmath(ng,reusenode, 'LOGARITHM',a,n)
+            raise InvalidTypePassedToSocket(f"ParamTypeError. Function log(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
+        return generalvecfloatmath(ng,reusenode, 'LOGARITHM',a,n)
+    return generalfloatmath(ng,reusenode, 'LOGARITHM',a,n)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Square Root of A.")
@@ -600,8 +601,8 @@ def sqrt(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.sqrt(a)
     if anytype(a,types=(sVec,Vector),):
-        return _vecelemfloatmath(ng,reusenode, 'SQRT',a)
-    return _floatmath(ng,reusenode, 'SQRT',a)
+        return generalvecfloatmath(ng,reusenode, 'SQRT',a)
+    return generalfloatmath(ng,reusenode, 'SQRT',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Inverse Square Root of A.")
@@ -610,8 +611,8 @@ def invsqrt(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,types=(sVec,Vector),):
-        return _vecelemfloatmath(ng,reusenode, 'INVERSE_SQRT',a)
-    return _floatmath(ng,reusenode, 'INVERSE_SQRT',a)
+        return generalvecfloatmath(ng,reusenode, 'INVERSE_SQRT',a)
+    return generalfloatmath(ng,reusenode, 'INVERSE_SQRT',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="A Root N.\nEquivalent to doing 'A**(1/N)'.")
@@ -623,7 +624,7 @@ def nroot(ng, reusenode:str,
 
     if anytype(a,types=(sVec,Vector),):
         if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
-            raise InvalidTypePassedToSocket(f"ArgsTypeError for nroot(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
+            raise InvalidTypePassedToSocket(f"ParamTypeError. Function nroot(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
 
     if (reusenode): #this function is created multiple nodes so we need multiple tag
           _x = div(ng,f"{reusenode}|inner", 1,n)
@@ -642,8 +643,8 @@ def abs(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,types=(sVec,),):
-        return _vecmath(ng,reusenode, 'ABSOLUTE',a)
-    return _floatmath(ng,reusenode, 'ABSOLUTE',a)
+        return generalvecmath(ng,reusenode, 'ABSOLUTE',a)
+    return generalfloatmath(ng,reusenode, 'ABSOLUTE',a)
 
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
@@ -664,8 +665,8 @@ def round(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,types=(sVec,),):
-        return _vecelemfloatmath(ng,reusenode, 'ROUND',a)
-    return _floatmath(ng,reusenode, 'ROUND',a)
+        return generalvecfloatmath(ng,reusenode, 'ROUND',a)
+    return generalfloatmath(ng,reusenode, 'ROUND',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Floor a Float value.\nex: 1.51 will become 1\n-1.51 will become -2.")
@@ -677,8 +678,8 @@ def floor(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.floor(a)
     if anytype(a,types=(sVec,),):
-        return _vecmath(ng,reusenode, 'FLOOR',a)
-    return _floatmath(ng,reusenode, 'FLOOR',a)
+        return generalvecmath(ng,reusenode, 'FLOOR',a)
+    return generalfloatmath(ng,reusenode, 'FLOOR',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Ceil a Float value.\nex: 1.01 will become 2\n-1.99 will become -1.")
@@ -690,8 +691,8 @@ def ceil(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.ceil(a)
     if anytype(a,types=(sVec,),):
-        return _vecmath(ng,reusenode, 'CEIL',a)
-    return _floatmath(ng,reusenode, 'CEIL',a)
+        return generalvecmath(ng,reusenode, 'CEIL',a)
+    return generalfloatmath(ng,reusenode, 'CEIL',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Trunc a Float value.\nex: 1.99 will become 1\n-1.99 will become -1.")
@@ -703,8 +704,8 @@ def trunc(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.trunc(a)
     if anytype(a,types=(sVec,),):
-        return _vecelemfloatmath(ng,reusenode, 'TRUNC',a)
-    return _floatmath(ng,reusenode, 'TRUNC',a)
+        return generalvecfloatmath(ng,reusenode, 'TRUNC',a)
+    return generalfloatmath(ng,reusenode, 'TRUNC',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Fraction.\nThe fraction part of A.")
@@ -713,8 +714,8 @@ def frac(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,types=(sVec,),):
-        return _vecmath(ng,reusenode, 'FRACTION',a)
-    return _floatmath(ng,reusenode, 'FRACT',a)
+        return generalvecmath(ng,reusenode, 'FRACTION',a)
+    return generalfloatmath(ng,reusenode, 'FRACT',a)
 
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
@@ -724,8 +725,8 @@ def mod(ng, reusenode:str,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,b,types=(sVec,),):
-        return _vecmath(ng,reusenode, 'MODULO',a,b)
-    return _floatmath(ng,reusenode, 'MODULO',a,b)
+        return generalvecmath(ng,reusenode, 'MODULO',a,b)
+    return generalfloatmath(ng,reusenode, 'MODULO',a,b)
 
 #not covered in Nex.. user can do floor(A%B)
 @user_domain('mathex')
@@ -734,7 +735,7 @@ def floormod(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    return _floatmath(ng,reusenode, 'FLOORED_MODULO',a,b)
+    return generalfloatmath(ng,reusenode, 'FLOORED_MODULO',a,b)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Wrapping.\nWrap a value V to Range A B.")
@@ -745,8 +746,8 @@ def wrap(ng, reusenode:str,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(v,a,b,types=(sVec,Vector,),):
-        return _vecmath(ng,reusenode, 'WRAP',v,a,b)
-    return _floatmath(ng,reusenode, 'WRAP',v,a,b)
+        return generalvecmath(ng,reusenode, 'WRAP',v,a,b)
+    return generalfloatmath(ng,reusenode, 'WRAP',v,a,b)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Snapping.\nSnap a value V to the nearest increament I.")
@@ -756,8 +757,8 @@ def snap(ng, reusenode:str,
     i:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(v,i,types=(sVec,Vector,),):
-        return _vecmath(ng,reusenode, 'SNAP',v,i)
-    return _floatmath(ng,reusenode, 'SNAP',v,i)
+        return generalvecmath(ng,reusenode, 'SNAP',v,i)
+    return generalfloatmath(ng,reusenode, 'SNAP',v,i)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="PingPong.\nWrap a value and every other cycles at cycle Scale.")
@@ -768,9 +769,9 @@ def pingpong(ng, reusenode:str,
     ) -> sFlo|sVec:
     if anytype(v,types=(sVec,Vector),):
         if not alltypes(scale,types=(sFlo,sInt,sBoo,float,int),):
-            raise InvalidTypePassedToSocket(f"ArgsTypeError for pingpong(). Second argument must be a float compatible type. Recieved '{type(scale).__name__}'.")
-        return _vecelemfloatmath(ng,reusenode, 'PINGPONG',v,scale)
-    return _floatmath(ng,reusenode, 'PINGPONG',v,scale)
+            raise InvalidTypePassedToSocket(f"ParamTypeError. Function pingpong(). Second argument must be a float compatible type. Recieved '{type(scale).__name__}'.")
+        return generalvecfloatmath(ng,reusenode, 'PINGPONG',v,scale)
+    return generalfloatmath(ng,reusenode, 'PINGPONG',v,scale)
 
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
@@ -800,8 +801,8 @@ def sin(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.sin(a)
     if anytype(a,types=(sVec,Vector,),):
-        return _vecmath(ng,reusenode, 'SINE',a)
-    return _floatmath(ng,reusenode, 'SINE',a)
+        return generalvecmath(ng,reusenode, 'SINE',a)
+    return generalfloatmath(ng,reusenode, 'SINE',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="The Cosine of A.")
@@ -813,8 +814,8 @@ def cos(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.cos(a)
     if anytype(a,types=(sVec,Vector,),):
-        return _vecmath(ng,reusenode, 'COSINE',a)
-    return _floatmath(ng,reusenode, 'COSINE',a)
+        return generalvecmath(ng,reusenode, 'COSINE',a)
+    return generalfloatmath(ng,reusenode, 'COSINE',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="The Tangent of A.")
@@ -826,8 +827,8 @@ def tan(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.tan(a)
     if anytype(a,types=(sVec,Vector,),):
-        return _vecmath(ng,reusenode, 'TANGENT',a)
-    return _floatmath(ng,reusenode, 'TANGENT',a)
+        return generalvecmath(ng,reusenode, 'TANGENT',a)
+    return generalfloatmath(ng,reusenode, 'TANGENT',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="The Arcsine of A.")
@@ -839,8 +840,8 @@ def asin(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.asin(a)
     if anytype(a,types=(sVec,),):
-        return _vecelemfloatmath(ng,reusenode, 'ARCSINE',a)
-    return _floatmath(ng,reusenode, 'ARCSINE',a)
+        return generalvecfloatmath(ng,reusenode, 'ARCSINE',a)
+    return generalfloatmath(ng,reusenode, 'ARCSINE',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="The Arccosine of A.")
@@ -852,8 +853,8 @@ def acos(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.acos(a)
     if anytype(a,types=(sVec,),):
-        return _vecelemfloatmath(ng,reusenode, 'ARCCOSINE',a)
-    return _floatmath(ng,reusenode, 'ARCCOSINE',a)
+        return generalvecfloatmath(ng,reusenode, 'ARCCOSINE',a)
+    return generalfloatmath(ng,reusenode, 'ARCCOSINE',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="The Arctangent of A.")
@@ -865,8 +866,8 @@ def atan(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.atan(a)
     if anytype(a,types=(sVec,),):
-        return _vecelemfloatmath(ng,reusenode, 'ARCTANGENT',a)
-    return _floatmath(ng,reusenode, 'ARCTANGENT',a)
+        return generalvecfloatmath(ng,reusenode, 'ARCTANGENT',a)
+    return generalfloatmath(ng,reusenode, 'ARCTANGENT',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="The Hyperbolic Sine of A.")
@@ -878,8 +879,8 @@ def sinh(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.sinh(a)
     if anytype(a,types=(sVec,),):
-        return _vecelemfloatmath(ng,reusenode, 'SINH',a)
-    return _floatmath(ng,reusenode, 'SINH',a)
+        return generalvecfloatmath(ng,reusenode, 'SINH',a)
+    return generalfloatmath(ng,reusenode, 'SINH',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="The Hyperbolic Cosine of A.")
@@ -891,8 +892,8 @@ def cosh(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.cosh(a)
     if anytype(a,types=(sVec,),):
-        return _vecelemfloatmath(ng,reusenode, 'COSH',a)
-    return _floatmath(ng,reusenode, 'COSH',a)
+        return generalvecfloatmath(ng,reusenode, 'COSH',a)
+    return generalfloatmath(ng,reusenode, 'COSH',a)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="The Hyperbolic Tangent of A.")
@@ -904,8 +905,8 @@ def tanh(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.tanh(a)
     if anytype(a,types=(sVec,),):
-        return _vecelemfloatmath(ng,reusenode, 'TANH',a)
-    return _floatmath(ng,reusenode, 'TANH',a)
+        return generalvecfloatmath(ng,reusenode, 'TANH',a)
+    return generalfloatmath(ng,reusenode, 'TANH',a)
 
 @user_domain('mathex')
 @user_doc(mathex="Convert a value from Degrees to Radians.")
@@ -916,8 +917,8 @@ def rad(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.radians(a)
     if anytype(a,types=(sVec,),):
-        return _vecelemfloatmath(ng,reusenode, 'RADIANS',a)
-    return _floatmath(ng,reusenode, 'RADIANS',a)
+        return generalvecfloatmath(ng,reusenode, 'RADIANS',a)
+    return generalfloatmath(ng,reusenode, 'RADIANS',a)
 
 #same as above, just different user fct name.
 @user_domain('nexcode')
@@ -936,8 +937,8 @@ def deg(ng, reusenode:str,
     # if alltypes(a,types=(float,int,)):
     #     return math.degrees(a)
     if anytype(a,types=(sVec,),):
-        return _vecelemfloatmath(ng,reusenode, 'DEGREES',a)
-    return _floatmath(ng,reusenode, 'DEGREES',a)
+        return generalvecfloatmath(ng,reusenode, 'DEGREES',a)
+    return generalfloatmath(ng,reusenode, 'DEGREES',a)
 
 #same as above, just different user fct name.
 @user_domain('nexcode')
@@ -953,7 +954,7 @@ def cross(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return _vecmath(ng,reusenode, 'CROSS_PRODUCT',vA,vB)
+    return generalvecmath(ng,reusenode, 'CROSS_PRODUCT',vA,vB)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Dot Product.\nA dot B.")
@@ -961,7 +962,7 @@ def dot(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return _vecmath(ng,reusenode, 'DOT_PRODUCT',vA,vB)
+    return generalvecmath(ng,reusenode, 'DOT_PRODUCT',vA,vB)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Projection.\nProject A onto B.")
@@ -969,7 +970,7 @@ def project(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return _vecmath(ng,reusenode, 'PROJECT',vA,vB)
+    return generalvecmath(ng,reusenode, 'PROJECT',vA,vB)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Faceforward.\nFaceforward operation between a given vector, an incident and a reference.")
@@ -978,7 +979,7 @@ def faceforward(ng, reusenode:str,
     vI:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vR:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return _vecmath(ng,reusenode, 'FACEFORWARD',vA,vI,vR)
+    return generalvecmath(ng,reusenode, 'FACEFORWARD',vA,vI,vR)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Reflection.\nReflect A onto B.")
@@ -986,7 +987,7 @@ def reflect(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return _vecmath(ng,reusenode, 'PROJECT',vA,vB)
+    return generalvecmath(ng,reusenode, 'PROJECT',vA,vB)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Distance.\nThe distance between location A & B.")
@@ -994,20 +995,20 @@ def distance(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
-    return _vecmath(ng,reusenode, 'DISTANCE',vA,vB)
+    return generalvecmath(ng,reusenode, 'DISTANCE',vA,vB)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Normalization.\nNormalize the values of a vector A to fit a 0-1 range.")
 def normalize(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return _vecmath(ng,reusenode, 'NORMALIZE',vA)
+    return generalvecmath(ng,reusenode, 'NORMALIZE',vA)
 
 #covered in nexcode with NexVec.length
 def length(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
-    return _vecmath(ng,reusenode, 'LENGTH',vA)
+    return generalvecmath(ng,reusenode, 'LENGTH',vA)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Separate a SocketVector into 3 SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' to do that instead.")
@@ -1016,7 +1017,7 @@ def separate_xyz(ng, reusenode:str,
     ) -> tuple:
 
     if (type(vA) is not sVec):
-        raise InvalidTypePassedToSocket(f"ArgsTypeError for separate_xyz(). Recieved unsupported type '{type(vA).__name__}'")
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_xyz() recieved unsupported type '{type(vA).__name__}'")
 
     node = None
     needs_linking = False
@@ -1084,7 +1085,7 @@ def combine_xyz(ng, reusenode:str,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ArgsTypeError for combine_xyz(). Received unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_xyz() recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
@@ -1095,7 +1096,7 @@ def roteuler(ng, reusenode:str,
     vE:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sVec:
-    return _verotate(ng, reusenode, 'EULER_XYZ',False, vA,vC,None,None,vE,)
+    return generalverotate(ng, reusenode, 'EULER_XYZ',False, vA,vC,None,None,vE,)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Vector Rotate (Euler).\nRotate a given Vector A from defined axis X & angle radians F, at optional center C.")
@@ -1105,7 +1106,7 @@ def rotaxis(ng, reusenode:str,
     fA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sVec:
-    return _verotate(ng, reusenode, 'AXIS_ANGLE',False, vA,vC,vX,fA,None,)
+    return generalverotate(ng, reusenode, 'AXIS_ANGLE',False, vA,vC,vX,fA,None,)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")
@@ -1113,7 +1114,7 @@ def rotaxis(ng, reusenode:str,
 def min(ng, reusenode:str,
     *floats:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    return _floatminmax(ng,reusenode, 'min',*floats)
+    return generalminmax(ng,reusenode, 'min',*floats)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Smooth Minimum\nGet the minimal value between A & B considering a smoothing distance to avoid abrupt transition.")
@@ -1123,7 +1124,7 @@ def smin(ng, reusenode:str,
     b:sFlo|sInt|sBoo|float|int,
     dist:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    return _floatmath(ng,reusenode, 'SMOOTH_MIN',a,b,dist)
+    return generalfloatmath(ng,reusenode, 'SMOOTH_MIN',a,b,dist)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Maximum.\nGet the absolute maximal value across all passed arguments.")
@@ -1131,7 +1132,7 @@ def smin(ng, reusenode:str,
 def max(ng, reusenode:str,
     *floats:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    return _floatminmax(ng,reusenode, 'max',*floats)
+    return generalminmax(ng,reusenode, 'max',*floats)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Smooth Maximum\nGet the maximal value between A & B considering a smoothing distance to avoid abrupt transition.")
@@ -1141,7 +1142,7 @@ def smax(ng, reusenode:str,
     b:sFlo|sInt|sBoo|float|int,
     dist:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    return _floatmath(ng,reusenode, 'SMOOTH_MAX',a,b,dist)
+    return generalfloatmath(ng,reusenode, 'SMOOTH_MAX',a,b,dist)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Mix.\nLinear Interpolation between value A and B from given factor F.")
@@ -1152,8 +1153,8 @@ def lerp(ng, reusenode:str,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(f,a,b,types=(sVec,Vector,),):
-        return _mix(ng,reusenode, 'VECTOR',f,a,b)
-    return _mix(ng,reusenode, 'FLOAT',f,a,b)
+        return generalmix(ng,reusenode, 'VECTOR',f,a,b)
+    return generalmix(ng,reusenode, 'FLOAT',f,a,b)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Alternative notation to lerp() function.")
@@ -1175,9 +1176,9 @@ def clamp(ng, reusenode:str,
     ) -> sFlo|sVec:
     if anytype(v,types=(sVec,Vector),):
         if not alltypes(a,b,types=(sFlo,sInt,sBoo,float,int),):
-            raise InvalidTypePassedToSocket(f"ArgsTypeError for clamp(). Second/Third arguments must be float compatible types. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
-        return _vecelemfloatmath(ng,reusenode, 'CLAMP:MINMAX',v,a,b)
-    return _floatmath(ng,reusenode, 'CLAMP:MINMAX',v,a,b)
+            raise InvalidTypePassedToSocket(f"ParamTypeError. Function clamp(). Second or Third argument must be float compatible types. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
+        return generalvecfloatmath(ng,reusenode, 'CLAMP.MINMAX',v,a,b)
+    return generalfloatmath(ng,reusenode, 'CLAMP.MINMAX',v,a,b)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="AutoClamping.\nClamp a value a between auto-defined min/max A & B.")
@@ -1189,9 +1190,9 @@ def clampauto(ng, reusenode:str,
     ) -> sFlo|sVec:
     if anytype(v,types=(sVec,Vector),):
         if not alltypes(a,b,types=(sFlo,sInt,sBoo,float,int),):
-            raise InvalidTypePassedToSocket(f"ArgsTypeError for clamp(). Second/Third arguments must be float compatible types. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
-        return _vecelemfloatmath(ng,reusenode, 'CLAMP:RANGE',v,a,b)
-    return _floatmath(ng,reusenode, 'CLAMP:RANGE',v,a,b)
+            raise InvalidTypePassedToSocket(f"ParamTypeError. Function clamp(). Second or Third argument must be float compatible types. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
+        return generalvecfloatmath(ng,reusenode, 'CLAMP.RANGE',v,a,b)
+    return generalfloatmath(ng,reusenode, 'CLAMP.RANGE',v,a,b)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Map Range.\nRemap a value V from a given range A,B to another range X,Y.")
@@ -1204,8 +1205,8 @@ def mapl(ng, reusenode:str,
     y:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(v,a,b,x,y,types=(sVec,Vector,),):
-        return _maprange(ng,reusenode, 'FLOAT_VECTOR','LINEAR',v,a,b,x,y)
-    return _maprange(ng,reusenode, 'FLOAT','LINEAR',v,a,b,x,y)
+        return generalmaprange(ng,reusenode, 'FLOAT_VECTOR','LINEAR',v,a,b,x,y)
+    return generalmaprange(ng,reusenode, 'FLOAT','LINEAR',v,a,b,x,y)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.")
@@ -1219,8 +1220,8 @@ def mapst(ng, reusenode:str,
     step:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(v,a,b,x,y,step,types=(sVec,Vector,),):
-        return _maprange(ng,reusenode, 'FLOAT_VECTOR','STEPPED',v,a,b,x,y,step)
-    return _maprange(ng,reusenode, 'FLOAT','STEPPED',v,a,b,x,y,step)
+        return generalmaprange(ng,reusenode, 'FLOAT_VECTOR','STEPPED',v,a,b,x,y,step)
+    return generalmaprange(ng,reusenode, 'FLOAT','STEPPED',v,a,b,x,y,step)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.")
@@ -1233,8 +1234,8 @@ def mapsmo(ng, reusenode:str,
     y:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(v,a,b,x,y,types=(sVec,Vector,),):
-        return _maprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHSTEP',v,a,b,x,y)
-    return _maprange(ng,reusenode, 'FLOAT','SMOOTHSTEP',v,a,b,x,y)
+        return generalmaprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHSTEP',v,a,b,x,y)
+    return generalmaprange(ng,reusenode, 'FLOAT','SMOOTHSTEP',v,a,b,x,y)
 
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.")
@@ -1247,31 +1248,29 @@ def mapsmoo(ng, reusenode:str,
     y:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(v,a,b,x,y,types=(sVec,Vector,),):
-        return _maprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y)
-    return _maprange(ng,reusenode, 'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
+        return generalmaprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y)
+    return generalmaprange(ng,reusenode, 'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
 
 @user_domain('nexcode')
 @user_doc(nexcode="Position Attribute.\nGet the GeometryNode 'Position' SocketVector input attribute.")
-def getp(ng, reusenode:str='dummy',
+def getp(ng, reusenode:str,
     ) -> sVec:
-    unique_id = 'C|getp()'
-    node = ng.nodes.get(unique_id)
+    node = ng.nodes.get(reusenode)
     if (node is None):
         node = ng.nodes.new('GeometryNodeInputPosition')
-        node.name = node.label = unique_id
+        node.name = node.label = reusenode
         node.location = ng.nodes["Group Input"].location
         node.location.y += 65*1
     return node.outputs[0]
 
 @user_domain('nexcode')
 @user_doc(nexcode="Normal Attribute.\nGet the GeometryNode 'Normal' SocketVector input attribute.")
-def getn(ng, reusenode:str='dummy',
+def getn(ng, reusenode:str,
     ) -> sVec:
-    unique_id = 'C|getn()'
-    node = ng.nodes.get(unique_id)
+    node = ng.nodes.get(reusenode)
     if (node is None):
         node = ng.nodes.new('GeometryNodeInputNormal')
-        node.name = node.label = unique_id
+        node.name = node.label = reusenode
         node.location = ng.nodes["Group Input"].location
         node.location.y += 65*2
     return node.outputs[0]
