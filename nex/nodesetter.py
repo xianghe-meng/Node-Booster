@@ -2,8 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# NOTE this module gather all kind of math function for sockets.
-#  when executing these functions, it will create and link new nodes automatically, from sockets to sockets.
+# NOTE this module gather all kind of math function between sockets and/or between sockets and python types.
+#  When executing these functions, it will create and link new nodes automatically, from sockets to sockets and return another socket.
 #  - Reusenode parameter:
 #    The 'reusenode' positional parameter is to be assigned a unique tag corresponding to the node used 
 #    and their recognizable socket id, if you wish the nodetree to stay stable on multiple execution while updating constant values.
@@ -12,7 +12,7 @@
 import bpy 
 
 from functools import partial
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 from ..utils.node_utils import link_sockets, frame_nodes
 from ..utils.fct_utils import alltypes, anytype
@@ -25,6 +25,8 @@ sMtx = bpy.types.NodeSocketMatrix
 sQut = bpy.types.NodeSocketRotation
 sVec = bpy.types.NodeSocketVector
 
+#tell me why this type exist again? what's the diff? Some matrix multiplication node use this type
+sVecXYZ = bpy.types.NodeSocketVectorXYZ
 
 NODE_YOFF, NODE_XOFF = 120, 70
 TAGGED = []
@@ -256,7 +258,7 @@ def generalverotate(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     vC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     vX:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
-    fA:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    fA:sFlo|sInt|sBoo|sVec|float|int=None,
     vE:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sVec:
     """Generic operation for adding a vector rotation node and linking.
@@ -648,7 +650,7 @@ def generalbatchcompare(ng, reusenode:str,
     match operation_type:
         case 'alleq':
             opefunc = iseq
-        # TODO support other comparison method?
+        # TODO support other batch comparison method?
         # Some of them are a bit more complicated. Because on some occation we cannot simply chain comparison, ALL members will needs to be cross compared, not simply one after another.
         # case 'alluneq':
         #     opefunc = isuneq
@@ -714,6 +716,89 @@ def generalbatchcompare(ng, reusenode:str,
         label=reusenode if (reusenode) else f"{operation_type}(*values)",
         )
     return final
+
+def generalmatrixmath(ng, reusenode:str,
+    operation_type:str,
+    vec1:sFlo|sInt|sBoo|sVec|sVecXYZ|float|int|bool|Vector=None,
+    mat1:sMtx|Matrix=None,
+    mat2:sMtx|Matrix=None,
+    ) -> sMtx|sVec|sBoo|sFlo:
+    """generic operation for operation on Matrix.
+    if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
+
+    if (vec1 is not None):
+        if (type(vec1) not in {sFlo,sInt,sBoo,sVec,sVecXYZ,float,int,bool,Vector}):
+            raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() recieved unsupported type '{type(vec1).__name__}' for parameter 'vec1'.")
+    for mat in (mat1,mat2):
+        if (mat is not None):
+            if (type(mat) not in {sMtx,Matrix}):
+                raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() recieved unsupported type '{type(mat).__name__}' for parameter 'mat1' or 'mat2'.")
+
+    match operation_type:
+        case 'matrixdeterminant':
+            nodetype, args, outidx = 'FunctionNodeMatrixDeterminant', (mat1,), 0
+        case 'matrixinvert':
+            nodetype, args, outidx = 'FunctionNodeInvertMatrix', (mat1,), 0
+        case 'matrixisinvertible':
+            nodetype, args, outidx = 'FunctionNodeInvertMatrix', (mat1,), 1
+        case 'matrixtranspose':
+            nodetype, args, outidx = 'FunctionNodeTransposeMatrix', (mat1,), 0
+        case 'matrixmult':
+            nodetype, args, outidx = 'FunctionNodeMatrixMultiply', (mat1, mat2,), 0
+        case 'matrixtransformloc':
+            nodetype, args, outidx = 'FunctionNodeTransformPoint', (vec1, mat1,), 0
+        case 'matrixtransformdir':
+            nodetype, args, outidx = 'FunctionNodeTransformDirection', (vec1, mat1,), 0
+        case 'matrixprojectloc':
+            nodetype, args, outidx = 'FunctionNodeProjectPoint', (vec1, mat1,), 0
+        case _:
+            raise Exception(f"Unsupported operation_type '{operation_type}' passed to generalbatchcompare().")
+
+    node = None
+    needs_linking = False
+
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0,200,)
+        node = ng.nodes.new(nodetype)
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        needs_linking = True
+        if (reusenode):
+            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
+
+    for i,val in enumerate(args):
+        match val:
+
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sMtx():
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+
+            case Matrix():
+                pass
+
+            case Vector():
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case float() | int():
+                val = Vector((val,val,val))
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case None: pass
+
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalmatrixmath('{operation_type}') recieved unsupported type '{type(val).__name__}'. Should not happen. Previous check should've pick up on this.")
+
+    return node.outputs[outidx]
 
 #covered in nexscript via python dunder overload
 @user_domain('mathex')
@@ -1304,6 +1389,58 @@ def rotaxis(ng, reusenode:str,
     vC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sVec:
     return generalverotate(ng, reusenode, 'AXIS_ANGLE',False, vA,vC,vX,fA,None,)
+
+#covered in nexscript via python prop or function
+def matrixdeterminant(ng, reusenode:str,
+    mA:sMtx|Matrix,
+    ) -> sFlo:
+    return generalmatrixmath(ng,reusenode, 'matrixdeterminant', None,mA,None)
+
+#covered in nexscript via python prop or function
+def matrixinvert(ng, reusenode:str,
+    mA:sMtx|Matrix,
+    ) -> sMtx:
+    return generalmatrixmath(ng,reusenode, 'matrixinvert', None,mA,None)
+
+#covered in nexscript via python prop or function
+def matrixisinvertible(ng, reusenode:str,
+    mA:sMtx|Matrix,
+    ) -> sBoo:
+    return generalmatrixmath(ng,reusenode, 'matrixisinvertible', None,mA,None)
+
+#covered in nexscript via python prop or function
+def matrixtranspose(ng, reusenode:str,
+    mA:sMtx|Matrix,
+    ) -> sMtx:
+    return generalmatrixmath(ng,reusenode, 'matrixtranspose', None,mA,None)
+
+#covered in nexscript via python dunder overload
+def matrixmult(ng, reusenode:str,
+    mA:sMtx|Matrix,
+    mB:sMtx|Matrix,
+    ) -> sMtx:
+    return generalmatrixmath(ng,reusenode, 'matrixmult', None,mA,mB)
+
+#covered in nexscript via python prop or function
+def matrixtransformloc(ng, reusenode:str,
+    mA:sMtx|Matrix,
+    vLoc:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    ) -> sVec:
+    return generalmatrixmath(ng,reusenode, 'matrixtransformloc', vLoc,mA,None)
+
+#covered in nexscript via python prop or function
+def matrixtransformdir(ng, reusenode:str,
+    mA:sMtx|Matrix,
+    vDir:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    ) -> sVec:
+    return generalmatrixmath(ng,reusenode, 'matrixtransformdir', vDir,mA,None)
+
+#covered in nexscript via python prop or function
+def matrixprojectloc(ng, reusenode:str,
+    mA:sMtx|Matrix,
+    vLoc:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    ) -> sVec:
+    return generalmatrixmath(ng,reusenode, 'matrixprojectloc', vLoc,mA,None)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")

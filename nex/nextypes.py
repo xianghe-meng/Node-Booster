@@ -126,9 +126,10 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
     except Exception as e:
         print(f"ERROR: call_Nex_operand.sockfunc() caught error {type(e).__name__}")
         raise
-
+    
     # Then return a Nextype..
     # (Support for multi outputs & if output type is not the same as input with NexReturnType)
+    # NOTE perhaps is better to use autosetNexType() for the wrapping the return Nex than manually defining a NexReturnType?
     if (NexReturnType is not None):
         NexType = NexReturnType
     if (type(r) is tuple):
@@ -218,15 +219,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                           #    we need to have some sort of stable id for our nex Instances.
                           #    the problem is that these instances can be anonymous. So here i've decided to identify by instance generation count.
 
-        # print the Nex ?
-        def __repr__(self):
-            return f"<{self.nxtydsp} {type(self).__name__}{self.nxid}>"
-            #return f"<{type(self)}{self.nxid} nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
-
-        # Nex python bool evaluation? Impossible.
-        def __bool__(self):
-            raise NexError(f"EvaluationError. Cannot evaluate '{self.nxtydsp}' as a python boolean.")
-
         # Nex Math Operand
         def __add__(self, other): # self + other
             raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '+'.")
@@ -300,6 +292,15 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '|'.")
         def __ror__(self, other): # other | self
             raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '|'.")
+
+        # Nex python bool evaluation? Impossible.
+        def __bool__(self):
+            raise NexError(f"EvaluationError. Cannot evaluate '{self.nxtydsp}' as a python boolean.")
+
+        # print the Nex
+        def __repr__(self):
+            return f"<{type(self.nxsock).__name__ if self.nxsock else 'NoneSocket'} {type(self).__name__}{self.nxid}>"
+            return f"<{type(self)}{self.nxid} nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
 
     # ooooo      ooo                       oooooooooooo oooo                          .   
     # `888b.     `8'                       `888'     `8 `888                        .o8   
@@ -1218,14 +1219,14 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             return call_Nex_operand(NexVec, nodesetter.length, self, NexReturnType=NexFloat,)
         @length.setter
         def length(self, value):
-            raise NexError("AssignationError. SocketVector.length is read-only.")
+            raise NexError("AssignationError. 'SocketVector.length' is read-only.")
 
         @property
         def normalized(self):
             return call_Nex_operand(NexVec, nodesetter.normalize, self,)
         @normalized.setter
         def normalized(self, value):
-            raise NexError("AssignationError. SocketVector.normalized is read-only.")
+            raise NexError("AssignationError. 'SocketVector.normalized' is read-only.")
 
     # ooooo      ooo                       ooo        ooooo     .               
     # `888b.     `8'                       `88.       .888'   .o8               
@@ -1296,6 +1297,80 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
+
+        # ---------------------
+        # NexMtx Matrix Mult
+
+        def __matmul__(self, other): # self @ other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexMtx':
+                    args = self, other
+                case 'NexVec':
+                    args = self, other
+                    return call_Nex_operand(NexMtx, nodesetter.matrixtransformloc, *args, NexReturnType=NexVec,)
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{other.nxtydsp}'.")
+                case 'Matrix' | 'list' | 'set' | 'tuple':
+                    args = self, py_to_Mtx16(other)
+                case _:
+                    raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{type(other).__name__}'.")
+            return call_Nex_operand(NexMtx,  nodesetter.matrixmult, *args,)
+
+        def __rmatmul__(self, other): # other @ self
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexMtx':
+                    return NotImplemented
+                case 'NexVec':
+                    raise NexError(f"TypeError. Cannot matrix-multiply 'SocketVector' by a 'SocketMatrix'. Please do 'Matrix @ Vector' or 'SocketMatrix.transform_point(myVec)' instead.")
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{other.nxtydsp}' and 'SocketMatrix'.")
+                case 'Matrix' | 'list' | 'set' | 'tuple':
+                    args = py_to_Mtx16(other), self
+                case _:
+                    raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{type(other).__name__}' and 'SocketMatrix'.")
+            return call_Nex_operand(NexMtx, nodesetter.matrixmult, *args,)
+
+        # ---------------------
+        # NexMtx Custom Functions & Properties
+
+        @property
+        def determinant(self):
+            return call_Nex_operand(NexMtx, nodesetter.matrixdeterminant, self, NexReturnType=NexFloat,)
+        @determinant.setter
+        def determinant(self, value):
+            raise NexError("AssignationError. 'SocketMatrix.determinant' is read-only.")
+
+        @property
+        def is_invertible(self):
+            return call_Nex_operand(NexMtx, nodesetter.matrixisinvertible, self, NexReturnType=NexBool,)
+        @is_invertible.setter
+        def is_invertible(self, value):
+            raise NexError("AssignationError. 'SocketMatrix.is_invertible' is read-only.")
+
+        @property
+        def inverted(self):
+            return call_Nex_operand(NexMtx, nodesetter.matrixinvert, self,)
+        @inverted.setter
+        def inverted(self, value):
+            raise NexError("AssignationError. 'SocketMatrix.inverted' is read-only.")
+
+        @property
+        def transposed(self):
+            return call_Nex_operand(NexMtx, nodesetter.matrixtranspose, self,)
+        @transposed.setter
+        def transposed(self, value):
+            raise NexError("AssignationError. 'SocketMatrix.transposed' is read-only.")
+
+        def transform_point(self, vec):
+            return call_Nex_operand(NexMtx, nodesetter.matrixtransformloc, self,vec, NexReturnType=NexVec,)
+
+        def project_point(self, vec):
+            return call_Nex_operand(NexMtx, nodesetter.matrixprojectloc, self,vec, NexReturnType=NexVec,)
+
+        def transform_direction(self, vec):
+            return call_Nex_operand(NexMtx, nodesetter.matrixtransformdir, self,vec, NexReturnType=NexVec,)
 
     # ooooo      ooo                         .oooooo.                   .   
     # `888b.     `8'                        d8P'  `Y8b                .o8   
@@ -1465,6 +1540,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             # case bpy.types.NodeSocketInt(): return NexInt(fromsocket=socket)
             case bpy.types.NodeSocketFloat(): return NexFloat(fromsocket=socket)
             case bpy.types.NodeSocketVector(): return NexVec(fromsocket=socket)
+            case bpy.types.NodeSocketVectorXYZ(): return NexVec(fromsocket=socket)
             # case bpy.types.NodeSocketColor(): return NexCol(fromsocket=socket)
             # case bpy.types.NodeSocketRotation(): return NexQuat(fromsocket=socket)
             case bpy.types.NodeSocketMatrix(): return NexMtx(fromsocket=socket)

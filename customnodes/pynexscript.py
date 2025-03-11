@@ -52,6 +52,15 @@ NEXNOTATIONDOC = {
     'vA.xyz':{'name':"Vector XYZ tuple.",'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding axes of a SocketVector.\n\nIs equivalent to the 'vA[:]' notation."},
     'vA.length':{'name':"Vector Length.",'desc':"Return a SocketFloat value corresponding to the length of SocketVector.\n\nIs a read-only property."},
     'vA.normalized':{'name':"Vector Noralization.",'desc':"Return a normalized SocketVector.\n\nIs a read-only property."},
+    'mA @ mB':{'name':"Matrix Multiplication.",'desc':"Multiply matrixes together."},
+    'mA @ vB':{'name':"Vector Transform.",'desc':"Transform a vector B by a given matrix A.\nWill return a VectorSocket.\n\nAlternative notation to 'mA.transform_point(vB)'"},
+    'mA.transposed':{'name':"Transpose Matrix.",'desc':"Return the transposed matrix.\n\nIs a read-only property."},
+    'mA.inverted':{'name':"Invert Matrix.",'desc':"Return the inverted matrix.\n\nIs a read-only property."},
+    'mA.is_invertible':{'name':"Matrix is Invertible.",'desc':"Return the SocketBool status if the matrix is indeed invertible.\n\nIs a read-only property."},
+    'mA.determinant':{'name':"Matrix Determinant.",'desc':"Return the SocketFloat determinant of the matrix.\n\nIs a read-only property."},
+    'mA.transform_point(vB)':{'name':"Vector Transform.",'desc':"Transform a vector B by a given matrix A.\nWill return a VectorSocket."},
+    'mA.project_point(vB)':{'name':"Vector Projection.",'desc':"Project a vector B by a given matrix A.\nWill return a VectorSocket."},
+    'mA.transform_direction(vB)':{'name':"Vector Direction Transform.",'desc':"Transform the direction vector B by a given matrix A.\nWill return a VectorSocket."},
 }
 
 
