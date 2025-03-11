@@ -1303,35 +1303,50 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             match type_name:
                 case 'NexMtx':
                     args = self, other
+                    sockfunc, rType = nodesetter.matrixmult, NexMtx
                 case 'NexVec':
                     args = self, other
-                    return call_Nex_operand(NexMtx, nodesetter.matrixtransformloc, *args, NexReturnType=NexVec,)
+                    sockfunc, rType = nodesetter.matrixtransformloc, NexVec
                 case _ if ('Nex' in type_name):
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{other.nxtydsp}'.")
-                case 'Matrix' | 'list' | 'set' | 'tuple':
+                case 'Vector':
+                    args = self, trypy_to_Vec3(other)
+                    sockfunc, rType = nodesetter.matrixtransformloc, NexVec
+                case 'Matrix':
                     convother = trypy_to_Mtx16(other)
                     othernex = create_Nex_constant(self.node_tree, NexMtx, convother,)
                     args = self, othernex
+                    sockfunc, rType = nodesetter.matrixmult, NexMtx
+                case 'list' | 'set' | 'tuple':
+                    if len(other)<=3:
+                        args = self, trypy_to_Vec3(other)
+                        sockfunc, rType = nodesetter.matrixtransformloc, NexVec
+                    else:
+                        convother = trypy_to_Mtx16(other)
+                        othernex = create_Nex_constant(self.node_tree, NexMtx, convother,)
+                        args = self, othernex
+                        sockfunc, rType = nodesetter.matrixmult, NexMtx
                 case _:
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{type(other).__name__}'.")
-            return call_Nex_operand(NexMtx,  nodesetter.matrixmult, *args,)
+            return call_Nex_operand(NexMtx,  sockfunc, *args, NexReturnType=rType,)
 
         def __rmatmul__(self, other): # other @ self
             type_name = type(other).__name__
             match type_name:
                 case 'NexMtx':
                     return NotImplemented
-                case 'NexVec':
-                    raise NexError(f"TypeError. Cannot matrix-multiply 'SocketVector' by a 'SocketMatrix'. Please do 'Matrix @ Vector' or 'SocketMatrix.transform_point(myVec)' instead.")
+                case 'NexVec' | 'Vector':
+                    raise NexError(f"TypeError. Cannot matrix-multiply TypeVector by a TypeMatrix. Please do 'Matrix @ Vector' instead.")
                 case _ if ('Nex' in type_name):
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{other.nxtydsp}' and 'SocketMatrix'.")
                 case 'Matrix' | 'list' | 'set' | 'tuple':
                     convother = trypy_to_Mtx16(other)
                     othernex = create_Nex_constant(self.node_tree, NexMtx, convother,)
                     args = othernex, self
+                    sockfunc, rType = nodesetter.matrixmult, NexMtx
                 case _:
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{type(other).__name__}' and 'SocketMatrix'.")
-            return call_Nex_operand(NexMtx, nodesetter.matrixmult, *args,)
+            return call_Nex_operand(NexMtx, sockfunc, *args, NexReturnType=rType,)
 
         # ---------------------
         # NexMtx Custom Functions & Properties
