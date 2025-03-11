@@ -179,12 +179,12 @@ def py_to_Mtx16(value):
 # oooooooooooo                         .                                  
 # `888'     `8                       .o8                                  
 #  888          .oooo.    .ooooo.  .o888oo  .ooooo.  oooo d8b oooo    ooo 
-#  888oooo8    `P  )88b  d88' `"Y8   888   d88' `88b `888""8P  `88.  .8'  
-#  888    "     .oP"888  888         888   888   888  888       `88..8'   
-#  888         d8(  888  888   .o8   888 . 888   888  888        `888'    
-# o888o        `Y888""8o `Y8bod8P'   "888" `Y8bod8P' d888b        .8'     
-#                                                             .o..P'      
-#                                                             `Y8P'       
+#  888oooo8    `P  )88b  d88' `"Y8   888   d88' `88b `888""8P  `88.  .8'
+#  888    "     .oP"888  888         888   888   888  888       `88..8'
+#  888         d8(  888  888   .o8   888 . 888   888  888        `888'
+# o888o        `Y888""8o `Y8bod8P'   "888" `Y8bod8P' d888b        .8'
+#                                                             .o..P'
+#                                                             `Y8P'
 
 def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
     """return a nex type, which is simply an overloaded custom type that automatically arrange links and nodes and
@@ -1342,7 +1342,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
                     #support for automatic types
                     out_type = self.nxstype
-                    if (out_type=='AutoDefine'):
+                    if (out_type=='NodeSocketNexAutomatic'):
                         out_type = value.nxstype
                     
                     #get socket, create if non existent
@@ -1364,15 +1364,19 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     if (not l.is_valid):
                         raise NexError(f"TypeError. Cannot assign '{value.nxtydsp}' to var '{socket_name}' of output '{self.nxtydsp}'.")
 
-
                 # or we simply output a default python constant value
                 case _:
 
-                    newval, _, socktype = convert_pyvar_to_data(value)
-
+                    # try to convert our pyvalue to a socket compatible datatype.
+                    try:
+                        newval, _, socktype = convert_pyvar_to_data(value)
+                    except Exception as e:
+                        print(e)
+                        raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of output '{self.nxtydsp}'.")
+                    
                     #support for automatic types
                     out_type = self.nxstype
-                    if (out_type=='AutoDefine'):
+                    if (out_type=='NodeSocketNexAutomatic'):
                         out_type = socktype
 
                     #get socket, create if non existent
@@ -1425,8 +1429,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         nxtydsp = 'SocketMatrix'
 
     class NexOutputAuto(NexOutput):
-        nxstype = 'AutoDefine'
-        nxtydsp = 'NodeSocket'
+        nxstype = 'NodeSocketNexAutomatic'
+        nxtydsp = 'SocketAuto'
 
     # 88""Yb 888888 888888 88   88 88""Yb 88b 88     
     # 88__dP 88__     88   88   88 88__dP 88Yb88     
@@ -1484,19 +1488,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             if not any(('Nex' in type(v).__name__) for v in args):
                 funcname = sockfunc.__name__
                 match funcname:
+
                     # Name conflict with python bultin functions? 
                     # If no NexType are involved, we simply call builtin function, no Nexwrapper!
                     case 'min': return min(*args, **kwargs)
                     case 'max': return max(*args, **kwargs)
+
                     # Name conflict with math module functions?
                     # If no NexType are involved, we simply call builtin math function, no Nexwrapper!
                     case 'cos'|'sin'|'tan'|'acos'|'asin'|'atan'|'cosh'|'sinh'|'tanh'|'sqrt'|'log'|'degrees'|'radians'|'floor'|'ceil'|'trunc':
                         import math
                         mathfunction = getattr(math,funcname)
                         return mathfunction(*args, **kwargs)
+                    
                     # Some functions do not require to generate a unique tag.
                     case 'getp'|'getn':
                         uniquetag = f'F|{funcname}()'
+
                     case _:
                         raise NexError(f"ParamTypeError. Function {sockfunc.__name__}() didn't recieved any SocketType.")
 
@@ -1540,9 +1548,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
             # Wrap return value as Nex as well
 
-            if (type(r) in (bool,float,int,Vector)):
-                raise Exception(f"Function '{sockfunc}' returned a type float or int. This should never happen.")
-                return r
+            if ((type(r) is not tuple) and (not issubclass(type(r), bpy.types.NodeSocket))):
+                raise Exception(f"Function '{sockfunc}' did not return a NodeSocket. This should never happen.")
             if (type(r) is tuple):
                 return tuple(autosetNexType(s) for s in r)
             return autosetNexType(r)
