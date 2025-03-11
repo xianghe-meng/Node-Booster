@@ -9,7 +9,7 @@
 import bpy 
 
 from math import hypot
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 from .draw_utils import get_dpifac
 
@@ -151,7 +151,8 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
                 if (not socket.links):
                     ng.links.new(defnod.outputs[0], socket)
                 #assign flatten values
-                for inpt,val in zip(defnod.inputs, [val for row in value for val in row] ):
+                flatmatrix = [val for row in value for val in row]
+                for inpt,val in zip(defnod.inputs, flatmatrix):
                     inpt.default_value = val
 
             case _:
@@ -258,9 +259,22 @@ def create_constant_input(ng, nodetype, value, identifier, location='auto', widt
             node.location.y = location[1]
 
     match nodetype:
+
         case 'ShaderNodeValue':
-            node.outputs[0].default_value = value
+            if (node.outputs[0].default_value!=value):
+                node.outputs[0].default_value = value
             return node.outputs[0]
+
+        case 'FunctionNodeCombineMatrix':
+            assert type(value) is Matrix, f"Please make sure passed value is of Matrix type. Currently is of {type(value).__name__}"
+            flatmatrix = [val for row in value for val in row]
+            assert len(flatmatrix)==16, f"Please make sure the passed Matrix has 16 elements in total. Currently contains {len(flatmatrix)}"
+            #assign flatten values
+            for sock,v in zip(node.inputs, flatmatrix):
+                if (sock.default_value!=v):
+                    sock.default_value = v
+            return node.outputs[0]
+
         case _:
             raise Exception(f"{nodetype} Not Implemented Yet")
 

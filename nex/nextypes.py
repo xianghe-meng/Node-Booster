@@ -129,25 +129,31 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
     
     # Then return a Nextype..
     # (Support for multi outputs & if output type is not the same as input with NexReturnType)
-    # NOTE perhaps is better to use autosetNexType() for the wrapping the return Nex than manually defining a NexReturnType?
+    # NOTE perhaps is better to use autosetNexType() for the wrapping the return Nex than manually defining a NexReturnType? Will need to move this fct in factory then..
     if (NexReturnType is not None):
         NexType = NexReturnType
     if (type(r) is tuple):
         return tuple(NexType(fromsocket=s) for s in r)        
     return NexType(fromsocket=r)
 
-# unused for now
-# def create_Nex_constant(node_tree, NexType, nodetype:str, value,):
-#     """Create a new input node (if not already exist) ensure it's default value, then assign to a NexType & return it."""
-#
-#     new = NexType(manualdef=True)
-#     tag = f"{new.nxchar}{new.nxid}"
-#
-#     # create_constant_input() is smart it will create the node only if it doesn't exist, & ensure (new?) values
-#     newsock = create_constant_input(node_tree, nodetype, value, tag)
-#
-#     new.nxsock = newsock
-#     return new
+def create_Nex_constant(node_tree, NexType, value,):
+    """Create a new input node (if not already exist) ensure it's default value, then assign to a NexType & return it."""
+
+    new = NexType(manualdef=True)
+    tag = f"C|{new.nxchar}{new.nxid}.constant(p{type(value).__name__.lower()[0]})"
+    
+    type_name = NexType.__name__
+    match type_name:
+        case 'NexMtx':
+            nodetype = 'FunctionNodeCombineMatrix'
+        case _:
+            raise Exception(f"create_Nex_constant() Unsupported constant for Nextype '{type_name}'.")
+
+    # create_constant_input() is smart it will create the node only if it doesn't exist, & ensure (new?) values
+    newsock = create_constant_input(node_tree, nodetype, value, tag)
+
+    new.nxsock = newsock
+    return new
 
 def py_to_Vec3(value):
     match value:
@@ -167,9 +173,9 @@ def py_to_Mtx16(value):
         case Matrix():
             if (len(value)!=4):
                 raise NexError(f"ValueError. A Matrix() type should have 4 rows or 4 elements.")
-            flatted_matrix = [val for row in value for val in row]
-            if (len(flatted_matrix)!=16):
-                raise NexError(f"ValueError. A 4x4 Matrix() should contain a total of 16 elements. {len(flatted_matrix)} found.")
+            flatrowmatrix = [val for row in value for val in row]
+            if (len(flatrowmatrix)!=16):
+                raise NexError(f"ValueError. A 4x4 Matrix() should contain a total of 16 elements. {len(flatrowmatrix)} found.")
             return value
         case list() | set() | tuple():
             if (len(value)!=16): raise NexError(f"ValueError. In order to create a 4x4 Matrix() type '{type(value).__name__}' should contain 16 elements. {len(value)} found.")
@@ -1312,7 +1318,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case _ if ('Nex' in type_name):
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{other.nxtydsp}'.")
                 case 'Matrix' | 'list' | 'set' | 'tuple':
-                    args = self, py_to_Mtx16(other)
+                    matother = py_to_Mtx16(other)
+                    othernex = create_Nex_constant(self.node_tree, NexMtx, matother,)
+                    args = self, othernex
                 case _:
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{type(other).__name__}'.")
             return call_Nex_operand(NexMtx,  nodesetter.matrixmult, *args,)
@@ -1327,7 +1335,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case _ if ('Nex' in type_name):
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{other.nxtydsp}' and 'SocketMatrix'.")
                 case 'Matrix' | 'list' | 'set' | 'tuple':
-                    args = py_to_Mtx16(other), self
+                    matother = py_to_Mtx16(other)
+                    othernex = create_Nex_constant(self.node_tree, NexMtx, matother,)
+                    args = othernex, self
                 case _:
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{type(other).__name__}' and 'SocketMatrix'.")
             return call_Nex_operand(NexMtx, nodesetter.matrixmult, *args,)
