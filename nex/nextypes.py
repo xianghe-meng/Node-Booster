@@ -1305,13 +1305,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, other
                     sockfunc, rType = nodesetter.matrixmult, NexMtx
                 case 'NexVec':
-                    args = self, other
-                    sockfunc, rType = nodesetter.matrixtransformloc, NexVec
+                    args = other, self
+                    sockfunc, rType = nodesetter.transformloc, NexVec
                 case _ if ('Nex' in type_name):
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{other.nxtydsp}'.")
                 case 'Vector':
-                    args = self, trypy_to_Vec3(other)
-                    sockfunc, rType = nodesetter.matrixtransformloc, NexVec
+                    args = trypy_to_Vec3(other), self
+                    sockfunc, rType = nodesetter.transformloc, NexVec
                 case 'Matrix':
                     convother = trypy_to_Mtx16(other)
                     othernex = create_Nex_constant(self.node_tree, NexMtx, convother,)
@@ -1319,8 +1319,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     sockfunc, rType = nodesetter.matrixmult, NexMtx
                 case 'list' | 'set' | 'tuple':
                     if len(other)<=3:
-                        args = self, trypy_to_Vec3(other)
-                        sockfunc, rType = nodesetter.matrixtransformloc, NexVec
+                        args = trypy_to_Vec3(other), self
+                        sockfunc, rType = nodesetter.transformloc, NexVec
                     else:
                         convother = trypy_to_Mtx16(other)
                         othernex = create_Nex_constant(self.node_tree, NexMtx, convother,)

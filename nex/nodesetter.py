@@ -745,11 +745,11 @@ def generalmatrixmath(ng, reusenode:str,
             nodetype, args, outidx = 'FunctionNodeTransposeMatrix', (mat1,), 0
         case 'matrixmult':
             nodetype, args, outidx = 'FunctionNodeMatrixMultiply', (mat1, mat2,), 0
-        case 'matrixtransformloc':
+        case 'transformloc':
             nodetype, args, outidx = 'FunctionNodeTransformPoint', (vec1, mat1,), 0
-        case 'matrixtransformdir':
+        case 'projectloc':
             nodetype, args, outidx = 'FunctionNodeTransformDirection', (vec1, mat1,), 0
-        case 'matrixprojectloc':
+        case 'transformdir':
             nodetype, args, outidx = 'FunctionNodeProjectPoint', (vec1, mat1,), 0
         case _:
             raise Exception(f"Unsupported operation_type '{operation_type}' passed to generalbatchcompare().")
@@ -1433,7 +1433,7 @@ def transformloc(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     mB:sMtx,
     ) -> sVec:
-    return generalmatrixmath(ng,reusenode, 'matrixtransformloc', vA,mB,None)
+    return generalmatrixmath(ng,reusenode, 'transformloc', vA,mB,None)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Projection.\nProject a location vector A by a given matrix B.\nWill return a VectorSocket.")
@@ -1441,7 +1441,7 @@ def projectloc(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     mB:sMtx,
     ) -> sVec:
-    return generalmatrixmath(ng,reusenode, 'matrixtransformdir', vA,mB,None)
+    return generalmatrixmath(ng,reusenode, 'projectloc', vA,mB,None)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Direction Transform.\nTransform direction vector A by a given matrix B.\nWill return a VectorSocket.")
@@ -1449,7 +1449,7 @@ def transformdir(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     mB:sMtx,
     ) -> sVec:
-    return generalmatrixmath(ng,reusenode, 'matrixprojectloc', vA,mB,None)
+    return generalmatrixmath(ng,reusenode, 'transformdir', vA,mB,None)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")

@@ -115,6 +115,11 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
             socket = sockets[idx]
         else:
             assert socket in sockets[:], "Socket not found from input. Did you feed the right socket?"
+        if (idx is None):
+            for i,s in enumerate(sockets):
+                if s==socket:
+                    idx = i
+                    break
         
         # for some socket types, they don't have any default_values property.
         # so we need to improvise and place a new node and link it!
@@ -122,13 +127,13 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
 
             case 'ROTATION':
                 #NOTE if you want to pass a vec3 to a rotation socket, don't.
-                defnodname = f"DefVal|{socket.type}|outputs[{idx}]"
+                defnodname = f"D|Quat|outputs[{idx}]"
                 defnod = ng.nodes.get(defnodname)
                 #We cleanup nodetree and set up our input special.
                 if (defnod is None):
                     defnod = ng.nodes.new('FunctionNodeQuaternionToRotation')
                     defnod.name = defnod.label = defnodname
-                    defnod.location = (outnod.location.x, outnod.location.y + 150)
+                    defnod.location = (outnod.location.x, outnod.location.y + 350)
                 #link it
                 if (not socket.links):
                     ng.links.new(defnod.outputs[0], socket)
@@ -138,13 +143,13 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
                         sock.default_value = v
 
             case 'MATRIX':
-                defnodname = f"DefVal|{socket.type}|outputs[{idx}]"
+                defnodname = f"D|Matrix|outputs[{idx}]"
                 defnod = ng.nodes.get(defnodname)
                 #We cleanup nodetree and set up our input special.
                 if (defnod is None):
                     defnod = ng.nodes.new('FunctionNodeCombineMatrix')
                     defnod.name = defnod.label = defnodname
-                    defnod.location = (outnod.location.x + 150, outnod.location.y + 150)
+                    defnod.location = (outnod.location.x + 150, outnod.location.y + 350)
                     #the node comes with tainted default values
                     for inp in defnod.inputs:
                         inp.default_value = 0
