@@ -1299,7 +1299,7 @@ def length(ng, reusenode:str,
     return generalvecmath(ng,reusenode, 'LENGTH',vA)
 
 @user_domain('nexscript')
-@user_doc(nexscript="Separate a SocketVector into 3 SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
+@user_doc(nexscript="Separate Vector.\nSeparate a SocketVector into a tuple of 3 SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
 def separate_xyz(ng, reusenode:str,
     vA:sVec,
     ) -> tuple:
@@ -1332,7 +1332,7 @@ def separate_xyz(ng, reusenode:str,
     return tuple(node.outputs)
 
 @user_domain('nexscript')
-@user_doc(nexscript="Combine 3 SocketFloat (or python values) into a SocketVector.")
+@user_doc(nexscript="Combine Vector.\nCombine 3 SocketFloat, SocketInt or SocketBool into a SocketVector.")
 def combine_xyz(ng, reusenode:str,
     fX:sFlo|sInt|sBoo|float|int,
     fY:sFlo|sInt|sBoo|float|int,
@@ -1422,8 +1422,8 @@ def matrixtranspose(ng, reusenode:str,
 
 #covered in nexscript via python dunder overload
 def matrixmult(ng, reusenode:str,
-    mA:sMtx,
-    mB:sMtx,
+    mA:sMtx|Matrix,
+    mB:sMtx|Matrix,
     ) -> sMtx:
     return generalmatrixmath(ng,reusenode, 'matrixmult', None,mA,mB)
         
@@ -1431,7 +1431,7 @@ def matrixmult(ng, reusenode:str,
 @user_doc(nexscript="Vector Transform.\nTransform a location vector A by a given matrix B.\nWill return a VectorSocket.\n\nCould use notation 'mB @ vA' instead.")
 def transformloc(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    mB:sMtx,
+    mB:sMtx|Matrix,
     ) -> sVec:
     return generalmatrixmath(ng,reusenode, 'transformloc', vA,mB,None)
 
@@ -1439,7 +1439,7 @@ def transformloc(ng, reusenode:str,
 @user_doc(nexscript="Vector Projection.\nProject a location vector A by a given matrix B.\nWill return a VectorSocket.")
 def projectloc(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    mB:sMtx,
+    mB:sMtx|Matrix,
     ) -> sVec:
     return generalmatrixmath(ng,reusenode, 'projectloc', vA,mB,None)
 
@@ -1447,9 +1447,96 @@ def projectloc(ng, reusenode:str,
 @user_doc(nexscript="Vector Direction Transform.\nTransform direction vector A by a given matrix B.\nWill return a VectorSocket.")
 def transformdir(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    mB:sMtx,
+    mB:sMtx|Matrix,
     ) -> sVec:
     return generalmatrixmath(ng,reusenode, 'transformdir', vA,mB,None)
+
+
+@user_domain('nexscript')
+@user_doc(nexscript="Separate Matrix.\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")
+def separate_matrix(ng, reusenode:str,
+    mA:sMtx,
+    ) -> tuple:
+
+    if (type(mA) is not sMtx):
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_matrix() recieved unsupported type '{type(mA).__name__}'")
+
+    node = None
+    needs_linking = False
+
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0,200,)
+        node = ng.nodes.new('FunctionNodeSeparateMatrix')
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        needs_linking = True
+        if (reusenode):
+            node.name = node.label = reusenode
+
+    if (needs_linking):
+        link_sockets(mA, node.inputs[0])
+
+    return tuple(node.outputs)
+
+@user_domain('nexscript')
+@user_doc(nexscript="Combine Matrix.\nCombine an itterable containing  16 SocketFloat, SocketInt or SocketBool arranged by columns to a SocketMatrix.")
+def combine_matrix(ng, reusenode:str,
+    *itterables:sFlo|sInt|sBoo|float|int|tuple|set|list,
+    ) -> tuple:
+
+    #user is passing an itter?
+    if ((len(itterables)==1) and (type(itterables[0]) in {tuple, set, list})):
+        itterables = itterables[0]
+
+    if (type(itterables) not in {tuple, set, list}):
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix() recieved unsupported type '{type(itterables).__name__}'")
+    if (len(itterables) !=16):
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix() recieved itterable must be of len 16 to fit a 4x4 SocketMatrix")
+
+    node = None
+    needs_linking = False
+
+    if (reusenode):
+        node = ng.nodes.get(reusenode)
+
+    if (node is None):
+        last = ng.nodes.active
+        if last:
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0, 200,)
+        node = ng.nodes.new('FunctionNodeCombineMatrix')
+        node.location = location
+        ng.nodes.active = node
+        needs_linking = True
+        if (reusenode):
+            node.name = node.label = reusenode
+
+    for i, val in enumerate(itterables):
+        match val:
+
+            case sFlo() | sInt() | sBoo():
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+
+            case float() | int() | bool():
+                if type(val) is bool:
+                    val = float(val)
+                if (node.inputs[i].default_value!=val):
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case None: pass
+
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix() recieved unsupported type '{type(val).__name__}'")
+
+    return node.outputs[0]
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")

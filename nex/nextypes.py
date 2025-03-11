@@ -95,7 +95,15 @@ trypy_to_Vec3 = NexErrorWrapper(py_to_Vec3)
 
 
 def create_Nex_tag(sockfunc, *nex_or_py_variables, startchar='F',):
-    """generate an unique tag for a function and their args"""
+    """generate an unique tag depending on a function and their args.
+    The tags will be used by nodesetter.py reusenode functionality. In order
+    to update socket values without rebuilding the nodetree on function re-execution."""
+
+    # ex: 'F|f.pow(f4f5)'
+    #     'F|f.mult(f2pi6)'
+
+    # NOTE tag must always be under 64char to work. 
+    # that's because nodesetter.reusenode is based on nodenames.
 
     NexType = None
     for v in nex_or_py_variables:
@@ -112,23 +120,22 @@ def create_Nex_tag(sockfunc, *nex_or_py_variables, startchar='F',):
         argtags.append(f"p{type(v).__name__.lower()[0]}{NexType.init_counter}") #better support for python args? how to identify them properly given that their values can change?
         continue
 
-    uniquetag = f"{startchar}|{NexType.nxchar}.{sockfunc.__name__}({','.join(argtags)})"
+    #some function names are notoriously long..
+    funcname = sockfunc.__name__
+    if funcname=='combine_matrix':
+        funcname='mtx'
+
+    uniquetag = f"{startchar}|{NexType.nxchar}.{funcname}({''.join(argtags)})"
+
+    if (len(uniquetag)>=63):
+        print(f"\nALERT: create_Nex_tag(): Tag of more than 62 char generated. That will not go well..\n  '{uniquetag}'\n  '{uniquetag[:64]}'")
+
     return uniquetag
 
 def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None,):
-    """call the sockfunc related to the operand with sockets of our NexTypes, and return a 
-    new NexType from the newly formed socket.
-
+    """call the sockfunc related to the operand with sockets of our NexTypes, and return a  new NexType from the newly formed socket.
     Each new node the sockfuncs will create will be tagged, it is essential that we don't create & 
-    link the nodes if there's no need to do so, as a Nex script can be executed very frequently. 
-
-    We tag them using the Nex id and types to ensure uniqueness of our values. If a tag already exists, 
-    the 'reusenode' parameter of the nodesetter functions will make sure to only update the values
-    of an existing node that already exists"""
-
-    # Below, We generate an unique tag from the function and args & transoform nex args to sockets
-    # ex: 'F|f.pow(f4,f5)'
-    #     'F|f.mult(f2,Py6Int)'
+    link the nodes if there's no need to do in order to only but update new default_values, as a Nex script can be executed frequently. """
 
     uniquetag = create_Nex_tag(sockfunc, *nex_or_py_variables)
     sock_or_py_variables = [v.nxsock if ('Nex' in type(v).__name__) else v for v in nex_or_py_variables]
@@ -145,10 +152,11 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
     except Exception as e:
         print(f"ERROR: call_Nex_operand.sockfunc() caught error {type(e).__name__}")
         raise
-    
+
     # Then return a Nextype..
     # (Support for multi outputs & if output type is not the same as input with NexReturnType)
     # NOTE perhaps is better to use autosetNexType() for the wrapping the return Nex than manually defining a NexReturnType? Will need to move this fct in factory then..
+
     if (NexReturnType is not None):
         NexType = NexReturnType
     if (type(r) is tuple):
@@ -1349,6 +1357,19 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             return call_Nex_operand(NexMtx, sockfunc, *args, NexReturnType=rType,)
 
         # ---------------------
+        # NexVec Itter
+
+        # TODO I need to support itter for matrix, but unsure if we should return 
+        # Loc,Rot,Scal, QuatRow1,QuatRow2,QuatRow3,QuatRow4, or 16 floats..
+        # Perhaps it's best to stick with mathutils behavior..
+
+        #def __len__(self): #len(itter)
+        #    return 16??
+        #def __iter__
+        #def __getitem__
+        #def __setitem__
+
+        # ---------------------
         # NexMtx Custom Functions & Properties
 
         @property
@@ -1554,10 +1575,11 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         """wrap a nodesetter function to transform it into a Nex functions, nodesetter fct always expecting socket or py variables
         & return sockets or tuple of sockets. Function similar to 'call_Nex_operand' but more general"""
 
-        #TODO What if user is using some Nexfunc on only python values?
+        # TODO What if user is using some Nexfunc on only python values?
         # when we wrap a function we need a unique id tag so the nodetree construction stays stable cross execution. 
         # The problem is that for now we can't generate a unique tag if the user is using a Nexfunction with only python values.
         # Some of these functions supports only python args as they will execute math funcs instead. We need a better solution for handling pyvalue in the nodetree.
+        # TLDR: we need a better uniquetag id solution for stable identifier for the nodes.
 
         def wrapped_func(*args, **kwargs):
 
@@ -1579,13 +1601,22 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                         import math
                         mathfunction = getattr(math,funcname)
                         return mathfunction(*args, **kwargs)
-                    
+
+                    # Some function can pass  tuple..
+                    case 'combine_matrix':
+                        if (len(args)==1 and (type(args) in {tuple,set,list})):
+                            args = args[0]
+                            if not any(('Nex' in type(v).__name__) for v in args):
+                                raise NexError(f"ParamTypeError. Function {sockfunc.__name__}() Expected at least 1 SocketType Param.")
+                        else:
+                            raise NexError(f"ParamTypeError. Function {sockfunc.__name__}() Expected at least 1 SocketType Param.")
+
                     # Some functions do not require to generate a unique tag.
                     case 'getp'|'getn':
                         uniquetag = f'F|{funcname}()'
 
                     case _:
-                        raise NexError(f"ParamTypeError. Function {sockfunc.__name__}() didn't recieved any SocketType.")
+                        raise NexError(f"ParamTypeError. Function {sockfunc.__name__}() Expected at least 1 SocketType Param.")
 
             #define reuse taga unique tag to ensure the function is not generated on each nex script run
             if (uniquetag is None):
