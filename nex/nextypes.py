@@ -159,7 +159,7 @@ def create_Nex_constant(node_tree, NexType, value,):
     """Create a new input node (if not already exist) ensure it's default value, then assign to a NexType & return it."""
 
     new = NexType(manualdef=True)
-    tag = f"C|{new.nxchar}{new.nxid}.constant(p{type(value).__name__.lower()[0]})"
+    tag = f"C|{new.nxchar}{new.nxid}.const(p{type(value).__name__.lower()[0]})"
     
     type_name = NexType.__name__
     match type_name:
@@ -168,7 +168,7 @@ def create_Nex_constant(node_tree, NexType, value,):
         case _:
             raise Exception(f"create_Nex_constant() Unsupported constant for Nextype '{type_name}'.")
 
-    # create_constant_input() is smart it will create the node only if it doesn't exist, & ensure (new?) values
+    # create_constant_input fct is smart it will create the node only if it doesn't exist, & ensure (new?) values
     newsock = create_constant_input(node_tree, nodetype, value, tag)
 
     new.nxsock = newsock
@@ -1596,8 +1596,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
             #sockfunc expect nodesockets, not nextype, we need to convert their args to sockets.. (we did that previously with 'sock_or_py_variables')
             args = [v.nxsock if ('Nex' in type(v).__name__) else v for v in args]
-            #support for tuple as vectors
+            #support for tuple as vectors or matrix
             args = [trypy_to_Vec3(v) if (isinstance(v,(tuple,list)) and len(v)==3 and all(isinstance(i,(float,int)) for i in v)) else v for v in args]
+            args = [trypy_to_Mtx16(v) if (isinstance(v,(tuple,list)) and len(v)==16 and all(isinstance(i,(float,int)) for i in v)) else v for v in args]
 
             #Call the Nex function
             try:

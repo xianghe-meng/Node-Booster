@@ -574,7 +574,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             xloc, yloc = in_nod.location.x, in_nod.location.y-330
             for const in elemConst:
                 con_sck = create_constant_input(
-                    ng, 'ShaderNodeValue', float(const), const,
+                    ng, 'ShaderNodeValue', float(const), f"C|{const}",
                     location=(xloc, yloc),
                     )
                 yloc -= 90

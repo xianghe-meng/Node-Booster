@@ -14,7 +14,7 @@ import bpy
 from functools import partial
 from mathutils import Vector, Matrix
 
-from ..utils.node_utils import link_sockets, frame_nodes
+from ..utils.node_utils import link_sockets, frame_nodes, create_constant_input
 from ..utils.fct_utils import alltypes, anytype
 
 sBoo = bpy.types.NodeSocketBool
@@ -720,8 +720,8 @@ def generalbatchcompare(ng, reusenode:str,
 def generalmatrixmath(ng, reusenode:str,
     operation_type:str,
     vec1:sFlo|sInt|sBoo|sVec|sVecXYZ|float|int|bool|Vector=None,
-    mat1:sMtx|Matrix=None,
-    mat2:sMtx|Matrix=None,
+    mat1:sMtx=None,
+    mat2:sMtx=None,
     ) -> sMtx|sVec|sBoo|sFlo:
     """generic operation for operation on Matrix.
     if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
@@ -781,7 +781,13 @@ def generalmatrixmath(ng, reusenode:str,
                     link_sockets(val, node.inputs[i])
 
             case Matrix():
-                pass
+                #unfortunately we are forced to create a new node, there's no .default_value option for type SocketMatrix..
+                rowflatten = [v for row in val for v in row]
+                if (reusenode):
+                      defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f"C|{reusenode.replace('F|','')}|def{i}")
+                else: defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f'C|{rowflatten[:]}') #enough space in nodename property? hmm. this function should't be used with no reusenode anyway..
+                if needs_linking:
+                    link_sockets(defval, node.inputs[i])
 
             case Vector():
                 if node.inputs[i].default_value[:] != val[:]:
@@ -1392,32 +1398,32 @@ def rotaxis(ng, reusenode:str,
 
 #covered in nexscript via python prop or function
 def matrixdeterminant(ng, reusenode:str,
-    mA:sMtx|Matrix,
+    mA:sMtx,
     ) -> sFlo:
     return generalmatrixmath(ng,reusenode, 'matrixdeterminant', None,mA,None)
 
 #covered in nexscript via python prop or function
 def matrixinvert(ng, reusenode:str,
-    mA:sMtx|Matrix,
+    mA:sMtx,
     ) -> sMtx:
     return generalmatrixmath(ng,reusenode, 'matrixinvert', None,mA,None)
 
 #covered in nexscript via python prop or function
 def matrixisinvertible(ng, reusenode:str,
-    mA:sMtx|Matrix,
+    mA:sMtx,
     ) -> sBoo:
     return generalmatrixmath(ng,reusenode, 'matrixisinvertible', None,mA,None)
 
 #covered in nexscript via python prop or function
 def matrixtranspose(ng, reusenode:str,
-    mA:sMtx|Matrix,
+    mA:sMtx,
     ) -> sMtx:
     return generalmatrixmath(ng,reusenode, 'matrixtranspose', None,mA,None)
 
 #covered in nexscript via python dunder overload
 def matrixmult(ng, reusenode:str,
-    mA:sMtx|Matrix,
-    mB:sMtx|Matrix,
+    mA:sMtx,
+    mB:sMtx,
     ) -> sMtx:
     return generalmatrixmath(ng,reusenode, 'matrixmult', None,mA,mB)
         
@@ -1425,7 +1431,7 @@ def matrixmult(ng, reusenode:str,
 @user_doc(nexscript="Vector Transform.\nTransform a location vector A by a given matrix B.\nWill return a VectorSocket.\n\nCould use notation 'mB @ vA' instead.")
 def transformloc(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    mB:sMtx|Matrix,
+    mB:sMtx,
     ) -> sVec:
     return generalmatrixmath(ng,reusenode, 'matrixtransformloc', vA,mB,None)
 
@@ -1433,7 +1439,7 @@ def transformloc(ng, reusenode:str,
 @user_doc(nexscript="Vector Projection.\nProject a location vector A by a given matrix B.\nWill return a VectorSocket.")
 def projectloc(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    mB:sMtx|Matrix,
+    mB:sMtx,
     ) -> sVec:
     return generalmatrixmath(ng,reusenode, 'matrixtransformdir', vA,mB,None)
 
@@ -1441,7 +1447,7 @@ def projectloc(ng, reusenode:str,
 @user_doc(nexscript="Vector Direction Transform.\nTransform direction vector A by a given matrix B.\nWill return a VectorSocket.")
 def transformdir(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    mB:sMtx|Matrix,
+    mB:sMtx,
     ) -> sVec:
     return generalmatrixmath(ng,reusenode, 'matrixprojectloc', vA,mB,None)
 
