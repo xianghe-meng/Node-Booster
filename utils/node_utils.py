@@ -147,7 +147,7 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
                     #the node comes with tainted default values
                     for inp in defnod.inputs:
                         inp.default_value = 0
-                #link it 
+                #link it
                 if (not socket.links):
                     ng.links.new(defnod.outputs[0], socket)
                 #assign flatten values

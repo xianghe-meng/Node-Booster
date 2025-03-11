@@ -27,8 +27,7 @@
 import bpy
 
 import traceback
-from collections.abc import Iterable
-from mathutils import Vector
+from mathutils import Vector, Matrix
 from functools import partial
 
 from ..__init__ import dprint
@@ -162,6 +161,21 @@ def py_to_Vec3(value):
         case _:
             raise Exception(f"Cannot convert type '{type(value).__name__}' to Vector().")
 
+def py_to_Mtx16(value):
+    match value:
+        case Matrix():
+            if (len(value)!=4):
+                raise NexError(f"ValueError. A Matrix() type should have 4 rows or 4 elements.")
+            flatted_matrix = [val for row in value for val in row]
+            if (len(flatted_matrix)!=16):
+                raise NexError(f"ValueError. A 4x4 Matrix() should contain a total of 16 elements. {len(flatted_matrix)} found.")
+            return value
+        case list() | set() | tuple():
+            if (len(value)!=16): raise NexError(f"ValueError. In order to create a 4x4 Matrix() type '{type(value).__name__}' should contain 16 elements. {len(value)} found.")
+            return Matrix([value[i*4:(i+1)*4] for i in range(4)])
+        case _:
+            raise Exception(f"Cannot convert type '{type(value).__name__}' to Matrix().")
+
 # oooooooooooo                         .                                  
 # `888'     `8                       .o8                                  
 #  888          .oooo.    .ooooo.  .o888oo  .ooooo.  oooo d8b oooo    ooo 
@@ -191,8 +205,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         init_counter = 0  # - Needed to define nxid, see nxid note.
         node_inst = None  # - The node affiliated with this Nex type.
         node_tree = None  # - The node.nodetree affiliated with this Nex type.
-        nxstype = ''      # - The type of socket the Nex type is using.
-        nxchar = ''       # - The short name of the nex type (for display reasons)
+
+        nxstype = ''      # - The exact type of socket the Nex type is using.
+        nxtydsp = ''      # - The user display type of socket.
+        nxchar = ''       # - The character assigned to this Nextype.
 
         def __init__(*args, **kwargs):
             nxsock = None # - The most important part of a NexType, it's association with an output socket!
@@ -204,82 +220,86 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
         # print the Nex ?
         def __repr__(self):
-            return f"<{self.nxstype}{self.nxid}>"
+            return f"<{self.nxtydsp} {type(self).__name__}{self.nxid}>"
             #return f"<{type(self)}{self.nxid} nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
 
         # Nex python bool evaluation? Impossible.
         def __bool__(self):
-            raise NexError(f"EvaluationError. Cannot evaluate '{type(self).__name__}' as a python boolean.")
+            raise NexError(f"EvaluationError. Cannot evaluate '{self.nxtydsp}' as a python boolean.")
 
         # Nex Math Operand
         def __add__(self, other): # self + other
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '+'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '+'.")
         def __radd__(self, other): # other + self
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '+'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '+'.")
         def __sub__(self, other): # self - other
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '-'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '-'.")
         def __rsub__(self, other): # other - self
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '-'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '-'.")
         def __mul__(self, other): # self * other
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '*'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '*'.")
         def __rmul__(self, other): # other * self
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '*'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '*'.")
         def __truediv__(self, other): # self / other
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '/'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '/'.")
         def __rtruediv__(self, other): # other / self
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '/'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '/'.")
         def __pow__(self, other): #self ** other
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '**'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '**'.")
         def __rpow__(self, other): #other ** self
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '**'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '**'.")
         def __mod__(self, other): # self % other
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '%'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '%'.")
         def __rmod__(self, other): # other % self
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '%'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '%'.")
         def __floordiv__(self, other): # self // other
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '//'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '//'.")
         def __rfloordiv__(self, other): # other // self
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '//'.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '//'.")
         def __neg__(self): # -self
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support negation.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support negation.")
         def __abs__(self): # abs(self)
-            raise NexError(f"TypeError.  '{type(self).__name__}' has no abs() method.")
+            raise NexError(f"TypeError.  '{self.nxtydsp}' has no abs() method.")
         def __round__(self): # round(self)
-            raise NexError(f"TypeError.  '{type(self).__name__}' has no round() method.")
-
+            raise NexError(f"TypeError.  '{self.nxtydsp}' has no round() method.")
+        def __matmul__(self, other): # self @ other
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '@'.")
+        def __rmatmul__(self, other): # other @ self
+            raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '@'.")
+        
         # Nex Itter
         def __len__(self): #len(itter)
-            raise NexError(f"TypeError. '{type(self).__name__}' has no len() method.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' has no len() method.")
         def __iter__(self): #for f in itter
-            raise NexError(f"TypeError. '{type(self).__name__}' is not an itterable.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
         def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
-            raise NexError(f"TypeError. '{type(self).__name__}' is not an itterable.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
         def __setitem__(self, key, value): #x[0] += a+b
-            raise NexError(f"TypeError. '{type(self).__name__}' is not an itterable.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
 
         # Nex Comparisons
         def __eq__(self, other): # self == other
-            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '=='.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '=='.")
         def __ne__(self, other): # self != other
-            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '!='.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '!='.")
         def __lt__(self, other): # self < other
-            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '<'.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '<'.")
         def __le__(self, other): # self <= other
-            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '<='.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '<='.")
         def __gt__(self, other): # self > other
-            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '>'.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '>'.")
         def __ge__(self, other): # self >= other
-            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '>='.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '>='.")
 
         # Nex Bitwise
         def __and__(self, other): # self & other
-            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '&'.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '&'.")
         def __rand__(self, other): # other & self
-            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '&'.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '&'.")
         def __or__(self, other): # self | other
-            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '|'.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '|'.")
         def __ror__(self, other): # other | self
-            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '|'.")
+            raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '|'.")
 
     # ooooo      ooo                       oooooooooooo oooo                          .   
     # `888b.     `8'                       `888'     `8 `888                        .o8   
@@ -294,7 +314,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         init_counter = 0
         node_inst = NODEINSTANCE
         node_tree = node_inst.node_tree
+
         nxstype = 'NodeSocketFloat'
+        nxtydsp = 'SocketFloat'
         nxchar = 'f'
 
         def __init__(self, socket_name='', value=None, fromsocket=None, manualdef=False,):
@@ -662,7 +684,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         init_counter = 0
         node_inst = NODEINSTANCE
         node_tree = node_inst.node_tree
+
         nxstype = 'NodeSocketBool'
+        nxtydsp = 'SocketBool'
         nxchar = 'b'
 
         def __init__(self, socket_name='', value=None, fromsocket=None, manualdef=False,):
@@ -775,7 +799,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             # commutative operation.
             return self.__or__(other)
 
-    
     # ooooo      ooo                       oooooo     oooo                     
     # `888b.     `8'                        `888.     .8'                      
     #  8 `88b.    8   .ooooo.  oooo    ooo   `888.   .8'    .ooooo.   .ooooo.  
@@ -783,13 +806,15 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
     #  8     `88b.8  888ooo888    Y888'        `888.8'     888ooo888 888       
     #  8       `888  888    .o  .o8"'88b        `888'      888    .o 888   .o8 
     # o8o        `8  `Y8bod8P' o88'   888o       `8'       `Y8bod8P' `Y8bod8P' 
-                                                                            
+
     class NexVec(Nex):
         
         init_counter = 0
         node_inst = NODEINSTANCE
         node_tree = node_inst.node_tree
+
         nxstype = 'NodeSocketVector'
+        nxtydsp = 'SocketVector'
         nxchar = 'v'
 
         def __init__(self, socket_name='', value=None, fromsocket=None, manualdef=False,):
@@ -838,7 +863,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                         set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
 
                 case _:
-                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketVector'. Was expecting 'None' | 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool'.")
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketVector'. Was expecting 'None' | 'Vector[3]' | 'list[3]' | 'set[3]' | 'tuple[3]' | 'int' | 'float' | 'bool'.")
 
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
@@ -1201,7 +1226,77 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         @normalized.setter
         def normalized(self, value):
             raise NexError("AssignationError. SocketVector.normalized is read-only.")
-        
+
+    # ooooo      ooo                       ooo        ooooo     .               
+    # `888b.     `8'                       `88.       .888'   .o8               
+    #  8 `88b.    8   .ooooo.  oooo    ooo  888b     d'888  .o888oo oooo    ooo 
+    #  8   `88b.  8  d88' `88b  `88b..8P'   8 Y88. .P  888    888    `88b..8P'  
+    #  8     `88b.8  888ooo888    Y888'     8  `888'   888    888      Y888'    
+    #  8       `888  888    .o  .o8"'88b    8    Y     888    888 .  .o8"'88b   
+    # o8o        `8  `Y8bod8P' o88'   888o o8o        o888o   "888" o88'   888o 
+
+    class NexMtx(Nex):
+
+        init_counter = 0
+        node_inst = NODEINSTANCE
+        node_tree = node_inst.node_tree
+
+        nxstype = 'NodeSocketMatrix'
+        nxtydsp = 'SocketMatrix'
+        nxchar = 'm'
+
+        def __init__(self, socket_name='', value=None, fromsocket=None, manualdef=False,):
+
+            self.nxid = NexMtx.init_counter
+            NexMtx.init_counter += 1
+
+            if (manualdef):
+                return None
+            if (fromsocket is not None):
+                self.nxsock = fromsocket
+                return None
+
+            type_name = type(value).__name__
+            match type_name:
+
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
+
+                #Initialize a new nextype with a default value socket
+                case 'NoneType': # | 'Matrix' | 'list' | 'set' | 'tuple':
+
+                    #ensure name chosen is correct
+                    assert socket_name!='', "Nex Initialization should always define a socket_name."
+                    if (socket_name in ALLINPUTS):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    ALLINPUTS.append(socket_name)
+
+                    #get socket, create if non existent
+                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    if (outsock is None):
+                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
+                    elif (type(outsock) is list):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    #ensure type is correct, change type if necessary
+                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    if (current_type!=self.nxstype):
+                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+
+                    self.nxsock = outsock
+                    self.nxsnam = socket_name
+
+                    # #ensure default value of socket in node instance
+                    # if (value is not None):
+                    #     fval = py_to_Mtx16(value)
+                    #     set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
+                    #     NOTE: SocketMatrix type do not support assigning a default socket values.
+
+                case _:
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketMatrix'. Was expecting 'None'")# | 'Matrix[16]' | 'list[16]' | 'set[16]' | 'tuple[16]'")
+
+            dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
+            return None
+
     # ooooo      ooo                         .oooooo.                   .   
     # `888b.     `8'                        d8P'  `Y8b                .o8   
     #  8 `88b.    8   .ooooo.  oooo    ooo 888      888 oooo  oooo  .o888oo 
@@ -1217,7 +1312,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         init_counter = 0
         node_inst = NODEINSTANCE
         node_tree = node_inst.node_tree
-        nxstype = None #Children will define this.
+
+        nxstype = None #Children definition..
+        nxtydsp = None #Children definition..
         nxchar = 'o'
 
         def __init__(self, socket_name='', value=0.0):
@@ -1265,7 +1362,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     # simply link the sockets and see if it's valid
                     l = link_sockets(value.nxsock, outsock)
                     if (not l.is_valid):
-                        raise NexError(f"TypeError. Cannot assign output '{socket_name}' of type '{self.nxstype}' to '{type(value).__name__}'.")
+                        raise NexError(f"TypeError. Cannot assign '{value.nxtydsp}' to var '{socket_name}' of output '{self.nxtydsp}'.")
 
 
                 # or we simply output a default python constant value
@@ -1277,7 +1374,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     out_type = self.nxstype
                     if (out_type=='AutoDefine'):
                         out_type = socktype
-                        
+
                     #get socket, create if non existent
                     outsock = get_socket(self.node_tree, in_out='OUTPUT', socket_name=socket_name,)
                     if (outsock is None):
@@ -1297,31 +1394,39 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                         set_socket_defvalue(self.node_tree, value=newval, socket=outsock, in_out='OUTPUT',)
                     except Exception as e:
                         print(e)
-                        raise NexError(f"TypeError. Cannot assign output '{socket_name}' of type '{self.nxstype}' to python '{type(value).__name__}'.")
+                        raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of output '{self.nxtydsp}'.")
 
     class NexOutputBool(NexOutput):
         nxstype = 'NodeSocketBool'
+        nxtydsp = 'SocketBool'
 
     class NexOutputInt(NexOutput):
         nxstype = 'NodeSocketInt'
+        nxtydsp = 'SocketInt'
 
     class NexOutputFloat(NexOutput):
         nxstype = 'NodeSocketFloat'
+        nxtydsp = 'SocketFloat'
 
     class NexOutputVec(NexOutput):
         nxstype = 'NodeSocketVector'
+        nxtydsp = 'SocketVector'
 
     class NexOutputCol(NexOutput):
         nxstype = 'NodeSocketColor'
+        nxtydsp = 'SocketColor'
 
     class NexOutputQuat(NexOutput):
         nxstype = 'NodeSocketRotation'
+        nxtydsp = 'SocketRotation'
 
     class NexOutputMtx(NexOutput):
         nxstype = 'NodeSocketMatrix'
+        nxtydsp = 'SocketMatrix'
 
     class NexOutputAuto(NexOutput):
         nxstype = 'AutoDefine'
+        nxtydsp = 'NodeSocket'
 
     # 88""Yb 888888 888888 88   88 88""Yb 88b 88     
     # 88__dP 88__     88   88   88 88__dP 88Yb88     
@@ -1338,7 +1443,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         'invec':NexVec,
         # 'incol':NexCol,
         # 'inquat':NexQuat,
-        # 'inmat':NexMtx,
+        'inmat':NexMtx,
         'outbool':NexOutputBool,
         'outint':NexOutputInt,
         'outfloat':NexOutputFloat,
@@ -1358,7 +1463,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             case bpy.types.NodeSocketVector(): return NexVec(fromsocket=socket)
             # case bpy.types.NodeSocketColor(): return NexCol(fromsocket=socket)
             # case bpy.types.NodeSocketRotation(): return NexQuat(fromsocket=socket)
-            # case bpy.types.NodeSocketMatrix(): return NexMtx(fromsocket=socket)
+            case bpy.types.NodeSocketMatrix(): return NexMtx(fromsocket=socket)
             case _: raise Exception(f"ERROR: autosetNexType(): Unrecognized '{socket}' of type '{type(socket).__name__}'")
         return None
 
