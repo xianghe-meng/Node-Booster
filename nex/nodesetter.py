@@ -636,6 +636,84 @@ def generalboolmath(ng, reusenode:str,
 
     return node.outputs[0]
 
+def generalbatchcompare(ng, reusenode:str,
+    operation_type:str,
+    epsilon:sFlo|sInt|sBoo|float|int,
+    valueA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    valueB:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    *values:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    ) -> sBoo:
+    """generic operation to batch comparison operation between a range or given float compatible itterable"""
+
+    match operation_type:
+        case 'alleq':
+            opefunc = iseq
+        # case 'alluneq':
+        #     #This one is a bit more complicated. Because we cannot simply chain comparison, ALL members needs to be cross compared.
+        #     opefunc = isuneq
+        # case 'allless':
+        #     opefunc = isless
+        # case 'alllesseq':
+        #     opefunc = islesseq
+        # case 'allgreater':
+        #     opefunc = isgreater
+        # case 'allgreatereq':
+        #     opefunc = isgreatereq
+        # case 'allbetween':
+        #     pass
+        # case 'allbetweeneq':
+        #     pass
+        case _:
+            raise Exception(f"Unsupported operation_type '{operation_type}' passed to generalbatchcompare().")
+
+    if len(values) in {0,1}:
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() needs two Params or more.") 
+    for o in values:
+        if type(o) not in {sFlo, sInt, sBoo, sVec, float, int, bool, Vector}:
+            raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() recieved unsupported type '{type(o).__name__}'.") 
+
+    to_frame = []
+    compared = []
+
+    #create comparison chain
+    for i,o in enumerate(values):
+        if (i==0):
+            continue
+        a = values[i-1]
+        b = o
+        if (reusenode):
+              compa = opefunc(ng,f"{reusenode}|{i}", a,b)
+        else: compa = opefunc(ng,'', a,b)
+        to_frame.append(compa.node)
+        compared.append(compa)
+        continue
+
+    #add all bool result together
+    a = compared[0]
+    for i,o in enumerate(compared):
+        if (i==0):
+            continue
+        b = o
+        if (reusenode):
+              andop = add(ng,f"{reusenode}|&{i}", a,b)
+        else: andop = add(ng,'', a,b)
+        andop.node.location = b.node.location
+        andop.node.location.y += 250
+        a = andop
+        to_frame.append(andop.node)
+        continue
+
+    #if all equals addition of all bool should be of len of all values
+    if (reusenode):
+          final = iseq(ng,f"{reusenode}|end", a,len(compared))
+    else: final = iseq(ng,'', a,len(compared))
+    to_frame.append(final.node)
+
+    frame_nodes(ng, *to_frame,
+        label=reusenode if (reusenode) else f"{operation_type}(*values)",
+        )
+    return final
+
 #covered in nexcode via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Addition.\nEquivalent to the '+' symbol.")
@@ -1262,6 +1340,96 @@ def smax(ng, reusenode:str,
     ) -> sFlo:
     return generalfloatmath(ng,reusenode, 'SMOOTH_MAX',a,b,dist)
 
+#covered in nexcode via python dunder overload
+def iseq(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    )->sBoo:
+    if alltypes(a,b,types=(sBoo,bool),):
+        return generalboolmath(ng,reusenode, 'XNOR', a,b)
+    if anytype(a,b,types=(sVec,Vector,),):
+        return generalcompare(ng,reusenode, 'VECTOR','EQUAL', a,b,None)
+    return generalcompare(ng,reusenode, 'FLOAT','EQUAL', a,b,None)
+
+#covered in nexcode via python dunder overload
+def isuneq(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    )->sBoo:
+    if alltypes(a,b,types=(sBoo,bool),):
+        return generalboolmath(ng,reusenode, 'XOR', a,b)
+    if anytype(a,b,types=(sVec,Vector,),):
+        return generalcompare(ng,reusenode, 'VECTOR','NOT_EQUAL', a,b,None)
+    return generalcompare(ng,reusenode, 'FLOAT','NOT_EQUAL', a,b,None)
+
+#covered in nexcode via python dunder overload
+def isless(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    )->sBoo:
+    if anytype(a,b,types=(sVec,Vector,),):
+        return generalcompare(ng,reusenode, 'VECTOR','LESS_THAN', a,b,None)
+    return generalcompare(ng,reusenode, 'FLOAT','LESS_THAN', a,b,None)
+
+#covered in nexcode via python dunder overload
+def islesseq(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    )->sBoo:
+    if anytype(a,b,types=(sVec,Vector,),):
+        return generalcompare(ng,reusenode, 'VECTOR','LESS_EQUAL', a,b,None)
+    return generalcompare(ng,reusenode, 'FLOAT','LESS_EQUAL', a,b,None)
+
+#covered in nexcode via python dunder overload
+def isgreater(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    )->sBoo:
+    if anytype(a,b,types=(sVec,Vector,),):
+        return generalcompare(ng,reusenode, 'VECTOR','GREATER_THAN', a,b,None)
+    return generalcompare(ng,reusenode, 'FLOAT','GREATER_THAN', a,b,None)
+
+#covered in nexcode via python dunder overload
+def isgreatereq(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    )->sBoo:
+    if anytype(a,b,types=(sVec,Vector,),):
+        return generalcompare(ng,reusenode, 'VECTOR','GREATER_EQUAL', a,b,None)
+    return generalcompare(ng,reusenode, 'FLOAT','GREATER_EQUAL', a,b,None)
+
+#covered in nexcode via python dunder overload
+def booland(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    )->sBoo:
+    return generalboolmath(ng,reusenode, 'AND', a,b)
+
+#covered in nexcode via python dunder overload
+def boolor(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    )->sBoo:
+    return generalboolmath(ng,reusenode, 'OR', a,b)
+
+def boolnot(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    )->sBoo:
+    return generalboolmath(ng,reusenode, 'NOT', a)
+
+@user_domain('nexcode')
+@user_doc(nexcode="All Equals.\nCheck if all passed arguments have equal values.\n\nCompatible with SocketFloats, SocketVectors and SocketBool. Will return a SocketBool.")
+def alleq(ng, reusenode:str,
+    *values:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    )->sBoo:
+    return generalbatchcompare(ng,reusenode, 'alleq',None,None,None, *values)
+
+#TODO what about epsilon??? problem is that epsilon is not supported for all operaiton type
+#def almosteq(a,b,epsilon)
+#TODO 
+#def isbetween(value, min, max)
+#def allbetween(min, max, *betweens)
+
 @user_domain('mathex','nexcode')
 @user_doc(mathex="Mix.\nLinear Interpolation between value A and B from given factor F.")
 @user_doc(nexcode="Mix.\nLinear Interpolation between value A and B from given factor F.\nSupports SocketFloat and SocketVector.")
@@ -1397,87 +1565,3 @@ def getn(ng, reusenode:str,
 # def getid() -> Int
 # def getindex() -> Int
 # def getnamedattr(name) -> Dynamic
-
-#covered in nexcode via python dunder overload
-def iseq(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    )->sBoo:
-    if alltypes(a,b,types=(sBoo,bool),):
-        return generalboolmath(ng,reusenode, 'XNOR', a,b)
-    if anytype(a,b,types=(sVec,Vector,),):
-        return generalcompare(ng,reusenode, 'VECTOR','EQUAL', a,b,None)
-    return generalcompare(ng,reusenode, 'FLOAT','EQUAL', a,b,None)
-
-#covered in nexcode via python dunder overload
-def isnoteq(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    )->sBoo:
-    if alltypes(a,b,types=(sBoo,bool),):
-        return generalboolmath(ng,reusenode, 'XOR', a,b)
-    if anytype(a,b,types=(sVec,Vector,),):
-        return generalcompare(ng,reusenode, 'VECTOR','NOT_EQUAL', a,b,None)
-    return generalcompare(ng,reusenode, 'FLOAT','NOT_EQUAL', a,b,None)
-
-#covered in nexcode via python dunder overload
-def isless(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    )->sBoo:
-    if anytype(a,b,types=(sVec,Vector,),):
-        return generalcompare(ng,reusenode, 'VECTOR','LESS_THAN', a,b,None)
-    return generalcompare(ng,reusenode, 'FLOAT','LESS_THAN', a,b,None)
-
-#covered in nexcode via python dunder overload
-def islesseq(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    )->sBoo:
-    if anytype(a,b,types=(sVec,Vector,),):
-        return generalcompare(ng,reusenode, 'VECTOR','LESS_EQUAL', a,b,None)
-    return generalcompare(ng,reusenode, 'FLOAT','LESS_EQUAL', a,b,None)
-
-#covered in nexcode via python dunder overload
-def isgreater(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    )->sBoo:
-    if anytype(a,b,types=(sVec,Vector,),):
-        return generalcompare(ng,reusenode, 'VECTOR','GREATER_THAN', a,b,None)
-    return generalcompare(ng,reusenode, 'FLOAT','GREATER_THAN', a,b,None)
-
-#covered in nexcode via python dunder overload
-def isgreatereq(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    )->sBoo:
-    if anytype(a,b,types=(sVec,Vector,),):
-        return generalcompare(ng,reusenode, 'VECTOR','GREATER_EQUAL', a,b,None)
-    return generalcompare(ng,reusenode, 'FLOAT','GREATER_EQUAL', a,b,None)
-
-#covered in nexcode via python dunder overload
-def booland(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    )->sBoo:
-    return generalboolmath(ng,reusenode, 'AND', a,b)
-
-#covered in nexcode via python dunder overload
-def boolor(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    )->sBoo:
-    return generalboolmath(ng,reusenode, 'OR', a,b)
-
-def boolnot(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
-    )->sBoo:
-    return generalboolmath(ng,reusenode, 'NOT', a)
-
-
-#TODO 
-#def allequal(*values)
-#def allbetween(min, max, *betweens)
-#TODO what about epsilon? problem is that epsilon is not supported for all operaiton type
-#def almosteq(a,b,epsilon)

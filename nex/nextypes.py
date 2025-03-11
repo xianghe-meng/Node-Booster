@@ -587,7 +587,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketFloat' and '{type(other).__name__}'")
-            return call_Nex_operand(NexFloat, nodesetter.isnoteq, *args,  NexReturnType=NexBool,)
+            return call_Nex_operand(NexFloat, nodesetter.isuneq, *args,  NexReturnType=NexBool,)
 
         def __lt__(self, other): # self < other
             type_name = type(other).__name__
@@ -737,7 +737,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     return NotImplemented
                 case _:
                     raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketBool' and '{type(other).__name__}'")
-            return call_Nex_operand(NexBool, nodesetter.isnoteq, *args,)
+            return call_Nex_operand(NexBool, nodesetter.isuneq, *args,)
 
         # ---------------------
         # NexBool Bitwise Operations
@@ -1106,7 +1106,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, py_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketVector' and '{type(other).__name__}'")
-            return call_Nex_operand(NexVec, nodesetter.isnoteq, *args, NexReturnType=NexBool,)
+            return call_Nex_operand(NexVec, nodesetter.isuneq, *args, NexReturnType=NexBool,)
 
         def __lt__(self, other): # self < other
             type_name = type(other).__name__
