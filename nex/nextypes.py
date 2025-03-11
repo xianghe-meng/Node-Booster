@@ -6,11 +6,9 @@
 #  is it really a good idea to implicitly make functions and operand work cross types? ex: NexVec + NexFloat..
 #  Perhaps the typing should be a little stronger and user should convert their Nex type manually.
 
-# TODO later 
+# TODO later
 #  Better errors for user:
 #  - need better traceback error for NexError so user can at least now the line where it got all wrong.
-
-# TODO later
 #  Optimization:
 #  - Is the NexFactory bad for performance? these factory are defining classes perhaps 10-15 times per execution
 #    and execution can be at very frequent. Perhaps we can initiate the factory at node.init()? If we do that, 
@@ -18,6 +16,9 @@
 #    AS a Reminder: we are storing nodetree objects in there, we'll probably need to only store the nodetree name. & get rid of node_inst.
 #  - If we do a constant + Nex + constant + Nex + constant, we'll create 3 constant nodes. Unsure how to mitigate this.
 #    ideally we 
+#  Code Redundency:
+#  - A lot of operation overloads are very simimar. Some math and comparison operation are repeated across many NexTypes.
+#    perhaps could centralize some operations via class inheritence 'NexMath' 'NexCompare' to not repeat function def?
 
 
 import bpy
@@ -71,7 +72,6 @@ NEXUSER_EQUIVALENCE = {
 class NexError(Exception):
     def __init__(self, message):
         super().__init__(message)
-
 
 def create_Nex_tag(sockfunc, *nex_or_py_variables, startchar='F',):
     """generate an unique tag for a function and their args"""
@@ -133,7 +133,6 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
         return tuple(NexType(fromsocket=s) for s in r)        
     return NexType(fromsocket=r)
 
-
 # unused for now
 # def create_Nex_constant(node_tree, NexType, nodetype:str, value,):
 #     """Create a new input node (if not already exist) ensure it's default value, then assign to a NexType & return it."""
@@ -147,7 +146,6 @@ def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None
 #     new.nxsock = newsock
 #     return new
 
-
 def py_to_Vec3(value):
     match value:
         case Vector():
@@ -159,7 +157,7 @@ def py_to_Vec3(value):
         case int() | float() | bool():
             return Vector((float(value), float(value), float(value),))
         case _:
-            raise Exception(f"Unsuported type for {value}")
+            raise Exception(f"Cannot convert type '{type(value).__name__}' to Vector().")
 
 # oooooooooooo                         .                                  
 # `888'     `8                       .o8                                  
@@ -212,55 +210,38 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
         # Nex Math Operand
         def __add__(self, other): # self + other
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '+'.")
         def __radd__(self, other): # other + self
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '+'.")
         def __sub__(self, other): # self - other
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '-'.")
         def __rsub__(self, other): # other - self
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '-'.")
         def __mul__(self, other): # self * other
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '*'.")
         def __rmul__(self, other): # other * self
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '*'.")
         def __truediv__(self, other): # self / other
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '/'.")
         def __rtruediv__(self, other): # other / self
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '/'.")
         def __pow__(self, other): #self ** other
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '**'.")
         def __rpow__(self, other): #other ** self
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '**'.")
         def __mod__(self, other): # self % other
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '%'.")
         def __rmod__(self, other): # other % self
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '%'.")
         def __floordiv__(self, other): # self // other
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '//'.")
         def __rfloordiv__(self, other): # other // self
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '//'.")
         def __neg__(self): # -self
-            return NotImplemented
-            raise NexError(f"TypeError.  '{type(self).__name__}' do not support operand '-a'.")
+            raise NexError(f"TypeError.  '{type(self).__name__}' do not support negation.")
         def __abs__(self): # abs(self)
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' has no abs() method.")
         def __round__(self): # round(self)
-            return NotImplemented
             raise NexError(f"TypeError.  '{type(self).__name__}' has no round() method.")
 
         # Nex Itter
@@ -275,24 +256,28 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
         # Nex Comparisons
         def __eq__(self, other): # self == other
-            return NotImplemented
             raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '=='.")
         def __ne__(self, other): # self != other
-            return NotImplemented
             raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '!='.")
         def __lt__(self, other): # self < other
-            return NotImplemented
             raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '<'.")
         def __le__(self, other): # self <= other
-            return NotImplemented
             raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '<='.")
         def __gt__(self, other): # self > other
-            return NotImplemented
             raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '>'.")
         def __ge__(self, other): # self >= other
-            return NotImplemented
             raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '>='.")
-        
+
+        # Nex Bitwise
+        def __and__(self, other): # self & other
+            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '&'.")
+        def __rand__(self, other): # other & self
+            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '&'.")
+        def __or__(self, other): # self | other
+            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '|'.")
+        def __ror__(self, other): # other | self
+            raise NexError(f"TypeError. '{type(self).__name__}' do not support operand '|'.")
+
     # ooooo      ooo                       oooooooooooo oooo                          .   
     # `888b.     `8'                       `888'     `8 `888                        .o8   
     #  8 `88b.    8   .ooooo.  oooo    ooo  888          888   .ooooo.   .oooo.   .o888oo 
@@ -366,7 +351,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
                 # wrong initialization?
                 case _:
-                    raise NexError(f"TypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to 'SocketFloat'.")
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketFloat'. Was expecting 'None' | 'int' | 'float' | 'bool'.")
 
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
@@ -388,7 +373,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             return call_Nex_operand(NexFloat, nodesetter.add, *args,)
 
         def __radd__(self, other): # other + self
-            # Multiplication is commutative.
+            # commutative operation.
             return self.__add__(other)
 
         # ---------------------
@@ -437,7 +422,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             return call_Nex_operand(NexFloat, nodesetter.mult, *args,)
 
         def __rmul__(self, other): # other * self
-            # Multiplication is commutative.
+            # commutative operation.
             return self.__mul__(other)
 
         # ---------------------
@@ -723,7 +708,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
                 # wrong initialization?
                 case _:
-                    raise NexError(f"TypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to 'SocketBool'.")
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketBool'. Was expecting 'None' | 'bool'.")
 
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
@@ -741,7 +726,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     return NotImplemented
                 case _:
                     raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketBool' and '{type(other).__name__}'")
-            return call_Nex_operand(NexBool, nodesetter.iseq, *args, NexReturnType=NexBool,)
+            return call_Nex_operand(NexBool, nodesetter.iseq, *args,)
 
         def __ne__(self, other): # self != other
             type_name = type(other).__name__
@@ -752,7 +737,40 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     return NotImplemented
                 case _:
                     raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketBool' and '{type(other).__name__}'")
-            return call_Nex_operand(NexBool, nodesetter.isnoteq, *args, NexReturnType=NexBool,)
+            return call_Nex_operand(NexBool, nodesetter.isnoteq, *args,)
+
+        # ---------------------
+        # NexBool Bitwise Operations
+
+        def __and__(self, other): # self & other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexBool' | 'bool':
+                    args = self, other
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"TypeError. Bitwise operation '&' is exclusive between 'SocketBool'.")
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '&' bitwise operation between 'SocketBool' and '{type(other).__name__}'.")
+            return call_Nex_operand(NexBool, nodesetter.booland, *args,)
+
+        def __rand__(self, other): # other & self
+            # commutative operation.
+            return self.__and__(other)
+
+        def __or__(self, other): # self | other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexBool' | 'bool':
+                    args = self, other
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"TypeError. Bitwise operation '|' is exclusive between 'SocketBool'.")
+                case _:
+                    raise NexError(f"TypeError. Cannot perform '|' bitwise operation between 'SocketBool' and '{type(other).__name__}'.")
+            return call_Nex_operand(NexBool, nodesetter.boolor, *args,)
+
+        def __ror__(self, other): # other | self
+            # commutative operation.
+            return self.__or__(other)
 
     
     # ooooo      ooo                       oooooo     oooo                     
@@ -817,7 +835,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                         set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
 
                 case _:
-                    raise NexError(f"TypeError. Cannot assign var '{socket_name}' of type '{type(value).__name__}' to 'SocketVector'.")
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketVector'. Was expecting 'None' | 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool'.")
 
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
@@ -837,7 +855,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             return call_Nex_operand(NexVec, nodesetter.add, *args,)
 
         def __radd__(self, other): # other + self
-            # Multiplication is commutative.
+            # commutative operation.
             return self.__add__(other)
 
         # ---------------------
@@ -880,7 +898,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             return call_Nex_operand(NexVec, nodesetter.mult, *args,)
 
         def __rmul__(self, other): # other * self
-            # Multiplication is commutative.
+            # commutative operation.
             return self.__mul__(other)
 
         # ---------------------

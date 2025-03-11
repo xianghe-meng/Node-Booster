@@ -590,8 +590,8 @@ def generalcompare(ng, reusenode:str,
 
 def generalboolmath(ng, reusenode:str,
     operation:str,
-    val1:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
+    val1:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    val2:sFlo|sInt|sBoo|sVec|float|int|bool|Vector=None,
     ) -> sBoo:
     """generic operation for BooleanMath.
     if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
@@ -1129,7 +1129,7 @@ def length(ng, reusenode:str,
     return generalvecmath(ng,reusenode, 'LENGTH',vA)
 
 @user_domain('nexcode')
-@user_doc(nexcode="Separate a SocketVector into 3 SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' to do that instead.")
+@user_doc(nexcode="Separate a SocketVector into 3 SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
 def separate_xyz(ng, reusenode:str,
     vA:sVec,
     ) -> tuple:
@@ -1400,8 +1400,8 @@ def getn(ng, reusenode:str,
 
 #covered in nexcode via python dunder overload
 def iseq(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     )->sBoo:
     if alltypes(a,b,types=(sBoo,bool),):
         return generalboolmath(ng,reusenode, 'XNOR', a,b)
@@ -1411,8 +1411,8 @@ def iseq(ng, reusenode:str,
 
 #covered in nexcode via python dunder overload
 def isnoteq(ng, reusenode:str,
-    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     )->sBoo:
     if alltypes(a,b,types=(sBoo,bool),):
         return generalboolmath(ng,reusenode, 'XOR', a,b)
@@ -1455,6 +1455,26 @@ def isgreatereq(ng, reusenode:str,
     if anytype(a,b,types=(sVec,Vector,),):
         return generalcompare(ng,reusenode, 'VECTOR','GREATER_EQUAL', a,b,None)
     return generalcompare(ng,reusenode, 'FLOAT','GREATER_EQUAL', a,b,None)
+
+#covered in nexcode via python dunder overload
+def booland(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    )->sBoo:
+    return generalboolmath(ng,reusenode, 'AND', a,b)
+
+#covered in nexcode via python dunder overload
+def boolor(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    )->sBoo:
+    return generalboolmath(ng,reusenode, 'OR', a,b)
+
+def boolnot(ng, reusenode:str,
+    a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    )->sBoo:
+    return generalboolmath(ng,reusenode, 'NOT', a)
+
 
 #TODO 
 #def allequal(*values)
