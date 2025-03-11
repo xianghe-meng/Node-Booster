@@ -10,20 +10,47 @@ from collections import namedtuple
 RGBAColor = namedtuple('RGBAColor', ['r','g','b','a'])
 
 
-def convert_pyvar_to_data(py_variable):
+def py_to_Vec3(value):
+    match value:
+        case Vector():
+            if (len(value)!=3): raise TypeError(f"Vector({value[:]}) should have 3 elements for 'SocketVector' compatibility.")
+            return value
+        case list() | set() | tuple():
+            if (len(value)!=3): raise TypeError(f"{type(value).__name__}({value[:]}) should have 3 float elements for 'SocketVector' compatibility.")
+            return Vector(value)
+        case int() | float() | bool():
+            return Vector((float(value), float(value), float(value),))
+        case _:
+            raise TypeError(f"type {type(value).__name__}({value[:]}) is not compatible with 'SocketVector'.")
+
+def py_to_Mtx16(value):
+    match value:
+        case Matrix():
+            flatten = [val for row in value for val in row]
+            if (len(value)!=4):
+                raise TypeError(f"type Matrix({flatten[:]}) type should have 4 rows or 4 elements of float values for 'SocketMatrix' compatibility.")
+            if (len(flatten)!=16):
+                raise TypeError(f"type Matrix({flatten[:]}) should contain a total of 16 elements for 'SocketMatrix' compatibility. {len(flatten)} found.")
+            return value
+        case list() | set() | tuple():
+            if (len(value)!=16): raise TypeError(f"{type(value).__name__}({value[:]}) should contain 16 float elements for 'SocketMatrix' compatibility. {len(value)} elements found.")
+            rows = [value[i*4:(i+1)*4] for i in range(4)]
+            return Matrix(rows)
+        case _:
+            raise TypeError(f"Cannot convert type {type(value).__name__}({value[:]}) to Matrix().")
+
+def py_to_Sockdata(value):
     """Convert a given python variable into data we can use to create and assign sockets"""
     #TODO do we want to support numpy as well? or else?
 
-    value = py_variable
+    matrix_special_label = ''
 
     #we sanatize out possible types depending on their length
-
-    matrix_special_label = ''
     if (type(value) in {tuple, list, set, Vector, Euler, bpy.types.bpy_prop_array}):
 
         if type(value) in {tuple, list, set}:
             if any('Nex' in type(e).__name__ for e in value):
-                raise TypeError(f"'{type(value).__name__.title()}' containing SocketTypes not supported.")
+                raise TypeError(f"Cannot convert '{type(value).__name__.title()}' containing SocketTypes to a SocketData.")
 
         value = list(value)
         n = len(value)
@@ -45,7 +72,7 @@ def convert_pyvar_to_data(py_variable):
             value =  Matrix([value[i*4:(i+1)*4] for i in range(4)])
 
         else:
-            raise TypeError(f"'{type(value).__name__.title()}' of len {n} not supported.")
+            raise TypeError(f"Converting a type '{type(value).__name__.title()}' of lenght {n} to a SocketData is not supported.")
 
     # then we define the socket type string & the potential socket label
     match value:
@@ -104,6 +131,6 @@ def convert_pyvar_to_data(py_variable):
             socket_type = 'NodeSocketImage'
 
         case _:
-            raise TypeError(f"'{type(value).__name__.title()}' not supported")
+            raise TypeError(f"Converting a '{type(value).__name__.title()}' to a SocketData is not possible.")
 
     return value, repr_label, socket_type

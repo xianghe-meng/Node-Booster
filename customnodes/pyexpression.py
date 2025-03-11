@@ -7,7 +7,7 @@ import bpy
 
 from ..__init__ import get_addon_prefs
 from ..resources import cust_icon
-from ..nex.pytonode import convert_pyvar_to_data
+from ..nex.pytonode import py_to_Sockdata
 from ..utils.node_utils import (
     create_new_nodegroup,
     set_socket_defvalue,
@@ -141,7 +141,7 @@ class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
 
         #python to actual values we can use
         try:
-            set_value, set_label, socktype = convert_pyvar_to_data(evaluated_pyvalue)
+            set_value, set_label, socktype = py_to_Sockdata(evaluated_pyvalue)
         except Exception as e:
             print(f"{self.bl_idname} Parsing Exception '{type(e).__name__}':\n{e}")
             #display error to user

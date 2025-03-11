@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 #TODO bake operator in panel as well, like math
-#TODO auto generated Nex gloassary in text editor
 
 import bpy
 
@@ -297,7 +296,7 @@ class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
         user_script = self.user_textdata.as_string()
         
         #capture the inputs/outputs later on execution.
-        
+
         #define all possible Nex types & functions the user can toy with
         all_inputs_names = [] #capture on Nextype initalization.
         all_outputs_names = []
@@ -307,7 +306,7 @@ class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
         # replace varname:infloat=REST with varname=infloat('varname',REST) & remove comments
         # much better workflow for artists to use python type indications IMO
         final_script = transform_nex_script(user_script, nextoys['nexusertypes'].keys(),)
-        
+
         #did the user changes stuff in the script?
         cached_script = ''
         cache_name = f".boostercache.{self.user_textdata.name}"

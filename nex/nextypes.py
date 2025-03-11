@@ -12,6 +12,7 @@
 # TODO later
 #  Better errors for user:
 #  - need better traceback error for NexError so user can at least now the line where it got all wrong.
+#    see 'raise from e' notation perhaps?
 #  Optimization:
 #  - Is the NexFactory bad for performance? these factory are defining classes perhaps 10-15 times per execution
 #    and execution can be at very frequent. Perhaps we can initiate the factory at node.init()? If we do that, 
@@ -31,7 +32,7 @@ from mathutils import Vector, Matrix
 from functools import partial
 
 from ..__init__ import dprint
-from ..nex.pytonode import convert_pyvar_to_data
+from ..nex.pytonode import py_to_Sockdata, py_to_Mtx16, py_to_Vec3
 from ..nex import nodesetter
 from ..utils.fct_utils import alltypes, anytype
 from ..utils.node_utils import (
@@ -74,6 +75,24 @@ NEXUSER_EQUIVALENCE = {
 class NexError(Exception):
     def __init__(self, message):
         super().__init__(message)
+
+def NexErrorWrapper(convert_func):
+    """NexError wrapper for function that try to convert pydata to sockets compatible data.
+    should raise NexError not TypeError if conversion failed"""
+    def wrap(*args,**kwargs):
+        try:
+            return convert_func(*args,**kwargs)
+        except TypeError as e:
+            raise NexError('TypeError. '+str(e))
+        except Exception as e:
+            print(f"ERROR: NexErrorWrapper.{convert_func.__name__}() caught error {type(e).__name__}")
+            raise
+    return wrap
+
+trypy_to_Sockdata = NexErrorWrapper(py_to_Sockdata)
+trypy_to_Mtx16 = NexErrorWrapper(py_to_Mtx16)
+trypy_to_Vec3 = NexErrorWrapper(py_to_Vec3)
+
 
 def create_Nex_tag(sockfunc, *nex_or_py_variables, startchar='F',):
     """generate an unique tag for a function and their args"""
@@ -154,34 +173,6 @@ def create_Nex_constant(node_tree, NexType, value,):
 
     new.nxsock = newsock
     return new
-
-def py_to_Vec3(value):
-    match value:
-        case Vector():
-            if (len(value)!=3): raise NexError(f"ValueError. Vector({value[:]}) should have 3 elements for fitting in a 'SocketVector'.")
-            return value
-        case list() | set() | tuple():
-            if (len(value)!=3): raise NexError(f"ValueError. Itterable '{value}' should have 3 elements for fitting in a 'SocketVector'.")
-            return Vector(value)
-        case int() | float() | bool():
-            return Vector((float(value), float(value), float(value),))
-        case _:
-            raise Exception(f"Cannot convert type '{type(value).__name__}' to Vector().")
-
-def py_to_Mtx16(value):
-    match value:
-        case Matrix():
-            if (len(value)!=4):
-                raise NexError(f"ValueError. A Matrix() type should have 4 rows or 4 elements.")
-            flatrowmatrix = [val for row in value for val in row]
-            if (len(flatrowmatrix)!=16):
-                raise NexError(f"ValueError. A 4x4 Matrix() should contain a total of 16 elements. {len(flatrowmatrix)} found.")
-            return value
-        case list() | set() | tuple():
-            if (len(value)!=16): raise NexError(f"ValueError. In order to create a 4x4 Matrix() type '{type(value).__name__}' should contain 16 elements. {len(value)} found.")
-            return Matrix([value[i*4:(i+1)*4] for i in range(4)])
-        case _:
-            raise Exception(f"Cannot convert type '{type(value).__name__}' to Matrix().")
 
 # oooooooooooo                         .                                  
 # `888'     `8                       .o8                                  
@@ -866,7 +857,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
                     #ensure default value of socket in node instance
                     if (value is not None):
-                        fval = py_to_Vec3(value)
+                        fval = trypy_to_Vec3(value)
                         set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
 
                 case _:
@@ -884,7 +875,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, py_to_Vec3(other)
+                    args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot add type 'SocketVector' to '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.add, *args,)
@@ -902,7 +893,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, py_to_Vec3(other)
+                    args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot subtract type 'SocketVector' with '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.sub, *args,)
@@ -913,7 +904,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = other, self
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = py_to_Vec3(other), self
+                    args = trypy_to_Vec3(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot subtract '{type(other).__name__}' with 'SocketVector'.")
             return call_Nex_operand(NexVec, nodesetter.sub, *args,)
@@ -927,7 +918,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, py_to_Vec3(other)
+                    args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot multiply type 'SocketVector' with '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.mult, *args,)
@@ -945,7 +936,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, py_to_Vec3(other)
+                    args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot divide type 'SocketVector' by '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.div, *args,)
@@ -956,7 +947,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = other, self
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = py_to_Vec3(other), self
+                    args = trypy_to_Vec3(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot divide '{type(other).__name__}' by 'SocketVector'.")
             return call_Nex_operand(NexVec, nodesetter.div, *args,)
@@ -989,7 +980,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, py_to_Vec3(other)
+                    args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot compute type 'SocketVector' modulo '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.mod, *args,)
@@ -1000,7 +991,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = other, self
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = py_to_Vec3(other), self
+                    args = trypy_to_Vec3(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketVector'.")
             return call_Nex_operand(NexVec, nodesetter.mod, *args,)
@@ -1014,7 +1005,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, py_to_Vec3(other)
+                    args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform floordiv on type 'SocketVector' with '{type(other).__name__}'.")
             return call_Nex_operand(NexVec, nodesetter.floordiv, *args,)
@@ -1025,7 +1016,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexFloat' | 'NexInt' | 'NexBool':
                     args = other, self
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = py_to_Vec3(other), self
+                    args = trypy_to_Vec3(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketVector'.")
             return call_Nex_operand(NexVec, nodesetter.floordiv, *args,)
@@ -1127,7 +1118,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, py_to_Vec3(other)
+                    args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketVector' and '{type(other).__name__}'")
             return call_Nex_operand(NexVec, nodesetter.iseq, *args, NexReturnType=NexBool,)
@@ -1138,7 +1129,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, py_to_Vec3(other)
+                    args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketVector' and '{type(other).__name__}'")
             return call_Nex_operand(NexVec, nodesetter.isuneq, *args, NexReturnType=NexBool,)
@@ -1149,7 +1140,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, py_to_Vec3(other)
+                    args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '<' comparison between types 'SocketVector' and '{type(other).__name__}'")
             return call_Nex_operand(NexVec, nodesetter.isless, *args, NexReturnType=NexBool,)
@@ -1160,7 +1151,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, py_to_Vec3(other)
+                    args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '<=' comparison between types 'SocketVector' and '{type(other).__name__}'")
             return call_Nex_operand(NexVec, nodesetter.islesseq, *args, NexReturnType=NexBool,)
@@ -1171,7 +1162,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, py_to_Vec3(other)
+                    args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '>' comparison between types 'SocketVector' and '{type(other).__name__}'")
             return call_Nex_operand(NexVec, nodesetter.isgreater, *args, NexReturnType=NexBool,)
@@ -1182,7 +1173,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, py_to_Vec3(other)
+                    args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketVector' and '{type(other).__name__}'")
             return call_Nex_operand(NexVec, nodesetter.isgreatereq, *args, NexReturnType=NexBool,)
@@ -1294,7 +1285,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
                     # #ensure default value of socket in node instance
                     # if (value is not None):
-                    #     fval = py_to_Mtx16(value)
+                    #     fval = trypy_to_Mtx16(value)
                     #     set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
                     #     NOTE: SocketMatrix type do not support assigning a default socket values.
 
@@ -1318,8 +1309,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case _ if ('Nex' in type_name):
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{other.nxtydsp}'.")
                 case 'Matrix' | 'list' | 'set' | 'tuple':
-                    matother = py_to_Mtx16(other)
-                    othernex = create_Nex_constant(self.node_tree, NexMtx, matother,)
+                    convother = trypy_to_Mtx16(other)
+                    othernex = create_Nex_constant(self.node_tree, NexMtx, convother,)
                     args = self, othernex
                 case _:
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{type(other).__name__}'.")
@@ -1335,8 +1326,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case _ if ('Nex' in type_name):
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{other.nxtydsp}' and 'SocketMatrix'.")
                 case 'Matrix' | 'list' | 'set' | 'tuple':
-                    matother = py_to_Mtx16(other)
-                    othernex = create_Nex_constant(self.node_tree, NexMtx, matother,)
+                    convother = trypy_to_Mtx16(other)
+                    othernex = create_Nex_constant(self.node_tree, NexMtx, convother,)
                     args = othernex, self
                 case _:
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{type(other).__name__}' and 'SocketMatrix'.")
@@ -1453,11 +1444,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case _:
 
                     # try to convert our pyvalue to a socket compatible datatype.
-                    try:
-                        newval, _, socktype = convert_pyvar_to_data(value)
-                    except Exception as e:
-                        print(e)
-                        raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of output '{self.nxtydsp}'.")
+                    newval, _, socktype = trypy_to_Sockdata(value)
                     
                     #support for automatic types
                     out_type = self.nxstype
@@ -1604,7 +1591,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             #sockfunc expect nodesockets, not nextype, we need to convert their args to sockets.. (we did that previously with 'sock_or_py_variables')
             args = [v.nxsock if ('Nex' in type(v).__name__) else v for v in args]
             #support for tuple as vectors
-            args = [py_to_Vec3(v) if (isinstance(v,(tuple,list)) and len(v)==3 and all(isinstance(i,(float,int)) for i in v)) else v for v in args]
+            args = [trypy_to_Vec3(v) if (isinstance(v,(tuple,list)) and len(v)==3 and all(isinstance(i,(float,int)) for i in v)) else v for v in args]
 
             #Call the Nex function
             try:
