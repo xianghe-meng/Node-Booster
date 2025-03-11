@@ -122,7 +122,7 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
 
             case 'ROTATION':
                 #NOTE if you want to pass a vec3 to a rotation socket, don't.
-                defnodname = f"DEFVAL{idx}_{socket.type}"
+                defnodname = f"DefVal|{socket.type}|outputs[{idx}]"
                 defnod = ng.nodes.get(defnodname)
                 #We cleanup nodetree and set up our input special.
                 if (defnod is None):
@@ -133,11 +133,12 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
                 if (not socket.links):
                     ng.links.new(defnod.outputs[0], socket)
                 #assign values
-                for inpt,val in zip(defnod.inputs, value):
-                    inpt.default_value = val
+                for sock,v in zip(defnod.inputs, value):
+                    if (sock.default_value!=v):
+                        sock.default_value = v
 
             case 'MATRIX':
-                defnodname = f"DEFVAL{idx}_{socket.type}"
+                defnodname = f"DefVal|{socket.type}|outputs[{idx}]"
                 defnod = ng.nodes.get(defnodname)
                 #We cleanup nodetree and set up our input special.
                 if (defnod is None):
@@ -151,9 +152,10 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
                 if (not socket.links):
                     ng.links.new(defnod.outputs[0], socket)
                 #assign flatten values
-                flatmatrix = [val for row in value for val in row]
-                for inpt,val in zip(defnod.inputs, flatmatrix):
-                    inpt.default_value = val
+                colflatten = [v for col in zip(*value) for v in col]
+                for sock,v in zip(defnod.inputs, colflatten):
+                    if (sock.default_value!=v):
+                        sock.default_value = v
 
             case _:
                 #we remove any unwanted links, if exists
@@ -267,10 +269,11 @@ def create_constant_input(ng, nodetype, value, identifier, location='auto', widt
 
         case 'FunctionNodeCombineMatrix':
             assert type(value) is Matrix, f"Please make sure passed value is of Matrix type. Currently is of {type(value).__name__}"
-            flatmatrix = [val for row in value for val in row]
-            assert len(flatmatrix)==16, f"Please make sure the passed Matrix has 16 elements in total. Currently contains {len(flatmatrix)}"
+            rowflatten = [v for row in value for v in row]
+            assert len(rowflatten)==16, f"Please make sure the passed Matrix has 16 elements in total. Currently contains {len(rowflatten)}"
             #assign flatten values
-            for sock,v in zip(node.inputs, flatmatrix):
+            colflatten = [v for col in zip(*value) for v in col]
+            for sock,v in zip(node.inputs, colflatten):
                 if (sock.default_value!=v):
                     sock.default_value = v
             return node.outputs[0]

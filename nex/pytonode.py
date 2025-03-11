@@ -26,11 +26,11 @@ def py_to_Vec3(value):
 def py_to_Mtx16(value):
     match value:
         case Matrix():
-            flatten = [val for row in value for val in row]
+            rowflatten = [v for row in value for v in row]
             if (len(value)!=4):
-                raise TypeError(f"type Matrix({flatten[:]}) type should have 4 rows or 4 elements of float values for 'SocketMatrix' compatibility.")
-            if (len(flatten)!=16):
-                raise TypeError(f"type Matrix({flatten[:]}) should contain a total of 16 elements for 'SocketMatrix' compatibility. {len(flatten)} found.")
+                raise TypeError(f"type Matrix({rowflatten[:]}) type should have 4 rows or 4 elements of float values for 'SocketMatrix' compatibility.")
+            if (len(rowflatten)!=16):
+                raise TypeError(f"type Matrix({rowflatten[:]}) should contain a total of 16 elements for 'SocketMatrix' compatibility. {len(rowflatten)} found.")
             return value
         case list() | set() | tuple():
             if (len(value)!=16): raise TypeError(f"{type(value).__name__}({value[:]}) should contain 16 float elements for 'SocketMatrix' compatibility. {len(value)} elements found.")
