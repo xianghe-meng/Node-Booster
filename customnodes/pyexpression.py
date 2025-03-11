@@ -15,13 +15,13 @@ from ..utils.node_utils import (
     set_socket_label,
 )
 
-class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
+class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate a python expression as a single value output.
     • The evaluated values can be of type 'float', 'int', 'Vector', 'Color', 'Quaternion', 'Matrix', 'String', 'Object', 'Collection', 'Material' & 'list/tuple/set' up to len 16"""
 
     #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
     
-    bl_idname = "GeometryNodeNodeBoosterPythonApi"
+    bl_idname = "GeometryNodeNodeBoosterPyExpression"
     bl_label = "Python Expression"
     # bl_icon = 'SCRIPT'
 
@@ -179,12 +179,12 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         field.prop(self, "user_pyapiexp", placeholder="C.object.name", text="",)
 
         prop = row.row(align=True)
-        prop.enabled = sett_win.allow_auto_exec
+        prop.enabled = sett_win.allow_auto_pyexec
         prop.prop(self, "execute_at_depsgraph", text="", icon_value=cust_icon(animated_icon),)
 
-        if (not sett_win.allow_auto_exec):
+        if (not sett_win.allow_auto_pyexec):
             col.separator(factor=0.75)
-            col.prop(sett_win,"allow_auto_exec")
+            col.prop(sett_win,"allow_auto_pyexec")
         
         if (is_error):
             lbl = col.row()

@@ -11,10 +11,10 @@ from .__init__ import get_addon_prefs
 from .operators.palette import msgbus_palette_callback
 from .customnodes import (
     NODEBOOSTER_NG_camerainfo,
-    NODEBOOSTER_NG_pythonapi,
+    NODEBOOSTER_NG_pyexpression,
     NODEBOOSTER_NG_sequencervolume,
     NODEBOOSTER_NG_isrenderedview,
-    NODEBOOSTER_NG_nexinterpreter,
+    NODEBOOSTER_NG_pynexscript,
 )
 
 
@@ -83,9 +83,9 @@ def nodebooster_handler_depspost(scene,desp):
 
     #automatic re-evaluation of the Python Expression and Python Nex Nodes.
     #for security reasons, only if the user allows it expressively on each program session.
-    if (sett_win.allow_auto_exec):
-        NODEBOOSTER_NG_pythonapi.update_all_instances(from_depsgraph=True)
-        NODEBOOSTER_NG_nexinterpreter.update_all_instances(from_depsgraph=True)
+    if (sett_win.allow_auto_pyexec):
+        NODEBOOSTER_NG_pyexpression.update_all_instances(from_depsgraph=True)
+        NODEBOOSTER_NG_pynexscript.update_all_instances(from_depsgraph=True)
 
     return None
 
@@ -108,9 +108,9 @@ def nodebooster_handler_framepre(scene,desp):
 
     #automatic re-evaluation of the Python Expression and Python Nex Nodes.
     #for security reasons, only if the user allows it expressively on each program session.
-    if (sett_win.allow_auto_exec):
-        NODEBOOSTER_NG_pythonapi.update_all_instances(from_depsgraph=True)
-        NODEBOOSTER_NG_nexinterpreter.update_all_instances(from_depsgraph=True)
+    if (sett_win.allow_auto_pyexec):
+        NODEBOOSTER_NG_pyexpression.update_all_instances(from_depsgraph=True)
+        NODEBOOSTER_NG_pynexscript.update_all_instances(from_depsgraph=True)
 
     return None
 

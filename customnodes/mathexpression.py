@@ -244,10 +244,10 @@ class AstTranformer(ast.NodeTransformer):
 
 
 class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
-    """Custom Nodgroup: Evaluate a float math equation.
-    • The sockets are limited to Float types. Consider this node a 'Float Math Expression' node.
-    • Please See the 'NodeBooster > Active Node > Glossary' panel to see all functions and notation available and their descriptions.
-    • If you wish to bake this node into a nodegroup, a bake operator is available in the 'NodeBooster > Active Node' panel.
+    """Custom Nodgroup: Evaluate a float math equation and create sockets from given variables on the fly.\n
+    • The sockets are limited to Float types. Consider this node a 'Float Math Expression' node.\n
+    • Please See the 'NodeBooster > Active Node > Glossary' panel to see all functions and notation available and their descriptions.\n
+    • If you wish to bake this node into a nodegroup, a bake operator is available in the 'NodeBooster > Active Node' panel.\n
     • Under the hood, on each string field edit, the expression will be sanarized, then transformed into functions that will be called to create a nodetree, see the breakdown of the process in the 'NodeBooster > Active Node > Development' panel."""
 
     bl_idname = "GeometryNodeNodeBoosterMathExpression"
@@ -558,7 +558,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         for idx in reversed(idx_to_del):
             remove_socket(ng, idx, in_out='INPUT')
 
-        # We need to collect the equivalence between the varnames and const and their pythonAPI socket representation
+        # We need to collect the equivalence between the varnames and const and their constant socket representation
         vareq, consteq = dict(), dict()
 
         # Fill equivalence dict with it's socket eq

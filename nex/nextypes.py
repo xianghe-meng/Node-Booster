@@ -2,6 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# NOTE all these types are meant for the pynexscripy.py node.
+#  The node is a python script evaluator that is meant to toy with these sockets.
+
 # NOTE implicit type conversion
 #  is it really a good idea to implicitly make functions and operand work cross types? ex: NexVec + NexFloat..
 #  Perhaps the typing should be a little stronger and user should convert their Nex type manually.
@@ -1441,7 +1444,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
         return wrapped_func
 
-    nexfunctions = {f.__name__ : sockfunction_Nex_wrapper(f, default_ng=NODEINSTANCE.node_tree) for f in nodesetter.get_nodesetter_functions(tag='nexcode')}
+    nexfunctions = {f.__name__ : sockfunction_Nex_wrapper(f, default_ng=NODEINSTANCE.node_tree) for f in nodesetter.get_nodesetter_functions(tag='nexscript')}
 
     nextoys['nexuserfunctions'] = {}
     nextoys['nexuserfunctions'].update(nexfunctions)

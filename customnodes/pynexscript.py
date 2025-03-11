@@ -26,7 +26,7 @@ from ..utils.node_utils import (
     get_farest_node,
 )
 
-NEXFUNCDOC = generate_documentation(tag='nexcode')
+NEXFUNCDOC = generate_documentation(tag='nexscript')
 NEXNOTATIONDOC = {
     'a + b':{'name':"Addition",'desc':"Add between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
     'a - b':{'name':"Subtraction.",'desc':"Subtract between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
@@ -35,9 +35,9 @@ NEXNOTATIONDOC = {
     'a / b':{'name':"Division.",'desc':"Divide between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
     'a // b':{'name':"FloorDiv.",'desc':"Do a FloorDiv operation between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
     'a % b':{'name':"Modulo.",'desc':"Do a Modulo operation between SocketFloats and/or entry-wise SocketVectors.\nType conversion is implicit."},
-    'a == b':{'name':"Equal.",'desc':"Compare if A and B are equals.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+    'a == b':{'name':"Equal.",'desc':"Compare if A and B are equals.\n\nPlease note that chaining comparison is not supported ex: 'a == b == c'.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
     'a != b':{'name':"Not Equal.",'desc':"Compare if A and B are not equals.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
-    'a > b':{'name':"Greater.",'desc':"Compare if A is greater than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+    'a > b':{'name':"Greater.",'desc':"Compare if A is greater than B.\n\nPlease note that chaining comparison is not supported ex: 'a > b > c'.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
     'a >= b':{'name':"Greater or Equal.",'desc':"Compare if A is greater or equal than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
     'a < b':{'name':"Lesser.",'desc':"Compare if A is lesser than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
     'a <= b':{'name':"Lesser or Equal.",'desc':"Compare if A is lesser or equal than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
@@ -106,7 +106,7 @@ def transform_nex_script(original_text:str, nextypes:list) -> str:
 #     return pattern.findall(script)
 
 
-class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
+class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
     """Custom NodeGroup: Executes a Python script containing 'Nex' language. 'Nex' stands for nodal expression.\
     With Nex, you can efficiently and easily interpret python code into Geometry-Node nodal programming.
     • WIP text about synthax.
@@ -115,7 +115,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
     #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
     #TODO maybe should add a nodebooster panel in text editor for quick execution?
 
-    bl_idname = "GeometryNodeNodeBoosterNexInterpreter"
+    bl_idname = "GeometryNodeNodeBoosterPyNexScript"
     bl_label = "Python Nex Script (WIP)"
     # bl_icon = 'SCRIPT'
 
@@ -372,7 +372,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             set_socket_label(ng,0, label="VoidNexError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f"No Nex Found in Script. An example of Nex code can be found in 'Text Editor > Template > Booster Scripts'"
+            self.error_message = f"No Nex Found in Script. An example of NexScript can be found in 'Text Editor > Template > Booster Scripts'"
             return None
         #also make sure there are Nex outputs types in there..
         if len(all_outputs_names)==0:
@@ -380,7 +380,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             set_socket_label(ng,0, label="NoOutputError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f"Mandatory Outputs not Found. An example of Nex code can be found in 'Text Editor > Template > Booster Scripts'"
+            self.error_message = f"Mandatory Outputs not Found. An example of NexScript can be found in 'Text Editor > Template > Booster Scripts'"
             return None
                 
         # Clean up leftover sockets from previous run which created sockets no longer in use
@@ -436,14 +436,14 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         field.prop(self, "user_textdata", text="", icon="TEXT", placeholder="NexScript.py",)
 
         prop = row.row(align=True)
-        prop.enabled = sett_win.allow_auto_exec
+        prop.enabled = sett_win.allow_auto_pyexec
         prop.prop(self, "execute_at_depsgraph", text="", icon_value=cust_icon(animated_icon),)
 
         row.prop(self, "execute_script", text="", icon="PLAY", invert_checkbox=self.execute_script,)
 
-        if (not sett_win.allow_auto_exec):
+        if (not sett_win.allow_auto_pyexec):
             col.separator(factor=0.75)
-            col.prop(sett_win,"allow_auto_exec")
+            col.prop(sett_win,"allow_auto_pyexec")
 
         if (is_error):
             col = col.column(align=True)

@@ -163,7 +163,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                 op.nodegroup_name = n.node_tree.name
                 op.node_name = n.name
 
-            case 'GeometryNodeNodeBoosterPythonApi':
+            case 'GeometryNodeNodeBoosterPyExpression':
 
                 header, panel = layout.panel("params_panelid", default_closed=False,)
                 header.label(text="Parameters",)
@@ -180,10 +180,10 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                         lbl.alert = is_error
                         lbl.label(text=n.error_message)
 
-                    panel.prop(sett_win,"allow_auto_exec")
+                    panel.prop(sett_win,"allow_auto_pyexec")
                     
                     prop = panel.column()
-                    prop.enabled = sett_win.allow_auto_exec
+                    prop.enabled = sett_win.allow_auto_pyexec
                     prop.prop(n,"execute_at_depsgraph")
                 
             
@@ -279,7 +279,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                 #     row.enabled = False
                 #     row.prop(n, "debug_evaluation_counter", text="",)
 
-            case 'GeometryNodeNodeBoosterNexInterpreter':
+            case 'GeometryNodeNodeBoosterPyNexScript':
 
                 header, panel = layout.panel("params_panelid", default_closed=False,)
                 header.label(text="Parameters",)
@@ -298,10 +298,10 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                         lbl.alert = is_error
                         lbl.label(text=n.error_message)
 
-                    panel.prop(sett_win,"allow_auto_exec")
+                    panel.prop(sett_win,"allow_auto_pyexec")
                     
                     prop = panel.column()
-                    prop.enabled = sett_win.allow_auto_exec
+                    prop.enabled = sett_win.allow_auto_pyexec
                     prop.prop(n,"execute_at_depsgraph")
 
                 header, panel = layout.panel("doc_panelid", default_closed=True,)
@@ -318,7 +318,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
 
                     col = panel.column()
 
-                    from ..customnodes.nexinterpreter import NEXNOTATIONDOC
+                    from ..customnodes.pynexscript import NEXNOTATIONDOC
                     for symbol,v in NEXNOTATIONDOC.items():
 
                         desc = v['name']+'\n'+v['desc'] if v['desc'] else v['name']
@@ -333,7 +333,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                             )
                         col.separator()
 
-                    from ..customnodes.nexinterpreter import NEXFUNCDOC
+                    from ..customnodes.pynexscript import NEXFUNCDOC
                     for fname,fdoc in NEXFUNCDOC.items():
 
                         row = col.row()

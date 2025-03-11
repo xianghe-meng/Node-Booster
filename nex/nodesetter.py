@@ -648,8 +648,9 @@ def generalbatchcompare(ng, reusenode:str,
     match operation_type:
         case 'alleq':
             opefunc = iseq
+        # TODO support other comparison method?
+        # Some of them are a bit more complicated. Because on some occation we cannot simply chain comparison, ALL members will needs to be cross compared, not simply one after another.
         # case 'alluneq':
-        #     #This one is a bit more complicated. Because we cannot simply chain comparison, ALL members needs to be cross compared.
         #     opefunc = isuneq
         # case 'allless':
         #     opefunc = isless
@@ -714,7 +715,7 @@ def generalbatchcompare(ng, reusenode:str,
         )
     return final
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Addition.\nEquivalent to the '+' symbol.")
 def add(ng, reusenode:str,
@@ -725,7 +726,7 @@ def add(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'ADD',a,b)
     return generalfloatmath(ng,reusenode, 'ADD',a,b)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Subtraction.\nEquivalent to the '-' symbol.")
 def sub(ng, reusenode:str,
@@ -736,7 +737,7 @@ def sub(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'SUBTRACT',a,b)
     return generalfloatmath(ng,reusenode, 'SUBTRACT',a,b)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Multiplications.\nEquivalent to the '*' symbol.")
 def mult(ng, reusenode:str,
@@ -747,7 +748,7 @@ def mult(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'MULTIPLY',a,b)
     return generalfloatmath(ng,reusenode, 'MULTIPLY',a,b)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Division.\nEquivalent to the '/' symbol.")
 def div(ng, reusenode:str,
@@ -758,7 +759,7 @@ def div(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'DIVIDE',a,b)
     return generalfloatmath(ng,reusenode, 'DIVIDE',a,b)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="A Power N.\nEquivalent to the 'A**N' or '²' symbol.")
 def pow(ng, reusenode:str,
@@ -771,9 +772,9 @@ def pow(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'POWER',a,n)
     return generalfloatmath(ng,reusenode, 'POWER',a,n)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Logarithm A base N.")
-@user_doc(nexcode="Logarithm A base N.\nSupports SocketFloat and entry-wise SocketVector if N is float compatible.")
+@user_doc(nexscript="Logarithm A base N.\nSupports SocketFloat and entry-wise SocketVector if N is float compatible.")
 def log(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|float|int,
@@ -787,9 +788,9 @@ def log(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'LOGARITHM',a,n)
     return generalfloatmath(ng,reusenode, 'LOGARITHM',a,n)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Square Root of A.")
-@user_doc(nexcode="Square Root of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="Square Root of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def sqrt(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -800,9 +801,9 @@ def sqrt(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'SQRT',a)
     return generalfloatmath(ng,reusenode, 'SQRT',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Inverse Square Root of A.")
-@user_doc(nexcode="Inverse Square Root of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="Inverse Square Root of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def invsqrt(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -810,9 +811,9 @@ def invsqrt(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'INVERSE_SQRT',a)
     return generalfloatmath(ng,reusenode, 'INVERSE_SQRT',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="A Root N.\nEquivalent to doing 'A**(1/N)'.")
-@user_doc(nexcode="A Root N.\nEquivalent to doing 'A**(1/N)'.\nSupports SocketFloat and entry-wise SocketVector if N is float compatible.")
+@user_doc(nexscript="A Root N.\nEquivalent to doing 'A**(1/N)'.\nSupports SocketFloat and entry-wise SocketVector if N is float compatible.")
 def nroot(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|float|int,
@@ -832,7 +833,7 @@ def nroot(ng, reusenode:str,
         )
     return _r
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Absolute of A.")
 def abs(ng, reusenode:str,
@@ -842,7 +843,7 @@ def abs(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'ABSOLUTE',a)
     return generalfloatmath(ng,reusenode, 'ABSOLUTE',a)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Negate the value of A.\nEquivalent to the symbol '-x.'")
 def neg(ng, reusenode:str,
@@ -854,7 +855,7 @@ def neg(ng, reusenode:str,
         )
     return _r
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Round a Float value.\nex: 1.49 will become 1\n1.51 will become 2.")
 def round(ng, reusenode:str,
@@ -864,9 +865,9 @@ def round(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'ROUND',a)
     return generalfloatmath(ng,reusenode, 'ROUND',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Floor a Float value.\nex: 1.51 will become 1\n-1.51 will become -2.")
-@user_doc(nexcode="Floor a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.51 will become 1\n-1.51 will become 2.")
+@user_doc(nexscript="Floor a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.51 will become 1\n-1.51 will become 2.")
 def floor(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -877,9 +878,9 @@ def floor(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'FLOOR',a)
     return generalfloatmath(ng,reusenode, 'FLOOR',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Ceil a Float value.\nex: 1.01 will become 2\n-1.99 will become -1.")
-@user_doc(nexcode="Ceil a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.01 will become 2\n-1.99 will become 1.")
+@user_doc(nexscript="Ceil a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.01 will become 2\n-1.99 will become 1.")
 def ceil(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -890,9 +891,9 @@ def ceil(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'CEIL',a)
     return generalfloatmath(ng,reusenode, 'CEIL',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Trunc a Float value.\nex: 1.99 will become 1\n-1.99 will become -1.")
-@user_doc(nexcode="Trunc a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.99 will become 1\n-1.99 will become -1.")
+@user_doc(nexscript="Trunc a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.99 will become 1\n-1.99 will become -1.")
 def trunc(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -903,9 +904,9 @@ def trunc(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'TRUNC',a)
     return generalfloatmath(ng,reusenode, 'TRUNC',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Fraction.\nThe fraction part of A.")
-@user_doc(nexcode="Fraction.\nThe fraction part of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="Fraction.\nThe fraction part of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def frac(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -913,7 +914,7 @@ def frac(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'FRACTION',a)
     return generalfloatmath(ng,reusenode, 'FRACT',a)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Modulo.\nEquivalent to the '%' symbol.")
 def mod(ng, reusenode:str,
@@ -933,9 +934,9 @@ def floormod(ng, reusenode:str,
     ) -> sFlo:
     return generalfloatmath(ng,reusenode, 'FLOORED_MODULO',a,b)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Wrapping.\nWrap a value V to Range A B.")
-@user_doc(nexcode="Wrapping.\nWrap a value V to Range A B.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="Wrapping.\nWrap a value V to Range A B.\nSupports SocketFloat and entry-wise SocketVector.")
 def wrap(ng, reusenode:str,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -945,9 +946,9 @@ def wrap(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'WRAP',v,a,b)
     return generalfloatmath(ng,reusenode, 'WRAP',v,a,b)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Snapping.\nSnap a value V to the nearest increament I.")
-@user_doc(nexcode="Snapping.\nSnap a value V to the nearest increament I.\nSupports SocketFloat and SocketVector.")
+@user_doc(nexscript="Snapping.\nSnap a value V to the nearest increament I.\nSupports SocketFloat and SocketVector.")
 def snap(ng, reusenode:str,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     i:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -956,9 +957,9 @@ def snap(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'SNAP',v,i)
     return generalfloatmath(ng,reusenode, 'SNAP',v,i)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="PingPong.\nWrap a value and every other cycles at cycle Scale.")
-@user_doc(nexcode="PingPong.\nWrap a value and every other cycles at cycle Scale.\nSupports SocketFloat and entry-wise SocketVector if scale is float compatible.")
+@user_doc(nexscript="PingPong.\nWrap a value and every other cycles at cycle Scale.\nSupports SocketFloat and entry-wise SocketVector if scale is float compatible.")
 def pingpong(ng, reusenode:str,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     scale:sFlo|sInt|sBoo|float|int,
@@ -969,7 +970,7 @@ def pingpong(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'PINGPONG',v,scale)
     return generalfloatmath(ng,reusenode, 'PINGPONG',v,scale)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 @user_domain('mathex')
 @user_doc(mathex="Floor Division.\nEquivalent to the '//' symbol.")
 def floordiv(ng, reusenode:str,
@@ -987,9 +988,9 @@ def floordiv(ng, reusenode:str,
         )
     return _r
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="The Sine of A.")
-@user_doc(nexcode="The Sine of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="The Sine of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def sin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec|float:
@@ -1000,9 +1001,9 @@ def sin(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'SINE',a)
     return generalfloatmath(ng,reusenode, 'SINE',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="The Cosine of A.")
-@user_doc(nexcode="The Cosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="The Cosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def cos(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec|float:
@@ -1013,9 +1014,9 @@ def cos(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'COSINE',a)
     return generalfloatmath(ng,reusenode, 'COSINE',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="The Tangent of A.")
-@user_doc(nexcode="The Tangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="The Tangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def tan(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec|float:
@@ -1026,9 +1027,9 @@ def tan(ng, reusenode:str,
         return generalvecmath(ng,reusenode, 'TANGENT',a)
     return generalfloatmath(ng,reusenode, 'TANGENT',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="The Arcsine of A.")
-@user_doc(nexcode="The Arcsine of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="The Arcsine of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def asin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -1039,9 +1040,9 @@ def asin(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'ARCSINE',a)
     return generalfloatmath(ng,reusenode, 'ARCSINE',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="The Arccosine of A.")
-@user_doc(nexcode="The Arccosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="The Arccosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def acos(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -1052,9 +1053,9 @@ def acos(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'ARCCOSINE',a)
     return generalfloatmath(ng,reusenode, 'ARCCOSINE',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="The Arctangent of A.")
-@user_doc(nexcode="The Arctangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="The Arctangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def atan(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -1065,9 +1066,9 @@ def atan(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'ARCTANGENT',a)
     return generalfloatmath(ng,reusenode, 'ARCTANGENT',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Sine of A.")
-@user_doc(nexcode="The Hyperbolic Sine of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="The Hyperbolic Sine of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def sinh(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -1078,9 +1079,9 @@ def sinh(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'SINH',a)
     return generalfloatmath(ng,reusenode, 'SINH',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Cosine of A.")
-@user_doc(nexcode="The Hyperbolic Cosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="The Hyperbolic Cosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def cosh(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -1091,9 +1092,9 @@ def cosh(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'COSH',a)
     return generalfloatmath(ng,reusenode, 'COSH',a)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Tangent of A.")
-@user_doc(nexcode="The Hyperbolic Tangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="The Hyperbolic Tangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
 def tanh(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -1117,8 +1118,8 @@ def rad(ng, reusenode:str,
     return generalfloatmath(ng,reusenode, 'RADIANS',a)
 
 #same as above, just different user fct name.
-@user_domain('nexcode')
-@user_doc(nexcode="Convert a value from Degrees to Radians.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_domain('nexscript')
+@user_doc(nexscript="Convert a value from Degrees to Radians.\nSupports SocketFloat and entry-wise SocketVector.")
 def radians(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
@@ -1137,39 +1138,39 @@ def deg(ng, reusenode:str,
     return generalfloatmath(ng,reusenode, 'DEGREES',a)
 
 #same as above, just different user fct name.
-@user_domain('nexcode')
-@user_doc(nexcode="Convert a value from Radians to Degrees.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_domain('nexscript')
+@user_doc(nexscript="Convert a value from Radians to Degrees.\nSupports SocketFloat and entry-wise SocketVector.")
 def degrees(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     return deg(ng,reusenode,a)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Vector Cross Product.\nThe cross product between vector A an B.")
+@user_domain('nexscript')
+@user_doc(nexscript="Vector Cross Product.\nThe cross product between vector A an B.")
 def cross(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
     return generalvecmath(ng,reusenode, 'CROSS_PRODUCT',vA,vB)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Vector Dot Product.\nA dot B.")
+@user_domain('nexscript')
+@user_doc(nexscript="Vector Dot Product.\nA dot B.")
 def dot(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
     return generalvecmath(ng,reusenode, 'DOT_PRODUCT',vA,vB)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Vector Projection.\nProject A onto B.")
+@user_domain('nexscript')
+@user_doc(nexscript="Vector Projection.\nProject A onto B.")
 def project(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
     return generalvecmath(ng,reusenode, 'PROJECT',vA,vB)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Vector Faceforward.\nFaceforward operation between a given vector, an incident and a reference.")
+@user_domain('nexscript')
+@user_doc(nexscript="Vector Faceforward.\nFaceforward operation between a given vector, an incident and a reference.")
 def faceforward(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vI:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -1177,37 +1178,37 @@ def faceforward(ng, reusenode:str,
     ) -> sVec:
     return generalvecmath(ng,reusenode, 'FACEFORWARD',vA,vI,vR)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Vector Reflection.\nReflect A onto B.")
+@user_domain('nexscript')
+@user_doc(nexscript="Vector Reflection.\nReflect A onto B.")
 def reflect(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
     return generalvecmath(ng,reusenode, 'PROJECT',vA,vB)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Vector Distance.\nThe distance between location A & B.")
+@user_domain('nexscript')
+@user_doc(nexscript="Vector Distance.\nThe distance between location A & B.")
 def distance(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
     return generalvecmath(ng,reusenode, 'DISTANCE',vA,vB)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Vector Normalization.\nNormalize the values of a vector A to fit a 0-1 range.")
+@user_domain('nexscript')
+@user_doc(nexscript="Vector Normalization.\nNormalize the values of a vector A to fit a 0-1 range.")
 def normalize(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
     return generalvecmath(ng,reusenode, 'NORMALIZE',vA)
 
-#covered in nexcode with NexVec.length
+#covered in nexscript with NexVec.length
 def length(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
     return generalvecmath(ng,reusenode, 'LENGTH',vA)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Separate a SocketVector into 3 SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
+@user_domain('nexscript')
+@user_doc(nexscript="Separate a SocketVector into 3 SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
 def separate_xyz(ng, reusenode:str,
     vA:sVec,
     ) -> tuple:
@@ -1239,8 +1240,8 @@ def separate_xyz(ng, reusenode:str,
 
     return tuple(node.outputs)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Combine 3 SocketFloat (or python values) into a SocketVector.")
+@user_domain('nexscript')
+@user_doc(nexscript="Combine 3 SocketFloat (or python values) into a SocketVector.")
 def combine_xyz(ng, reusenode:str,
     fX:sFlo|sInt|sBoo|float|int,
     fY:sFlo|sInt|sBoo|float|int,
@@ -1285,8 +1286,8 @@ def combine_xyz(ng, reusenode:str,
 
     return node.outputs[0]
 
-@user_domain('nexcode')
-@user_doc(nexcode="Vector Rotate (Euler).\nRotate a given Vector A with euler angle radians E, at optional center C.")
+@user_domain('nexscript')
+@user_doc(nexscript="Vector Rotate (Euler).\nRotate a given Vector A with euler angle radians E, at optional center C.")
 def roteuler(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vE:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -1294,8 +1295,8 @@ def roteuler(ng, reusenode:str,
     ) -> sVec:
     return generalverotate(ng, reusenode, 'EULER_XYZ',False, vA,vC,None,None,vE,)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Vector Rotate (Euler).\nRotate a given Vector A from defined axis X & angle radians F, at optional center C.")
+@user_domain('nexscript')
+@user_doc(nexscript="Vector Rotate (Euler).\nRotate a given Vector A from defined axis X & angle radians F, at optional center C.")
 def rotaxis(ng, reusenode:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vX:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -1304,17 +1305,17 @@ def rotaxis(ng, reusenode:str,
     ) -> sVec:
     return generalverotate(ng, reusenode, 'AXIS_ANGLE',False, vA,vC,vX,fA,None,)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")
-@user_doc(nexcode="Minimum.\nGet the absolute minimal value across all passed arguments.\nArguments must be compatible with SocketFloat.")
+@user_doc(nexscript="Minimum.\nGet the absolute minimal value across all passed arguments.\nArguments must be compatible with SocketFloat.")
 def min(ng, reusenode:str,
     *floats:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
     return generalminmax(ng,reusenode, 'min',*floats)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Smooth Minimum\nGet the minimal value between A & B considering a smoothing distance to avoid abrupt transition.")
-@user_doc(nexcode="Smooth Minimum\nGet the minimal value between A & B considering a smoothing distance to avoid abrupt transition.\nSupports SocketFloats only.")
+@user_doc(nexscript="Smooth Minimum\nGet the minimal value between A & B considering a smoothing distance to avoid abrupt transition.\nSupports SocketFloats only.")
 def smin(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -1322,17 +1323,17 @@ def smin(ng, reusenode:str,
     ) -> sFlo:
     return generalfloatmath(ng,reusenode, 'SMOOTH_MIN',a,b,dist)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Maximum.\nGet the absolute maximal value across all passed arguments.")
-@user_doc(nexcode="Maximum.\nGet the absolute maximal value across all passed arguments.\nArguments must be compatible with SocketFloat.")
+@user_doc(nexscript="Maximum.\nGet the absolute maximal value across all passed arguments.\nArguments must be compatible with SocketFloat.")
 def max(ng, reusenode:str,
     *floats:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
     return generalminmax(ng,reusenode, 'max',*floats)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Smooth Maximum\nGet the maximal value between A & B considering a smoothing distance to avoid abrupt transition.")
-@user_doc(nexcode="Smooth Maximum\nGet the maximal value between A & B considering a smoothing distance to avoid abrupt transition.\nSupports SocketFloats only.")
+@user_doc(nexscript="Smooth Maximum\nGet the maximal value between A & B considering a smoothing distance to avoid abrupt transition.\nSupports SocketFloats only.")
 def smax(ng, reusenode:str,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -1340,7 +1341,7 @@ def smax(ng, reusenode:str,
     ) -> sFlo:
     return generalfloatmath(ng,reusenode, 'SMOOTH_MAX',a,b,dist)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 def iseq(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
@@ -1351,7 +1352,7 @@ def iseq(ng, reusenode:str,
         return generalcompare(ng,reusenode, 'VECTOR','EQUAL', a,b,None)
     return generalcompare(ng,reusenode, 'FLOAT','EQUAL', a,b,None)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 def isuneq(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
@@ -1362,7 +1363,7 @@ def isuneq(ng, reusenode:str,
         return generalcompare(ng,reusenode, 'VECTOR','NOT_EQUAL', a,b,None)
     return generalcompare(ng,reusenode, 'FLOAT','NOT_EQUAL', a,b,None)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 def isless(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -1371,7 +1372,7 @@ def isless(ng, reusenode:str,
         return generalcompare(ng,reusenode, 'VECTOR','LESS_THAN', a,b,None)
     return generalcompare(ng,reusenode, 'FLOAT','LESS_THAN', a,b,None)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 def islesseq(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -1380,7 +1381,7 @@ def islesseq(ng, reusenode:str,
         return generalcompare(ng,reusenode, 'VECTOR','LESS_EQUAL', a,b,None)
     return generalcompare(ng,reusenode, 'FLOAT','LESS_EQUAL', a,b,None)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 def isgreater(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -1389,7 +1390,7 @@ def isgreater(ng, reusenode:str,
         return generalcompare(ng,reusenode, 'VECTOR','GREATER_THAN', a,b,None)
     return generalcompare(ng,reusenode, 'FLOAT','GREATER_THAN', a,b,None)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 def isgreatereq(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -1398,14 +1399,14 @@ def isgreatereq(ng, reusenode:str,
         return generalcompare(ng,reusenode, 'VECTOR','GREATER_EQUAL', a,b,None)
     return generalcompare(ng,reusenode, 'FLOAT','GREATER_EQUAL', a,b,None)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 def booland(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     )->sBoo:
     return generalboolmath(ng,reusenode, 'AND', a,b)
 
-#covered in nexcode via python dunder overload
+#covered in nexscript via python dunder overload
 def boolor(ng, reusenode:str,
     a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
@@ -1417,8 +1418,8 @@ def boolnot(ng, reusenode:str,
     )->sBoo:
     return generalboolmath(ng,reusenode, 'NOT', a)
 
-@user_domain('nexcode')
-@user_doc(nexcode="All Equals.\nCheck if all passed arguments have equal values.\n\nCompatible with SocketFloats, SocketVectors and SocketBool. Will return a SocketBool.")
+@user_domain('nexscript')
+@user_doc(nexscript="All Equals.\nCheck if all passed arguments have equal values.\n\nCompatible with SocketFloats, SocketVectors and SocketBool. Will return a SocketBool.")
 def alleq(ng, reusenode:str,
     *values:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     )->sBoo:
@@ -1430,9 +1431,9 @@ def alleq(ng, reusenode:str,
 #def isbetween(value, min, max)
 #def allbetween(min, max, *betweens)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Mix.\nLinear Interpolation between value A and B from given factor F.")
-@user_doc(nexcode="Mix.\nLinear Interpolation between value A and B from given factor F.\nSupports SocketFloat and SocketVector.")
+@user_doc(nexscript="Mix.\nLinear Interpolation between value A and B from given factor F.\nSupports SocketFloat and SocketVector.")
 def lerp(ng, reusenode:str,
     f:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -1442,9 +1443,9 @@ def lerp(ng, reusenode:str,
         return generalmix(ng,reusenode, 'VECTOR',f,a,b)
     return generalmix(ng,reusenode, 'FLOAT',f,a,b)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Alternative notation to lerp() function.")
-@user_doc(nexcode="Alternative notation to lerp() function.")
+@user_doc(nexscript="Alternative notation to lerp() function.")
 def mix(ng, reusenode:str,
     f:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
@@ -1452,9 +1453,9 @@ def mix(ng, reusenode:str,
     ) -> sFlo|sVec:
     return lerp(ng,reusenode, f,a,b)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Clamping.\nClamp a value a between min A an max B.")
-@user_doc(nexcode="Clamping.\nClamp a value a between min A an max B.\nSupports SocketFloat and entry-wise SocketVector if A & B are float compatible.")
+@user_doc(nexscript="Clamping.\nClamp a value a between min A an max B.\nSupports SocketFloat and entry-wise SocketVector if A & B are float compatible.")
 def clamp(ng, reusenode:str,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int,
@@ -1466,9 +1467,9 @@ def clamp(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'CLAMP.MINMAX',v,a,b)
     return generalfloatmath(ng,reusenode, 'CLAMP.MINMAX',v,a,b)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="AutoClamping.\nClamp a value a between auto-defined min/max A & B.")
-@user_doc(nexcode="AutoClamping.\nClamp a value a between auto-defined min/max A & B.\nSupports SocketFloat and entry-wise SocketVector if A & B are float compatible.")
+@user_doc(nexscript="AutoClamping.\nClamp a value a between auto-defined min/max A & B.\nSupports SocketFloat and entry-wise SocketVector if A & B are float compatible.")
 def clampauto(ng, reusenode:str,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int,
@@ -1480,9 +1481,9 @@ def clampauto(ng, reusenode:str,
         return generalvecfloatmath(ng,reusenode, 'CLAMP.RANGE',v,a,b)
     return generalfloatmath(ng,reusenode, 'CLAMP.RANGE',v,a,b)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range.\nRemap a value V from a given range A,B to another range X,Y.")
-@user_doc(nexcode="Map Range.\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
+@user_doc(nexscript="Map Range.\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
 def mapl(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
@@ -1494,9 +1495,9 @@ def mapl(ng, reusenode:str,
         return generalmaprange(ng,reusenode, 'FLOAT_VECTOR','LINEAR',v,a,b,x,y)
     return generalmaprange(ng,reusenode, 'FLOAT','LINEAR',v,a,b,x,y)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.")
-@user_doc(nexcode="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\nSupports SocketFloat and SocketVector.")
+@user_doc(nexscript="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\nSupports SocketFloat and SocketVector.")
 def mapst(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
@@ -1509,9 +1510,9 @@ def mapst(ng, reusenode:str,
         return generalmaprange(ng,reusenode, 'FLOAT_VECTOR','STEPPED',v,a,b,x,y,step)
     return generalmaprange(ng,reusenode, 'FLOAT','STEPPED',v,a,b,x,y,step)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.")
-@user_doc(nexcode="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
+@user_doc(nexscript="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
 def mapsmo(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
@@ -1523,9 +1524,9 @@ def mapsmo(ng, reusenode:str,
         return generalmaprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHSTEP',v,a,b,x,y)
     return generalmaprange(ng,reusenode, 'FLOAT','SMOOTHSTEP',v,a,b,x,y)
 
-@user_domain('mathex','nexcode')
+@user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.")
-@user_doc(nexcode="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
+@user_doc(nexscript="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
 def mapsmoo(ng, reusenode:str,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
@@ -1537,8 +1538,8 @@ def mapsmoo(ng, reusenode:str,
         return generalmaprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y)
     return generalmaprange(ng,reusenode, 'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
 
-@user_domain('nexcode')
-@user_doc(nexcode="Position Attribute.\nGet the GeometryNode 'Position' SocketVector input attribute.")
+@user_domain('nexscript')
+@user_doc(nexscript="Position Attribute.\nGet the GeometryNode 'Position' SocketVector input attribute.")
 def getp(ng, reusenode:str,
     ) -> sVec:
     node = ng.nodes.get(reusenode)
@@ -1549,8 +1550,8 @@ def getp(ng, reusenode:str,
         node.location.y += 65*1
     return node.outputs[0]
 
-@user_domain('nexcode')
-@user_doc(nexcode="Normal Attribute.\nGet the GeometryNode 'Normal' SocketVector input attribute.")
+@user_domain('nexscript')
+@user_doc(nexscript="Normal Attribute.\nGet the GeometryNode 'Normal' SocketVector input attribute.")
 def getn(ng, reusenode:str,
     ) -> sVec:
     node = ng.nodes.get(reusenode)
