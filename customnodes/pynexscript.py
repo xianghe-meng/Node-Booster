@@ -57,9 +57,6 @@ NEXNOTATIONDOC = {
     'mA.inverted':{'name':"Invert Matrix.",'desc':"Return the inverted matrix.\n\nIs a read-only property."},
     'mA.is_invertible':{'name':"Matrix is Invertible.",'desc':"Return the SocketBool status if the matrix is indeed invertible.\n\nIs a read-only property."},
     'mA.determinant':{'name':"Matrix Determinant.",'desc':"Return the SocketFloat determinant of the matrix.\n\nIs a read-only property."},
-    'mA.transform_point(vB)':{'name':"Vector Transform.",'desc':"Transform a vector B by a given matrix A.\nWill return a VectorSocket."},
-    'mA.project_point(vB)':{'name':"Vector Projection.",'desc':"Project a vector B by a given matrix A.\nWill return a VectorSocket."},
-    'mA.transform_direction(vB)':{'name':"Vector Direction Transform.",'desc':"Transform the direction vector B by a given matrix A.\nWill return a VectorSocket."},
 }
 
 

@@ -1379,15 +1379,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         def transposed(self, value):
             raise NexError("AssignationError. 'SocketMatrix.transposed' is read-only.")
 
-        def transform_point(self, vec):
-            return call_Nex_operand(NexMtx, nodesetter.matrixtransformloc, self,vec, NexReturnType=NexVec,)
-
-        def project_point(self, vec):
-            return call_Nex_operand(NexMtx, nodesetter.matrixprojectloc, self,vec, NexReturnType=NexVec,)
-
-        def transform_direction(self, vec):
-            return call_Nex_operand(NexMtx, nodesetter.matrixtransformdir, self,vec, NexReturnType=NexVec,)
-
     # ooooo      ooo                         .oooooo.                   .   
     # `888b.     `8'                        d8P'  `Y8b                .o8   
     #  8 `88b.    8   .ooooo.  oooo    ooo 888      888 oooo  oooo  .o888oo 

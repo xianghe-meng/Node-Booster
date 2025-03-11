@@ -1420,27 +1420,30 @@ def matrixmult(ng, reusenode:str,
     mB:sMtx|Matrix,
     ) -> sMtx:
     return generalmatrixmath(ng,reusenode, 'matrixmult', None,mA,mB)
-
-#covered in nexscript via python prop or function
-def matrixtransformloc(ng, reusenode:str,
-    mA:sMtx|Matrix,
-    vLoc:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+        
+@user_domain('nexscript')
+@user_doc(nexscript="Vector Transform.\nTransform a location vector A by a given matrix B.\nWill return a VectorSocket.\n\nCould use notation 'mB @ vA' instead.")
+def transformloc(ng, reusenode:str,
+    vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    mB:sMtx|Matrix,
     ) -> sVec:
-    return generalmatrixmath(ng,reusenode, 'matrixtransformloc', vLoc,mA,None)
+    return generalmatrixmath(ng,reusenode, 'matrixtransformloc', vA,mB,None)
 
-#covered in nexscript via python prop or function
-def matrixtransformdir(ng, reusenode:str,
-    mA:sMtx|Matrix,
-    vDir:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+@user_domain('nexscript')
+@user_doc(nexscript="Vector Projection.\nProject a location vector A by a given matrix B.\nWill return a VectorSocket.")
+def projectloc(ng, reusenode:str,
+    vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    mB:sMtx|Matrix,
     ) -> sVec:
-    return generalmatrixmath(ng,reusenode, 'matrixtransformdir', vDir,mA,None)
+    return generalmatrixmath(ng,reusenode, 'matrixtransformdir', vA,mB,None)
 
-#covered in nexscript via python prop or function
-def matrixprojectloc(ng, reusenode:str,
-    mA:sMtx|Matrix,
-    vLoc:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+@user_domain('nexscript')
+@user_doc(nexscript="Vector Direction Transform.\nTransform direction vector A by a given matrix B.\nWill return a VectorSocket.")
+def transformdir(ng, reusenode:str,
+    vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
+    mB:sMtx|Matrix,
     ) -> sVec:
-    return generalmatrixmath(ng,reusenode, 'matrixprojectloc', vLoc,mA,None)
+    return generalmatrixmath(ng,reusenode, 'matrixprojectloc', vA,mB,None)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")
