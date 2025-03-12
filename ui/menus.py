@@ -56,7 +56,7 @@ class NODEBOOSTER_MT_textemplate(bpy.types.Menu):
         parent_dir = os.path.dirname(current_dir)
         external_dir = os.path.join(parent_dir, "resources")
         
-        file_path = os.path.join(external_dir, "NexSimpleExample.py")
+        file_path = os.path.join(external_dir, "NexDemo.py")
         layout = self.layout 
         layout.separator()
         op = layout.operator("nodebooster.import_template", text=os.path.basename(file_path),)
