@@ -43,18 +43,40 @@ SUPERSCRIPTS = {'⁰':'0', '¹':'1', '²':'2', '³':'3', '⁴':'4', '⁵':'5', '
 
 MATHEXFUNCDOC = generate_documentation(tag='mathex')
 MATHNOTATIONDOC = {
-    '+':{'name':"Addition",'desc':""},
-    '-':{'name':"Subtraction.",'desc':"Can be used to negate as well ex: -x"},
-    '*':{'name':"Multiplication.",'desc':""},
-    '**':{'name':"Power.",'desc':""},
-    '²':{'name':"Power Notation.",'desc':"Please note that 2ab² will either be transformed into (ab)**2 or a*((b)**2) depending if you use 'Algebric Notations'."}, #Supported during sanatization
-    '/':{'name':"Division.",'desc':""},
-    '//':{'name':"FloorDiv.",'desc':""},
-    '%':{'name':"Modulo.",'desc':""},
-    'π':{'name':"Pi",'desc':"Represented as 3.1415927 float value.\nInvoked using the 'Pi' Macro."}, #Supported during sanatization
-    '𝑒':{'name':"EulerNumber.",'desc':"Represented as 2.7182818 float value.\nInvoked using the 'eNum' Macro."}, #Supported during sanatization
-    'φ':{'name':"GoldenRation.",'desc':"Represented as 1.6180339 float value.\nInvoked using the 'Gold' Macro."}, #Supported during sanatization
-}
+    '+':{
+        'name':"Addition",
+        'desc':""},
+    '-':{
+        'name':"Subtraction.",
+        'desc':"Can be used to negate as well ex: -x"},
+    '*':{
+        'name':"Multiplication.",
+        'desc':""},
+    '**':{
+        'name':"Power.",
+        'desc':""},
+    '²':{ #Supported during sanatization
+        'name':"Power Notation.",
+        'desc':"Please note that 2ab² will either be transformed into (ab)**2 or a*((b)**2) depending if you use 'Algebric Notations'."},
+    '/':{
+        'name':"Division.",
+        'desc':""},
+    '//':{
+        'name':"FloorDiv.",
+        'desc':""},
+    '%':{
+        'name':"Modulo.",
+        'desc':""},
+    'π':{ #Supported during sanatization
+        'name':"Pi",
+        'desc':"Represented as 3.1415927 float value.\nInvoked using the 'Pi' Macro."},
+    '𝑒':{ #Supported during sanatization
+        'name':"EulerNumber.",
+        'desc':"Represented as 2.7182818 float value.\nInvoked using the 'eNum' Macro."},
+    'φ':{ #Supported during sanatization
+        'name':"GoldenRation.",
+        'desc':"Represented as 1.6180339 float value.\nInvoked using the 'Gold' Macro."},
+    }
 
 #Store the math function used to set the nodetree
 USER_FNAMES = get_nodesetter_functions(tag='mathex', get_names=True)

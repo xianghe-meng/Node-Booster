@@ -27,39 +27,103 @@ from ..utils.node_utils import (
 
 NEXFUNCDOC = generate_documentation(tag='nexscript')
 NEXNOTATIONDOC = {
-    'a + b':{'name':"Addition",'desc':"Add between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
-    'a - b':{'name':"Subtraction.",'desc':"Subtract between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
-    'a * b':{'name':"Multiplication.",'desc':"Multiply between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
-    'a ** b':{'name':"Power.",'desc':"Raise SocketFloats and/or SocketVectors by a float compatible type."},
-    'a / b':{'name':"Division.",'desc':"Divide between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
-    'a // b':{'name':"FloorDiv.",'desc':"Do a FloorDiv operation between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
-    'a % b':{'name':"Modulo.",'desc':"Do a Modulo operation between SocketFloats and/or entry-wise SocketVectors.\nType conversion is implicit."},
-    'a == b':{'name':"Equal.",'desc':"Compare if A and B are equals.\n\nPlease note that chaining comparison is not supported ex: 'a == b == c'.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
-    'a != b':{'name':"Not Equal.",'desc':"Compare if A and B are not equals.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
-    'a > b':{'name':"Greater.",'desc':"Compare if A is greater than B.\n\nPlease note that chaining comparison is not supported ex: 'a > b > c'.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
-    'a >= b':{'name':"Greater or Equal.",'desc':"Compare if A is greater or equal than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
-    'a < b':{'name':"Lesser.",'desc':"Compare if A is lesser than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
-    'a <= b':{'name':"Lesser or Equal.",'desc':"Compare if A is lesser or equal than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
-    '-a':{'name':"Negate.",'desc':"Negate using the 'a = -a' notation.\n\nSupports SocketFloats & SocketVectors."},
-    'abs(a)':{'name':"Absolute.",'desc':"Get the absolute value of a SocketFloat or SocketVector."},
-    'round(a)':{'name':"Round.",'desc':"Round a SocketFloat or entry-wise SocketVector.\n\nex: 1.49 will become 1\n1.51 will become 2."},
-    'bX & bY':{'name':"Bitwise And.",'desc':"Boolean math 'and' operation between two SocketBool or python bool types.\nWill return a SocketBool."},
-    'bX | bY':{'name':"Bitwise Or.",'desc':"Boolean math 'or' operation between two SocketBool or python bool types.\nWill return a SocketBool."},
-    'vA.x':{'name':"Vector X.",'desc':"Get or Assign a SocketFloat value from the X axis of a SocketVector.\n\nIs equivalent to the 'vA[0]' notation."},
-    'vA.y':{'name':"Vector Y.",'desc':"Get or Assign a SocketFloat value from the Y axis of a SocketVector.\n\nIs equivalent to the 'vA[1]' notation."},
-    'vA.z':{'name':"Vector Z.",'desc':"Get or Assign a SocketFloat value from the Z axis of a SocketVector.\n\nIs equivalent to the 'vA[2]' notation."},
-    'vA.xyz':{'name':"Vector XYZ tuple.",'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding axes of a SocketVector.\n\nIs equivalent to the 'vA[:]' notation."},
-    'vA.length':{'name':"Vector Length.",'desc':"Return a SocketFloat value corresponding to the length of SocketVector.\n\nIs a read-only property."},
-    'vA.normalized':{'name':"Vector Noralization.",'desc':"Return a normalized SocketVector.\n\nIs a read-only property."},
-    'mA @ mB':{'name':"Matrix Multiplication.",'desc':"Multiply matrixes together."},
-    'mA @ vB':{'name':"Vector Transform.",'desc':"Transform a vector B by a given matrix A.\nWill return a VectorSocket.\n\nAlternative notation to 'mA.transform_point(vB)'"},
-    'mA.transposed':{'name':"Transpose Matrix.",'desc':"Return the transposed matrix.\n\nIs a read-only property."},
-    'mA.inverted':{'name':"Invert Matrix.",'desc':"Return the inverted matrix.\n\nIs a read-only property."},
-    'mA.is_invertible':{'name':"Matrix is Invertible.",'desc':"Return the SocketBool status if the matrix is indeed invertible.\n\nIs a read-only property."},
-    'mA.determinant':{'name':"Matrix Determinant.",'desc':"Return the SocketFloat determinant of the matrix.\n\nIs a read-only property."},
-    'mA.translation':{'name':"Matrix Translation.",'desc':"Get or Assign a SocketVector Translation componement of a Transform Matrix."},
-    'mA.scale':{'name':"Matrix Scale.",'desc':"Get or Assign a SocketVector Scale componement of a Transform Matrix."},
-}
+    'a + b': {
+                'name':"Addition",
+                'desc':"Add between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
+    'a - b': {
+                'name':"Subtraction.",
+                'desc':"Subtract between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
+    'a * b': {
+                'name':"Multiplication.",
+                'desc':"Multiply between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
+    'a ** b': {
+                'name':"Power.",
+                'desc':"Raise SocketFloats and/or SocketVectors by a float compatible type."},
+    'a / b': {
+                'name':"Division.",
+                'desc':"Divide between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
+    'a // b': {
+                'name':"FloorDiv.",
+                'desc':"Do a FloorDiv operation between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
+    'a % b': {
+                'name':"Modulo.",
+                'desc':"Do a Modulo operation between SocketFloats and/or entry-wise SocketVectors.\nType conversion is implicit."},
+    'a == b': {
+                'name':"Equal.",
+                'desc':"Compare if A and B are equals.\n\nPlease note that chaining comparison is not supported ex: 'a == b == c'.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+    'a != b': {
+                'name':"Not Equal.",
+                'desc':"Compare if A and B are not equals.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+    'a > b': {
+                'name':"Greater.",
+                'desc':"Compare if A is greater than B.\n\nPlease note that chaining comparison is not supported ex: 'a > b > c'.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+    'a >= b': {
+                'name':"Greater or Equal.",
+                'desc':"Compare if A is greater or equal than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+    'a < b': {
+                'name':"Lesser.",
+                'desc':"Compare if A is lesser than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+    'a <= b': {
+                'name':"Lesser or Equal.",
+                'desc':"Compare if A is lesser or equal than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+    '-a': {
+                'name':"Negate.",
+                'desc':"Negate using the 'a = -a' notation.\n\nSupports SocketFloats & SocketVectors."},
+    'abs(a)': {
+                'name':"Absolute.",
+                'desc':"Get the absolute value of a SocketFloat or SocketVector."},
+    'round(a)': {
+                'name':"Round.",
+                'desc':"Round a SocketFloat or entry-wise SocketVector.\n\nex: 1.49 will become 1\n1.51 will become 2."},
+    'bX & bY': {
+                'name':"Bitwise And.",
+                'desc':"Boolean math 'and' operation between two SocketBool or python bool types.\nWill return a SocketBool."},
+    'bX | bY': {
+                'name':"Bitwise Or.",
+                'desc':"Boolean math 'or' operation between two SocketBool or python bool types.\nWill return a SocketBool."},
+    'vA.x': {
+                'name':"Vector X.",
+                'desc':"Get or Assign a SocketFloat value from the X axis of a SocketVector.\n\nIs equivalent to the 'vA[0]' notation."},
+    'vA.y': {
+                'name':"Vector Y.",
+                'desc':"Get or Assign a SocketFloat value from the Y axis of a SocketVector.\n\nIs equivalent to the 'vA[1]' notation."},
+    'vA.z': {
+                'name':"Vector Z.",
+                'desc':"Get or Assign a SocketFloat value from the Z axis of a SocketVector.\n\nIs equivalent to the 'vA[2]' notation."},
+    'vA.xyz': {
+                'name':"Vector XYZ tuple.",
+                'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding axes of a SocketVector.\n\nIs equivalent to the 'vA[:]' notation."},
+    'vA.length': {
+                'name':"Vector Length.",
+                'desc':"Return a SocketFloat value corresponding to the length of SocketVector.\n\nIs a read-only property."},
+    'vA.normalized': {
+                'name':"Vector Noralization.",
+                'desc':"Return a normalized SocketVector.\n\nIs a read-only property."},
+    'mA @ mB': {
+                'name':"Matrix Multiplication.",
+                'desc':"Multiply matrixes together."},
+    'mA @ vB': {
+                'name':"Vector Transform.",
+                'desc':"Transform a vector B by a given matrix A.\nWill return a VectorSocket.\n\nAlternative notation to 'mA.transform_point(vB)'"},
+    'mA.translation': {
+                'name':"Matrix Translation.",
+                'desc':"Get or Assign a SocketVector Translation componement of a Transform Matrix."},
+    'mA.scale': {
+                'name':"Matrix Scale.",
+                'desc':"Get or Assign a SocketVector Scale componement of a Transform Matrix."},
+    'mA.transposed': {
+                'name':"Transpose Matrix.",
+                'desc':"Return the transposed matrix.\n\nIs a read-only property."},
+    'mA.inverted': {
+                'name':"Invert Matrix.",
+                'desc':"Return the inverted matrix.\n\nIs a read-only property."},
+    'mA.is_invertible': {
+                'name':"Matrix is Invertible.",
+                'desc':"Return the SocketBool status if the matrix is indeed invertible.\n\nIs a read-only property."},
+    'mA.determinant': {
+                'name':"Matrix Determinant.",
+                'desc':"Return the SocketFloat determinant of the matrix.\n\nIs a read-only property."},
+    }
 
 
 def transform_nex_script(original_text:str, nextypes:list) -> str:
