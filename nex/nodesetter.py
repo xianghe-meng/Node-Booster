@@ -140,14 +140,14 @@ def assert_purple_node(node):
     
     return None
 
-# oooooooooooo                                       .    o8o                                 
-# `888'     `8                                     .o8    `"'                                 
-#  888         oooo  oooo  ooo. .oo.    .ooooo.  .o888oo oooo   .ooooo.  ooo. .oo.    .oooo.o 
-#  888oooo8    `888  `888  `888P"Y88b  d88' `"Y8   888   `888  d88' `88b `888P"Y88b  d88(  "8 
-#  888    "     888   888   888   888  888         888    888  888   888  888   888  `"Y88b.  
-#  888          888   888   888   888  888   .o8   888 .  888  888   888  888   888  o.  )88b 
-# o888o         `V88V"V8P' o888o o888o `Y8bod8P'   "888" o888o `Y8bod8P' o888o o888o 8""888P' 
-                                                                                            
+#   .oooooo.                                                       oooo       oooooooooooo               .            
+#  d8P'  `Y8b                                                      `888       `888'     `8             .o8            
+# 888            .ooooo.  ooo. .oo.    .ooooo.  oooo d8b  .oooo.    888        888          .ooooo.  .o888oo  .oooo.o 
+# 888           d88' `88b `888P"Y88b  d88' `88b `888""8P `P  )88b   888        888oooo8    d88' `"Y8   888   d88(  "8 
+# 888     ooooo 888ooo888  888   888  888ooo888  888      .oP"888   888        888    "    888         888   `"Y88b.  
+# `88.    .88'  888    .o  888   888  888    .o  888     d8(  888   888        888         888   .o8   888 . o.  )88b 
+#  `Y8bood8P'   `Y8bod8P' o888o o888o `Y8bod8P' d888b    `Y888""8o o888o      o888o        `Y8bod8P'   "888" 8""888P' 
+
 
 def generalfloatmath(ng, callhistory:list,
     operation_type:str,
@@ -901,6 +901,15 @@ def generalcombsepa(ng, callhistory:list,
                         raise InvalidTypePassedToSocket(f"Unsupported type '{type(val).__name__}' in combine operation.")
             return node.outputs[0]
 
+# ooooo     ooo                                  oooooooooooo                                       .            
+# `888'     `8'                                  `888'     `8                                     .o8            
+#  888       8   .oooo.o  .ooooo.  oooo d8b       888         oooo  oooo  ooo. .oo.    .ooooo.  .o888oo  .oooo.o 
+#  888       8  d88(  "8 d88' `88b `888""8P       888oooo8    `888  `888  `888P"Y88b  d88' `"Y8   888   d88(  "8 
+#  888       8  `"Y88b.  888ooo888  888           888    "     888   888   888   888  888         888   `"Y88b.  
+#  `88.    .8'  o.  )88b 888    .o  888           888          888   888   888   888  888   .o8   888 . o.  )88b 
+#    `YbodP'    8""888P' `Y8bod8P' d888b         o888o         `V88V"V8P' o888o o888o `Y8bod8P'   "888" 8""888P' 
+
+
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Addition.\nEquivalent to the '+' symbol.")
@@ -1525,26 +1534,26 @@ def separate_transform(ng, callhistory:list,
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Transform).\nCombine 3 SocketVector into a SocketMatrix.")
 def combine_transform(ng, callhistory:list,
-    vLoc:sFlo|sInt|sBoo|sVec|float|int|Vector,
-    vRot:sFlo|sInt|sBoo|sVec|sQut|float|int|Vector|Quaternion,
-    vSca:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vL:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vR:sFlo|sInt|sBoo|sVec|sQut|float|int|Vector|Quaternion,
+    vS:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> tuple:
     
-    if type(vLoc) in {int, float}:
-        vLoc = Vector((vLoc,vLoc,vLoc))
-    if type(vRot) in {int, float}:
-        vRot = Vector((vRot,vRot,vRot)) #support quaternion in here?
-    if type(vSca) in {int, float}:
-        vSca = Vector((vSca,vSca,vSca))
+    if type(vL) in {int, float}:
+        vL = Vector((vL,vL,vL))
+    if type(vR) in {int, float}:
+        vR = Vector((vR,vR,vR)) #support quaternion in here?
+    if type(vS) in {int, float}:
+        vS = Vector((vS,vS,vS))
 
-    if (type(vLoc) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, Vector}):
-        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vLoc).__name__}' for Location parameter")
-    if (type(vRot) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, sQut, Vector}):#, Quaternion}):
-        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vRot).__name__}' for Rotation parameter")
-    if (type(vSca) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, Vector}):
-        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vSca).__name__}' for Scale parameter")
+    if (type(vL) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, Vector}):
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vL).__name__}' for Location parameter")
+    if (type(vR) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, sQut, Vector}):#, Quaternion}):
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vR).__name__}' for Rotation parameter")
+    if (type(vS) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, Vector}):
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vS).__name__}' for Scale parameter")
 
-    return generalcombsepa(ng,callhistory, 'COMBINE','MATRIXTRANSFORM', (vLoc,vRot,vSca),)
+    return generalcombsepa(ng,callhistory, 'COMBINE','MATRIXTRANSFORM', (vL,vR,vS),)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")
@@ -1820,7 +1829,101 @@ def getn(ng, callhistory:list,
 
     return node.outputs[0]
 
-# TODO more attr input
-# def getid() -> Int
-# def getindex() -> Int
-# def getnamedattr(name) -> Dynamic
+#TODO later, need NexInt
+# @user_domain('nexscript')
+# @user_doc(nexscript="ID Attribute.\nGet the GeometryNode 'ID' SocketInt input attribute.")
+# def getid(ng, callhistory:list,
+#     ) -> sInt:
+#     """
+#     Retrieve the 'ID' attribute in Geometry Nodes as a SocketInt.
+#     This node will give each point/instance an integer ID if available.
+#     """
+#     # Use a unique name to avoid creating duplicates on re-runs
+#     uniquename = 'F|GetID' if (callhistory is not None) else None
+#     node = None
+
+#     if uniquename:
+#         node = ng.nodes.get(uniquename)
+
+#     if node is None:
+#         node = ng.nodes.new('GeometryNodeInputID')  
+#         if uniquename:
+#             node.name = node.label = uniquename
+#         # Place it near the Group Input for convenience
+#         if "Group Input" in ng.nodes:
+#             node.location = ng.nodes["Group Input"].location
+#             node.location.y += 65 * 3
+#         ng.nodes.active = node
+
+#     return node.outputs[0]  # 'ID' output (Int)
+
+
+# @user_domain('nexscript')
+# @user_doc(nexscript="Index Attribute.\nGet the GeometryNode 'Index' SocketInt input attribute.")
+# def getindex(ng, callhistory:list,
+#     ) -> sInt:
+#     """
+#     Retrieve the 'Index' attribute in Geometry Nodes as a SocketInt.
+#     This node will output the index of each element (e.g., each point).
+#     """
+#     uniquename = 'F|GetIndex' if (callhistory is not None) else None
+#     node = None
+
+#     if uniquename:
+#         node = ng.nodes.get(uniquename)
+
+#     if node is None:
+#         node = ng.nodes.new('GeometryNodeInputIndex')
+#         if uniquename:
+#             node.name = node.label = uniquename
+#         # Place it near the Group Input for convenience
+#         if "Group Input" in ng.nodes:
+#             node.location = ng.nodes["Group Input"].location
+#             node.location.y += 65 * 4
+#         ng.nodes.active = node
+
+#     return node.outputs[0]  # 'Index' output (Int)
+
+
+# @user_domain('nexscript')
+# @user_doc(nexscript="Named Attribute.\nGet the GeometryNode 'Named Attribute' with a chosen type.\nNote: This node was removed in newer Blender versions (3.5+).")
+# def getnamedattr(ng, callhistory:list,
+#     name:str = "my_attribute",
+#     data_type:str = "FLOAT",
+#     ) -> bpy.types.NodeSocket:
+#     """
+#     Retrieve a named attribute (e.g., a custom attribute on points, edges, etc.).
+#     - name:      The string name of the attribute.
+#     - data_type: One of 'FLOAT', 'INT', 'BOOLEAN', 'VECTOR', 'COLOR', etc. (depending on your Blender version).
+    
+#     Returns the primary output (the actual attribute).
+#     For older Blender versions: 'GeometryNodeInputNamedAttribute' was used.
+#     For Blender 3.5+: This node was removed in favor of the new fields system or the 'Capture Attribute' node.
+#     """
+#     # Use a unique name so it can be reused if we run multiple times
+#     uniquename = f'F|GetNamedAttr({name})' if (callhistory is not None) else None
+#     node = None
+
+#     if uniquename:
+#         node = ng.nodes.get(uniquename)
+
+#     if node is None:
+#         # If your version of Blender still has this node:
+#         node = ng.nodes.new('GeometryNodeInputNamedAttribute')
+#         if uniquename:
+#             node.name = node.label = uniquename
+#         node.data_type = data_type  # e.g. 'FLOAT', 'VECTOR', 'INT', 'BOOLEAN', ...
+#         if "Group Input" in ng.nodes:
+#             node.location = ng.nodes["Group Input"].location
+#             node.location.y += 65 * 5
+#         ng.nodes.active = node
+
+#     # Always ensure the attribute name is set
+#     if node.inputs.get("Name"):
+#         if node.inputs["Name"].default_value != name:
+#             node.inputs["Name"].default_value = name
+
+#     # The node has multiple outputs:
+#     #  - "Attribute"  (the actual data, index 0)
+#     #  - "Exists"     (bool, index 1)
+#     return node.outputs[0]
