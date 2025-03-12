@@ -114,24 +114,25 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         match socket:
             case bpy.types.NodeSocketBool():
                 return NexBool(fromsocket=socket)
-            
+
             case bpy.types.NodeSocketFloat():
                 return NexFloat(fromsocket=socket)
-            
-            case bpy.types.NodeSocketVector() | bpy.types.NodeSocketVectorXYZ():
+
+            case bpy.types.NodeSocketVector() | bpy.types.NodeSocketVectorXYZ() | bpy.types.NodeSocketVectorTranslation():
                 return NexVec(fromsocket=socket)
-            
+
             case bpy.types.NodeSocketMatrix():
                 return NexMtx(fromsocket=socket)
-            
+
             case bpy.types.NodeSocketInt():
                 raise Exception(f"ERROR: AutoNexType() not implemented yet") #return NexInt(fromsocket=socket)
-            
+
             case bpy.types.NodeSocketColor():
                 raise Exception(f"ERROR: AutoNexType() not implemented yet") #return NexCol(fromsocket=socket)
-            
+
             case bpy.types.NodeSocketRotation():
-                raise Exception(f"ERROR: AutoNexType() not implemented yet") #return NexQuat(fromsocket=socket)
+                return NexVec(fromsocket=socket) 
+                return NexQuat(fromsocket=socket) #TODO
             
             case _: raise Exception(f"ERROR: AutoNexType(): Unrecognized '{socket}' of type '{type(socket).__name__}'")
 
@@ -271,6 +272,17 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                           #    some python evaluated values to the nodetree constants (nodes starting with "C|" in the tree)
                           #    we need to have some sort of stable id for our nex Instances.
                           #    the problem is that these instances can be anonymous. So here i've decided to identify by instance generation count.
+
+        #Do not allow user to create any custom attribute on a NexType
+        _attributes = ('init_counter','node_inst','node_tree','nxstype','nxtydsp','nxchar','nxsock','nxsnam','nxid',)
+
+        def __setattr__(self, name, value):
+            if (name not in self._attributes):
+                raise NexError(f"AttributeError. '{self.nxtydsp}' to not have any '{name}' attribute.")
+            return super().__setattr__(name, value)
+
+        def __getattribute__(self, name):
+            return super().__getattribute__(name)
 
         # Nex Math Operand
         def __add__(self, other): # self + other
@@ -436,7 +448,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return None
         
         # ---------------------
-        # NexFloat Additions
+        # NexFloat Math Operand
 
         def __add__(self, other): # self + other
             type_name = type(other).__name__
@@ -454,9 +466,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __radd__(self, other): # other + self
             # commutative operation.
             return self.__add__(other)
-
-        # ---------------------
-        # NexFloat Subtraction
 
         def __sub__(self, other): # self - other
             type_name = type(other).__name__
@@ -484,9 +493,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     raise NexError(f"TypeError. Cannot subtract '{type(other).__name__}' with 'SocketFloat'.")
             return NexWrappedFcts['sub'](*args,)
 
-        # ---------------------
-        # NexFloat Multiplication
-
         def __mul__(self, other): # self * other
             type_name = type(other).__name__
             match type_name:
@@ -503,9 +509,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __rmul__(self, other): # other * self
             # commutative operation.
             return self.__mul__(other)
-
-        # ---------------------
-        # NexFloat True Division
 
         def __truediv__(self, other): # self / other
             type_name = type(other).__name__
@@ -533,9 +536,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     raise NexError(f"TypeError. Cannot divide '{type(other).__name__}' by 'SocketFloat'.")
             return NexWrappedFcts['div'](*args,)
 
-        # ---------------------
-        # NexFloat Power
-
         def __pow__(self, other): #self ** other
             type_name = type(other).__name__
             match type_name:
@@ -561,9 +561,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _:
                     raise NexError(f"TypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketFloat'.")
             return NexWrappedFcts['pow'](*args,)
-
-        # ---------------------
-        # NexFloat Modulo
 
         def __mod__(self, other): # self % other
             type_name = type(other).__name__
@@ -591,9 +588,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketFloat'.")
             return NexWrappedFcts['mod'](*args,)
 
-        # ---------------------
-        # NexFloat Floor Division
-
         def __floordiv__(self, other): # self // other
             type_name = type(other).__name__
             match type_name:
@@ -620,24 +614,15 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketFloat'.")
             return NexWrappedFcts['floordiv'](*args,)
 
-        # ---------------------
-        # NexFloat Negate
-
         def __neg__(self): # -self
             return NexWrappedFcts['neg'](self,)
 
-        # ---------------------
-        # NexFloat Absolute
-
         def __abs__(self): # abs(self)
             return NexWrappedFcts['abs'](self,)
-
-        # ---------------------
-        # NexFloat Round
         
         def __round__(self): # round(self)
             return NexWrappedFcts['round'](self,)
-    
+
         # ---------------------
         # NexFloat Comparisons
         #NOTE a==b==c will not work because and is involved and we cannot override it.. and/or/not keywords rely on python booleans type...
@@ -923,7 +908,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return None
 
         # ---------------------
-        # NexVec Additions
+        # NexVec Math Operand
 
         def __add__(self, other): # self + other
             type_name = type(other).__name__
@@ -939,9 +924,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __radd__(self, other): # other + self
             # commutative operation.
             return self.__add__(other)
-
-        # ---------------------
-        # NexVec Subtraction
 
         def __sub__(self, other): # self - other
             type_name = type(other).__name__
@@ -965,9 +947,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     raise NexError(f"TypeError. Cannot subtract '{type(other).__name__}' with 'SocketVector'.")
             return NexWrappedFcts['sub'](*args,)
 
-        # ---------------------
-        # NexVec Multiplication
-
         def __mul__(self, other): # self * other
             type_name = type(other).__name__
             match type_name:
@@ -982,9 +961,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __rmul__(self, other): # other * self
             # commutative operation.
             return self.__mul__(other)
-
-        # ---------------------
-        # NexVec True Division
 
         def __truediv__(self, other): # self / other
             type_name = type(other).__name__
@@ -1008,9 +984,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     raise NexError(f"TypeError. Cannot divide '{type(other).__name__}' by 'SocketVector'.")
             return NexWrappedFcts['div'](*args,)
 
-        # ---------------------
-        # NexVec Power
-
         def __pow__(self, other):  # self ** other
             type_name = type(other).__name__
             match type_name:
@@ -1026,9 +999,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         def __rpow__(self, other):  # other ** self
             raise NexError(f"TypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketVector'.")
-
-        # ---------------------
-        # NexVec Modulo
 
         def __mod__(self, other): # self % other
             type_name = type(other).__name__
@@ -1052,9 +1022,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketVector'.")
             return NexWrappedFcts['mod'](*args,)
 
-        # ---------------------
-        # NexVec Floor Division
-
         def __floordiv__(self, other): # self // other
             type_name = type(other).__name__
             match type_name:
@@ -1077,20 +1044,11 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketVector'.")
             return NexWrappedFcts['floordiv'](*args,)
 
-        # ---------------------
-        # NexVec Negate
-
         def __neg__(self): # -self
             return NexWrappedFcts['neg'](self,)
 
-        # ---------------------
-        # NexVec Absolute
-
         def __abs__(self): # abs(self)
             return NexWrappedFcts['abs'](self,)
-
-        # ---------------------
-        # NexVec Round
 
         def __round__(self): # round(self)
             return NexWrappedFcts['round'](self,)
@@ -1107,51 +1065,43 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
 
-            separated = NexWrappedFcts['separate_xyz'](self,)
-
             match key:
-                
                 case int(): #vec[i]
+                    sep_xyz = NexWrappedFcts['separate_xyz'](self,)
                     if key not in (0,1,2):
                         raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
-                    return separated[key]
+                    return sep_xyz[key]
                 
                 case slice(): #vec[:i]
+                    sep_xyz = NexWrappedFcts['separate_xyz'](self,)
                     indices = range(*key.indices(3))
-                    return tuple(separated[i] for i in indices)
+                    return tuple(sep_xyz[i] for i in indices)
                 
-                case _:
-                    raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
+                case _: raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
 
         def __setitem__(self, key, value): #x[0] += a+b
-
             to_frame = []
 
             match key:
-
                 case int(): #vec[i]
-                    separated = NexWrappedFcts['separate_xyz'](self,)
-                    to_frame.append(separated[0].nxsock.node)
-                    if (key==0):
-                        new_components = value, separated[1], separated[2]
-                    elif (key==1):
-                        new_components = separated[0], value, separated[2]
-                    elif (key==2):
-                        new_components = separated[0], separated[1], value
-                    else:
-                        raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+                    x, y, z = NexWrappedFcts['separate_xyz'](self,)
+                    to_frame.append(x.nxsock.node)
+                    match key:
+                        case 0: new_xyz = value, y, z
+                        case 1: new_xyz = x, value, z
+                        case 2: new_xyz = x, y, value
+                        case _: raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
 
                 case slice():
                     if (key!=slice(None,None,None)):
                         raise NexError("Only [:] slicing is supported for SocketVector.")
-                    new_components = tuple(value)
-                    if (len(new_components)!=3):
+                    new_xyz = tuple(value)
+                    if (len(new_xyz)!=3):
                         raise NexError("Slice assignment requires exactly 3 values.")
 
-                case _:
-                    raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
+                case _: raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
 
-            new = NexWrappedFcts['combine_xyz'](new_components[0], new_components[1], new_components[2],)
+            new = NexWrappedFcts['combine_xyz'](*new_xyz,)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             to_frame.append(new.nxsock.node)
@@ -1159,6 +1109,55 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             frame_nodes(self.node_tree, *to_frame, label=f"v.setitem[{key if (type(key) is int) else ':'}]",)
 
             return None
+
+        # ---------------------
+        # NexVec Custom Functions & Properties
+
+        _attributes = Nex._attributes + ('x','y','z','xyz','length','normalized',)
+
+        @property
+        def x(self):
+            return self[0]
+        @x.setter
+        def x(self, value):
+            self[0] = value
+
+        @property
+        def y(self):
+            return self[1]
+        @y.setter
+        def y(self, value):
+            self[1] = value
+
+        @property
+        def z(self):
+            return self[2]
+        @z.setter
+        def z(self, value):
+            self[2] = value
+
+        @property
+        def xyz(self):
+            return self[:]
+        @xyz.setter
+        def xyz(self, value):
+            if (type(value) is tuple and len(value)==3):
+                  self[:] = value
+            else: raise NexError("TypeError. Assignment to SocketVector.xyz is expected to be a tuple of length 3 containing sockets or Python values.")
+
+        @property
+        def length(self):
+            return NexWrappedFcts['length'](self,)
+        @length.setter
+        def length(self, value):
+            raise NexError("AssignationError. 'SocketVector.length' is read-only.")
+
+        @property
+        def normalized(self):
+            return NexWrappedFcts['normalize'](self,)
+        @normalized.setter
+        def normalized(self, value):
+            raise NexError("AssignationError. 'SocketVector.normalized' is read-only.")
 
         # ---------------------
         # NexVec Comparisons
@@ -1229,53 +1228,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _:
                     raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketVector' and '{type(other).__name__}'")
             return NexWrappedFcts['isgreatereq'](*args,)
-
-        # ---------------------
-        # NexVec Custom Functions & Properties
-
-        @property
-        def x(self):
-            return self[0]
-        @x.setter
-        def x(self, value):
-            self[0] = value
-
-        @property
-        def y(self):
-            return self[1]
-        @y.setter
-        def y(self, value):
-            self[1] = value
-
-        @property
-        def z(self):
-            return self[2]
-        @z.setter
-        def z(self, value):
-            self[2] = value
-
-        @property
-        def xyz(self):
-            return self[:]
-        @xyz.setter
-        def xyz(self, value):
-            if (type(value) is tuple and len(value)==3):
-                  self[:] = value
-            else: raise NexError("TypeError. Assignment to SocketVector.xyz is expected to be a tuple of length 3 containing sockets or Python values.")
-
-        @property
-        def length(self):
-            return NexWrappedFcts['length'](self,)
-        @length.setter
-        def length(self, value):
-            raise NexError("AssignationError. 'SocketVector.length' is read-only.")
-
-        @property
-        def normalized(self):
-            return NexWrappedFcts['normalize'](self,)
-        @normalized.setter
-        def normalized(self, value):
-            raise NexError("AssignationError. 'SocketVector.normalized' is read-only.")
 
     # ooooo      ooo                       ooo        ooooo     .               
     # `888b.     `8'                       `88.       .888'   .o8               
@@ -1348,36 +1300,36 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return None
 
         # ---------------------
-        # NexMtx Matrix Mult
+        # NexMtx Math Operand
 
         def __matmul__(self, other): # self @ other
             type_name = type(other).__name__
             match type_name:
                 case 'NexMtx':
+                    fname = 'matrixmult'
                     args = self, other
-                    fname, rType = 'matrixmult', NexMtx
                 case 'NexVec':
+                    fname = 'transformloc'
                     args = other, self
-                    fname, rType = 'transformloc', NexVec
                 case _ if ('Nex' in type_name):
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and another '{other.nxtydsp}'.")
                 case 'Vector':
+                    fname = 'transformloc'
                     args = trypy_to_Vec3(other), self
-                    fname, rType = 'transformloc', NexVec
                 case 'Matrix':
+                    fname = 'matrixmult'
                     convother = trypy_to_Mtx16(other)
                     othernex = create_Nex_constant(NexMtx, convother,)
                     args = self, othernex
-                    fname, rType = 'matrixmult', NexMtx
                 case 'list' | 'set' | 'tuple':
                     if len(other)<=3:
+                        fname = 'transformloc'
                         args = trypy_to_Vec3(other), self
-                        fname, rType = 'transformloc', NexVec
                     else:
+                        fname = 'matrixmult'
                         convother = trypy_to_Mtx16(other)
                         othernex = create_Nex_constant(NexMtx, convother,)
                         args = self, othernex
-                        fname, rType = 'matrixmult', NexMtx
                 case _:
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{type(other).__name__}'.")
             return NexWrappedFcts[fname](*args,)
@@ -1395,13 +1347,12 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     convother = trypy_to_Mtx16(other)
                     othernex = create_Nex_constant(NexMtx, convother,)
                     args = othernex, self
-                    fname, rType = 'matrixmult', NexMtx
                 case _:
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{type(other).__name__}' and 'SocketMatrix'.")
-            return NexWrappedFcts[fname](*args,)
+            return NexWrappedFcts['matrixmult'](*args,)
 
         # ---------------------
-        # NexVec Itter
+        # NexMtx Itter
 
         # TODO I need to support itter for matrix, but unsure if we should return 
         # Loc,Rot,Scal, QuatRow1,QuatRow2,QuatRow3,QuatRow4, or 16 floats..
@@ -1415,6 +1366,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         # ---------------------
         # NexMtx Custom Functions & Properties
+
+        _attributes = Nex._attributes + ('determinant','is_invertible','inverted','transposed','t','r','s',)
 
         @property
         def determinant(self):
@@ -1443,6 +1396,73 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         @transposed.setter
         def transposed(self, value):
             raise NexError("AssignationError. 'SocketMatrix.transposed' is read-only.")
+
+        @property
+        def t(self):
+            print('called')
+            return NexWrappedFcts['separate_transform'](self,)[0]
+        @t.setter
+        def t(self, value):
+            loc, rot, sca = NexWrappedFcts['separate_transform'](self,)
+            type_name = type(value).__name__
+            match type_name:
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec':
+                    pass
+                case 'Vector' | 'int' | 'float' | 'bool':
+                    value = trypy_to_Vec3(value)
+                case 'list' | 'set' | 'tuple':
+                    #correct lenght?
+                    if len(value)!=3:
+                        raise NexError(f"AssignationError. 'SocketMatrix.t' Expected an itterable of len3. Recieved len {len(value)}.")
+                    #user is giving us a mix of Sockets and python types?..
+                    iscombi = any(('Nex' in type(v).__name__) for v in value)
+                    #not valid itterable
+                    if (not iscombi) and not alltypes(*value, types=(float,int,bool),):
+                        raise NexError(f"AssignationError. 'SocketMatrix.t' Expected an itterable containing types 'Socket','int','float','bool'.")
+                    value = NexWrappedFcts['combine_xyz'](*value,) if (iscombi) else trypy_to_Vec3(value)
+                case _:
+                    raise NexError(f"AssignationError. 'SocketMatrix.t' Expected Vector-compatible values. Recieved '{type_name}'.")
+
+            new = NexWrappedFcts['combine_transform'](value,rot,sca)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.t.setter",)
+            return None
+
+        # @property
+        # def r(self):
+
+        @property
+        def s(self):
+            print('called')
+            return NexWrappedFcts['separate_transform'](self,)[2]
+        @s.setter
+        def s(self, value):
+            loc, rot, sca = NexWrappedFcts['separate_transform'](self,)
+            type_name = type(value).__name__
+            match type_name:
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec':
+                    pass
+                case 'Vector' | 'int' | 'float' | 'bool':
+                    value = trypy_to_Vec3(value)
+                case 'list' | 'set' | 'tuple':
+                    #correct lenght?
+                    if len(value)!=3:
+                        raise NexError(f"AssignationError. 'SocketMatrix.s' Expected an itterable of len3. Recieved len {len(value)}.")
+                    #user is giving us a mix of Sockets and python types?..
+                    iscombi = any(('Nex' in type(v).__name__) for v in value)
+                    #not valid itterable
+                    if (not iscombi) and not alltypes(*value,types=(float,int,bool),):
+                        raise NexError(f"AssignationError. 'SocketMatrix.s' Expected an itterable containing types 'Socket','int','float','bool'.")
+                    value = NexWrappedFcts['combine_xyz'](value[0], value[1], value[2],) if (iscombi) else trypy_to_Vec3(value)
+                case _:
+                    raise NexError(f"AssignationError. 'SocketMatrix.s' Expected Vector-compatible values. Recieved '{type_name}'.")
+
+            new = NexWrappedFcts['combine_transform'](loc,rot,value)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.s.setter",)
+            return None
 
     # ooooo      ooo                         .oooooo.                   .   
     # `888b.     `8'                        d8P'  `Y8b                .o8   

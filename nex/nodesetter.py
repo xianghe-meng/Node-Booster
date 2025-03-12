@@ -11,7 +11,7 @@
 import bpy 
 
 from functools import partial
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Quaternion
 
 from ..utils.node_utils import link_sockets, frame_nodes, create_constant_input
 from ..utils.fct_utils import alltypes, anytype
@@ -24,8 +24,9 @@ sMtx = bpy.types.NodeSocketMatrix
 sQut = bpy.types.NodeSocketRotation
 sVec = bpy.types.NodeSocketVector
 
-#tell me why this type exist again? what's the diff? Some matrix multiplication node use this type
+#tell me why these type exist? what's the reason? Very annoying to support..
 sVecXYZ = bpy.types.NodeSocketVectorXYZ
+sVecT = bpy.types.NodeSocketVectorTranslation
 
 NODE_YOFF, NODE_XOFF = 120, 70
 TAGGED = []
@@ -190,7 +191,7 @@ def generalfloatmath(ng, callhistory:list,
     for i,val in enumerate(args):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sVecT():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -245,7 +246,7 @@ def generalvecmath(ng, callhistory:list,
     for i,val in zip(indexes,args):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sVecT():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -304,7 +305,7 @@ def generalverotate(ng, callhistory:list,
     for i,val in enumerate(args):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sVecT():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -380,7 +381,7 @@ def generalmix(ng, callhistory:list,
     for i,val in zip(indexes,args):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sVecT():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -479,7 +480,7 @@ def generalmaprange(ng, callhistory:list,
     for i,val in zip(indexes,args):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sVecT():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -579,7 +580,7 @@ def generalcompare(ng, callhistory:list,
     for i,val in zip(indexes,args):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sVecT():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -632,7 +633,7 @@ def generalboolmath(ng, callhistory:list,
     for i,val in enumerate((val1,val2)):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sVecT():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -683,7 +684,7 @@ def generalbatchcompare(ng, callhistory:list,
     if len(values) in {0,1}:
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() needs two Params or more.") 
     for o in values:
-        if type(o) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, float, int, bool, Vector}:
+        if type(o) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, float, int, bool, Vector}:
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() recieved unsupported type '{type(o).__name__}'.") 
 
     to_frame = []
@@ -722,14 +723,14 @@ def generalbatchcompare(ng, callhistory:list,
 
 def generalmatrixmath(ng, callhistory:list,
     operation_type:str,
-    vec1:sFlo|sInt|sBoo|sVec|sVecXYZ|float|int|bool|Vector=None,
+    vec1:sFlo|sInt|sBoo|sVec|float|int|bool|Vector=None,
     mat1:sMtx=None,
     mat2:sMtx=None,
     ) -> sMtx|sVec|sBoo|sFlo:
     """generic operation for operation on Matrix."""
 
     if (vec1 is not None):
-        if (type(vec1) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, float, int, bool, Vector}):
+        if (type(vec1) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, float, int, bool, Vector}):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() recieved unsupported type '{type(vec1).__name__}' for parameter 'vec1'.")
     for mat in (mat1,mat2):
         if (mat is not None):
@@ -779,7 +780,7 @@ def generalmatrixmath(ng, callhistory:list,
     for i,val in enumerate(args):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sMtx():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sVecT() | sMtx():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -809,10 +810,10 @@ def generalmatrixmath(ng, callhistory:list,
 
     return node.outputs[outidx]
 
-def generalcombinesepa(ng, callhistory:list,
+def generalcombsepa(ng, callhistory:list,
     operation_type:str,
     data_type:str, 
-    input_data:sFlo|sInt|sBoo|sVec|sVecXYZ|sMtx|tuple|list|set,
+    input_data:sFlo|sInt|sBoo|sVec|sMtx|tuple|list|set,
     ) -> tuple|sVec|sMtx:
     """Generic function for creating 'combine' or 'separate' nodes, over multiple types"""
 
@@ -820,10 +821,12 @@ def generalcombinesepa(ng, callhistory:list,
         'SEPARATE': {
             'VECTORXYZ': 'ShaderNodeSeparateXYZ',
             'MATRIXFLAT': 'FunctionNodeSeparateMatrix',
+            'MATRIXTRANSFORM': 'FunctionNodeSeparateTransform',
             },
         'COMBINE': {
             'VECTORXYZ': 'ShaderNodeCombineXYZ',
             'MATRIXFLAT': 'FunctionNodeCombineMatrix',
+            'MATRIXTRANSFORM': 'FunctionNodeCombineTransform',
             },
         }
 
@@ -833,16 +836,25 @@ def generalcombinesepa(ng, callhistory:list,
     nodetype = node_types[operation_type][data_type]
 
     prefix_names = {
-        'SEPARATE': {'VECTORXYZ': "Sep VecXYZ", 'MATRIXFLAT': "Sep MtxFlat"},
-        'COMBINE': {'VECTORXYZ': "Comb VecXYZ", 'MATRIXFLAT': "Comb MtxFlat"},
+        'SEPARATE': {
+            'VECTORXYZ': "Sepa VecXYZ",
+            'MATRIXFLAT': "Sepa MtxFlat",
+            'MATRIXTRANSFORM': "Sepa Transf",
+            },
+        'COMBINE': {
+            'VECTORXYZ': "Comb VecXYZ",
+            'MATRIXFLAT': "Comb MtxFlat",
+            'MATRIXTRANSFORM': "Comb Transf",
+            },
         }
+
     nameid = prefix_names[operation_type][data_type]
     uniquename = get_unique_name(nameid, callhistory)
     needs_linking = False
 
     if (uniquename):
         node = ng.nodes.get(uniquename)
-        
+
     if (node is None):
         last = ng.nodes.active
         if (last):
@@ -859,7 +871,7 @@ def generalcombinesepa(ng, callhistory:list,
     match operation_type:
 
         case 'SEPARATE':
-            assert type(input_data) in {sVec, sVecXYZ, sMtx}, "This function is expecting to recieve a SocketVector or SocketMatrix"
+            assert type(input_data) in {sVec, sVecXYZ, sVecT, sMtx}, "This function is expecting to recieve a SocketVector or SocketMatrix"
             if needs_linking:
                 link_sockets(input_data, node.inputs[0])
             return tuple(node.outputs)
@@ -867,16 +879,24 @@ def generalcombinesepa(ng, callhistory:list,
         case 'COMBINE':
             for i, val in enumerate(input_data):
                 match val:
-                    case sFlo() | sInt() | sBoo():
+
+                    case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sVecT() | sQut():
                         if needs_linking:
                             link_sockets(val, node.inputs[i])
+
                     case float() | int() | bool():
                         val = float(val) if isinstance(val, bool) else val
                         if node.inputs[i].default_value != val:
                             node.inputs[i].default_value = val
                             assert_purple_node(node)
-                    case None:
-                        pass
+
+                    case Vector():
+                        if node.inputs[i].default_value[:] != val[:]:
+                            node.inputs[i].default_value = val
+                            assert_purple_node(node)
+
+                    case None: pass
+
                     case _:
                         raise InvalidTypePassedToSocket(f"Unsupported type '{type(val).__name__}' in combine operation.")
             return node.outputs[0]
@@ -888,7 +908,7 @@ def add(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(a,b,types=(sVec,),):
+    if anytype(a,b,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecmath(ng,callhistory, 'ADD',a,b)
     return generalfloatmath(ng,callhistory, 'ADD',a,b)
 
@@ -899,7 +919,7 @@ def sub(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(a,b,types=(sVec,),):
+    if anytype(a,b,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecmath(ng,callhistory, 'SUBTRACT',a,b)
     return generalfloatmath(ng,callhistory, 'SUBTRACT',a,b)
 
@@ -910,7 +930,7 @@ def mult(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(a,b,types=(sVec,),):
+    if anytype(a,b,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecmath(ng,callhistory, 'MULTIPLY',a,b)
     return generalfloatmath(ng,callhistory, 'MULTIPLY',a,b)
 
@@ -921,7 +941,7 @@ def div(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(a,b,types=(sVec,),):
+    if anytype(a,b,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecmath(ng,callhistory, 'DIVIDE',a,b)
     return generalfloatmath(ng,callhistory, 'DIVIDE',a,b)
 
@@ -932,8 +952,8 @@ def pow(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
-    if anytype(a,types=(sVec,Vector),):
-        if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT, Vector,),):
+        if not alltypes(n,types=(sFlo, sInt, sBoo, float, int),):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function pow(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
         return generalvecfloatmath(ng,callhistory, 'POWER',a,n)
     return generalfloatmath(ng,callhistory, 'POWER',a,n)
@@ -948,8 +968,8 @@ def log(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,n,types=(float,int,)):
     #     return math.log(a,n)
-    if anytype(a,types=(sVec,Vector),):
-        if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT, Vector,),):
+        if not alltypes(n,types=(sFlo, sInt, sBoo, float, int),):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function log(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
         return generalvecfloatmath(ng,callhistory, 'LOGARITHM',a,n)
     return generalfloatmath(ng,callhistory, 'LOGARITHM',a,n)
@@ -963,7 +983,7 @@ def sqrt(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.sqrt(a)
-    if anytype(a,types=(sVec,Vector),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalvecfloatmath(ng,callhistory, 'SQRT',a)
     return generalfloatmath(ng,callhistory, 'SQRT',a)
 
@@ -973,7 +993,7 @@ def sqrt(ng, callhistory:list,
 def invsqrt(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(a,types=(sVec,Vector),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalvecfloatmath(ng,callhistory, 'INVERSE_SQRT',a)
     return generalfloatmath(ng,callhistory, 'INVERSE_SQRT',a)
 
@@ -985,8 +1005,8 @@ def nroot(ng, callhistory:list,
     n:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
 
-    if anytype(a,types=(sVec,Vector),):
-        if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT, Vector,),):
+        if not alltypes(n,types=(sFlo, sInt, sBoo, float, int),):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function nroot(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
 
     _x = div(ng,callhistory, 1,n,)
@@ -1001,7 +1021,7 @@ def nroot(ng, callhistory:list,
 def abs(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecmath(ng,callhistory, 'ABSOLUTE',a)
     return generalfloatmath(ng,callhistory, 'ABSOLUTE',a)
 
@@ -1021,7 +1041,7 @@ def neg(ng, callhistory:list,
 def round(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecfloatmath(ng,callhistory, 'ROUND',a)
     return generalfloatmath(ng,callhistory, 'ROUND',a)
 
@@ -1034,7 +1054,7 @@ def floor(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.floor(a)
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecmath(ng,callhistory, 'FLOOR',a)
     return generalfloatmath(ng,callhistory, 'FLOOR',a)
 
@@ -1047,7 +1067,7 @@ def ceil(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.ceil(a)
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecmath(ng,callhistory, 'CEIL',a)
     return generalfloatmath(ng,callhistory, 'CEIL',a)
 
@@ -1060,7 +1080,7 @@ def trunc(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.trunc(a)
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecfloatmath(ng,callhistory, 'TRUNC',a)
     return generalfloatmath(ng,callhistory, 'TRUNC',a)
 
@@ -1070,7 +1090,7 @@ def trunc(ng, callhistory:list,
 def frac(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecmath(ng,callhistory, 'FRACTION',a)
     return generalfloatmath(ng,callhistory, 'FRACT',a)
 
@@ -1081,7 +1101,7 @@ def mod(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(a,b,types=(sVec,),):
+    if anytype(a,b,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecmath(ng,callhistory, 'MODULO',a,b)
     return generalfloatmath(ng,callhistory, 'MODULO',a,b)
 
@@ -1102,7 +1122,7 @@ def wrap(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(v,a,b,types=(sVec,Vector,),):
+    if anytype(v,a,b,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalvecmath(ng,callhistory, 'WRAP',v,a,b)
     return generalfloatmath(ng,callhistory, 'WRAP',v,a,b)
 
@@ -1113,7 +1133,7 @@ def snap(ng, callhistory:list,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     i:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(v,i,types=(sVec,Vector,),):
+    if anytype(v,i,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalvecmath(ng,callhistory, 'SNAP',v,i)
     return generalfloatmath(ng,callhistory, 'SNAP',v,i)
 
@@ -1124,8 +1144,8 @@ def pingpong(ng, callhistory:list,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     scale:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
-    if anytype(v,types=(sVec,Vector),):
-        if not alltypes(scale,types=(sFlo,sInt,sBoo,float,int),):
+    if anytype(v,types=(sVec, sVecXYZ, sVecT, Vector,),):
+        if not alltypes(scale,types=(sFlo, sInt, sBoo, float, int),):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function pingpong(). Second argument must be a float compatible type. Recieved '{type(scale).__name__}'.")
         return generalvecfloatmath(ng,callhistory, 'PINGPONG',v,scale)
     return generalfloatmath(ng,callhistory, 'PINGPONG',v,scale)
@@ -1153,7 +1173,7 @@ def sin(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.sin(a)
-    if anytype(a,types=(sVec,Vector,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecmath(ng,callhistory, 'SINE',a)
     return generalfloatmath(ng,callhistory, 'SINE',a)
 
@@ -1166,7 +1186,7 @@ def cos(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.cos(a)
-    if anytype(a,types=(sVec,Vector,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecmath(ng,callhistory, 'COSINE',a)
     return generalfloatmath(ng,callhistory, 'COSINE',a)
 
@@ -1179,7 +1199,7 @@ def tan(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.tan(a)
-    if anytype(a,types=(sVec,Vector,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecmath(ng,callhistory, 'TANGENT',a)
     return generalfloatmath(ng,callhistory, 'TANGENT',a)
 
@@ -1192,7 +1212,7 @@ def asin(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.asin(a)
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecfloatmath(ng,callhistory, 'ARCSINE',a)
     return generalfloatmath(ng,callhistory, 'ARCSINE',a)
 
@@ -1205,7 +1225,7 @@ def acos(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.acos(a)
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecfloatmath(ng,callhistory, 'ARCCOSINE',a)
     return generalfloatmath(ng,callhistory, 'ARCCOSINE',a)
 
@@ -1218,7 +1238,7 @@ def atan(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.atan(a)
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecfloatmath(ng,callhistory, 'ARCTANGENT',a)
     return generalfloatmath(ng,callhistory, 'ARCTANGENT',a)
 
@@ -1231,7 +1251,7 @@ def sinh(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.sinh(a)
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecfloatmath(ng,callhistory, 'SINH',a)
     return generalfloatmath(ng,callhistory, 'SINH',a)
 
@@ -1244,7 +1264,7 @@ def cosh(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.cosh(a)
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecfloatmath(ng,callhistory, 'COSH',a)
     return generalfloatmath(ng,callhistory, 'COSH',a)
 
@@ -1257,7 +1277,7 @@ def tanh(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.tanh(a)
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecfloatmath(ng,callhistory, 'TANH',a)
     return generalfloatmath(ng,callhistory, 'TANH',a)
 
@@ -1269,7 +1289,7 @@ def rad(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.radians(a)
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecfloatmath(ng,callhistory, 'RADIANS',a)
     return generalfloatmath(ng,callhistory, 'RADIANS',a)
 
@@ -1289,7 +1309,7 @@ def deg(ng, callhistory:list,
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.degrees(a)
-    if anytype(a,types=(sVec,),):
+    if anytype(a,types=(sVec, sVecXYZ, sVecT,),):
         return generalvecfloatmath(ng,callhistory, 'DEGREES',a)
     return generalfloatmath(ng,callhistory, 'DEGREES',a)
 
@@ -1369,9 +1389,9 @@ def length(ng, callhistory:list,
 def separate_xyz(ng, callhistory:list,
     vA:sVec,
     ) -> tuple:
-    if (type(vA) not in {sVec, sVecXYZ}):
+    if (type(vA) not in {sVec, sVecXYZ, sVecT}):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_xyz() recieved unsupported type '{type(vA).__name__}'")
-    return generalcombinesepa(ng,callhistory, 'SEPARATE','VECTORXYZ', vA,)
+    return generalcombsepa(ng,callhistory, 'SEPARATE','VECTORXYZ', vA,)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Vector.\nCombine 3 SocketFloat, SocketInt or SocketBool into a SocketVector.")
@@ -1380,9 +1400,9 @@ def combine_xyz(ng, callhistory:list,
     fY:sFlo|sInt|sBoo|float|int,
     fZ:sFlo|sInt|sBoo|float|int,
     ) -> sVec:
-    if not alltypes(fX,fY,fZ,types=(sFlo,sInt,sBoo,float,int),):
+    if not alltypes(fX,fY,fZ,types=(sFlo, sInt, sBoo, float, int),):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_xyz(). Expected x,y,z arguments in SocketFloat,SocketInt,SocketBool,float or int. Recieved '{type(fX).__name__}','{type(fY).__name__}','{type(fZ).__name__}'.")
-    return generalcombinesepa(ng,callhistory, 'COMBINE','VECTORXYZ', (fX,fY,fZ),)
+    return generalcombsepa(ng,callhistory, 'COMBINE','VECTORXYZ', (fX,fY,fZ),)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Rotate (Euler).\nRotate a given Vector A with euler angle radians E, at optional center C.")
@@ -1464,30 +1484,67 @@ def transformdir(ng, callhistory:list,
     return generalmatrixmath(ng,callhistory, 'transformdir', vA,mB,None)
 
 @user_domain('nexscript')
-@user_doc(nexscript="Separate Matrix.\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")
+@user_doc(nexscript="Separate Matrix (Flatten).\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")
 def separate_matrix(ng, callhistory:list,
     mA:sMtx,
     ) -> tuple:
     if (type(mA) is not sMtx):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_matrix() recieved unsupported type '{type(mA).__name__}'")
-    return generalcombinesepa(ng,callhistory, 'SEPARATE','MATRIXFLAT', mA,)
+    return generalcombsepa(ng,callhistory, 'SEPARATE','MATRIXFLAT', mA,)
 
 @user_domain('nexscript')
-@user_doc(nexscript="Combine Matrix.\nCombine an itterable containing  16 SocketFloat, SocketInt or SocketBool arranged by columns to a SocketMatrix.")
+@user_doc(nexscript="Combine Matrix (Flatten).\nCombine an itterable containing  16 SocketFloat, SocketInt or SocketBool arranged by columns to a SocketMatrix.")
 def combine_matrix(ng, callhistory:list,
     *itterables:sFlo|sInt|sBoo|float|int|tuple|set|list,
     ) -> tuple:
+
     #unpack itterable?
     if ((len(itterables)==1) and (type(itterables[0]) in {tuple, set, list})):
         itterables = itterables[0]
+
     if (type(itterables) not in {tuple, set, list}):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix() recieved unsupported type '{type(itterables).__name__}'")
     if (len(itterables) !=16):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix() recieved itterable must be of len 16 to fit a 4x4 SocketMatrix")
+
     for it in itterables:
         if type(it) not in {sFlo, sInt, sBoo, float, int}:
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix(). Expected arguments in SocketFloat,SocketInt,SocketBool,float or int. Recieved a '{type(it).__name__}'.")
-    return generalcombinesepa(ng,callhistory, 'COMBINE','MATRIXFLAT', itterables,)
+
+    return generalcombsepa(ng,callhistory, 'COMBINE','MATRIXFLAT', itterables,)
+
+@user_domain('nexscript')
+@user_doc(nexscript="Separate Matrix (Transform).\nSeparate a SocketMatrix into a tuple of 3 SocketVector.")
+def separate_transform(ng, callhistory:list,
+    mA:sMtx,
+    ) -> tuple:
+    if (type(mA) is not sMtx):
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(mA).__name__}'")
+    return generalcombsepa(ng,callhistory, 'SEPARATE','MATRIXTRANSFORM', mA,)
+
+@user_domain('nexscript')
+@user_doc(nexscript="Combine Matrix (Transform).\nCombine 3 SocketVector into a SocketMatrix.")
+def combine_transform(ng, callhistory:list,
+    vLoc:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    vRot:sFlo|sInt|sBoo|sVec|sQut|float|int|Vector|Quaternion,
+    vSca:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    ) -> tuple:
+    
+    if type(vLoc) in {int, float}:
+        vLoc = Vector((vLoc,vLoc,vLoc))
+    if type(vRot) in {int, float}:
+        vRot = Vector((vRot,vRot,vRot)) #support quaternion in here?
+    if type(vSca) in {int, float}:
+        vSca = Vector((vSca,vSca,vSca))
+
+    if (type(vLoc) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, Vector}):
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vLoc).__name__}' for Location parameter")
+    if (type(vRot) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, sQut, Vector}):#, Quaternion}):
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vRot).__name__}' for Rotation parameter")
+    if (type(vSca) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, Vector}):
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vSca).__name__}' for Scale parameter")
+
+    return generalcombsepa(ng,callhistory, 'COMBINE','MATRIXTRANSFORM', (vLoc,vRot,vSca),)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")
@@ -1531,9 +1588,9 @@ def iseq(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     )->sBoo:
-    if alltypes(a,b,types=(sBoo,bool),):
+    if alltypes(a,b,types=(sBoo, bool),):
         return generalboolmath(ng,callhistory, 'XNOR', a,b)
-    if anytype(a,b,types=(sVec,Vector,),):
+    if anytype(a,b,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalcompare(ng,callhistory, 'VECTOR','EQUAL', a,b,None)
     return generalcompare(ng,callhistory, 'FLOAT','EQUAL', a,b,None)
 
@@ -1543,9 +1600,9 @@ def isuneq(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     )->sBoo:
-    if alltypes(a,b,types=(sBoo,bool),):
+    if alltypes(a,b,types=(sBoo, bool),):
         return generalboolmath(ng,callhistory, 'XOR', a,b)
-    if anytype(a,b,types=(sVec,Vector,),):
+    if anytype(a,b,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalcompare(ng,callhistory, 'VECTOR','NOT_EQUAL', a,b,None)
     return generalcompare(ng,callhistory, 'FLOAT','NOT_EQUAL', a,b,None)
 
@@ -1555,7 +1612,7 @@ def isless(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     )->sBoo:
-    if anytype(a,b,types=(sVec,Vector,),):
+    if anytype(a,b,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalcompare(ng,callhistory, 'VECTOR','LESS_THAN', a,b,None)
     return generalcompare(ng,callhistory, 'FLOAT','LESS_THAN', a,b,None)
 
@@ -1565,7 +1622,7 @@ def islesseq(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     )->sBoo:
-    if anytype(a,b,types=(sVec,Vector,),):
+    if anytype(a,b,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalcompare(ng,callhistory, 'VECTOR','LESS_EQUAL', a,b,None)
     return generalcompare(ng,callhistory, 'FLOAT','LESS_EQUAL', a,b,None)
 
@@ -1575,7 +1632,7 @@ def isgreater(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     )->sBoo:
-    if anytype(a,b,types=(sVec,Vector,),):
+    if anytype(a,b,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalcompare(ng,callhistory, 'VECTOR','GREATER_THAN', a,b,None)
     return generalcompare(ng,callhistory, 'FLOAT','GREATER_THAN', a,b,None)
 
@@ -1585,7 +1642,7 @@ def isgreatereq(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     )->sBoo:
-    if anytype(a,b,types=(sVec,Vector,),):
+    if anytype(a,b,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalcompare(ng,callhistory, 'VECTOR','GREATER_EQUAL', a,b,None)
     return generalcompare(ng,callhistory, 'FLOAT','GREATER_EQUAL', a,b,None)
 
@@ -1632,7 +1689,7 @@ def lerp(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(f,a,b,types=(sVec,Vector,),):
+    if anytype(f,a,b,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalmix(ng,callhistory, 'VECTOR',f,a,b)
     return generalmix(ng,callhistory, 'FLOAT',f,a,b)
 
@@ -1654,8 +1711,8 @@ def clamp(ng, callhistory:list,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
-    if anytype(v,types=(sVec,Vector),):
-        if not alltypes(a,b,types=(sFlo,sInt,sBoo,float,int),):
+    if anytype(v,types=(sVec, sVecXYZ, sVecT, Vector,),):
+        if not alltypes(a,b,types=(sFlo, sInt, sBoo, float, int),):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function clamp(). Second or Third argument must be float compatible types. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
         return generalvecfloatmath(ng,callhistory, 'CLAMP.MINMAX',v,a,b)
     return generalfloatmath(ng,callhistory, 'CLAMP.MINMAX',v,a,b)
@@ -1668,8 +1725,8 @@ def clampauto(ng, callhistory:list,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
-    if anytype(v,types=(sVec,Vector),):
-        if not alltypes(a,b,types=(sFlo,sInt,sBoo,float,int),):
+    if anytype(v,types=(sVec, sVecXYZ, sVecT, Vector,),):
+        if not alltypes(a,b,types=(sFlo, sInt, sBoo, float, int),):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function clamp(). Second or Third argument must be float compatible types. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
         return generalvecfloatmath(ng,callhistory, 'CLAMP.RANGE',v,a,b)
     return generalfloatmath(ng,callhistory, 'CLAMP.RANGE',v,a,b)
@@ -1684,7 +1741,7 @@ def mapl(ng, callhistory:list,
     x:sFlo|sInt|sBoo|float|int|Vector,
     y:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(v,a,b,x,y,types=(sVec,Vector,),):
+    if anytype(v,a,b,x,y,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalmaprange(ng,callhistory, 'FLOAT_VECTOR','LINEAR',v,a,b,x,y)
     return generalmaprange(ng,callhistory, 'FLOAT','LINEAR',v,a,b,x,y)
 
@@ -1699,7 +1756,7 @@ def mapst(ng, callhistory:list,
     y:sFlo|sInt|sBoo|float|int|Vector,
     step:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(v,a,b,x,y,step,types=(sVec,Vector,),):
+    if anytype(v,a,b,x,y,step,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalmaprange(ng,callhistory, 'FLOAT_VECTOR','STEPPED',v,a,b,x,y,step)
     return generalmaprange(ng,callhistory, 'FLOAT','STEPPED',v,a,b,x,y,step)
 
@@ -1713,7 +1770,7 @@ def mapsmo(ng, callhistory:list,
     x:sFlo|sInt|sBoo|float|int|Vector,
     y:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(v,a,b,x,y,types=(sVec,Vector,),):
+    if anytype(v,a,b,x,y,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalmaprange(ng,callhistory, 'FLOAT_VECTOR','SMOOTHSTEP',v,a,b,x,y)
     return generalmaprange(ng,callhistory, 'FLOAT','SMOOTHSTEP',v,a,b,x,y)
 
@@ -1727,7 +1784,7 @@ def mapsmoo(ng, callhistory:list,
     x:sFlo|sInt|sBoo|float|int|Vector,
     y:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
-    if anytype(v,a,b,x,y,types=(sVec,Vector,),):
+    if anytype(v,a,b,x,y,types=(sVec, sVecXYZ, sVecT, Vector,),):
         return generalmaprange(ng,callhistory, 'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y)
     return generalmaprange(ng,callhistory, 'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
 
