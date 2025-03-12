@@ -12,7 +12,7 @@ from ..__init__ import get_addon_prefs
 from ..resources import cust_icon
 from ..nex.nextypes import NexFactory, NexError
 from ..nex.nodesetter import generate_documentation
-from ..utils.str_utils import word_wrap
+from ..utils.str_utils import word_wrap, prettyError
 from ..utils.node_utils import (
     get_socket,
     create_socket,
@@ -146,16 +146,12 @@ def transform_nex_script(original_text:str, nextypes:list) -> str:
         else: return f"{varname} = {typename}('{varname}', {rest.strip()})"
 
     pattern = re.compile(rf"\b(\w+)\s*:\s*({'|'.join(nextypes)})\s*(?:=\s*(.+))?")
-    
+
     lines = []
     for line in original_text.splitlines():
 
         # Remove comments: delete anything from a '#' to the end of the line.
         line = re.sub(r'#.*', '', line)
-
-        # ignore white lines
-        if (len(line)==0):
-            continue
 
         #transform type hinting notation
         line = pattern.sub(replacer, line)
@@ -392,38 +388,45 @@ class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
         exec_namespace.update(nextoys['nexusertypes'])
         exec_namespace.update(nextoys['nexuserfunctions'])
         script_vars = {} #catch variables from exec?
-
-        # for debug mode, we execute without try except to catch 'real' errors with more details. 
-        # the exception we raise are designed for the users, not for ourselves devs
-        if (get_addon_prefs().debug):
-
-            i = self.debug_evaluation_counter
-            print(f"\n{'-'*50}")
-
-            print(f"USER EXPRESSION: exec{i}")
-            print('"""\n'+user_script+'\n"""')
-
-            print(f"TRANSFORMED EXPRESSION: exec{i}")
-            print('"""\n'+final_script+'\n"""')
-
-            print(f"ERROR(?): exec{i}")
-            exec(final_script, exec_namespace, script_vars)
-
+            
         try:
-            exec(final_script, exec_namespace, script_vars)
+            compiled_script = compile(
+                source=final_script,
+                filename=self.user_textdata.name,
+                mode="exec",
+                )
+            exec(compiled_script, exec_namespace, script_vars)
+
+        except SyntaxError as e:
+            #print more information in console
+            full, short = prettyError(e)
+            print(full)
+            # set error to True
+            set_socket_label(ng,0, label="SynthaxError",)
+            set_socket_defvalue(ng,0, value=True,)
+            # Display error
+            self.error_message =  short
+            # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
+            self.cleanse_nodes()
+            return None
 
         except NexError as e:
+            #print more information in console
+            full, short = prettyError(e, userfilename=self.user_textdata.name,)
+            print(full)
             # set error to True
             set_socket_label(ng,0, label="NexError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = str(e)
+            self.error_message = short
             # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
             self.cleanse_nodes()
             return None
 
         except Exception as e:
-            print(f"\n{self.bl_idname} Python Execution Exception '{type(e).__name__}':\n{e}\n")
+            #print more information in console
+            full, short = prettyError(e, userfilename=self.user_textdata.name,)
+            print(full)
             #print more information
             print("Full Traceback Error:")
             traceback.print_exc()
@@ -431,7 +434,7 @@ class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
             set_socket_label(ng,0, label="PythonError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f"{type(e).__name__}. {e}.\nSee console for traceback."
+            self.error_message = short
             return None
 
         #check on vars..

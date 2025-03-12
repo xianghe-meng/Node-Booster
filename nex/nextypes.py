@@ -201,12 +201,12 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             node_tree = NODEINSTANCE.node_tree
             partialsockfunc = partial(sockfunc, node_tree, CALLHISTORY,)
 
-            #Call the Nex function with wrapped error handling.
+            #Call the socket function with wrapped error handling.
             try:
                 r = partialsockfunc(*args, **kwargs)
 
             except TypeError as e:
-                #Cook better error message to end user
+                #Cook better error message to end user if he messed passed arguments to a socket function.
                 e = str(e)
                 if ('()' in e):
                     errfname = e.split('()')[0]
@@ -638,7 +638,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketFloat' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketFloat' and '{type(other).__name__}'.")
             return NexWrappedFcts['iseq'](*args,)
 
         def __ne__(self, other): # self != other
@@ -651,7 +651,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketFloat' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketFloat' and '{type(other).__name__}'.")
             return NexWrappedFcts['isuneq'](*args,)
 
         def __lt__(self, other): # self < other
@@ -664,7 +664,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '<' comparison between types 'SocketFloat' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '<' comparison between types 'SocketFloat' and '{type(other).__name__}'.")
             return NexWrappedFcts['isless'](*args,)
 
         def __le__(self, other): # self <= other
@@ -677,7 +677,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '<=' comparison between types 'SocketFloat' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '<=' comparison between types 'SocketFloat' and '{type(other).__name__}'.")
             return NexWrappedFcts['islesseq'](*args,)
 
         def __gt__(self, other): # self > other
@@ -690,7 +690,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '>' comparison between types 'SocketFloat' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '>' comparison between types 'SocketFloat' and '{type(other).__name__}'.")
             return NexWrappedFcts['isgreater'](*args,)
 
         def __ge__(self, other): # self >= other
@@ -703,7 +703,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketFloat' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketFloat' and '{type(other).__name__}'.")
             return NexWrappedFcts['isgreatereq'](*args,)
 
 
@@ -792,7 +792,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _ if ('Nex' in type_name):
                     return NotImplemented
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketBool' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketBool' and '{type(other).__name__}'.")
             return NexWrappedFcts['iseq'](*args,)
 
         def __ne__(self, other): # self != other
@@ -803,7 +803,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _ if ('Nex' in type_name):
                     return NotImplemented
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketBool' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketBool' and '{type(other).__name__}'.")
             return NexWrappedFcts['isuneq'](*args,)
 
         # ---------------------
@@ -1111,9 +1111,12 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         def __setitem__(self, key, value): #x[0] += a+b
             to_frame = []
+            type_name = type(value).__name__
 
             match key:
                 case int(): #vec[i]
+                    if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
+                        raise NexError(f"TypeError. Value assigned to VectorSocket[i] must float compatible. Recieved '{type_name}'.")
                     x, y, z = NexWrappedFcts['separate_xyz'](self,)
                     to_frame.append(x.nxsock.node)
                     match key:
@@ -1125,7 +1128,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case slice():
                     if (key!=slice(None,None,None)):
                         raise NexError("Only [:] slicing is supported for SocketVector.")
-                    new_xyz = tuple(value)
+                    new_xyz = value
                     if (len(new_xyz)!=3):
                         raise NexError("Slice assignment requires exactly 3 values.")
 
@@ -1201,7 +1204,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = self, trypy_to_Vec3(other)
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketVector' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketVector' and '{type(other).__name__}'.")
             return NexWrappedFcts['iseq'](*args,)
 
         def __ne__(self, other): # self != other
@@ -1212,7 +1215,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = self, trypy_to_Vec3(other)
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketVector' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketVector' and '{type(other).__name__}'.")
             return NexWrappedFcts['isuneq'](*args,)
 
         def __lt__(self, other): # self < other
@@ -1223,7 +1226,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = self, trypy_to_Vec3(other)
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '<' comparison between types 'SocketVector' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '<' comparison between types 'SocketVector' and '{type(other).__name__}'.")
             return NexWrappedFcts['isless'](*args,)
 
         def __le__(self, other): # self <= other
@@ -1234,7 +1237,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = self, trypy_to_Vec3(other)
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '<=' comparison between types 'SocketVector' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '<=' comparison between types 'SocketVector' and '{type(other).__name__}'.")
             return NexWrappedFcts['islesseq'](*args,)
 
         def __gt__(self, other): # self > other
@@ -1245,7 +1248,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = self, trypy_to_Vec3(other)
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '>' comparison between types 'SocketVector' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '>' comparison between types 'SocketVector' and '{type(other).__name__}'.")
             return NexWrappedFcts['isgreater'](*args,)
 
         def __ge__(self, other): # self >= other
@@ -1256,7 +1259,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     args = self, trypy_to_Vec3(other)
                 case _:
-                    raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketVector' and '{type(other).__name__}'")
+                    raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketVector' and '{type(other).__name__}'.")
             return NexWrappedFcts['isgreatereq'](*args,)
 
     # ooooo      ooo                       ooo        ooooo     .               
@@ -1324,7 +1327,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     #     NOTE: SocketMatrix type do not support assigning a default socket values.
 
                 case _:
-                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketMatrix'. Was expecting 'None'")# | 'Matrix[16]' | 'list[16]' | 'set[16]' | 'tuple[16]'")
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketMatrix'. Was expecting 'None'.")# | 'Matrix[16]' | 'list[16]' | 'set[16]' | 'tuple[16]'")
 
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None

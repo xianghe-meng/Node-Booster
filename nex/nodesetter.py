@@ -202,7 +202,7 @@ def generalfloatmath(ng, callhistory:list,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalfloatmath({operation_type}) recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalfloatmath({operation_type}) recieved unsupported type '{type(val).__name__}'.")
 
     return node.outputs[0]
 
@@ -263,7 +263,7 @@ def generalvecmath(ng, callhistory:list,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalvecmath('{operation_type}') recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalvecmath('{operation_type}') recieved unsupported type '{type(val).__name__}'.")
 
     return node.outputs[outidx]
 
@@ -328,7 +328,7 @@ def generalverotate(ng, callhistory:list,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalverotate('{rotation_type}') recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalverotate('{rotation_type}') recieved unsupported type '{type(val).__name__}'.")
 
     return node.outputs[0]
 
@@ -399,7 +399,7 @@ def generalmix(ng, callhistory:list,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalmix('{data_type}') recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalmix('{data_type}') recieved unsupported type '{type(val).__name__}'.")
 
     return node.outputs[outidx]
 
@@ -498,7 +498,7 @@ def generalmaprange(ng, callhistory:list,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalmaprange('{data_type}','{interpolation_type}') recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalmaprange('{data_type}','{interpolation_type}') recieved unsupported type '{type(val).__name__}'.")
 
     return node.outputs[outidx]
 
@@ -598,7 +598,7 @@ def generalcompare(ng, callhistory:list,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalcompare('{data_type}','{operation}') recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalcompare('{data_type}','{operation}') recieved unsupported type '{type(val).__name__}'.")
 
     return node.outputs[0]
 
@@ -646,7 +646,7 @@ def generalboolmath(ng, callhistory:list,
 
             case None: pass
 
-            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalboolmath('{operation}') recieved unsupported type '{type(val).__name__}'")
+            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function generalboolmath('{operation}') recieved unsupported type '{type(val).__name__}'.")
 
     return node.outputs[0]
 
@@ -1399,7 +1399,7 @@ def separate_xyz(ng, callhistory:list,
     vA:sVec,
     ) -> tuple:
     if (type(vA) not in {sVec, sVecXYZ, sVecT}):
-        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_xyz() recieved unsupported type '{type(vA).__name__}'")
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_xyz() recieved unsupported type '{type(vA).__name__}'.")
     return generalcombsepa(ng,callhistory, 'SEPARATE','VECTORXYZ', vA,)
 
 @user_domain('nexscript')
@@ -1410,7 +1410,7 @@ def combine_xyz(ng, callhistory:list,
     fZ:sFlo|sInt|sBoo|float|int,
     ) -> sVec:
     if not alltypes(fX,fY,fZ,types=(sFlo, sInt, sBoo, float, int),):
-        raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_xyz(). Expected x,y,z arguments in SocketFloat,SocketInt,SocketBool,float or int. Recieved '{type(fX).__name__}','{type(fY).__name__}','{type(fZ).__name__}'.")
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_xyz(). Expected x,y,z arguments in SocketFloat, SocketInt, SocketBool, float or int. Recieved '{type(fX).__name__}', '{type(fY).__name__}', '{type(fZ).__name__}'.")
     return generalcombsepa(ng,callhistory, 'COMBINE','VECTORXYZ', (fX,fY,fZ),)
 
 @user_domain('nexscript')
@@ -1498,7 +1498,7 @@ def separate_matrix(ng, callhistory:list,
     mA:sMtx,
     ) -> tuple:
     if (type(mA) is not sMtx):
-        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_matrix() recieved unsupported type '{type(mA).__name__}'")
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_matrix() recieved unsupported type '{type(mA).__name__}'.")
     return generalcombsepa(ng,callhistory, 'SEPARATE','MATRIXFLAT', mA,)
 
 @user_domain('nexscript')
@@ -1512,7 +1512,7 @@ def combine_matrix(ng, callhistory:list,
         itterables = itterables[0]
 
     if (type(itterables) not in {tuple, set, list}):
-        raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix() recieved unsupported type '{type(itterables).__name__}'")
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix() recieved unsupported type '{type(itterables).__name__}'.")
     if (len(itterables) !=16):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix() recieved itterable must be of len 16 to fit a 4x4 SocketMatrix")
 
@@ -1528,7 +1528,7 @@ def separate_transform(ng, callhistory:list,
     mA:sMtx,
     ) -> tuple:
     if (type(mA) is not sMtx):
-        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(mA).__name__}'")
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(mA).__name__}'.")
     return generalcombsepa(ng,callhistory, 'SEPARATE','MATRIXTRANSFORM', mA,)
 
 @user_domain('nexscript')
@@ -1547,11 +1547,11 @@ def combine_transform(ng, callhistory:list,
         vS = Vector((vS,vS,vS))
 
     if (type(vL) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, Vector}):
-        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vL).__name__}' for Location parameter")
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vL).__name__}' for Location Param.")
     if (type(vR) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, sQut, Vector}):#, Quaternion}):
-        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vR).__name__}' for Rotation parameter")
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vR).__name__}' for Rotation Param.")
     if (type(vS) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, sVecT, Vector}):
-        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vS).__name__}' for Scale parameter")
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_transform() recieved unsupported type '{type(vS).__name__}' for Scale Param.")
 
     return generalcombsepa(ng,callhistory, 'COMBINE','MATRIXTRANSFORM', (vL,vR,vS),)
 

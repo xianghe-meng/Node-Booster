@@ -5,10 +5,11 @@
 
 import bpy
 
+import os
 import re
+import traceback
 
 from .. import get_addon_prefs
-
 
 
 def is_float_compatible(string):
@@ -138,4 +139,119 @@ def word_wrap(string="", layout=None, alignment="CENTER", max_char=70, char_auto
             continue 
     
     return wrapped
+
+
+def prettyError(e: BaseException, userfilename='',):
+    """
+    Return a multiline string describing the given exception `e` in a
+    more readable format. If it's a SyntaxError, includes line text
+    with a caret at the .offset. Otherwise, falls back to the last
+    traceback frame and includes the file name, line, and code snippet.
+    """
+
+    etypename = type(e).__name__
     
+    match etypename:
+        
+        #Synthax error?
+        case 'SyntaxError':
+            # e.text is the source line, e.offset is the column offset (1-based)
+            # e.lineno is line number, e.filename is file name, e.msg is short message
+            faulty_line = e.text or ""
+            faulty_line = faulty_line.rstrip("\n")
+
+            # offset can be None or out-of-range
+            offset = e.offset or 1
+            if offset < 1:
+                offset = 1
+            if offset > len(faulty_line):
+                offset = len(faulty_line)
+
+            highlight = ""
+            if (faulty_line):
+                highlight = " " * (offset - 1) + "^"*5
+
+            full_error = (
+                f"{type(e).__name__}: {e.msg}\n"
+                f"File '{e.filename}' At line {e.lineno}.\n"
+                f"    {faulty_line}\n"
+                f"    {highlight}"
+                )
+            small_error = (
+                f"PythonSynthaxError. {e.msg}. Line {e.lineno}."
+                )
+            return full_error, small_error
+
+        #Nex Error?
+        case 'NexError':
+
+            tb = e.__traceback__
+            filtered_tb = tb
+            faultyfilename = 'Unknown'
+            faultyline = 'Unknown'
+
+            while (filtered_tb is not None):
+                # Extract a 1-frame summary for the current node in the traceback
+                frame_summaries = traceback.extract_tb(filtered_tb, limit=1)
+                if (not frame_summaries):
+                    # Something went wrong or we reached the end
+                    break
+
+                frame_info = frame_summaries[0]  # A FrameSummary object
+
+                filename = frame_info.filename
+                lineno = frame_info.lineno
+
+                if (userfilename in filename):
+                    faultyline = lineno
+                    faultyfilename = filename
+                    break
+
+                filtered_tb = filtered_tb.tb_next
+                continue
+
+            full_error = (
+                f"NexError: {e}\n"
+                f"File '{faultyfilename}' At line {faultyline}.\n"
+                )
+            small_error = (
+                f"{e} Line {faultyline}."
+                )
+            return full_error, small_error
+
+        # Other exceptions
+        case _:
+
+            # We'll extract the traceback frames. The last frame is typically where
+            # the exception occurred. We can show file, line, and snippet if available.
+            frames = traceback.extract_tb(e.__traceback__)
+            if not frames:
+                # If there's no traceback info at all, just show type + message
+                return f"{type(e).__name__}: {e}", f"{type(e).__name__}. {e}"
+
+            # The last frame is typically the innermost call where the error happened
+            last_frame = frames[-1]
+            filename = last_frame.filename
+            lineno = last_frame.lineno
+            code_line = last_frame.line or ""
+
+            if (filename == userfilename):
+                full_error = (
+                    f"UserSideError. {type(e).__name__}: {e}\n"
+                    f"File \"{filename}\", At line {lineno}\n\n"
+                    f"    {code_line}"
+                    )
+                small_error = (
+                    f"{type(e).__name__}. {e} Line {lineno}."
+                    )
+                return full_error, small_error
+            
+            full_error = (
+                f"InternalError. Please report! {type(e).__name__}: {e}\n"
+                f"File \"{filename}\", At line {lineno}\n\n"
+                f"    {code_line}"
+                )
+            small_error = (
+                f"InternalError. {type(e).__name__}. {e}. File '{os.path.basename(filename)}' line {lineno}."
+                )
+            return full_error, small_error
