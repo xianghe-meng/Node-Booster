@@ -190,7 +190,7 @@ def generalfloatmath(ng, callhistory:list,
     for i,val in enumerate(args):
         match val:
 
-            case sFlo() | sInt() | sBoo():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -809,6 +809,78 @@ def generalmatrixmath(ng, callhistory:list,
 
     return node.outputs[outidx]
 
+def generalcombinesepa(ng, callhistory:list,
+    operation_type:str,
+    data_type:str, 
+    input_data:sFlo|sInt|sBoo|sVec|sVecXYZ|sMtx|tuple|list|set,
+    ) -> tuple|sVec|sMtx:
+    """Generic function for creating 'combine' or 'separate' nodes, over multiple types"""
+
+    node_types = {
+        'SEPARATE': {
+            'VECTORXYZ': 'ShaderNodeSeparateXYZ',
+            'MATRIXFLAT': 'FunctionNodeSeparateMatrix',
+            },
+        'COMBINE': {
+            'VECTORXYZ': 'ShaderNodeCombineXYZ',
+            'MATRIXFLAT': 'FunctionNodeCombineMatrix',
+            },
+        }
+
+    assert operation_type in {'SEPARATE','COMBINE'}
+    if data_type not in node_types[operation_type]:
+        raise ValueError(f"Unsupported data_type '{data_type}' for operation '{operation_type}'")
+    nodetype = node_types[operation_type][data_type]
+
+    prefix_names = {
+        'SEPARATE': {'VECTORXYZ': "Sep VecXYZ", 'MATRIXFLAT': "Sep MtxFlat"},
+        'COMBINE': {'VECTORXYZ': "Comb VecXYZ", 'MATRIXFLAT': "Comb MtxFlat"},
+        }
+    nameid = prefix_names[operation_type][data_type]
+    uniquename = get_unique_name(nameid, callhistory)
+    needs_linking = False
+
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
+        
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0,200,)
+        node = ng.nodes.new(nodetype)
+        node.location = location
+        ng.nodes.active = node
+
+        needs_linking = True
+        if (uniquename):
+            node.name = node.label = uniquename
+
+    match operation_type:
+
+        case 'SEPARATE':
+            assert type(input_data) in {sVec, sVecXYZ, sMtx}, "This function is expecting to recieve a SocketVector or SocketMatrix"
+            if needs_linking:
+                link_sockets(input_data, node.inputs[0])
+            return tuple(node.outputs)
+
+        case 'COMBINE':
+            for i, val in enumerate(input_data):
+                match val:
+                    case sFlo() | sInt() | sBoo():
+                        if needs_linking:
+                            link_sockets(val, node.inputs[i])
+                    case float() | int() | bool():
+                        val = float(val) if isinstance(val, bool) else val
+                        if node.inputs[i].default_value != val:
+                            node.inputs[i].default_value = val
+                            assert_purple_node(node)
+                    case None:
+                        pass
+                    case _:
+                        raise InvalidTypePassedToSocket(f"Unsupported type '{type(val).__name__}' in combine operation.")
+            return node.outputs[0]
+
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Addition.\nEquivalent to the '+' symbol.")
@@ -1297,34 +1369,9 @@ def length(ng, callhistory:list,
 def separate_xyz(ng, callhistory:list,
     vA:sVec,
     ) -> tuple:
-
-    if (type(vA) is not sVec):
+    if (type(vA) not in {sVec, sVecXYZ}):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_xyz() recieved unsupported type '{type(vA).__name__}'")
-
-    uniquename = get_unique_name('SepXYZ',callhistory)
-    node = None
-    needs_linking = False
-
-    if (uniquename):
-        node = ng.nodes.get(uniquename)
-
-    if (node is None):
-        last = ng.nodes.active
-        if (last):
-              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
-        else: location = (0,200,)
-        node = ng.nodes.new('ShaderNodeSeparateXYZ')
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-        
-        needs_linking = True
-        if (uniquename):
-            node.name = node.label = uniquename
-
-    if (needs_linking):
-        link_sockets(vA, node.inputs[0])
-
-    return tuple(node.outputs)
+    return generalcombinesepa(ng,callhistory, 'SEPARATE','VECTORXYZ', vA,)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Vector.\nCombine 3 SocketFloat, SocketInt or SocketBool into a SocketVector.")
@@ -1333,45 +1380,9 @@ def combine_xyz(ng, callhistory:list,
     fY:sFlo|sInt|sBoo|float|int,
     fZ:sFlo|sInt|sBoo|float|int,
     ) -> sVec:
-
-    uniquename = get_unique_name('CombXYZ',callhistory)
-    node = None
-    needs_linking = False
-
-    if (uniquename):
-        node = ng.nodes.get(uniquename)
-
-    if (node is None):
-        last = ng.nodes.active
-        if last:
-              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
-        else: location = (0, 200,)
-        node = ng.nodes.new('ShaderNodeCombineXYZ')
-        node.location = location
-        ng.nodes.active = node
-        needs_linking = True
-        if (uniquename):
-            node.name = node.label = uniquename
-
-    for i, val in enumerate((fX, fY, fZ)):
-        match val:
-
-            case sFlo() | sInt() | sBoo():
-                if needs_linking:
-                    link_sockets(val, node.inputs[i])
-
-            case float() | int() | bool():
-                if type(val) is bool:
-                    val = float(val)
-                if (node.inputs[i].default_value!=val):
-                    node.inputs[i].default_value = val
-                    assert_purple_node(node)
-
-            case None: pass
-
-            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_xyz() recieved unsupported type '{type(val).__name__}'")
-
-    return node.outputs[0]
+    if not alltypes(fX,fY,fZ,types=(sFlo,sInt,sBoo,float,int),):
+        raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_xyz(). Expected x,y,z arguments in SocketFloat,SocketInt,SocketBool,float or int. Recieved '{type(fX).__name__}','{type(fY).__name__}','{type(fZ).__name__}'.")
+    return generalcombinesepa(ng,callhistory, 'COMBINE','VECTORXYZ', (fX,fY,fZ),)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Rotate (Euler).\nRotate a given Vector A with euler angle radians E, at optional center C.")
@@ -1452,94 +1463,31 @@ def transformdir(ng, callhistory:list,
     ) -> sVec:
     return generalmatrixmath(ng,callhistory, 'transformdir', vA,mB,None)
 
-
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix.\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")
 def separate_matrix(ng, callhistory:list,
     mA:sMtx,
     ) -> tuple:
-
     if (type(mA) is not sMtx):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_matrix() recieved unsupported type '{type(mA).__name__}'")
-
-    uniquename = get_unique_name('FlatMtx',callhistory)
-    node = None
-    needs_linking = False
-
-    if (uniquename):
-        node = ng.nodes.get(uniquename)
-
-    if (node is None):
-        last = ng.nodes.active
-        if (last):
-              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
-        else: location = (0,200,)
-        node = ng.nodes.new('FunctionNodeSeparateMatrix')
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-
-        needs_linking = True
-        if (uniquename):
-            node.name = node.label = uniquename
-
-    if (needs_linking):
-        link_sockets(mA, node.inputs[0])
-
-    return tuple(node.outputs)
+    return generalcombinesepa(ng,callhistory, 'SEPARATE','MATRIXFLAT', mA,)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix.\nCombine an itterable containing  16 SocketFloat, SocketInt or SocketBool arranged by columns to a SocketMatrix.")
 def combine_matrix(ng, callhistory:list,
     *itterables:sFlo|sInt|sBoo|float|int|tuple|set|list,
     ) -> tuple:
-
-    #user is passing an itter?
+    #unpack itterable?
     if ((len(itterables)==1) and (type(itterables[0]) in {tuple, set, list})):
         itterables = itterables[0]
-
     if (type(itterables) not in {tuple, set, list}):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix() recieved unsupported type '{type(itterables).__name__}'")
     if (len(itterables) !=16):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix() recieved itterable must be of len 16 to fit a 4x4 SocketMatrix")
-
-    uniquename = get_unique_name('CombFlatMtx',callhistory)
-    node = None
-    needs_linking = False
-
-    if (uniquename):
-        node = ng.nodes.get(uniquename)
-
-    if (node is None):
-        last = ng.nodes.active
-        if last:
-              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
-        else: location = (0, 200,)
-        node = ng.nodes.new('FunctionNodeCombineMatrix')
-        node.location = location
-        ng.nodes.active = node
-        needs_linking = True
-        if (uniquename):
-            node.name = node.label = uniquename
-
-    for i, val in enumerate(itterables):
-        match val:
-
-            case sFlo() | sInt() | sBoo():
-                if needs_linking:
-                    link_sockets(val, node.inputs[i])
-
-            case float() | int() | bool():
-                if type(val) is bool:
-                    val = float(val)
-                if (node.inputs[i].default_value!=val):
-                    node.inputs[i].default_value = val
-                    assert_purple_node(node)
-
-            case None: pass
-
-            case _: raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix() recieved unsupported type '{type(val).__name__}'")
-
-    return node.outputs[0]
+    for it in itterables:
+        if type(it) not in {sFlo, sInt, sBoo, float, int}:
+            raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix(). Expected arguments in SocketFloat,SocketInt,SocketBool,float or int. Recieved a '{type(it).__name__}'.")
+    return generalcombinesepa(ng,callhistory, 'COMBINE','MATRIXFLAT', itterables,)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")
