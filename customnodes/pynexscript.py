@@ -297,7 +297,8 @@ class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
         #define all possible Nex types & functions the user can toy with
         all_inputs_names = [] #capture on Nextype initalization.
         all_outputs_names = []
-        nextoys = NexFactory(self, all_inputs_names, all_outputs_names,)
+        function_call_history = [] #we need a function call history defined here for a stable nodetree on multiple execution.
+        nextoys = NexFactory(self, all_inputs_names, all_outputs_names, function_call_history,)
 
         # Synthax:
         # replace varname:infloat=REST with varname=infloat('varname',REST) & remove comments

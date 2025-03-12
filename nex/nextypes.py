@@ -94,94 +94,6 @@ trypy_to_Mtx16 = NexErrorWrapper(py_to_Mtx16)
 trypy_to_Vec3 = NexErrorWrapper(py_to_Vec3)
 
 
-def create_Nex_tag(sockfunc, *nex_or_py_variables, startchar='F',):
-    """generate an unique tag depending on a function and their args.
-    The tags will be used by nodesetter.py reusenode functionality. In order
-    to update socket values without rebuilding the nodetree on function re-execution."""
-
-    # ex: 'F|f.pow(f4f5)'
-    #     'F|f.mult(f2pi6)'
-
-    # NOTE tag must always be under 64char to work. 
-    # that's because nodesetter.reusenode is based on nodenames.
-
-    NexType = None
-    for v in nex_or_py_variables:
-        if ('Nex' in type(v).__name__):
-            NexType = v
-            break
-    assert NexType is not None, f"We should've found a Nex variable in  {sockfunc.__name__}{nex_or_py_variables}"
-
-    argtags = []
-    for v in nex_or_py_variables:
-        if ('Nex' in type(v).__name__):
-            argtags.append(f"{v.nxchar}{v.nxid}")
-            continue
-        argtags.append(f"p{type(v).__name__.lower()[0]}{NexType.init_counter}") #better support for python args? how to identify them properly given that their values can change?
-        continue
-
-    #some function names are notoriously long..
-    funcname = sockfunc.__name__
-    if funcname=='combine_matrix':
-        funcname='mtx'
-
-    uniquetag = f"{startchar}|{NexType.nxchar}.{funcname}({''.join(argtags)})"
-
-    if (len(uniquetag)>=63):
-        print(f"\nALERT: create_Nex_tag(): Tag of more than 62 char generated. That will not go well..\n  '{uniquetag}'\n  '{uniquetag[:64]}'")
-
-    return uniquetag
-
-def call_Nex_operand(NexType, sockfunc, *nex_or_py_variables, NexReturnType=None,):
-    """call the sockfunc related to the operand with sockets of our NexTypes, and return a  new NexType from the newly formed socket.
-    Each new node the sockfuncs will create will be tagged, it is essential that we don't create & 
-    link the nodes if there's no need to do in order to only but update new default_values, as a Nex script can be executed frequently. """
-
-    uniquetag = create_Nex_tag(sockfunc, *nex_or_py_variables)
-    sock_or_py_variables = [v.nxsock if ('Nex' in type(v).__name__) else v for v in nex_or_py_variables]
-
-    try:
-        #call the socket functions with partials posargs
-        r = sockfunc(NexType.node_tree, uniquetag, *sock_or_py_variables,)
-    except nodesetter.InvalidTypePassedToSocket as e:
-        msg = str(e)
-        if ('Expected parameters in' in msg):
-            msg = f"TypeError. Function {sockfunc.__name__}() Expected parameters in " + str(e).split('Expected parameters in ')[1]
-        raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.. If the user see that error, the nextype didn't handle typing properly..
-
-    except Exception as e:
-        print(f"ERROR: call_Nex_operand.sockfunc() caught error {type(e).__name__}")
-        raise
-
-    # Then return a Nextype..
-    # (Support for multi outputs & if output type is not the same as input with NexReturnType)
-    # NOTE perhaps is better to use autosetNexType() for the wrapping the return Nex than manually defining a NexReturnType? Will need to move this fct in factory then..
-
-    if (NexReturnType is not None):
-        NexType = NexReturnType
-    if (type(r) is tuple):
-        return tuple(NexType(fromsocket=s) for s in r)        
-    return NexType(fromsocket=r)
-
-def create_Nex_constant(node_tree, NexType, value,):
-    """Create a new input node (if not already exist) ensure it's default value, then assign to a NexType & return it."""
-
-    new = NexType(manualdef=True)
-    tag = f"C|{new.nxchar}{new.nxid}.const(p{type(value).__name__.lower()[0]})"
-    
-    type_name = NexType.__name__
-    match type_name:
-        case 'NexMtx':
-            nodetype = 'FunctionNodeCombineMatrix'
-        case _:
-            raise Exception(f"create_Nex_constant() Unsupported constant for Nextype '{type_name}'.")
-
-    # create_constant_input fct is smart it will create the node only if it doesn't exist, & ensure (new?) values
-    newsock = create_constant_input(node_tree, nodetype, value, tag)
-
-    new.nxsock = newsock
-    return new
-
 # oooooooooooo                         .                                  
 # `888'     `8                       .o8                                  
 #  888          .oooo.    .ooooo.  .o888oo  .ooooo.  oooo d8b oooo    ooo 
@@ -192,10 +104,146 @@ def create_Nex_constant(node_tree, NexType, value,):
 #                                                             .o..P'
 #                                                             `Y8P'
 
-def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
+def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     """return a nex type, which is simply an overloaded custom type that automatically arrange links and nodes and
     set default values. The nextypes will/should only build the nodetree and links when neccessary.
     in ALLINPUTS/ALLOUTPUTS we collect all Nex init created when initializing any instances of a Nex type."""
+
+    def AutoNexType(socket):
+        """automatically convert a node socket to Nex"""
+        match socket:
+            case bpy.types.NodeSocketBool():
+                return NexBool(fromsocket=socket)
+            
+            case bpy.types.NodeSocketFloat():
+                return NexFloat(fromsocket=socket)
+            
+            case bpy.types.NodeSocketVector() | bpy.types.NodeSocketVectorXYZ():
+                return NexVec(fromsocket=socket)
+            
+            case bpy.types.NodeSocketMatrix():
+                return NexMtx(fromsocket=socket)
+            
+            case bpy.types.NodeSocketInt():
+                raise Exception(f"ERROR: AutoNexType() not implemented yet") #return NexInt(fromsocket=socket)
+            
+            case bpy.types.NodeSocketColor():
+                raise Exception(f"ERROR: AutoNexType() not implemented yet") #return NexCol(fromsocket=socket)
+            
+            case bpy.types.NodeSocketRotation():
+                raise Exception(f"ERROR: AutoNexType() not implemented yet") #return NexQuat(fromsocket=socket)
+            
+            case _: raise Exception(f"ERROR: AutoNexType(): Unrecognized '{socket}' of type '{type(socket).__name__}'")
+
+    def create_Nex_constant(NexType, value,):
+        """Create a new input node (if not already exist) ensure it's default value, then assign to a NexType & return it."""
+
+        new = NexType(manualdef=True)
+        uniquetag = f"C|{new.nxchar}{new.nxid}.const(p{type(value).__name__.lower()[0]})"
+
+        type_name = NexType.__name__
+        match type_name:
+            case 'NexMtx':
+                nodetype = 'FunctionNodeCombineMatrix'
+            case _:
+                raise Exception(f"create_Nex_constant() Unsupported constant for Nextype '{type_name}'.")
+
+        # create_constant_input fct is smart it will create the node only if it doesn't exist, & ensure (new?) values
+        node_tree = NODEINSTANCE.node_tree
+        newsock = create_constant_input(node_tree, nodetype, value, uniquetag)
+
+        new.nxsock = newsock
+        return new
+
+    def wrap_socketfunctions(sockfunc, auto_convert_itter=False):
+        """Wrap nodesetter function with interal nodetree & history args, & wrap with NexTypes, so can recieve and output NexTypes automatically.
+        This wrapper also: Handle namecollision functions, can auto convert args to Vector or Matrix, handle user errors."""
+
+        def wrappedfunc(*args, **kwargs):
+
+            fname = sockfunc.__name__
+
+            # Using a NexFunction but not passed no NexType arguments? Beware of name conflict!
+            if (args and not any(('Nex' in type(v).__name__) for v in args)):
+                match fname:
+
+                    # Name conflict with python bultin functions? 
+                    # If no NexType are involved, we simply call builtin function, no Nexwrapper!
+                    case 'min': return min(*args, **kwargs)
+                    case 'max': return max(*args, **kwargs)
+
+                    # Name conflict with math module functions?
+                    # If no NexType are involved, we simply call builtin math function, no Nexwrapper!
+                    case 'cos'|'sin'|'tan'|'acos'|'asin'|'atan'|'cosh'|'sinh'|'tanh'|'sqrt'|'log'|'degrees'|'radians'|'floor'|'ceil'|'trunc':
+                        import math
+                        mathfunction = getattr(math,fname)
+                        return mathfunction(*args, **kwargs)
+
+            # some special functions accept tuple containing sockets, we need to unpack
+            if (fname=='combine_matrix'):
+                if (len(args)==1 and (type(args) in {tuple,set,list})):
+                    args = args[0]
+
+            #Process the passed args:
+
+            # -1 sockfunc expect nodesockets, not nextype, we need to convert their args to sockets.. (we did that previously with 'sock_or_py_variables')
+            args = [v.nxsock if ('Nex' in type(v).__name__) else v for v in args]
+
+                        
+            # -2 support for tuple as vectors or matrix?
+            if (auto_convert_itter):
+                args = [trypy_to_Vec3(v) if (type(v) in {tuple,list,set}) and (len(v)==3) and all((type(i) in {float,int}) for i in v) else v for v in args]
+                args = [trypy_to_Mtx16(v) if (type(v) in {tuple,list,set}) and (len(v)==16) and all((type(i) in {float,int}) for i in v) else v for v in args]
+
+            #define a function with the first two args already defined
+            node_tree = NODEINSTANCE.node_tree
+            partialsockfunc = partial(sockfunc, node_tree, CALLHISTORY,)
+
+            #Call the Nex function with wrapped error handling.
+            try:
+                r = partialsockfunc(*args, **kwargs)
+
+            except TypeError as e:
+                #Cook better error message to end user
+                e = str(e)
+                if ('()' in e):
+                    errfname = e.split('()')[0]
+                    if ('() missing' in e) and ('required positional argument' in e):
+                        nbr = e.split('() missing ')[1][0]
+                        raise NexError(f"Function {errfname}() needs {nbr} more Param(s)")
+                    elif ('() takes' in e) and ('positional argument' in e):
+                        raise NexError(f"Function {errfname}() recieved Extra Param(s)")
+                raise
+
+            except nodesetter.InvalidTypePassedToSocket as e:
+                msg = str(e)
+                if ('Expected parameters in' in msg):
+                    msg = f"TypeError. Function {fname}() Expected parameters in " + str(e).split('Expected parameters in ')[1]
+                raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.
+
+            except Exception as e:
+                print(f"ERROR: wrap_socketfunctions.{fname}() caught error {type(e).__name__}")
+                raise
+
+            # Wrap return value as Nex as well
+
+            if ((type(r) is not tuple) and (not issubclass(type(r), bpy.types.NodeSocket))):
+                raise Exception(f"Function '{sockfunc}' did not return a NodeSocket. This should never happen.")
+
+            if (type(r) is tuple):
+                  rNex = tuple(AutoNexType(s) for s in r)
+            else: rNex = AutoNexType(r)
+
+            return rNex
+
+        return wrappedfunc
+
+    # Let's generate the user and internal NexWrapped functions
+    NexWrappedFcts = {f.__name__ : wrap_socketfunctions(f, auto_convert_itter=False)
+                        for f in nodesetter.get_nodesetter_functions(tag='all')}
+
+    NexWrappedUserFcts = {f.__name__ : wrap_socketfunctions(f, auto_convert_itter=True)
+                        for f in nodesetter.get_nodesetter_functions(tag='nexscript')}
 
     # ooooo      ooo                       
     # `888b.     `8'                       
@@ -401,7 +449,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot add type 'SocketFloat' to '{type(other).__name__}'.")
-            return call_Nex_operand(NexFloat, nodesetter.add, *args,)
+            return NexWrappedFcts['add'](*args,)
 
         def __radd__(self, other): # other + self
             # commutative operation.
@@ -421,7 +469,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot subtract type 'SocketFloat' with '{type(other).__name__}'.")
-            return call_Nex_operand(NexFloat, nodesetter.sub, *args,)
+            return NexWrappedFcts['sub'](*args,)
 
         def __rsub__(self, other): # other - self
             type_name = type(other).__name__
@@ -434,7 +482,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = float(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot subtract '{type(other).__name__}' with 'SocketFloat'.")
-            return call_Nex_operand(NexFloat, nodesetter.sub, *args,)
+            return NexWrappedFcts['sub'](*args,)
 
         # ---------------------
         # NexFloat Multiplication
@@ -450,7 +498,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot multiply type 'SocketFloat' with '{type(other).__name__}'.")
-            return call_Nex_operand(NexFloat, nodesetter.mult, *args,)
+            return NexWrappedFcts['mult'](*args,)
 
         def __rmul__(self, other): # other * self
             # commutative operation.
@@ -470,7 +518,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot divide type 'SocketFloat' by '{type(other).__name__}'.")
-            return call_Nex_operand(NexFloat, nodesetter.div, *args,)
+            return NexWrappedFcts['div'](*args,)
 
         def __rtruediv__(self, other): # other / self
             type_name = type(other).__name__
@@ -483,7 +531,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = float(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot divide '{type(other).__name__}' by 'SocketFloat'.")
-            return call_Nex_operand(NexFloat, nodesetter.div, *args,)
+            return NexWrappedFcts['div'](*args,)
 
         # ---------------------
         # NexFloat Power
@@ -499,7 +547,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot raise type 'SocketFloat' to the power of '{type(other).__name__}'.")
-            return call_Nex_operand(NexFloat, nodesetter.pow, *args,)
+            return NexWrappedFcts['pow'](*args,)
 
         def __rpow__(self, other): #other ** self
             type_name = type(other).__name__
@@ -512,7 +560,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = float(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketFloat'.")
-            return call_Nex_operand(NexFloat, nodesetter.pow, *args,)
+            return NexWrappedFcts['pow'](*args,)
 
         # ---------------------
         # NexFloat Modulo
@@ -528,7 +576,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot compute type 'SocketFloat' modulo '{type(other).__name__}'.")
-            return call_Nex_operand(NexFloat, nodesetter.mod, *args,)
+            return NexWrappedFcts['mod'](*args,)
 
         def __rmod__(self, other): # other % self
             type_name = type(other).__name__
@@ -541,7 +589,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = float(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketFloat'.")
-            return call_Nex_operand(NexFloat, nodesetter.mod, *args,)
+            return NexWrappedFcts['mod'](*args,)
 
         # ---------------------
         # NexFloat Floor Division
@@ -557,7 +605,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform floordiv on type 'SocketFloat' with '{type(other).__name__}'.")
-            return call_Nex_operand(NexFloat, nodesetter.floordiv, *args,)
+            return NexWrappedFcts['floordiv'](*args,)
 
         def __rfloordiv__(self, other): # other // self
             type_name = type(other).__name__
@@ -570,25 +618,25 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = float(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketFloat'.")
-            return call_Nex_operand(NexFloat, nodesetter.floordiv, *args,)
+            return NexWrappedFcts['floordiv'](*args,)
 
         # ---------------------
         # NexFloat Negate
 
         def __neg__(self): # -self
-            return call_Nex_operand(NexFloat, nodesetter.neg, self,)
+            return NexWrappedFcts['neg'](self,)
 
         # ---------------------
         # NexFloat Absolute
 
         def __abs__(self): # abs(self)
-            return call_Nex_operand(NexFloat, nodesetter.abs, self,)
+            return NexWrappedFcts['abs'](self,)
 
         # ---------------------
         # NexFloat Round
         
         def __round__(self): # round(self)
-            return call_Nex_operand(NexFloat, nodesetter.round, self,)
+            return NexWrappedFcts['round'](self,)
     
         # ---------------------
         # NexFloat Comparisons
@@ -605,7 +653,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketFloat' and '{type(other).__name__}'")
-            return call_Nex_operand(NexFloat, nodesetter.iseq, *args,  NexReturnType=NexBool,)
+            return NexWrappedFcts['iseq'](*args,)
 
         def __ne__(self, other): # self != other
             type_name = type(other).__name__
@@ -618,7 +666,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketFloat' and '{type(other).__name__}'")
-            return call_Nex_operand(NexFloat, nodesetter.isuneq, *args,  NexReturnType=NexBool,)
+            return NexWrappedFcts['isuneq'](*args,)
 
         def __lt__(self, other): # self < other
             type_name = type(other).__name__
@@ -631,7 +679,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '<' comparison between types 'SocketFloat' and '{type(other).__name__}'")
-            return call_Nex_operand(NexFloat, nodesetter.isless, *args,  NexReturnType=NexBool,)
+            return NexWrappedFcts['isless'](*args,)
 
         def __le__(self, other): # self <= other
             type_name = type(other).__name__
@@ -644,7 +692,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '<=' comparison between types 'SocketFloat' and '{type(other).__name__}'")
-            return call_Nex_operand(NexFloat, nodesetter.islesseq, *args,  NexReturnType=NexBool,)
+            return NexWrappedFcts['islesseq'](*args,)
 
         def __gt__(self, other): # self > other
             type_name = type(other).__name__
@@ -657,7 +705,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '>' comparison between types 'SocketFloat' and '{type(other).__name__}'")
-            return call_Nex_operand(NexFloat, nodesetter.isgreater, *args,  NexReturnType=NexBool,)
+            return NexWrappedFcts['isgreater'](*args,)
 
         def __ge__(self, other): # self >= other
             type_name = type(other).__name__
@@ -670,7 +718,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, float(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketFloat' and '{type(other).__name__}'")
-            return call_Nex_operand(NexFloat, nodesetter.isgreatereq, *args,  NexReturnType=NexBool,)
+            return NexWrappedFcts['isgreatereq'](*args,)
 
 
         # ---------------------
@@ -759,7 +807,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     return NotImplemented
                 case _:
                     raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketBool' and '{type(other).__name__}'")
-            return call_Nex_operand(NexBool, nodesetter.iseq, *args,)
+            return NexWrappedFcts['iseq'](*args,)
 
         def __ne__(self, other): # self != other
             type_name = type(other).__name__
@@ -770,7 +818,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     return NotImplemented
                 case _:
                     raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketBool' and '{type(other).__name__}'")
-            return call_Nex_operand(NexBool, nodesetter.isuneq, *args,)
+            return NexWrappedFcts['isuneq'](*args,)
 
         # ---------------------
         # NexBool Bitwise Operations
@@ -784,7 +832,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     raise NexError(f"TypeError. Bitwise operation '&' is exclusive between 'SocketBool'.")
                 case _:
                     raise NexError(f"TypeError. Cannot perform '&' bitwise operation between 'SocketBool' and '{type(other).__name__}'.")
-            return call_Nex_operand(NexBool, nodesetter.booland, *args,)
+            return NexWrappedFcts['booland'](*args,)
 
         def __rand__(self, other): # other & self
             # commutative operation.
@@ -799,7 +847,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     raise NexError(f"TypeError. Bitwise operation '|' is exclusive between 'SocketBool'.")
                 case _:
                     raise NexError(f"TypeError. Cannot perform '|' bitwise operation between 'SocketBool' and '{type(other).__name__}'.")
-            return call_Nex_operand(NexBool, nodesetter.boolor, *args,)
+            return NexWrappedFcts['boolor'](*args,)
 
         def __ror__(self, other): # other | self
             # commutative operation.
@@ -886,7 +934,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot add type 'SocketVector' to '{type(other).__name__}'.")
-            return call_Nex_operand(NexVec, nodesetter.add, *args,)
+            return NexWrappedFcts['add'](*args,)
 
         def __radd__(self, other): # other + self
             # commutative operation.
@@ -904,7 +952,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot subtract type 'SocketVector' with '{type(other).__name__}'.")
-            return call_Nex_operand(NexVec, nodesetter.sub, *args,)
+            return NexWrappedFcts['sub'](*args,)
 
         def __rsub__(self, other): # other - self
             type_name = type(other).__name__
@@ -915,7 +963,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = trypy_to_Vec3(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot subtract '{type(other).__name__}' with 'SocketVector'.")
-            return call_Nex_operand(NexVec, nodesetter.sub, *args,)
+            return NexWrappedFcts['sub'](*args,)
 
         # ---------------------
         # NexVec Multiplication
@@ -929,7 +977,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot multiply type 'SocketVector' with '{type(other).__name__}'.")
-            return call_Nex_operand(NexVec, nodesetter.mult, *args,)
+            return NexWrappedFcts['mult'](*args,)
 
         def __rmul__(self, other): # other * self
             # commutative operation.
@@ -947,7 +995,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot divide type 'SocketVector' by '{type(other).__name__}'.")
-            return call_Nex_operand(NexVec, nodesetter.div, *args,)
+            return NexWrappedFcts['div'](*args,)
 
         def __rtruediv__(self, other): # other / self
             type_name = type(other).__name__
@@ -958,7 +1006,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = trypy_to_Vec3(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot divide '{type(other).__name__}' by 'SocketVector'.")
-            return call_Nex_operand(NexVec, nodesetter.div, *args,)
+            return NexWrappedFcts['div'](*args,)
 
         # ---------------------
         # NexVec Power
@@ -974,7 +1022,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     raise NexError(f"TypeError. Cannot raise a Vector to another Vector. Exponent must be float compatible.")
                 case _:
                     raise NexError(f"TypeError. Cannot raise 'SocketVector' to the power of '{type(other).__name__}'.")
-            return call_Nex_operand(NexVec, nodesetter.pow, *args,)
+            return NexWrappedFcts['pow'](*args,)
 
         def __rpow__(self, other):  # other ** self
             raise NexError(f"TypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketVector'.")
@@ -991,7 +1039,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot compute type 'SocketVector' modulo '{type(other).__name__}'.")
-            return call_Nex_operand(NexVec, nodesetter.mod, *args,)
+            return NexWrappedFcts['mod'](*args,)
 
         def __rmod__(self, other): # other % self
             type_name = type(other).__name__
@@ -1002,7 +1050,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = trypy_to_Vec3(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketVector'.")
-            return call_Nex_operand(NexVec, nodesetter.mod, *args,)
+            return NexWrappedFcts['mod'](*args,)
 
         # ---------------------
         # NexVec Floor Division
@@ -1016,7 +1064,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform floordiv on type 'SocketVector' with '{type(other).__name__}'.")
-            return call_Nex_operand(NexVec, nodesetter.floordiv, *args,)
+            return NexWrappedFcts['floordiv'](*args,)
 
         def __rfloordiv__(self, other): # other // self
             type_name = type(other).__name__
@@ -1027,25 +1075,25 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = trypy_to_Vec3(other), self
                 case _:
                     raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketVector'.")
-            return call_Nex_operand(NexVec, nodesetter.floordiv, *args,)
+            return NexWrappedFcts['floordiv'](*args,)
 
         # ---------------------
         # NexVec Negate
 
         def __neg__(self): # -self
-            return call_Nex_operand(NexVec, nodesetter.neg, self,)
+            return NexWrappedFcts['neg'](self,)
 
         # ---------------------
         # NexVec Absolute
 
         def __abs__(self): # abs(self)
-            return call_Nex_operand(NexVec, nodesetter.abs, self,)
+            return NexWrappedFcts['abs'](self,)
 
         # ---------------------
         # NexVec Round
 
         def __round__(self): # round(self)
-            return call_Nex_operand(NexVec, nodesetter.round, self,)
+            return NexWrappedFcts['round'](self,)
 
         # ---------------------
         # NexVec Itter
@@ -1059,18 +1107,18 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
         def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
 
-            components = call_Nex_operand(NexVec, nodesetter.separate_xyz, self, NexReturnType=NexFloat,)
+            separated = NexWrappedFcts['separate_xyz'](self,)
 
             match key:
                 
                 case int(): #vec[i]
                     if key not in (0,1,2):
                         raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
-                    return components[key]
+                    return separated[key]
                 
                 case slice(): #vec[:i]
                     indices = range(*key.indices(3))
-                    return tuple(components[i] for i in indices)
+                    return tuple(separated[i] for i in indices)
                 
                 case _:
                     raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
@@ -1082,7 +1130,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             match key:
 
                 case int(): #vec[i]
-                    separated = call_Nex_operand(NexVec, nodesetter.separate_xyz, self, NexReturnType=NexFloat)
+                    separated = NexWrappedFcts['separate_xyz'](self,)
                     to_frame.append(separated[0].nxsock.node)
                     if (key==0):
                         new_components = value, separated[1], separated[2]
@@ -1103,17 +1151,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                 case _:
                     raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
 
-            new = call_Nex_operand(NexFloat, nodesetter.combine_xyz, 
-                new_components[0], new_components[1], new_components[2],
-                NexReturnType=NexVec,)
-
+            new = NexWrappedFcts['combine_xyz'](new_components[0], new_components[1], new_components[2],)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             to_frame.append(new.nxsock.node)
-    
-            frame_nodes(self.node_tree, *to_frame, 
-                label=f"v.setitem[{key if (type(key) is int) else ':'}]",
-                )
+
+            frame_nodes(self.node_tree, *to_frame, label=f"v.setitem[{key if (type(key) is int) else ':'}]",)
+
             return None
 
         # ---------------------
@@ -1129,7 +1173,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketVector' and '{type(other).__name__}'")
-            return call_Nex_operand(NexVec, nodesetter.iseq, *args, NexReturnType=NexBool,)
+            return NexWrappedFcts['iseq'](*args,)
 
         def __ne__(self, other): # self != other
             type_name = type(other).__name__
@@ -1140,7 +1184,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketVector' and '{type(other).__name__}'")
-            return call_Nex_operand(NexVec, nodesetter.isuneq, *args, NexReturnType=NexBool,)
+            return NexWrappedFcts['isuneq'](*args,)
 
         def __lt__(self, other): # self < other
             type_name = type(other).__name__
@@ -1151,7 +1195,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '<' comparison between types 'SocketVector' and '{type(other).__name__}'")
-            return call_Nex_operand(NexVec, nodesetter.isless, *args, NexReturnType=NexBool,)
+            return NexWrappedFcts['isless'](*args,)
 
         def __le__(self, other): # self <= other
             type_name = type(other).__name__
@@ -1162,7 +1206,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '<=' comparison between types 'SocketVector' and '{type(other).__name__}'")
-            return call_Nex_operand(NexVec, nodesetter.islesseq, *args, NexReturnType=NexBool,)
+            return NexWrappedFcts['islesseq'](*args,)
 
         def __gt__(self, other): # self > other
             type_name = type(other).__name__
@@ -1173,7 +1217,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '>' comparison between types 'SocketVector' and '{type(other).__name__}'")
-            return call_Nex_operand(NexVec, nodesetter.isgreater, *args, NexReturnType=NexBool,)
+            return NexWrappedFcts['isgreater'](*args,)
 
         def __ge__(self, other): # self >= other
             type_name = type(other).__name__
@@ -1184,7 +1228,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     args = self, trypy_to_Vec3(other)
                 case _:
                     raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketVector' and '{type(other).__name__}'")
-            return call_Nex_operand(NexVec, nodesetter.isgreatereq, *args, NexReturnType=NexBool,)
+            return NexWrappedFcts['isgreatereq'](*args,)
 
         # ---------------------
         # NexVec Custom Functions & Properties
@@ -1221,14 +1265,14 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
         @property
         def length(self):
-            return call_Nex_operand(NexVec, nodesetter.length, self, NexReturnType=NexFloat,)
+            return NexWrappedFcts['length'](self,)
         @length.setter
         def length(self, value):
             raise NexError("AssignationError. 'SocketVector.length' is read-only.")
 
         @property
         def normalized(self):
-            return call_Nex_operand(NexVec, nodesetter.normalize, self,)
+            return NexWrappedFcts['normalize'](self,)
         @normalized.setter
         def normalized(self, value):
             raise NexError("AssignationError. 'SocketVector.normalized' is read-only.")
@@ -1311,32 +1355,32 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
             match type_name:
                 case 'NexMtx':
                     args = self, other
-                    sockfunc, rType = nodesetter.matrixmult, NexMtx
+                    fname, rType = 'matrixmult', NexMtx
                 case 'NexVec':
                     args = other, self
-                    sockfunc, rType = nodesetter.transformloc, NexVec
+                    fname, rType = 'transformloc', NexVec
                 case _ if ('Nex' in type_name):
-                    raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{other.nxtydsp}'.")
+                    raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and another '{other.nxtydsp}'.")
                 case 'Vector':
                     args = trypy_to_Vec3(other), self
-                    sockfunc, rType = nodesetter.transformloc, NexVec
+                    fname, rType = 'transformloc', NexVec
                 case 'Matrix':
                     convother = trypy_to_Mtx16(other)
-                    othernex = create_Nex_constant(self.node_tree, NexMtx, convother,)
+                    othernex = create_Nex_constant(NexMtx, convother,)
                     args = self, othernex
-                    sockfunc, rType = nodesetter.matrixmult, NexMtx
+                    fname, rType = 'matrixmult', NexMtx
                 case 'list' | 'set' | 'tuple':
                     if len(other)<=3:
                         args = trypy_to_Vec3(other), self
-                        sockfunc, rType = nodesetter.transformloc, NexVec
+                        fname, rType = 'transformloc', NexVec
                     else:
                         convother = trypy_to_Mtx16(other)
-                        othernex = create_Nex_constant(self.node_tree, NexMtx, convother,)
+                        othernex = create_Nex_constant(NexMtx, convother,)
                         args = self, othernex
-                        sockfunc, rType = nodesetter.matrixmult, NexMtx
+                        fname, rType = 'matrixmult', NexMtx
                 case _:
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{type(other).__name__}'.")
-            return call_Nex_operand(NexMtx,  sockfunc, *args, NexReturnType=rType,)
+            return NexWrappedFcts[fname](*args,)
 
         def __rmatmul__(self, other): # other @ self
             type_name = type(other).__name__
@@ -1349,12 +1393,12 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{other.nxtydsp}' and 'SocketMatrix'.")
                 case 'Matrix' | 'list' | 'set' | 'tuple':
                     convother = trypy_to_Mtx16(other)
-                    othernex = create_Nex_constant(self.node_tree, NexMtx, convother,)
+                    othernex = create_Nex_constant(NexMtx, convother,)
                     args = othernex, self
-                    sockfunc, rType = nodesetter.matrixmult, NexMtx
+                    fname, rType = 'matrixmult', NexMtx
                 case _:
                     raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{type(other).__name__}' and 'SocketMatrix'.")
-            return call_Nex_operand(NexMtx, sockfunc, *args, NexReturnType=rType,)
+            return NexWrappedFcts[fname](*args,)
 
         # ---------------------
         # NexVec Itter
@@ -1374,28 +1418,28 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
 
         @property
         def determinant(self):
-            return call_Nex_operand(NexMtx, nodesetter.matrixdeterminant, self, NexReturnType=NexFloat,)
+            return NexWrappedFcts['matrixdeterminant'](self,)
         @determinant.setter
         def determinant(self, value):
             raise NexError("AssignationError. 'SocketMatrix.determinant' is read-only.")
 
         @property
         def is_invertible(self):
-            return call_Nex_operand(NexMtx, nodesetter.matrixisinvertible, self, NexReturnType=NexBool,)
+            return NexWrappedFcts['matrixisinvertible'](self,)
         @is_invertible.setter
         def is_invertible(self, value):
             raise NexError("AssignationError. 'SocketMatrix.is_invertible' is read-only.")
 
         @property
         def inverted(self):
-            return call_Nex_operand(NexMtx, nodesetter.matrixinvert, self,)
+            return NexWrappedFcts['matrixinvert'](self,)
         @inverted.setter
         def inverted(self, value):
             raise NexError("AssignationError. 'SocketMatrix.inverted' is read-only.")
 
         @property
         def transposed(self):
-            return call_Nex_operand(NexMtx, nodesetter.matrixtranspose, self,)
+            return NexWrappedFcts['matrixtranspose'](self,)
         @transposed.setter
         def transposed(self, value):
             raise NexError("AssignationError. 'SocketMatrix.transposed' is read-only.")
@@ -1536,7 +1580,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
     # 88"Yb  88""     88   Y8   8P 88"Yb  88 Y88     
     # 88  Yb 888888   88   `YbodP' 88  Yb 88  Y8     
     
-    # Return our premade types and function that the factory made for the specific NexInterpreter node context.                                                                     
+    # Return our premade types and function that the factory made for the context custom node.
 
     nextoys = {}
     nextoys['nexusertypes'] = {
@@ -1557,119 +1601,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[],):
         'outauto':NexOutputAuto,
         }
 
-    def autosetNexType(socket):
-        """automatically convert a node socket to Nex"""
-        match socket:
-            case bpy.types.NodeSocketBool(): return NexBool(fromsocket=socket)
-            # case bpy.types.NodeSocketInt(): return NexInt(fromsocket=socket)
-            case bpy.types.NodeSocketFloat(): return NexFloat(fromsocket=socket)
-            case bpy.types.NodeSocketVector(): return NexVec(fromsocket=socket)
-            case bpy.types.NodeSocketVectorXYZ(): return NexVec(fromsocket=socket)
-            # case bpy.types.NodeSocketColor(): return NexCol(fromsocket=socket)
-            # case bpy.types.NodeSocketRotation(): return NexQuat(fromsocket=socket)
-            case bpy.types.NodeSocketMatrix(): return NexMtx(fromsocket=socket)
-            case _: raise Exception(f"ERROR: autosetNexType(): Unrecognized '{socket}' of type '{type(socket).__name__}'")
-        return None
-
-    def sockfunction_Nex_wrapper(sockfunc, default_ng=None,):
-        """wrap a nodesetter function to transform it into a Nex functions, nodesetter fct always expecting socket or py variables
-        & return sockets or tuple of sockets. Function similar to 'call_Nex_operand' but more general"""
-
-        # TODO What if user is using some Nexfunc on only python values?
-        # when we wrap a function we need a unique id tag so the nodetree construction stays stable cross execution. 
-        # The problem is that for now we can't generate a unique tag if the user is using a Nexfunction with only python values.
-        # Some of these functions supports only python args as they will execute math funcs instead. We need a better solution for handling pyvalue in the nodetree.
-        # TLDR: we need a better uniquetag id solution for stable identifier for the nodes.
-
-        def wrapped_func(*args, **kwargs):
-
-            uniquetag = None
-
-            # The user is using a NexFunction but he passed no NexType arguments?
-            if not any(('Nex' in type(v).__name__) for v in args):
-                funcname = sockfunc.__name__
-                match funcname:
-
-                    # Name conflict with python bultin functions? 
-                    # If no NexType are involved, we simply call builtin function, no Nexwrapper!
-                    case 'min': return min(*args, **kwargs)
-                    case 'max': return max(*args, **kwargs)
-
-                    # Name conflict with math module functions?
-                    # If no NexType are involved, we simply call builtin math function, no Nexwrapper!
-                    case 'cos'|'sin'|'tan'|'acos'|'asin'|'atan'|'cosh'|'sinh'|'tanh'|'sqrt'|'log'|'degrees'|'radians'|'floor'|'ceil'|'trunc':
-                        import math
-                        mathfunction = getattr(math,funcname)
-                        return mathfunction(*args, **kwargs)
-
-                    # Some function can pass  tuple..
-                    case 'combine_matrix':
-                        if (len(args)==1 and (type(args) in {tuple,set,list})):
-                            args = args[0]
-                            if not any(('Nex' in type(v).__name__) for v in args):
-                                raise NexError(f"ParamTypeError. Function {sockfunc.__name__}() Expected at least 1 SocketType Param.")
-                        else:
-                            raise NexError(f"ParamTypeError. Function {sockfunc.__name__}() Expected at least 1 SocketType Param.")
-
-                    # Some functions do not require to generate a unique tag.
-                    case 'getp'|'getn':
-                        uniquetag = f'F|{funcname}()'
-
-                    case _:
-                        raise NexError(f"ParamTypeError. Function {sockfunc.__name__}() Expected at least 1 SocketType Param.")
-
-            #define reuse taga unique tag to ensure the function is not generated on each nex script run
-            if (uniquetag is None):
-                uniquetag = create_Nex_tag(sockfunc, *args,)
-
-            #define a function with the first two args already defined
-            partialsockfunc = partial(sockfunc, default_ng, uniquetag)
-
-            #sockfunc expect nodesockets, not nextype, we need to convert their args to sockets.. (we did that previously with 'sock_or_py_variables')
-            args = [v.nxsock if ('Nex' in type(v).__name__) else v for v in args]
-            #support for tuple as vectors or matrix
-            args = [trypy_to_Vec3(v) if (isinstance(v,(tuple,list)) and len(v)==3 and all(isinstance(i,(float,int)) for i in v)) else v for v in args]
-            args = [trypy_to_Mtx16(v) if (isinstance(v,(tuple,list)) and len(v)==16 and all(isinstance(i,(float,int)) for i in v)) else v for v in args]
-
-            #Call the Nex function
-            try:
-                r = partialsockfunc(*args, **kwargs)
-
-            except TypeError as e:
-                #Cook better error message to end user
-                e = str(e)
-                if ('()' in e):
-                    fname = e.split('()')[0]
-                    if ('() missing' in e) and ('required positional argument' in e):
-                        nbr = e.split('() missing ')[1][0]
-                        raise NexError(f"Function {fname}() needs {nbr} more Param(s)")
-                    elif ('() takes' in e) and ('positional argument' in e):
-                        raise NexError(f"Function {fname}() recieved Extra Param(s)")
-                raise
-
-            except nodesetter.InvalidTypePassedToSocket as e:
-                msg = str(e)
-                if ('Expected parameters in' in msg):
-                    msg = f"TypeError. Function {sockfunc.__name__}() Expected parameters in " + str(e).split('Expected parameters in ')[1]
-                raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.
-
-            except Exception as e:
-                print(f"ERROR: sockfunction_Nex_wrapper.sockfunc() caught error {type(e).__name__}")
-                raise
-
-            # Wrap return value as Nex as well
-
-            if ((type(r) is not tuple) and (not issubclass(type(r), bpy.types.NodeSocket))):
-                raise Exception(f"Function '{sockfunc}' did not return a NodeSocket. This should never happen.")
-            if (type(r) is tuple):
-                return tuple(autosetNexType(s) for s in r)
-            return autosetNexType(r)
-
-        return wrapped_func
-
-    nexfunctions = {f.__name__ : sockfunction_Nex_wrapper(f, default_ng=NODEINSTANCE.node_tree) for f in nodesetter.get_nodesetter_functions(tag='nexscript')}
-
     nextoys['nexuserfunctions'] = {}
-    nextoys['nexuserfunctions'].update(nexfunctions)
-    
+    nextoys['nexuserfunctions'].update(NexWrappedUserFcts)
+
     return nextoys

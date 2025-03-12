@@ -4,10 +4,9 @@
 
 # NOTE this module gather all kind of math function between sockets and/or between sockets and python types.
 #  When executing these functions, it will create and link new nodes automatically, from sockets to sockets and return another socket.
-#  - Reusenode parameter:
-#    The 'reusenode' positional parameter is to be assigned a unique tag corresponding to the node used 
-#    and their recognizable socket id, if you wish the nodetree to stay stable on multiple execution while updating constant values.
 
+# NOTE The 'callhistory' internal parameter is an important functonality! Thanks to it, we can define a stable tag id for nodes generation,
+#  this functionality let us re-execute the functions to update potential .default_value without rebuilding the entire nodetree nodes and links again.
 
 import bpy 
 
@@ -65,20 +64,23 @@ def user_doc(**kwarks):
 
 def get_nodesetter_functions(tag='', get_names=False, partialdefaults:tuple=None,):
     """get all functions and their names, depending on function types
-    optionally, pass the default ng. The 'reusenode' functionality of the functions will be disabled"""
+    optionally, pass the default internal args."""
 
     assert tag!='', "Tag must be valid"
-    userfuncs = [f for f in TAGGED if (tag in f.tags)]
+
+    if (tag=='all'):
+          funcs = [f for f in TAGGED ]
+    else: funcs = [f for f in TAGGED if (tag in f.tags)]
 
     #return names only?
     if (get_names):
-        return [f.__name__ for f in userfuncs]
+        return [f.__name__ for f in funcs]
 
     # If a default node group argument is provided, use functools.partial to bind it
     if (partialdefaults is not None):
-        userfuncs = [partial(f, *partialdefaults,) for f in userfuncs]
+        funcs = [partial(f, *partialdefaults,) for f in funcs]
 
-    return userfuncs
+    return funcs
 
 def generate_documentation(tag=''):
     """generate doc about function subset for user, we are collecting function name and arguments"""
@@ -92,8 +94,8 @@ def generate_documentation(tag=''):
         #remove strictly internal args from documentation
         if ('ng' in fargs):
             fargs.remove('ng')
-        if ('reusenode' in fargs):
-            fargs.remove('reusenode')
+        if ('callhistory' in fargs):
+            fargs.remove('callhistory')
         
         # support for *args parameters?
         if (f.__code__.co_flags & 0x04):  # Function has *args
@@ -112,6 +114,19 @@ def generate_documentation(tag=''):
 
     return r
 
+def get_unique_name(funcnameid, callhistory):
+    """generate a unique name for a given function, depending on the call order.
+    If a callhistory is not passed, the node unique name is set to None and the nodetree will not be stable,
+    each execution will trigger a rebuilding of the entire tree"""
+
+    if (callhistory is None):
+        return None
+
+    uniquetag = f"F{len(callhistory)}|{funcnameid}"
+    callhistory.append(uniquetag)
+
+    return uniquetag
+
 def assert_purple_node(node):
     """we assign the node color as purple, because it means it's being automatically processed & interacted with"""
 
@@ -124,7 +139,6 @@ def assert_purple_node(node):
     
     return None
 
-
 # oooooooooooo                                       .    o8o                                 
 # `888'     `8                                     .o8    `"'                                 
 #  888         oooo  oooo  ooo. .oo.    .ooooo.  .o888oo oooo   .ooooo.  ooo. .oo.    .oooo.o 
@@ -134,21 +148,21 @@ def assert_purple_node(node):
 # o888o         `V88V"V8P' o888o o888o `Y8bod8P'   "888" o888o `Y8bod8P' o888o o888o 8""888P' 
                                                                                             
 
-def generalfloatmath(ng, reusenode:str,
+def generalfloatmath(ng, callhistory:list,
     operation_type:str,
     val1:sFlo|sInt|sBoo|float|int=None,
     val2:sFlo|sInt|sBoo|float|int=None,
     val3:sFlo|sInt|sBoo|float|int=None,
     ) -> sFlo:
-    """generic operation for adding a float math node and linking. (also support clamp node).
-    if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
+    """generic operation for adding a float math node and linking. (also support clamp node)."""
 
+    uniquename = get_unique_name('FloatMath',callhistory)
     node = None
     args = (val1, val2, val3,)
     needs_linking = False
 
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
 
     if (node is None):
         last = ng.nodes.active
@@ -170,8 +184,8 @@ def generalfloatmath(ng, reusenode:str,
         ng.nodes.active = node #Always set the last node active for the final link
 
         needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
+        if (uniquename):
+            node.name = node.label = uniquename #Tag the node, in order to avoid unessessary build
 
     for i,val in enumerate(args):
         match val:
@@ -191,21 +205,21 @@ def generalfloatmath(ng, reusenode:str,
 
     return node.outputs[0]
 
-def generalvecmath(ng, reusenode:str,
+def generalvecmath(ng, callhistory:list,
     operation_type:str,
     val1:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     val3:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sVec:
-    """Generic operation for adding a vector math node and linking.
-    If 'reusenode' is provided, update the existing node; otherwise, create a new one."""
+    """Generic operation for adding a vector math node and linking."""
 
+    uniquename = get_unique_name('VecMath',callhistory)
     node = None
     args = (val1, val2, val3)
     needs_linking = False
 
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
 
     if (node is None):
         last = ng.nodes.active
@@ -218,8 +232,8 @@ def generalvecmath(ng, reusenode:str,
         ng.nodes.active = node
     
         needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode
+        if (uniquename):
+            node.name = node.label = uniquename
 
     #need to define different input/output depending on operation..
     outidx = 0
@@ -231,7 +245,7 @@ def generalvecmath(ng, reusenode:str,
     for i,val in zip(indexes,args):
         match val:
 
-            case sVec() | sFlo() | sInt() | sBoo():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -252,7 +266,7 @@ def generalvecmath(ng, reusenode:str,
 
     return node.outputs[outidx]
 
-def generalverotate(ng, reusenode:str,
+def generalverotate(ng, callhistory:list,
     rotation_type:str,
     invert:bool,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
@@ -261,15 +275,15 @@ def generalverotate(ng, reusenode:str,
     fA:sFlo|sInt|sBoo|sVec|float|int=None,
     vE:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sVec:
-    """Generic operation for adding a vector rotation node and linking.
-    If 'reusenode' is provided, update the existing node; otherwise, create a new one."""
+    """Generic operation for adding a vector rotation node and linking."""
 
+    uniquename = get_unique_name('VecRot',callhistory)
     node = None
     args = (vA,vC,vX,fA,vE)
     needs_linking = False
 
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
 
     if (node is None):
         last = ng.nodes.active
@@ -283,14 +297,14 @@ def generalverotate(ng, reusenode:str,
         ng.nodes.active = node
     
         needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode
+        if (uniquename):
+            node.name = node.label = uniquename
 
     #need to define different input/output depending on operation..
     for i,val in enumerate(args):
         match val:
 
-            case sVec() | sFlo() | sInt() | sBoo():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -317,21 +331,21 @@ def generalverotate(ng, reusenode:str,
 
     return node.outputs[0]
 
-def generalmix(ng, reusenode:str,
+def generalmix(ng, callhistory:list,
     data_type:str,
     factor:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     val1:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sFlo|sVec:
-    """generic operation for adding a mix node and linking.
-    if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
+    """generic operation for adding a mix node and linking."""
 
+    uniquename = get_unique_name('Mix',callhistory)
     node = None
     args = (factor, val1, val2,)
     needs_linking = False
 
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
 
     if (node is None):
         last = ng.nodes.active
@@ -346,8 +360,8 @@ def generalmix(ng, reusenode:str,
         ng.nodes.active = node #Always set the last node active for the final link
 
         needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
+        if (uniquename):
+            node.name = node.label = uniquename #Tag the node, in order to avoid unessessary build
 
     # Need to choose socket depending on node data_type (hidden sockets)
     outidx = None
@@ -366,7 +380,7 @@ def generalmix(ng, reusenode:str,
     for i,val in zip(indexes,args):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -388,7 +402,7 @@ def generalmix(ng, reusenode:str,
 
     return node.outputs[outidx]
 
-def generalvecfloatmath(ng, reusenode:str,
+def generalvecfloatmath(ng, callhistory:list,
     operation_type:str,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     fB:sFlo|sInt|sBoo|float|int=None,
@@ -396,23 +410,22 @@ def generalvecfloatmath(ng, reusenode:str,
     ) -> sVec:
     """Apply regular float math to each element of the vector."""
 
-    floats = separate_xyz(ng, f'{reusenode}|in.sep', vA)
+    floats = separate_xyz(ng, callhistory, vA)
     sepnode = floats[0].node
     
     newfloats = set()
     for i,fE in enumerate(floats):
         ng.nodes.active = sepnode
-        fN = generalfloatmath(ng,  f'{reusenode}|in{i}', operation_type, fE,fB,fC,)
+        fN = generalfloatmath(ng, callhistory, operation_type, fE,fB,fC,)
         newfloats.add(fN)
         continue
 
-    rvec = combine_xyz(ng, f'{reusenode}|in.comb', *newfloats)
-    frame_nodes(ng, floats[0].node, rvec.node,
-        label=f'{reusenode}|ewise',
-        )
+    rvec = combine_xyz(ng, callhistory, *newfloats)
+    frame_nodes(ng, floats[0].node, rvec.node, label='Vec EntryWise FloatMath',)
+
     return rvec
 
-def generalmaprange(ng, reusenode:str,
+def generalmaprange(ng, callhistory:list,
     data_type:str,
     interpolation_type:str,
     value:sFlo|sInt|sBoo|float|int|Vector=None,
@@ -424,12 +437,14 @@ def generalmaprange(ng, reusenode:str,
     ) -> sFlo|sVec:
     """generic operation for adding a remap node and linking"""
 
+    uniquename = get_unique_name('MapRange',callhistory)
+
     node = None
     args = (value, from_min, from_max, to_min, to_max, steps,)
     needs_linking = False
 
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
 
     if (node is None):
         last = ng.nodes.active
@@ -444,8 +459,8 @@ def generalmaprange(ng, reusenode:str,
         ng.nodes.active = node #Always set the last node active for the final link
         
         needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
+        if (uniquename):
+            node.name = node.label = uniquename #Tag the node, in order to avoid unessessary build
 
     # Need to choose socket depending on node data_type (hidden sockets)
     outidx = None
@@ -464,7 +479,7 @@ def generalmaprange(ng, reusenode:str,
     for i,val in zip(indexes,args):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -486,7 +501,7 @@ def generalmaprange(ng, reusenode:str,
 
     return node.outputs[outidx]
 
-def generalminmax(ng, reusenode:str,
+def generalminmax(ng, callhistory:list,
     operation_type:str,
     *floats:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
@@ -508,34 +523,30 @@ def generalminmax(ng, reusenode:str,
         if (i==0):
             continue
         b = o
-        if (reusenode):
-              new = generalfloatmath(ng,f"{reusenode}|{i}", fullopname, a,b)
-        else: new = generalfloatmath(ng,'', fullopname, a,b)
+        new = generalfloatmath(ng,callhistory, fullopname, a,b)
         a = new
         to_frame.append(new.node)
         continue
 
-    frame_nodes(ng, *to_frame,
-        label=reusenode if (reusenode) else f"{operation_type}(*floats)",
-        )
+    frame_nodes(ng, *to_frame, label='Batch MinMax',)
     return new
 
-def generalcompare(ng, reusenode:str,
+def generalcompare(ng, callhistory:list,
     data_type:str,
     operation:str,
     val1:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     val2:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     epsilon:sFlo|sInt|sBoo|float|int=None,
     ) -> sBoo:
-    """generic operation for comparison operation and linking.
-    if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
+    """generic operation for comparison operation and linking."""
 
+    uniquename = get_unique_name('Compa',callhistory)
     node = None
     args = (val1, val2, epsilon,)
     needs_linking = False
 
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
 
     if (node is None):
         last = ng.nodes.active
@@ -551,8 +562,8 @@ def generalcompare(ng, reusenode:str,
         ng.nodes.active = node #Always set the last node active for the final link
 
         needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
+        if (uniquename):
+            node.name = node.label = uniquename #Tag the node, in order to avoid unessessary build
 
     # Need to choose socket depending on node data_type (hidden sockets)
     indexes = None
@@ -568,7 +579,7 @@ def generalcompare(ng, reusenode:str,
     for i,val in zip(indexes,args):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -590,19 +601,19 @@ def generalcompare(ng, reusenode:str,
 
     return node.outputs[0]
 
-def generalboolmath(ng, reusenode:str,
+def generalboolmath(ng, callhistory:list,
     operation:str,
     val1:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     val2:sFlo|sInt|sBoo|sVec|float|int|bool|Vector=None,
     ) -> sBoo:
-    """generic operation for BooleanMath.
-    if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
+    """generic operation for BooleanMath."""
 
+    uniquename = get_unique_name('BoolMath',callhistory)
     node = None
     needs_linking = False
 
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
 
     if (node is None):
         last = ng.nodes.active
@@ -615,13 +626,13 @@ def generalboolmath(ng, reusenode:str,
         ng.nodes.active = node #Always set the last node active for the final link
 
         needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
+        if (uniquename):
+            node.name = node.label = uniquename #Tag the node, in order to avoid unessessary build
 
     for i,val in enumerate((val1,val2)):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec():
+            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -638,7 +649,7 @@ def generalboolmath(ng, reusenode:str,
 
     return node.outputs[0]
 
-def generalbatchcompare(ng, reusenode:str,
+def generalbatchcompare(ng, callhistory:list,
     operation_type:str,
     epsilon:sFlo|sInt|sBoo|float|int,
     valueA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
@@ -672,7 +683,7 @@ def generalbatchcompare(ng, reusenode:str,
     if len(values) in {0,1}:
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() needs two Params or more.") 
     for o in values:
-        if type(o) not in {sFlo, sInt, sBoo, sVec, float, int, bool, Vector}:
+        if type(o) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, float, int, bool, Vector}:
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() recieved unsupported type '{type(o).__name__}'.") 
 
     to_frame = []
@@ -684,9 +695,7 @@ def generalbatchcompare(ng, reusenode:str,
             continue
         a = values[i-1]
         b = o
-        if (reusenode):
-              compa = opefunc(ng,f"{reusenode}|{i}", a,b)
-        else: compa = opefunc(ng,'', a,b)
+        compa = opefunc(ng,callhistory, a,b)
         to_frame.append(compa.node)
         compared.append(compa)
         continue
@@ -697,9 +706,7 @@ def generalbatchcompare(ng, reusenode:str,
         if (i==0):
             continue
         b = o
-        if (reusenode):
-              andop = add(ng,f"{reusenode}|&{i}", a,b)
-        else: andop = add(ng,'', a,b)
+        andop = add(ng,callhistory, a,b)
         andop.node.location = b.node.location
         andop.node.location.y += 250
         a = andop
@@ -707,31 +714,26 @@ def generalbatchcompare(ng, reusenode:str,
         continue
 
     #if all equals addition of all bool should be of len of all values
-    if (reusenode):
-          final = iseq(ng,f"{reusenode}|end", a,len(compared))
-    else: final = iseq(ng,'', a,len(compared))
+    final = iseq(ng,callhistory, a,len(compared))
     to_frame.append(final.node)
 
-    frame_nodes(ng, *to_frame,
-        label=reusenode if (reusenode) else f"{operation_type}(*values)",
-        )
+    frame_nodes(ng, *to_frame, label="Batch Compare",)
     return final
 
-def generalmatrixmath(ng, reusenode:str,
+def generalmatrixmath(ng, callhistory:list,
     operation_type:str,
     vec1:sFlo|sInt|sBoo|sVec|sVecXYZ|float|int|bool|Vector=None,
     mat1:sMtx=None,
     mat2:sMtx=None,
     ) -> sMtx|sVec|sBoo|sFlo:
-    """generic operation for operation on Matrix.
-    if 'reusenode' is passed the function shall only but update values of existing node, not adding new nodes"""
+    """generic operation for operation on Matrix."""
 
     if (vec1 is not None):
-        if (type(vec1) not in {sFlo,sInt,sBoo,sVec,sVecXYZ,float,int,bool,Vector}):
+        if (type(vec1) not in {sFlo, sInt, sBoo, sVec, sVecXYZ, float, int, bool, Vector}):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() recieved unsupported type '{type(vec1).__name__}' for parameter 'vec1'.")
     for mat in (mat1,mat2):
         if (mat is not None):
-            if (type(mat) not in {sMtx,Matrix}):
+            if (type(mat) not in {sMtx, Matrix}):
                 raise InvalidTypePassedToSocket(f"ParamTypeError. Function {operation_type}() recieved unsupported type '{type(mat).__name__}' for parameter 'mat1' or 'mat2'.")
 
     match operation_type:
@@ -754,11 +756,12 @@ def generalmatrixmath(ng, reusenode:str,
         case _:
             raise Exception(f"Unsupported operation_type '{operation_type}' passed to generalbatchcompare().")
 
+    uniquename = get_unique_name('MtxMath',callhistory)
     node = None
     needs_linking = False
 
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
 
     if (node is None):
         last = ng.nodes.active
@@ -770,8 +773,8 @@ def generalmatrixmath(ng, reusenode:str,
         ng.nodes.active = node #Always set the last node active for the final link
 
         needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode #Tag the node, in order to avoid unessessary build
+        if (uniquename):
+            node.name = node.label = uniquename #Tag the node, in order to avoid unessessary build
 
     for i,val in enumerate(args):
         match val:
@@ -783,9 +786,9 @@ def generalmatrixmath(ng, reusenode:str,
             case Matrix():
                 #unfortunately we are forced to create a new node, there's no .default_value option for type SocketMatrix..
                 rowflatten = [v for row in val for v in row]
-                if (reusenode):
-                      defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f"C|{reusenode.replace('F|','')}|def{i}")
-                else: defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f'C|{rowflatten[:]}') #enough space in nodename property? hmm. this function should't be used with no reusenode anyway..
+                if (uniquename):
+                      defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f"C|{uniquename}|def{i}")
+                else: defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f'C|{rowflatten[:]}') #enough space in nodename property? hmm. this function should't be used with no uniquename anyway..
                 if needs_linking:
                     link_sockets(defval, node.inputs[i])
 
@@ -806,67 +809,67 @@ def generalmatrixmath(ng, reusenode:str,
 
     return node.outputs[outidx]
 
-#covered in nexscript via python dunder overload
-@user_domain('mathex')
+#covered internally in nexscript via python dunder overload
+@user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Addition.\nEquivalent to the '+' symbol.")
-def add(ng, reusenode:str,
+def add(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,b,types=(sVec,),):
-        return generalvecmath(ng,reusenode, 'ADD',a,b)
-    return generalfloatmath(ng,reusenode, 'ADD',a,b)
+        return generalvecmath(ng,callhistory, 'ADD',a,b)
+    return generalfloatmath(ng,callhistory, 'ADD',a,b)
 
-#covered in nexscript via python dunder overload
-@user_domain('mathex')
+#covered internally in nexscript via python dunder overload
+@user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Subtraction.\nEquivalent to the '-' symbol.")
-def sub(ng, reusenode:str,
+def sub(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,b,types=(sVec,),):
-        return generalvecmath(ng,reusenode, 'SUBTRACT',a,b)
-    return generalfloatmath(ng,reusenode, 'SUBTRACT',a,b)
+        return generalvecmath(ng,callhistory, 'SUBTRACT',a,b)
+    return generalfloatmath(ng,callhistory, 'SUBTRACT',a,b)
 
-#covered in nexscript via python dunder overload
-@user_domain('mathex')
+#covered internally in nexscript via python dunder overload
+@user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Multiplications.\nEquivalent to the '*' symbol.")
-def mult(ng, reusenode:str,
+def mult(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,b,types=(sVec,),):
-        return generalvecmath(ng,reusenode, 'MULTIPLY',a,b)
-    return generalfloatmath(ng,reusenode, 'MULTIPLY',a,b)
+        return generalvecmath(ng,callhistory, 'MULTIPLY',a,b)
+    return generalfloatmath(ng,callhistory, 'MULTIPLY',a,b)
 
-#covered in nexscript via python dunder overload
-@user_domain('mathex')
+#covered internally in nexscript via python dunder overload
+@user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Division.\nEquivalent to the '/' symbol.")
-def div(ng, reusenode:str,
+def div(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,b,types=(sVec,),):
-        return generalvecmath(ng,reusenode, 'DIVIDE',a,b)
-    return generalfloatmath(ng,reusenode, 'DIVIDE',a,b)
+        return generalvecmath(ng,callhistory, 'DIVIDE',a,b)
+    return generalfloatmath(ng,callhistory, 'DIVIDE',a,b)
 
-#covered in nexscript via python dunder overload
-@user_domain('mathex')
+#covered internally in nexscript via python dunder overload
+@user_domain('mathex','nexclassmethod')
 @user_doc(mathex="A Power N.\nEquivalent to the 'A**N' or '²' symbol.")
-def pow(ng, reusenode:str,
+def pow(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
     if anytype(a,types=(sVec,Vector),):
         if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function pow(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
-        return generalvecfloatmath(ng,reusenode, 'POWER',a,n)
-    return generalfloatmath(ng,reusenode, 'POWER',a,n)
+        return generalvecfloatmath(ng,callhistory, 'POWER',a,n)
+    return generalfloatmath(ng,callhistory, 'POWER',a,n)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Logarithm A base N.")
 @user_doc(nexscript="Logarithm A base N.\nSupports SocketFloat and entry-wise SocketVector if N is float compatible.")
-def log(ng, reusenode:str,
+def log(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
@@ -876,36 +879,36 @@ def log(ng, reusenode:str,
     if anytype(a,types=(sVec,Vector),):
         if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function log(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
-        return generalvecfloatmath(ng,reusenode, 'LOGARITHM',a,n)
-    return generalfloatmath(ng,reusenode, 'LOGARITHM',a,n)
+        return generalvecfloatmath(ng,callhistory, 'LOGARITHM',a,n)
+    return generalfloatmath(ng,callhistory, 'LOGARITHM',a,n)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Square Root of A.")
 @user_doc(nexscript="Square Root of A.\nSupports SocketFloat and entry-wise SocketVector.")
-def sqrt(ng, reusenode:str,
+def sqrt(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.sqrt(a)
     if anytype(a,types=(sVec,Vector),):
-        return generalvecfloatmath(ng,reusenode, 'SQRT',a)
-    return generalfloatmath(ng,reusenode, 'SQRT',a)
+        return generalvecfloatmath(ng,callhistory, 'SQRT',a)
+    return generalfloatmath(ng,callhistory, 'SQRT',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Inverse Square Root of A.")
 @user_doc(nexscript="Inverse Square Root of A.\nSupports SocketFloat and entry-wise SocketVector.")
-def invsqrt(ng, reusenode:str,
+def invsqrt(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,types=(sVec,Vector),):
-        return generalvecfloatmath(ng,reusenode, 'INVERSE_SQRT',a)
-    return generalfloatmath(ng,reusenode, 'INVERSE_SQRT',a)
+        return generalvecfloatmath(ng,callhistory, 'INVERSE_SQRT',a)
+    return generalfloatmath(ng,callhistory, 'INVERSE_SQRT',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="A Root N.\nEquivalent to doing 'A**(1/N)'.")
 @user_doc(nexscript="A Root N.\nEquivalent to doing 'A**(1/N)'.\nSupports SocketFloat and entry-wise SocketVector if N is float compatible.")
-def nroot(ng, reusenode:str,
+def nroot(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     n:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
@@ -914,404 +917,396 @@ def nroot(ng, reusenode:str,
         if not alltypes(n,types=(sFlo,sInt,sBoo,float,int),):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function nroot(). Second argument must be a float compatible type. Recieved '{type(n).__name__}'.")
 
-    if (reusenode): #this function is created multiple nodes so we need multiple tag
-          _x = div(ng,f"{reusenode}|inner", 1,n)
-    else: _x = div(ng,'', 1,n,)
+    _x = div(ng,callhistory, 1,n,)
+    _r = pow(ng,callhistory, a,_x)
 
-    _r = pow(ng,reusenode, a,_x)
-    frame_nodes(ng, _x.node, _r.node.parent if _r.node.parent else _r.node,
-        label=reusenode if (reusenode) else 'nRoot',
-        )
+    frame_nodes(ng, _x.node, _r.node.parent if _r.node.parent else _r.node, label='nRoot',)
     return _r
 
-#covered in nexscript via python dunder overload
-@user_domain('mathex')
+#covered internally in nexscript via python dunder overload
+@user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Absolute of A.")
-def abs(ng, reusenode:str,
+def abs(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,types=(sVec,),):
-        return generalvecmath(ng,reusenode, 'ABSOLUTE',a)
-    return generalfloatmath(ng,reusenode, 'ABSOLUTE',a)
+        return generalvecmath(ng,callhistory, 'ABSOLUTE',a)
+    return generalfloatmath(ng,callhistory, 'ABSOLUTE',a)
 
-#covered in nexscript via python dunder overload
-@user_domain('mathex')
+#covered internally in nexscript via python dunder overload
+@user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Negate the value of A.\nEquivalent to the symbol '-x.'")
-def neg(ng, reusenode:str,
+def neg(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    _r = sub(ng,reusenode, 0,a)
-    frame_nodes(ng, _r.node,
-        label=reusenode if (reusenode) else 'Negate',
-        )
+    _r = sub(ng,callhistory, 0,a)
+    frame_nodes(ng, _r.node,label='Negate',)
     return _r
 
-#covered in nexscript via python dunder overload
-@user_domain('mathex')
+#covered internally in nexscript via python dunder overload
+@user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Round a Float value.\nex: 1.49 will become 1\n1.51 will become 2.")
-def round(ng, reusenode:str,
+def round(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,types=(sVec,),):
-        return generalvecfloatmath(ng,reusenode, 'ROUND',a)
-    return generalfloatmath(ng,reusenode, 'ROUND',a)
+        return generalvecfloatmath(ng,callhistory, 'ROUND',a)
+    return generalfloatmath(ng,callhistory, 'ROUND',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Floor a Float value.\nex: 1.51 will become 1\n-1.51 will become -2.")
 @user_doc(nexscript="Floor a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.51 will become 1\n-1.51 will become 2.")
-def floor(ng, reusenode:str,
+def floor(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.floor(a)
     if anytype(a,types=(sVec,),):
-        return generalvecmath(ng,reusenode, 'FLOOR',a)
-    return generalfloatmath(ng,reusenode, 'FLOOR',a)
+        return generalvecmath(ng,callhistory, 'FLOOR',a)
+    return generalfloatmath(ng,callhistory, 'FLOOR',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Ceil a Float value.\nex: 1.01 will become 2\n-1.99 will become -1.")
 @user_doc(nexscript="Ceil a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.01 will become 2\n-1.99 will become 1.")
-def ceil(ng, reusenode:str,
+def ceil(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.ceil(a)
     if anytype(a,types=(sVec,),):
-        return generalvecmath(ng,reusenode, 'CEIL',a)
-    return generalfloatmath(ng,reusenode, 'CEIL',a)
+        return generalvecmath(ng,callhistory, 'CEIL',a)
+    return generalfloatmath(ng,callhistory, 'CEIL',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Trunc a Float value.\nex: 1.99 will become 1\n-1.99 will become -1.")
 @user_doc(nexscript="Trunc a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.99 will become 1\n-1.99 will become -1.")
-def trunc(ng, reusenode:str,
+def trunc(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.trunc(a)
     if anytype(a,types=(sVec,),):
-        return generalvecfloatmath(ng,reusenode, 'TRUNC',a)
-    return generalfloatmath(ng,reusenode, 'TRUNC',a)
+        return generalvecfloatmath(ng,callhistory, 'TRUNC',a)
+    return generalfloatmath(ng,callhistory, 'TRUNC',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Fraction.\nThe fraction part of A.")
 @user_doc(nexscript="Fraction.\nThe fraction part of A.\nSupports SocketFloat and entry-wise SocketVector.")
-def frac(ng, reusenode:str,
+def frac(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,types=(sVec,),):
-        return generalvecmath(ng,reusenode, 'FRACTION',a)
-    return generalfloatmath(ng,reusenode, 'FRACT',a)
+        return generalvecmath(ng,callhistory, 'FRACTION',a)
+    return generalfloatmath(ng,callhistory, 'FRACT',a)
 
-#covered in nexscript via python dunder overload
-@user_domain('mathex')
+#covered internally in nexscript via python dunder overload
+@user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Modulo.\nEquivalent to the '%' symbol.")
-def mod(ng, reusenode:str,
+def mod(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(a,b,types=(sVec,),):
-        return generalvecmath(ng,reusenode, 'MODULO',a,b)
-    return generalfloatmath(ng,reusenode, 'MODULO',a,b)
+        return generalvecmath(ng,callhistory, 'MODULO',a,b)
+    return generalfloatmath(ng,callhistory, 'MODULO',a,b)
 
 #not covered in Nex.. user can do floor(A%B)
-@user_domain('mathex')
+@user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Floored Modulo.")
-def floormod(ng, reusenode:str,
+def floormod(ng, callhistory:list,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    return generalfloatmath(ng,reusenode, 'FLOORED_MODULO',a,b)
+    return generalfloatmath(ng,callhistory, 'FLOORED_MODULO',a,b)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Wrapping.\nWrap a value V to Range A B.")
 @user_doc(nexscript="Wrapping.\nWrap a value V to Range A B.\nSupports SocketFloat and entry-wise SocketVector.")
-def wrap(ng, reusenode:str,
+def wrap(ng, callhistory:list,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(v,a,b,types=(sVec,Vector,),):
-        return generalvecmath(ng,reusenode, 'WRAP',v,a,b)
-    return generalfloatmath(ng,reusenode, 'WRAP',v,a,b)
+        return generalvecmath(ng,callhistory, 'WRAP',v,a,b)
+    return generalfloatmath(ng,callhistory, 'WRAP',v,a,b)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Snapping.\nSnap a value V to the nearest increament I.")
 @user_doc(nexscript="Snapping.\nSnap a value V to the nearest increament I.\nSupports SocketFloat and SocketVector.")
-def snap(ng, reusenode:str,
+def snap(ng, callhistory:list,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     i:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(v,i,types=(sVec,Vector,),):
-        return generalvecmath(ng,reusenode, 'SNAP',v,i)
-    return generalfloatmath(ng,reusenode, 'SNAP',v,i)
+        return generalvecmath(ng,callhistory, 'SNAP',v,i)
+    return generalfloatmath(ng,callhistory, 'SNAP',v,i)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="PingPong.\nWrap a value and every other cycles at cycle Scale.")
 @user_doc(nexscript="PingPong.\nWrap a value and every other cycles at cycle Scale.\nSupports SocketFloat and entry-wise SocketVector if scale is float compatible.")
-def pingpong(ng, reusenode:str,
+def pingpong(ng, callhistory:list,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     scale:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
     if anytype(v,types=(sVec,Vector),):
         if not alltypes(scale,types=(sFlo,sInt,sBoo,float,int),):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function pingpong(). Second argument must be a float compatible type. Recieved '{type(scale).__name__}'.")
-        return generalvecfloatmath(ng,reusenode, 'PINGPONG',v,scale)
-    return generalfloatmath(ng,reusenode, 'PINGPONG',v,scale)
+        return generalvecfloatmath(ng,callhistory, 'PINGPONG',v,scale)
+    return generalfloatmath(ng,callhistory, 'PINGPONG',v,scale)
 
-#covered in nexscript via python dunder overload
-@user_domain('mathex')
+#covered internally in nexscript via python dunder overload
+@user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Floor Division.\nEquivalent to the '//' symbol.")
-def floordiv(ng, reusenode:str,
+def floordiv(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
 
-    if (reusenode): #this function is created multiple nodes so we need multiple tag
-          _x = div(ng,f"{reusenode}|inner", a,b)
-    else: _x = div(ng,'', a,b)
+    _x = div(ng,callhistory, a,b)
+    _r = floor(ng,callhistory, _x)
+    frame_nodes(ng, _x.node, _r.node,label='FloorDiv',)
 
-    _r = floor(ng,reusenode, _x)
-    frame_nodes(ng, _x.node, _r.node,
-        label=reusenode if (reusenode) else 'FloorDiv',
-        )
     return _r
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Sine of A.")
 @user_doc(nexscript="The Sine of A.\nSupports SocketFloat and entry-wise SocketVector.")
-def sin(ng, reusenode:str,
+def sin(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec|float:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.sin(a)
     if anytype(a,types=(sVec,Vector,),):
-        return generalvecmath(ng,reusenode, 'SINE',a)
-    return generalfloatmath(ng,reusenode, 'SINE',a)
+        return generalvecmath(ng,callhistory, 'SINE',a)
+    return generalfloatmath(ng,callhistory, 'SINE',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Cosine of A.")
 @user_doc(nexscript="The Cosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
-def cos(ng, reusenode:str,
+def cos(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec|float:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.cos(a)
     if anytype(a,types=(sVec,Vector,),):
-        return generalvecmath(ng,reusenode, 'COSINE',a)
-    return generalfloatmath(ng,reusenode, 'COSINE',a)
+        return generalvecmath(ng,callhistory, 'COSINE',a)
+    return generalfloatmath(ng,callhistory, 'COSINE',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Tangent of A.")
 @user_doc(nexscript="The Tangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
-def tan(ng, reusenode:str,
+def tan(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec|float:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.tan(a)
     if anytype(a,types=(sVec,Vector,),):
-        return generalvecmath(ng,reusenode, 'TANGENT',a)
-    return generalfloatmath(ng,reusenode, 'TANGENT',a)
+        return generalvecmath(ng,callhistory, 'TANGENT',a)
+    return generalfloatmath(ng,callhistory, 'TANGENT',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Arcsine of A.")
 @user_doc(nexscript="The Arcsine of A.\nSupports SocketFloat and entry-wise SocketVector.")
-def asin(ng, reusenode:str,
+def asin(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.asin(a)
     if anytype(a,types=(sVec,),):
-        return generalvecfloatmath(ng,reusenode, 'ARCSINE',a)
-    return generalfloatmath(ng,reusenode, 'ARCSINE',a)
+        return generalvecfloatmath(ng,callhistory, 'ARCSINE',a)
+    return generalfloatmath(ng,callhistory, 'ARCSINE',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Arccosine of A.")
 @user_doc(nexscript="The Arccosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
-def acos(ng, reusenode:str,
+def acos(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.acos(a)
     if anytype(a,types=(sVec,),):
-        return generalvecfloatmath(ng,reusenode, 'ARCCOSINE',a)
-    return generalfloatmath(ng,reusenode, 'ARCCOSINE',a)
+        return generalvecfloatmath(ng,callhistory, 'ARCCOSINE',a)
+    return generalfloatmath(ng,callhistory, 'ARCCOSINE',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Arctangent of A.")
 @user_doc(nexscript="The Arctangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
-def atan(ng, reusenode:str,
+def atan(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.atan(a)
     if anytype(a,types=(sVec,),):
-        return generalvecfloatmath(ng,reusenode, 'ARCTANGENT',a)
-    return generalfloatmath(ng,reusenode, 'ARCTANGENT',a)
+        return generalvecfloatmath(ng,callhistory, 'ARCTANGENT',a)
+    return generalfloatmath(ng,callhistory, 'ARCTANGENT',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Sine of A.")
 @user_doc(nexscript="The Hyperbolic Sine of A.\nSupports SocketFloat and entry-wise SocketVector.")
-def sinh(ng, reusenode:str,
+def sinh(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.sinh(a)
     if anytype(a,types=(sVec,),):
-        return generalvecfloatmath(ng,reusenode, 'SINH',a)
-    return generalfloatmath(ng,reusenode, 'SINH',a)
+        return generalvecfloatmath(ng,callhistory, 'SINH',a)
+    return generalfloatmath(ng,callhistory, 'SINH',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Cosine of A.")
 @user_doc(nexscript="The Hyperbolic Cosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
-def cosh(ng, reusenode:str,
+def cosh(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.cosh(a)
     if anytype(a,types=(sVec,),):
-        return generalvecfloatmath(ng,reusenode, 'COSH',a)
-    return generalfloatmath(ng,reusenode, 'COSH',a)
+        return generalvecfloatmath(ng,callhistory, 'COSH',a)
+    return generalfloatmath(ng,callhistory, 'COSH',a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Tangent of A.")
 @user_doc(nexscript="The Hyperbolic Tangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
-def tanh(ng, reusenode:str,
+def tanh(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.tanh(a)
     if anytype(a,types=(sVec,),):
-        return generalvecfloatmath(ng,reusenode, 'TANH',a)
-    return generalfloatmath(ng,reusenode, 'TANH',a)
+        return generalvecfloatmath(ng,callhistory, 'TANH',a)
+    return generalfloatmath(ng,callhistory, 'TANH',a)
 
 @user_domain('mathex')
 @user_doc(mathex="Convert a value from Degrees to Radians.")
-def rad(ng, reusenode:str,
+def rad(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.radians(a)
     if anytype(a,types=(sVec,),):
-        return generalvecfloatmath(ng,reusenode, 'RADIANS',a)
-    return generalfloatmath(ng,reusenode, 'RADIANS',a)
+        return generalvecfloatmath(ng,callhistory, 'RADIANS',a)
+    return generalfloatmath(ng,callhistory, 'RADIANS',a)
 
 #same as above, just different user fct name.
 @user_domain('nexscript')
 @user_doc(nexscript="Convert a value from Degrees to Radians.\nSupports SocketFloat and entry-wise SocketVector.")
-def radians(ng, reusenode:str,
+def radians(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    return rad(ng,reusenode,a)
+    return rad(ng,callhistory,a)
 
 @user_domain('mathex')
 @user_doc(mathex="Convert a value from Radians to Degrees.")
-def deg(ng, reusenode:str,
+def deg(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     # #If user is only using python type, we use the math function instead of creating new nodes
     # if alltypes(a,types=(float,int,)):
     #     return math.degrees(a)
     if anytype(a,types=(sVec,),):
-        return generalvecfloatmath(ng,reusenode, 'DEGREES',a)
-    return generalfloatmath(ng,reusenode, 'DEGREES',a)
+        return generalvecfloatmath(ng,callhistory, 'DEGREES',a)
+    return generalfloatmath(ng,callhistory, 'DEGREES',a)
 
 #same as above, just different user fct name.
 @user_domain('nexscript')
 @user_doc(nexscript="Convert a value from Radians to Degrees.\nSupports SocketFloat and entry-wise SocketVector.")
-def degrees(ng, reusenode:str,
+def degrees(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    return deg(ng,reusenode,a)
+    return deg(ng,callhistory,a)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Cross Product.\nThe cross product between vector A an B.")
-def cross(ng, reusenode:str,
+def cross(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return generalvecmath(ng,reusenode, 'CROSS_PRODUCT',vA,vB)
+    return generalvecmath(ng,callhistory, 'CROSS_PRODUCT',vA,vB)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Dot Product.\nA dot B.")
-def dot(ng, reusenode:str,
+def dot(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return generalvecmath(ng,reusenode, 'DOT_PRODUCT',vA,vB)
+    return generalvecmath(ng,callhistory, 'DOT_PRODUCT',vA,vB)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Projection.\nProject A onto B.")
-def project(ng, reusenode:str,
+def project(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return generalvecmath(ng,reusenode, 'PROJECT',vA,vB)
+    return generalvecmath(ng,callhistory, 'PROJECT',vA,vB)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Faceforward.\nFaceforward operation between a given vector, an incident and a reference.")
-def faceforward(ng, reusenode:str,
+def faceforward(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vI:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vR:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return generalvecmath(ng,reusenode, 'FACEFORWARD',vA,vI,vR)
+    return generalvecmath(ng,callhistory, 'FACEFORWARD',vA,vI,vR)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Reflection.\nReflect A onto B.")
-def reflect(ng, reusenode:str,
+def reflect(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return generalvecmath(ng,reusenode, 'PROJECT',vA,vB)
+    return generalvecmath(ng,callhistory, 'PROJECT',vA,vB)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Distance.\nThe distance between location A & B.")
-def distance(ng, reusenode:str,
+def distance(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
-    return generalvecmath(ng,reusenode, 'DISTANCE',vA,vB)
+    return generalvecmath(ng,callhistory, 'DISTANCE',vA,vB)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Normalization.\nNormalize the values of a vector A to fit a 0-1 range.")
-def normalize(ng, reusenode:str,
+def normalize(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sVec:
-    return generalvecmath(ng,reusenode, 'NORMALIZE',vA)
+    return generalvecmath(ng,callhistory, 'NORMALIZE',vA)
 
-#covered in nexscript with NexVec.length
-def length(ng, reusenode:str,
+#covered internally in nexscript with NexVec.length
+@user_domain('nexclassmethod')
+def length(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo:
-    return generalvecmath(ng,reusenode, 'LENGTH',vA)
+    return generalvecmath(ng,callhistory, 'LENGTH',vA)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Vector.\nSeparate a SocketVector into a tuple of 3 SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
-def separate_xyz(ng, reusenode:str,
+def separate_xyz(ng, callhistory:list,
     vA:sVec,
     ) -> tuple:
 
     if (type(vA) is not sVec):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_xyz() recieved unsupported type '{type(vA).__name__}'")
 
+    uniquename = get_unique_name('SepXYZ',callhistory)
     node = None
     needs_linking = False
 
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
 
     if (node is None):
         last = ng.nodes.active
@@ -1323,8 +1318,8 @@ def separate_xyz(ng, reusenode:str,
         ng.nodes.active = node #Always set the last node active for the final link
         
         needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode
+        if (uniquename):
+            node.name = node.label = uniquename
 
     if (needs_linking):
         link_sockets(vA, node.inputs[0])
@@ -1333,17 +1328,18 @@ def separate_xyz(ng, reusenode:str,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Vector.\nCombine 3 SocketFloat, SocketInt or SocketBool into a SocketVector.")
-def combine_xyz(ng, reusenode:str,
+def combine_xyz(ng, callhistory:list,
     fX:sFlo|sInt|sBoo|float|int,
     fY:sFlo|sInt|sBoo|float|int,
     fZ:sFlo|sInt|sBoo|float|int,
     ) -> sVec:
 
+    uniquename = get_unique_name('CombXYZ',callhistory)
     node = None
     needs_linking = False
 
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
 
     if (node is None):
         last = ng.nodes.active
@@ -1354,8 +1350,8 @@ def combine_xyz(ng, reusenode:str,
         node.location = location
         ng.nodes.active = node
         needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode
+        if (uniquename):
+            node.name = node.label = uniquename
 
     for i, val in enumerate((fX, fY, fZ)):
         match val:
@@ -1379,93 +1375,99 @@ def combine_xyz(ng, reusenode:str,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Rotate (Euler).\nRotate a given Vector A with euler angle radians E, at optional center C.")
-def roteuler(ng, reusenode:str,
+def roteuler(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vE:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sVec:
-    return generalverotate(ng, reusenode, 'EULER_XYZ',False, vA,vC,None,None,vE,)
+    return generalverotate(ng, callhistory, 'EULER_XYZ',False, vA,vC,None,None,vE,)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Rotate (Euler).\nRotate a given Vector A from defined axis X & angle radians F, at optional center C.")
-def rotaxis(ng, reusenode:str,
+def rotaxis(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vX:sFlo|sInt|sBoo|sVec|float|int|Vector,
     fA:sFlo|sInt|sBoo|sVec|float|int|Vector,
     vC:sFlo|sInt|sBoo|sVec|float|int|Vector=None,
     ) -> sVec:
-    return generalverotate(ng, reusenode, 'AXIS_ANGLE',False, vA,vC,vX,fA,None,)
+    return generalverotate(ng, callhistory, 'AXIS_ANGLE',False, vA,vC,vX,fA,None,)
 
-#covered in nexscript via python prop or function
-def matrixdeterminant(ng, reusenode:str,
+#covered internally in nexscript via python prop or function
+@user_domain('nexclassmethod')
+def matrixdeterminant(ng, callhistory:list,
     mA:sMtx,
     ) -> sFlo:
-    return generalmatrixmath(ng,reusenode, 'matrixdeterminant', None,mA,None)
+    return generalmatrixmath(ng,callhistory, 'matrixdeterminant', None,mA,None)
 
-#covered in nexscript via python prop or function
-def matrixinvert(ng, reusenode:str,
+#covered internally in nexscript via python prop or function
+@user_domain('nexclassmethod')
+def matrixinvert(ng, callhistory:list,
     mA:sMtx,
     ) -> sMtx:
-    return generalmatrixmath(ng,reusenode, 'matrixinvert', None,mA,None)
+    return generalmatrixmath(ng,callhistory, 'matrixinvert', None,mA,None)
 
-#covered in nexscript via python prop or function
-def matrixisinvertible(ng, reusenode:str,
+#covered internally in nexscript via python prop or function
+@user_domain('nexclassmethod')
+def matrixisinvertible(ng, callhistory:list,
     mA:sMtx,
     ) -> sBoo:
-    return generalmatrixmath(ng,reusenode, 'matrixisinvertible', None,mA,None)
+    return generalmatrixmath(ng,callhistory, 'matrixisinvertible', None,mA,None)
 
-#covered in nexscript via python prop or function
-def matrixtranspose(ng, reusenode:str,
+#covered internally in nexscript via python prop or function
+@user_domain('nexclassmethod')
+def matrixtranspose(ng, callhistory:list,
     mA:sMtx,
     ) -> sMtx:
-    return generalmatrixmath(ng,reusenode, 'matrixtranspose', None,mA,None)
+    return generalmatrixmath(ng,callhistory, 'matrixtranspose', None,mA,None)
 
-#covered in nexscript via python dunder overload
-def matrixmult(ng, reusenode:str,
+#covered internally in nexscript via python dunder overload
+@user_domain('nexclassmethod')
+def matrixmult(ng, callhistory:list,
     mA:sMtx|Matrix,
     mB:sMtx|Matrix,
     ) -> sMtx:
-    return generalmatrixmath(ng,reusenode, 'matrixmult', None,mA,mB)
+    return generalmatrixmath(ng,callhistory, 'matrixmult', None,mA,mB)
         
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Transform.\nTransform a location vector A by a given matrix B.\nWill return a VectorSocket.\n\nCould use notation 'mB @ vA' instead.")
-def transformloc(ng, reusenode:str,
+def transformloc(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     mB:sMtx|Matrix,
     ) -> sVec:
-    return generalmatrixmath(ng,reusenode, 'transformloc', vA,mB,None)
+    return generalmatrixmath(ng,callhistory, 'transformloc', vA,mB,None)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Projection.\nProject a location vector A by a given matrix B.\nWill return a VectorSocket.")
-def projectloc(ng, reusenode:str,
+def projectloc(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     mB:sMtx|Matrix,
     ) -> sVec:
-    return generalmatrixmath(ng,reusenode, 'projectloc', vA,mB,None)
+    return generalmatrixmath(ng,callhistory, 'projectloc', vA,mB,None)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Direction Transform.\nTransform direction vector A by a given matrix B.\nWill return a VectorSocket.")
-def transformdir(ng, reusenode:str,
+def transformdir(ng, callhistory:list,
     vA:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     mB:sMtx|Matrix,
     ) -> sVec:
-    return generalmatrixmath(ng,reusenode, 'transformdir', vA,mB,None)
+    return generalmatrixmath(ng,callhistory, 'transformdir', vA,mB,None)
 
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix.\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")
-def separate_matrix(ng, reusenode:str,
+def separate_matrix(ng, callhistory:list,
     mA:sMtx,
     ) -> tuple:
 
     if (type(mA) is not sMtx):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function separate_matrix() recieved unsupported type '{type(mA).__name__}'")
 
+    uniquename = get_unique_name('FlatMtx',callhistory)
     node = None
     needs_linking = False
 
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
 
     if (node is None):
         last = ng.nodes.active
@@ -1477,8 +1479,8 @@ def separate_matrix(ng, reusenode:str,
         ng.nodes.active = node #Always set the last node active for the final link
 
         needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode
+        if (uniquename):
+            node.name = node.label = uniquename
 
     if (needs_linking):
         link_sockets(mA, node.inputs[0])
@@ -1487,7 +1489,7 @@ def separate_matrix(ng, reusenode:str,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix.\nCombine an itterable containing  16 SocketFloat, SocketInt or SocketBool arranged by columns to a SocketMatrix.")
-def combine_matrix(ng, reusenode:str,
+def combine_matrix(ng, callhistory:list,
     *itterables:sFlo|sInt|sBoo|float|int|tuple|set|list,
     ) -> tuple:
 
@@ -1500,11 +1502,12 @@ def combine_matrix(ng, reusenode:str,
     if (len(itterables) !=16):
         raise InvalidTypePassedToSocket(f"ParamTypeError. Function combine_matrix() recieved itterable must be of len 16 to fit a 4x4 SocketMatrix")
 
+    uniquename = get_unique_name('CombFlatMtx',callhistory)
     node = None
     needs_linking = False
 
-    if (reusenode):
-        node = ng.nodes.get(reusenode)
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
 
     if (node is None):
         last = ng.nodes.active
@@ -1515,8 +1518,8 @@ def combine_matrix(ng, reusenode:str,
         node.location = location
         ng.nodes.active = node
         needs_linking = True
-        if (reusenode):
-            node.name = node.label = reusenode
+        if (uniquename):
+            node.name = node.label = uniquename
 
     for i, val in enumerate(itterables):
         match val:
@@ -1541,122 +1544,131 @@ def combine_matrix(ng, reusenode:str,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")
 @user_doc(nexscript="Minimum.\nGet the absolute minimal value across all passed arguments.\nArguments must be compatible with SocketFloat.")
-def min(ng, reusenode:str,
+def min(ng, callhistory:list,
     *floats:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    return generalminmax(ng,reusenode, 'min',*floats)
+    return generalminmax(ng,callhistory, 'min',*floats)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Smooth Minimum\nGet the minimal value between A & B considering a smoothing distance to avoid abrupt transition.")
 @user_doc(nexscript="Smooth Minimum\nGet the minimal value between A & B considering a smoothing distance to avoid abrupt transition.\nSupports SocketFloats only.")
-def smin(ng, reusenode:str,
+def smin(ng, callhistory:list,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     dist:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    return generalfloatmath(ng,reusenode, 'SMOOTH_MIN',a,b,dist)
+    return generalfloatmath(ng,callhistory, 'SMOOTH_MIN',a,b,dist)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Maximum.\nGet the absolute maximal value across all passed arguments.")
 @user_doc(nexscript="Maximum.\nGet the absolute maximal value across all passed arguments.\nArguments must be compatible with SocketFloat.")
-def max(ng, reusenode:str,
+def max(ng, callhistory:list,
     *floats:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    return generalminmax(ng,reusenode, 'max',*floats)
+    return generalminmax(ng,callhistory, 'max',*floats)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Smooth Maximum\nGet the maximal value between A & B considering a smoothing distance to avoid abrupt transition.")
 @user_doc(nexscript="Smooth Maximum\nGet the maximal value between A & B considering a smoothing distance to avoid abrupt transition.\nSupports SocketFloats only.")
-def smax(ng, reusenode:str,
+def smax(ng, callhistory:list,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
     dist:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
-    return generalfloatmath(ng,reusenode, 'SMOOTH_MAX',a,b,dist)
+    return generalfloatmath(ng,callhistory, 'SMOOTH_MAX',a,b,dist)
 
-#covered in nexscript via python dunder overload
-def iseq(ng, reusenode:str,
+#covered internally in nexscript via python dunder overload
+@user_domain('nexclassmethod')
+def iseq(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     )->sBoo:
     if alltypes(a,b,types=(sBoo,bool),):
-        return generalboolmath(ng,reusenode, 'XNOR', a,b)
+        return generalboolmath(ng,callhistory, 'XNOR', a,b)
     if anytype(a,b,types=(sVec,Vector,),):
-        return generalcompare(ng,reusenode, 'VECTOR','EQUAL', a,b,None)
-    return generalcompare(ng,reusenode, 'FLOAT','EQUAL', a,b,None)
+        return generalcompare(ng,callhistory, 'VECTOR','EQUAL', a,b,None)
+    return generalcompare(ng,callhistory, 'FLOAT','EQUAL', a,b,None)
 
-#covered in nexscript via python dunder overload
-def isuneq(ng, reusenode:str,
+#covered internally in nexscript via python dunder overload
+@user_domain('nexclassmethod')
+def isuneq(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     )->sBoo:
     if alltypes(a,b,types=(sBoo,bool),):
-        return generalboolmath(ng,reusenode, 'XOR', a,b)
+        return generalboolmath(ng,callhistory, 'XOR', a,b)
     if anytype(a,b,types=(sVec,Vector,),):
-        return generalcompare(ng,reusenode, 'VECTOR','NOT_EQUAL', a,b,None)
-    return generalcompare(ng,reusenode, 'FLOAT','NOT_EQUAL', a,b,None)
+        return generalcompare(ng,callhistory, 'VECTOR','NOT_EQUAL', a,b,None)
+    return generalcompare(ng,callhistory, 'FLOAT','NOT_EQUAL', a,b,None)
 
-#covered in nexscript via python dunder overload
-def isless(ng, reusenode:str,
+#covered internally in nexscript via python dunder overload
+@user_domain('nexclassmethod')
+def isless(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     )->sBoo:
     if anytype(a,b,types=(sVec,Vector,),):
-        return generalcompare(ng,reusenode, 'VECTOR','LESS_THAN', a,b,None)
-    return generalcompare(ng,reusenode, 'FLOAT','LESS_THAN', a,b,None)
+        return generalcompare(ng,callhistory, 'VECTOR','LESS_THAN', a,b,None)
+    return generalcompare(ng,callhistory, 'FLOAT','LESS_THAN', a,b,None)
 
-#covered in nexscript via python dunder overload
-def islesseq(ng, reusenode:str,
+#covered internally in nexscript via python dunder overload
+@user_domain('nexclassmethod')
+def islesseq(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     )->sBoo:
     if anytype(a,b,types=(sVec,Vector,),):
-        return generalcompare(ng,reusenode, 'VECTOR','LESS_EQUAL', a,b,None)
-    return generalcompare(ng,reusenode, 'FLOAT','LESS_EQUAL', a,b,None)
+        return generalcompare(ng,callhistory, 'VECTOR','LESS_EQUAL', a,b,None)
+    return generalcompare(ng,callhistory, 'FLOAT','LESS_EQUAL', a,b,None)
 
-#covered in nexscript via python dunder overload
-def isgreater(ng, reusenode:str,
+#covered internally in nexscript via python dunder overload
+@user_domain('nexclassmethod')
+def isgreater(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     )->sBoo:
     if anytype(a,b,types=(sVec,Vector,),):
-        return generalcompare(ng,reusenode, 'VECTOR','GREATER_THAN', a,b,None)
-    return generalcompare(ng,reusenode, 'FLOAT','GREATER_THAN', a,b,None)
+        return generalcompare(ng,callhistory, 'VECTOR','GREATER_THAN', a,b,None)
+    return generalcompare(ng,callhistory, 'FLOAT','GREATER_THAN', a,b,None)
 
-#covered in nexscript via python dunder overload
-def isgreatereq(ng, reusenode:str,
+#covered internally in nexscript via python dunder overload
+@user_domain('nexclassmethod')
+def isgreatereq(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     )->sBoo:
     if anytype(a,b,types=(sVec,Vector,),):
-        return generalcompare(ng,reusenode, 'VECTOR','GREATER_EQUAL', a,b,None)
-    return generalcompare(ng,reusenode, 'FLOAT','GREATER_EQUAL', a,b,None)
+        return generalcompare(ng,callhistory, 'VECTOR','GREATER_EQUAL', a,b,None)
+    return generalcompare(ng,callhistory, 'FLOAT','GREATER_EQUAL', a,b,None)
 
-#covered in nexscript via python dunder overload
-def booland(ng, reusenode:str,
+#covered internally in nexscript via python dunder overload
+@user_domain('nexclassmethod')
+def booland(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     )->sBoo:
-    return generalboolmath(ng,reusenode, 'AND', a,b)
+    return generalboolmath(ng,callhistory, 'AND', a,b)
 
-#covered in nexscript via python dunder overload
-def boolor(ng, reusenode:str,
+#covered internally in nexscript via python dunder overload
+@user_domain('nexclassmethod')
+def boolor(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     )->sBoo:
-    return generalboolmath(ng,reusenode, 'OR', a,b)
+    return generalboolmath(ng,callhistory, 'OR', a,b)
 
-def boolnot(ng, reusenode:str,
+@user_domain('nexclassmethod')
+def boolnot(ng, callhistory:list,
     a:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     )->sBoo:
-    return generalboolmath(ng,reusenode, 'NOT', a)
+    return generalboolmath(ng,callhistory, 'NOT', a)
 
 @user_domain('nexscript')
 @user_doc(nexscript="All Equals.\nCheck if all passed arguments have equal values.\n\nCompatible with SocketFloats, SocketVectors and SocketBool. Will return a SocketBool.")
-def alleq(ng, reusenode:str,
+def alleq(ng, callhistory:list,
     *values:sFlo|sInt|sBoo|sVec|float|int|bool|Vector,
     )->sBoo:
-    return generalbatchcompare(ng,reusenode, 'alleq',None,None,None, *values)
+    return generalbatchcompare(ng,callhistory, 'alleq',None,None,None, *values)
 
 #TODO what about epsilon??? problem is that epsilon is not supported for all operaiton type
 #def almosteq(a,b,epsilon)
@@ -1667,29 +1679,29 @@ def alleq(ng, reusenode:str,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Mix.\nLinear Interpolation between value A and B from given factor F.")
 @user_doc(nexscript="Mix.\nLinear Interpolation between value A and B from given factor F.\nSupports SocketFloat and SocketVector.")
-def lerp(ng, reusenode:str,
+def lerp(ng, callhistory:list,
     f:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(f,a,b,types=(sVec,Vector,),):
-        return generalmix(ng,reusenode, 'VECTOR',f,a,b)
-    return generalmix(ng,reusenode, 'FLOAT',f,a,b)
+        return generalmix(ng,callhistory, 'VECTOR',f,a,b)
+    return generalmix(ng,callhistory, 'FLOAT',f,a,b)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Alternative notation to lerp() function.")
 @user_doc(nexscript="Alternative notation to lerp() function.")
-def mix(ng, reusenode:str,
+def mix(ng, callhistory:list,
     f:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|float|int|Vector,
     ) -> sFlo|sVec:
-    return lerp(ng,reusenode, f,a,b)
+    return lerp(ng,callhistory, f,a,b)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Clamping.\nClamp a value a between min A an max B.")
 @user_doc(nexscript="Clamping.\nClamp a value a between min A an max B.\nSupports SocketFloat and entry-wise SocketVector if A & B are float compatible.")
-def clamp(ng, reusenode:str,
+def clamp(ng, callhistory:list,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -1697,13 +1709,13 @@ def clamp(ng, reusenode:str,
     if anytype(v,types=(sVec,Vector),):
         if not alltypes(a,b,types=(sFlo,sInt,sBoo,float,int),):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function clamp(). Second or Third argument must be float compatible types. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
-        return generalvecfloatmath(ng,reusenode, 'CLAMP.MINMAX',v,a,b)
-    return generalfloatmath(ng,reusenode, 'CLAMP.MINMAX',v,a,b)
+        return generalvecfloatmath(ng,callhistory, 'CLAMP.MINMAX',v,a,b)
+    return generalfloatmath(ng,callhistory, 'CLAMP.MINMAX',v,a,b)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="AutoClamping.\nClamp a value a between auto-defined min/max A & B.")
 @user_doc(nexscript="AutoClamping.\nClamp a value a between auto-defined min/max A & B.\nSupports SocketFloat and entry-wise SocketVector if A & B are float compatible.")
-def clampauto(ng, reusenode:str,
+def clampauto(ng, callhistory:list,
     v:sFlo|sInt|sBoo|sVec|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -1711,13 +1723,13 @@ def clampauto(ng, reusenode:str,
     if anytype(v,types=(sVec,Vector),):
         if not alltypes(a,b,types=(sFlo,sInt,sBoo,float,int),):
             raise InvalidTypePassedToSocket(f"ParamTypeError. Function clamp(). Second or Third argument must be float compatible types. Recieved '{type(a).__name__}' & '{type(b).__name__}'.")
-        return generalvecfloatmath(ng,reusenode, 'CLAMP.RANGE',v,a,b)
-    return generalfloatmath(ng,reusenode, 'CLAMP.RANGE',v,a,b)
+        return generalvecfloatmath(ng,callhistory, 'CLAMP.RANGE',v,a,b)
+    return generalfloatmath(ng,callhistory, 'CLAMP.RANGE',v,a,b)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range.\nRemap a value V from a given range A,B to another range X,Y.")
 @user_doc(nexscript="Map Range.\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
-def mapl(ng, reusenode:str,
+def mapl(ng, callhistory:list,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
     b:sFlo|sInt|sBoo|float|int|Vector,
@@ -1725,13 +1737,13 @@ def mapl(ng, reusenode:str,
     y:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(v,a,b,x,y,types=(sVec,Vector,),):
-        return generalmaprange(ng,reusenode, 'FLOAT_VECTOR','LINEAR',v,a,b,x,y)
-    return generalmaprange(ng,reusenode, 'FLOAT','LINEAR',v,a,b,x,y)
+        return generalmaprange(ng,callhistory, 'FLOAT_VECTOR','LINEAR',v,a,b,x,y)
+    return generalmaprange(ng,callhistory, 'FLOAT','LINEAR',v,a,b,x,y)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.")
 @user_doc(nexscript="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\nSupports SocketFloat and SocketVector.")
-def mapst(ng, reusenode:str,
+def mapst(ng, callhistory:list,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
     b:sFlo|sInt|sBoo|float|int|Vector,
@@ -1740,13 +1752,13 @@ def mapst(ng, reusenode:str,
     step:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(v,a,b,x,y,step,types=(sVec,Vector,),):
-        return generalmaprange(ng,reusenode, 'FLOAT_VECTOR','STEPPED',v,a,b,x,y,step)
-    return generalmaprange(ng,reusenode, 'FLOAT','STEPPED',v,a,b,x,y,step)
+        return generalmaprange(ng,callhistory, 'FLOAT_VECTOR','STEPPED',v,a,b,x,y,step)
+    return generalmaprange(ng,callhistory, 'FLOAT','STEPPED',v,a,b,x,y,step)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.")
 @user_doc(nexscript="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
-def mapsmo(ng, reusenode:str,
+def mapsmo(ng, callhistory:list,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
     b:sFlo|sInt|sBoo|float|int|Vector,
@@ -1754,13 +1766,13 @@ def mapsmo(ng, reusenode:str,
     y:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(v,a,b,x,y,types=(sVec,Vector,),):
-        return generalmaprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHSTEP',v,a,b,x,y)
-    return generalmaprange(ng,reusenode, 'FLOAT','SMOOTHSTEP',v,a,b,x,y)
+        return generalmaprange(ng,callhistory, 'FLOAT_VECTOR','SMOOTHSTEP',v,a,b,x,y)
+    return generalmaprange(ng,callhistory, 'FLOAT','SMOOTHSTEP',v,a,b,x,y)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.")
 @user_doc(nexscript="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
-def mapsmoo(ng, reusenode:str,
+def mapsmoo(ng, callhistory:list,
     v:sFlo|sInt|sBoo|float|int|Vector,
     a:sFlo|sInt|sBoo|float|int|Vector,
     b:sFlo|sInt|sBoo|float|int|Vector,
@@ -1768,31 +1780,39 @@ def mapsmoo(ng, reusenode:str,
     y:sFlo|sInt|sBoo|float|int|Vector,
     ) -> sFlo|sVec:
     if anytype(v,a,b,x,y,types=(sVec,Vector,),):
-        return generalmaprange(ng,reusenode, 'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y)
-    return generalmaprange(ng,reusenode, 'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
+        return generalmaprange(ng,callhistory, 'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y)
+    return generalmaprange(ng,callhistory, 'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Position Attribute.\nGet the GeometryNode 'Position' SocketVector input attribute.")
-def getp(ng, reusenode:str,
+def getp(ng, callhistory:list,
     ) -> sVec:
-    node = ng.nodes.get(reusenode)
+
+    uniquename = 'F|GetPosition' if (callhistory is not None) else None #This one is a singleton
+    node = ng.nodes.get(uniquename)
+
     if (node is None):
         node = ng.nodes.new('GeometryNodeInputPosition')
-        node.name = node.label = reusenode
+        node.name = node.label = uniquename
         node.location = ng.nodes["Group Input"].location
         node.location.y += 65*1
+
     return node.outputs[0]
 
 @user_domain('nexscript')
 @user_doc(nexscript="Normal Attribute.\nGet the GeometryNode 'Normal' SocketVector input attribute.")
-def getn(ng, reusenode:str,
+def getn(ng, callhistory:list,
     ) -> sVec:
-    node = ng.nodes.get(reusenode)
+
+    uniquename = 'F|GetNormal' if (callhistory is not None) else None #This one is a singleton
+    node = ng.nodes.get(uniquename)
+
     if (node is None):
         node = ng.nodes.new('GeometryNodeInputNormal')
-        node.name = node.label = reusenode
+        node.name = node.label = uniquename
         node.location = ng.nodes["Group Input"].location
         node.location.y += 65*2
+
     return node.outputs[0]
 
 # TODO more attr input
