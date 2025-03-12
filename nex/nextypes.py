@@ -28,6 +28,7 @@
 import bpy
 
 import traceback
+import math
 from mathutils import Vector, Matrix
 from functools import partial
 
@@ -164,26 +165,26 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
             fname = sockfunc.__name__
 
-            # Using a NexFunction but not passed no NexType arguments? Beware of name conflict!
-            if (args and not any(('Nex' in type(v).__name__) for v in args)):
+            if (len(args)>=1):
                 match fname:
 
-                    # Name conflict with python bultin functions? 
-                    # If no NexType are involved, we simply call builtin function, no Nexwrapper!
-                    case 'min': return min(*args, **kwargs)
-                    case 'max': return max(*args, **kwargs)
+                    # some special functions accept tuple that may contain containing sockets, we need to unpack
+                    case 'combine_matrix':
+                        if (len(args)==1 and (type(args) in {tuple,set,list})):
+                            args = args[0]
 
-                    # Name conflict with math module functions?
-                    # If no NexType are involved, we simply call builtin math function, no Nexwrapper!
+                    # same for min/max. If the user is not using any Socket, we call native py function
+                    case 'min' | 'max':
+                        if (len(args)==1 and (type(args) in {tuple,set,list})):
+                            args = args[0]
+                        if not any(('Nex' in type(v).__name__) for v in args):
+                            return min(*args, **kwargs) if (fname=='min') else max(*args, **kwargs)
+
+                    # Name conflict with math module functions? If no NexType foud, we simply call builtin math function
                     case 'cos'|'sin'|'tan'|'acos'|'asin'|'atan'|'cosh'|'sinh'|'tanh'|'sqrt'|'log'|'degrees'|'radians'|'floor'|'ceil'|'trunc':
-                        import math
-                        mathfunction = getattr(math,fname)
-                        return mathfunction(*args, **kwargs)
-
-            # some special functions accept tuple containing sockets, we need to unpack
-            if (fname=='combine_matrix'):
-                if (len(args)==1 and (type(args) in {tuple,set,list})):
-                    args = args[0]
+                        if not any(('Nex' in type(v).__name__) for v in args):
+                            mathfunction = getattr(math,fname)
+                            return mathfunction(*args, **kwargs)
 
             #Process the passed args:
 
@@ -1043,7 +1044,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _:
                     raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketVector'.")
             return NexWrappedFcts['floordiv'](*args,)
-
+        
         def __neg__(self): # -self
             return NexWrappedFcts['neg'](self,)
 
@@ -1052,6 +1053,35 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         def __round__(self): # round(self)
             return NexWrappedFcts['round'](self,)
+
+        def __matmul__(self, other): # self @ other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexMtx' | 'Matrix' | 'list' | 'tuple' | 'set':
+                    raise NexError(f"TypeError. Cannot matrix-multiply 'Vector' with 'Matrix'. Only 'Matrix @ Vector' is allowed.")
+                case 'NexVec' | 'Vector':
+                    raise NexError(f"TypeError. Cannot matrix-multiply two TypeVector together. Only 'Matrix @ Vector' is allowed.")
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"TypeError. Cannot matrix-multiply 'SocketVector' with '{other.nxtydsp}'. Only 'Matrix @ Vector' is allowed.")
+                case _:
+                    raise NexError(f"TypeError. Cannot matrix-multiply 'SocketVector' with '{type(other).__name__}'. Only 'Matrix @ Vector' is allowed.")
+
+        def __rmatmul__(self, other): # other @ self
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexMtx':
+                    return NotImplemented
+                case 'NexVec' | 'Vector':
+                    raise NexError(f"TypeError. Cannot matrix-multiply 'Vector' with 'Vector'. Only 'Matrix @ Vector' is allowed.")
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"TypeError. Cannot matrix-multiply '{other.nxtydsp}' with 'SocketVector'.")
+                case 'Matrix' | 'list' | 'set' | 'tuple':
+                    convother = trypy_to_Mtx16(other)
+                    othernex = create_Nex_constant(NexMtx, convother,)
+                    args = othernex, self
+                case _:
+                    raise NexError(f"TypeError. Cannot matrix-multiply '{type(other).__name__}' with 'SocketVector'.")
+            return NexWrappedFcts['transformloc'](*args,)
 
         # ---------------------
         # NexVec Itter
@@ -1312,7 +1342,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     fname = 'transformloc'
                     args = other, self
                 case _ if ('Nex' in type_name):
-                    raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and another '{other.nxtydsp}'.")
+                    raise NexError(f"TypeError. Cannot matrix-multiply 'SocketMatrix' with '{other.nxtydsp}'.")
                 case 'Vector':
                     fname = 'transformloc'
                     args = trypy_to_Vec3(other), self
@@ -1322,7 +1352,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     othernex = create_Nex_constant(NexMtx, convother,)
                     args = self, othernex
                 case 'list' | 'set' | 'tuple':
-                    if len(other)<=3:
+                    if (len(other)<=3):
                         fname = 'transformloc'
                         args = trypy_to_Vec3(other), self
                     else:
@@ -1331,7 +1361,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         othernex = create_Nex_constant(NexMtx, convother,)
                         args = self, othernex
                 case _:
-                    raise NexError(f"TypeError. Cannot do a matrix multiplication operation with 'SocketMatrix' and '{type(other).__name__}'.")
+                    raise NexError(f"TypeError. Cannot matrix-multiply 'SocketMatrix' with '{type(other).__name__}'.")
             return NexWrappedFcts[fname](*args,)
 
         def __rmatmul__(self, other): # other @ self
@@ -1340,15 +1370,15 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'NexMtx':
                     return NotImplemented
                 case 'NexVec' | 'Vector':
-                    raise NexError(f"TypeError. Cannot matrix-multiply TypeVector by a TypeMatrix. Please do 'Matrix @ Vector' instead.")
+                    raise NexError(f"TypeError. Cannot matrix-multiply 'Vector' with 'Matrix'. Only 'Matrix @ Vector' is allowed.")
                 case _ if ('Nex' in type_name):
-                    raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{other.nxtydsp}' and 'SocketMatrix'.")
+                    raise NexError(f"TypeError. Cannot matrix-multiply '{other.nxtydsp}' with 'SocketMatrix'.")
                 case 'Matrix' | 'list' | 'set' | 'tuple':
                     convother = trypy_to_Mtx16(other)
                     othernex = create_Nex_constant(NexMtx, convother,)
                     args = othernex, self
                 case _:
-                    raise NexError(f"TypeError. Cannot do a matrix multiplication operation with '{type(other).__name__}' and 'SocketMatrix'.")
+                    raise NexError(f"TypeError. Cannot matrix-multiply '{type(other).__name__}' with 'SocketMatrix'.")
             return NexWrappedFcts['matrixmult'](*args,)
 
         # ---------------------
