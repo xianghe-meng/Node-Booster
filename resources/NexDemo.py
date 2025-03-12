@@ -38,7 +38,7 @@ TransVec = sockMatrix @ cross(pytuple,TransVec,)
 TransVec = sqrt(TransVec) #math operations can also work entry-wise on vectors.
 minElement = min(separate_matrix(sockMatrix)) #get lowest socketfloat element of Matrix.
 
-# Some types are also itterable
+# types can be itterable
 newvalues = []
 for i,component in enumerate(TransVec):
     newval = component + minElement + i

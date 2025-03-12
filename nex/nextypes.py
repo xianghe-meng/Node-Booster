@@ -10,16 +10,10 @@
 #  Perhaps the typing should be a little stronger and user should convert their Nex type manually.
 
 # TODO later
-#  Better errors for user:
-#  - need better traceback error for NexError so user can at least now the line where it got all wrong.
-#    see 'raise from e' notation perhaps?
 #  Optimization:
-#  - Is the NexFactory bad for performance? these factory are defining classes perhaps 10-15 times per execution
-#    and execution can be at very frequent. Perhaps we can initiate the factory at node.init()? If we do that, 
-#    let's first check if it's safe to do so. Maybe, storing objects there is not supported. 
-#    AS a Reminder: we are storing nodetree objects in there, we'll probably need to only store the nodetree name. & get rid of node_inst.
-#  - If we do a constant + Nex + constant + Nex + constant, we'll create 3 constant nodes. Unsure how to mitigate this.
-#    ideally we 
+#  - NexFactory exec is bad for performance? This factory are initialized in the main node class once per execution. Can be frequent.
+#    Perhaps we can initiate the factory at node.init()? If we do that, let's first check if it's safe. Maybe, storing pyobjects in there is not supported. 
+#    AS a Reminder: we are storing nodetree objects in there, we'll probably need to only store the nodetree name? what about node_inst?
 #  Code Redundency:
 #  - A lot of operation overloads are very simimar. Some math and comparison operation are repeated across many NexTypes.
 #    perhaps could centralize some operations via class inheritence 'NexMath' 'NexCompare' to not repeat function def?
@@ -277,13 +271,19 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         #Do not allow user to create any custom attribute on a NexType
         _attributes = ('init_counter','node_inst','node_tree','nxstype','nxtydsp','nxchar','nxsock','nxsnam','nxid',)
 
+        #Strict attribute setter & Error wrapping
         def __setattr__(self, name, value):
             if (name not in self._attributes):
-                raise NexError(f"AttributeError. '{self.nxtydsp}' to not have any '{name}' attribute.")
+                raise NexError(f"AttributeError. '{self.nxtydsp}' do not have any '{name}' attribute.")
             return super().__setattr__(name, value)
 
         def __getattribute__(self, name):
-            return super().__getattribute__(name)
+            try:
+                return super().__getattribute__(name)
+            except AttributeError:
+                raise NexError(f"AttributeError.'{self.nxtydsp}' do not have any '{name}' attribute.")
+            except Exception:
+                raise
 
         # Nex Math Operand
         def __add__(self, other): # self + other
@@ -325,16 +325,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __rmatmul__(self, other): # other @ self
             raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '@'.")
         
-        # Nex Itter
-        def __len__(self): #len(itter)
-            raise NexError(f"TypeError. '{self.nxtydsp}' has no len() method.")
-        def __iter__(self): #for f in itter
-            raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
-        def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
-            raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
-        def __setitem__(self, key, value): #x[0] += a+b
-            raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
-
         # Nex Comparisons
         def __eq__(self, other): # self == other
             raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '=='.")
@@ -358,6 +348,16 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '|'.")
         def __ror__(self, other): # other | self
             raise NexError(f"TypeError. '{self.nxtydsp}' do not support operand '|'.")
+
+        # Nex Itter
+        def __len__(self): #len(itter)
+            raise NexError(f"TypeError. '{self.nxtydsp}' has no len() method.")
+        def __iter__(self): #for f in itter
+            raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
+        def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
+            raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
+        def __setitem__(self, key, value): #x[0] += a+b
+            raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
 
         # Nex python bool evaluation? Impossible.
         def __bool__(self):
@@ -708,7 +708,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
 
         # ---------------------
-        # NexFloat Custom Functions & Properties
+        # NexFloat Functions & Properties
         # ...
 
     # ooooo      ooo                       oooooooooo.                      oooo  
@@ -1083,114 +1083,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     raise NexError(f"TypeError. Cannot matrix-multiply '{type(other).__name__}' with 'SocketVector'.")
             return NexWrappedFcts['transformloc'](*args,)
 
-        # ---------------------
-        # NexVec Itter
-
-        def __len__(self): #len(itter)
-            return 3
-
-        def __iter__(self): #for f in itter
-            for i in range(3):
-                yield self[i]
-
-        def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
-
-            match key:
-                case int(): #vec[i]
-                    sep_xyz = NexWrappedFcts['separate_xyz'](self,)
-                    if key not in (0,1,2):
-                        raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
-                    return sep_xyz[key]
-                
-                case slice(): #vec[:i]
-                    sep_xyz = NexWrappedFcts['separate_xyz'](self,)
-                    indices = range(*key.indices(3))
-                    return tuple(sep_xyz[i] for i in indices)
-                
-                case _: raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
-
-        def __setitem__(self, key, value): #x[0] += a+b
-            to_frame = []
-            type_name = type(value).__name__
-
-            match key:
-                case int(): #vec[i]
-                    if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
-                        raise NexError(f"TypeError. Value assigned to VectorSocket[i] must float compatible. Recieved '{type_name}'.")
-                    x, y, z = NexWrappedFcts['separate_xyz'](self,)
-                    to_frame.append(x.nxsock.node)
-                    match key:
-                        case 0: new_xyz = value, y, z
-                        case 1: new_xyz = x, value, z
-                        case 2: new_xyz = x, y, value
-                        case _: raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
-
-                case slice():
-                    if (key!=slice(None,None,None)):
-                        raise NexError("Only [:] slicing is supported for SocketVector.")
-                    new_xyz = value
-                    if (len(new_xyz)!=3):
-                        raise NexError("Slice assignment requires exactly 3 values.")
-
-                case _: raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
-
-            new = NexWrappedFcts['combine_xyz'](*new_xyz,)
-            self.nxsock = new.nxsock
-            self.nxid = new.nxid
-            to_frame.append(new.nxsock.node)
-
-            frame_nodes(self.node_tree, *to_frame, label=f"v.setitem[{key if (type(key) is int) else ':'}]",)
-
-            return None
-
-        # ---------------------
-        # NexVec Custom Functions & Properties
-
-        _attributes = Nex._attributes + ('x','y','z','xyz','length','normalized',)
-
-        @property
-        def x(self):
-            return self[0]
-        @x.setter
-        def x(self, value):
-            self[0] = value
-
-        @property
-        def y(self):
-            return self[1]
-        @y.setter
-        def y(self, value):
-            self[1] = value
-
-        @property
-        def z(self):
-            return self[2]
-        @z.setter
-        def z(self, value):
-            self[2] = value
-
-        @property
-        def xyz(self):
-            return self[:]
-        @xyz.setter
-        def xyz(self, value):
-            if (type(value) is tuple and len(value)==3):
-                  self[:] = value
-            else: raise NexError("TypeError. Assignment to SocketVector.xyz is expected to be a tuple of length 3 containing sockets or Python values.")
-
-        @property
-        def length(self):
-            return NexWrappedFcts['length'](self,)
-        @length.setter
-        def length(self, value):
-            raise NexError("AssignationError. 'SocketVector.length' is read-only.")
-
-        @property
-        def normalized(self):
-            return NexWrappedFcts['normalize'](self,)
-        @normalized.setter
-        def normalized(self, value):
-            raise NexError("AssignationError. 'SocketVector.normalized' is read-only.")
 
         # ---------------------
         # NexVec Comparisons
@@ -1261,6 +1153,113 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _:
                     raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketVector' and '{type(other).__name__}'.")
             return NexWrappedFcts['isgreatereq'](*args,)
+
+        # ---------------------
+        # NexVec Itter
+
+        def __len__(self): #len(itter)
+            return 3
+
+        def __iter__(self): #for f in itter
+            for i in range(3):
+                yield self[i]
+
+        def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
+
+            match key:
+                case int(): #vec[i]
+                    sep_xyz = NexWrappedFcts['separate_xyz'](self,)
+                    if key not in (0,1,2):
+                        raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+                    return sep_xyz[key]
+                
+                case slice(): #vec[:i]
+                    sep_xyz = NexWrappedFcts['separate_xyz'](self,)
+                    indices = range(*key.indices(3))
+                    return tuple(sep_xyz[i] for i in indices)
+                
+                case _: raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
+
+        def __setitem__(self, key, value): #x[0] += a+b
+            to_frame = []
+            type_name = type(value).__name__
+
+            match key:
+                case int(): #vec[i]
+                    if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
+                        raise NexError(f"TypeError. Value assigned to VectorSocket[i] must float compatible. Recieved '{type_name}'.")
+                    x, y, z = NexWrappedFcts['separate_xyz'](self,)
+                    to_frame.append(x.nxsock.node)
+                    match key:
+                        case 0: new_xyz = value, y, z
+                        case 1: new_xyz = x, value, z
+                        case 2: new_xyz = x, y, value
+                        case _: raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+
+                case slice():
+                    if (key!=slice(None,None,None)):
+                        raise NexError("Only [:] slicing is supported for SocketVector.")
+                    new_xyz = value
+                    if (len(new_xyz)!=3):
+                        raise NexError("Slice assignment requires exactly 3 values.")
+
+                case _: raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
+
+            new = NexWrappedFcts['combine_xyz'](*new_xyz,)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+            to_frame.append(new.nxsock.node)
+
+            frame_nodes(self.node_tree, *to_frame, label=f"v.setitem[{key if (type(key) is int) else ':'}]",)
+
+            return None
+
+        # ---------------------
+        # NexVec Functions & Properties
+        # We try to immitate mathutils https://docs.blender.org/api/current/mathutils.html
+
+        _attributes = Nex._attributes + ('x','y','z','xyz','length',)
+
+        @property
+        def x(self):
+            return self[0]
+        @x.setter
+        def x(self, value):
+            self[0] = value
+
+        @property
+        def y(self):
+            return self[1]
+        @y.setter
+        def y(self, value):
+            self[1] = value
+
+        @property
+        def z(self):
+            return self[2]
+        @z.setter
+        def z(self, value):
+            self[2] = value
+
+        @property
+        def xyz(self):
+            return self[:]
+        @xyz.setter
+        def xyz(self, value):
+            if (type(value) is tuple and len(value)==3):
+                  self[:] = value
+            else: raise NexError("TypeError. Assignment to SocketVector.xyz is expected to be a tuple of length 3 containing sockets or Python values.")
+
+        @property
+        def length(self):
+            return NexWrappedFcts['length'](self,)
+        @length.setter
+        def length(self, value):
+            #TODO lit looks like mathutils.length support setter
+            raise NexError("AssignationError. 'SocketVector.length' is read-only.")
+
+        def normalized(self):
+            return NexWrappedFcts['normalize'](self,)
 
     # ooooo      ooo                       ooo        ooooo     .               
     # `888b.     `8'                       `88.       .888'   .o8               
@@ -1398,37 +1397,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         #def __setitem__
 
         # ---------------------
-        # NexMtx Custom Functions & Properties
+        # NexMtx Functions & Properties
+        # We try to immitate mathutils https://docs.blender.org/api/current/mathutils.html
 
-        _attributes = Nex._attributes + ('determinant','is_invertible','inverted','transposed','translation','rotation','scale',)
+        _attributes = Nex._attributes + ('is_invertible','translation','rotation','scale',)
 
-        @property
         def determinant(self):
             return NexWrappedFcts['matrixdeterminant'](self,)
-        @determinant.setter
-        def determinant(self, value):
-            raise NexError("AssignationError. 'SocketMatrix.determinant' is read-only.")
 
-        @property
-        def is_invertible(self):
-            return NexWrappedFcts['matrixisinvertible'](self,)
-        @is_invertible.setter
-        def is_invertible(self, value):
-            raise NexError("AssignationError. 'SocketMatrix.is_invertible' is read-only.")
-
-        @property
         def inverted(self):
             return NexWrappedFcts['matrixinvert'](self,)
-        @inverted.setter
-        def inverted(self, value):
-            raise NexError("AssignationError. 'SocketMatrix.inverted' is read-only.")
 
-        @property
         def transposed(self):
             return NexWrappedFcts['matrixtranspose'](self,)
-        @transposed.setter
-        def transposed(self, value):
-            raise NexError("AssignationError. 'SocketMatrix.transposed' is read-only.")
+
+        #TODO .decompose() #Same as separate_transform
+        #TODO .normalized() #Return a column normalized matrix
+        #TODO .row & .col return tuple of 4Quat setter & getter.
 
         @property
         def translation(self):
@@ -1461,9 +1446,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.translation =..",)
             return None
 
+        #TODO
+        #NOTE somehow mathutils.Matrix.rotation do not exist? why?
         # @property
         # def rotation(self):
+        #   ...
 
+        #NOTE somehow mathutils.Matrix.scale do not exist? why?
         @property
         def scale(self):
             return NexWrappedFcts['separate_transform'](self,)[2]
@@ -1494,6 +1483,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             self.nxid = new.nxid
             frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.scale =..",)
             return None
+
+        @property
+        def is_invertible(self):
+            return NexWrappedFcts['matrixisinvertible'](self,)
+        @is_invertible.setter
+        def is_invertible(self, value):
+            raise NexError("AssignationError. 'SocketMatrix.is_invertible' is read-only.")
 
     # ooooo      ooo                         .oooooo.                   .   
     # `888b.     `8'                        d8P'  `Y8b                .o8   

@@ -96,7 +96,7 @@ NEXNOTATIONDOC = {
     'vA.length': {
                 'name':"Vector Length.",
                 'desc':"Return a SocketFloat value corresponding to the length of SocketVector.\n\nIs a read-only property."},
-    'vA.normalized': {
+    'vA.normalized()': {
                 'name':"Vector Noralization.",
                 'desc':"Return a normalized SocketVector.\n\nIs a read-only property."},
     'mA @ mB': {
@@ -111,18 +111,18 @@ NEXNOTATIONDOC = {
     'mA.scale': {
                 'name':"Matrix Scale.",
                 'desc':"Get or Assign a SocketVector Scale componement of a Transform Matrix."},
-    'mA.transposed': {
-                'name':"Transpose Matrix.",
-                'desc':"Return the transposed matrix.\n\nIs a read-only property."},
-    'mA.inverted': {
-                'name':"Invert Matrix.",
-                'desc':"Return the inverted matrix.\n\nIs a read-only property."},
     'mA.is_invertible': {
                 'name':"Matrix is Invertible.",
                 'desc':"Return the SocketBool status if the matrix is indeed invertible.\n\nIs a read-only property."},
-    'mA.determinant': {
+    'mA.determinant()': {
                 'name':"Matrix Determinant.",
                 'desc':"Return the SocketFloat determinant of the matrix.\n\nIs a read-only property."},
+    'mA.transposed()': {
+                'name':"Transpose Matrix.",
+                'desc':"Return the transposed matrix.\n\nIs a read-only property."},
+    'mA.inverted()': {
+                'name':"Invert Matrix.",
+                'desc':"Return the inverted matrix.\n\nIs a read-only property."},
     }
 
 
