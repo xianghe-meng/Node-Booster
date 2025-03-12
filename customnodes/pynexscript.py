@@ -57,8 +57,8 @@ NEXNOTATIONDOC = {
     'mA.inverted':{'name':"Invert Matrix.",'desc':"Return the inverted matrix.\n\nIs a read-only property."},
     'mA.is_invertible':{'name':"Matrix is Invertible.",'desc':"Return the SocketBool status if the matrix is indeed invertible.\n\nIs a read-only property."},
     'mA.determinant':{'name':"Matrix Determinant.",'desc':"Return the SocketFloat determinant of the matrix.\n\nIs a read-only property."},
-    'mA.t':{'name':"Matrix Translation.",'desc':"Get or Assign a SocketVector Translation componement of a Transform Matrix."},
-    'mA.s':{'name':"Matrix Scale.",'desc':"Get or Assign a SocketVector Scale componement of a Transform Matrix."},
+    'mA.translation':{'name':"Matrix Translation.",'desc':"Get or Assign a SocketVector Translation componement of a Transform Matrix."},
+    'mA.scale':{'name':"Matrix Scale.",'desc':"Get or Assign a SocketVector Scale componement of a Transform Matrix."},
 }
 
 

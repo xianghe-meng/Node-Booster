@@ -1367,7 +1367,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         # ---------------------
         # NexMtx Custom Functions & Properties
 
-        _attributes = Nex._attributes + ('determinant','is_invertible','inverted','transposed','t','r','s',)
+        _attributes = Nex._attributes + ('determinant','is_invertible','inverted','transposed','translation','rotation','scale',)
 
         @property
         def determinant(self):
@@ -1398,11 +1398,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             raise NexError("AssignationError. 'SocketMatrix.transposed' is read-only.")
 
         @property
-        def t(self):
-            print('called')
+        def translation(self):
             return NexWrappedFcts['separate_transform'](self,)[0]
-        @t.setter
-        def t(self, value):
+        @translation.setter
+        def translation(self, value):
             loc, rot, sca = NexWrappedFcts['separate_transform'](self,)
             type_name = type(value).__name__
             match type_name:
@@ -1413,31 +1412,30 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'list' | 'set' | 'tuple':
                     #correct lenght?
                     if len(value)!=3:
-                        raise NexError(f"AssignationError. 'SocketMatrix.t' Expected an itterable of len3. Recieved len {len(value)}.")
+                        raise NexError(f"AssignationError. 'SocketMatrix.translation' Expected an itterable of len3. Recieved len {len(value)}.")
                     #user is giving us a mix of Sockets and python types?..
                     iscombi = any(('Nex' in type(v).__name__) for v in value)
                     #not valid itterable
                     if (not iscombi) and not alltypes(*value, types=(float,int,bool),):
-                        raise NexError(f"AssignationError. 'SocketMatrix.t' Expected an itterable containing types 'Socket','int','float','bool'.")
+                        raise NexError(f"AssignationError. 'SocketMatrix.translation' Expected an itterable containing types 'Socket','int','float','bool'.")
                     value = NexWrappedFcts['combine_xyz'](*value,) if (iscombi) else trypy_to_Vec3(value)
                 case _:
-                    raise NexError(f"AssignationError. 'SocketMatrix.t' Expected Vector-compatible values. Recieved '{type_name}'.")
+                    raise NexError(f"AssignationError. 'SocketMatrix.translation' Expected Vector-compatible values. Recieved '{type_name}'.")
 
             new = NexWrappedFcts['combine_transform'](value,rot,sca)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
-            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.t.setter",)
+            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.translation =..",)
             return None
 
         # @property
-        # def r(self):
+        # def rotation(self):
 
         @property
-        def s(self):
-            print('called')
+        def scale(self):
             return NexWrappedFcts['separate_transform'](self,)[2]
-        @s.setter
-        def s(self, value):
+        @scale.setter
+        def scale(self, value):
             loc, rot, sca = NexWrappedFcts['separate_transform'](self,)
             type_name = type(value).__name__
             match type_name:
@@ -1448,20 +1446,20 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'list' | 'set' | 'tuple':
                     #correct lenght?
                     if len(value)!=3:
-                        raise NexError(f"AssignationError. 'SocketMatrix.s' Expected an itterable of len3. Recieved len {len(value)}.")
+                        raise NexError(f"AssignationError. 'SocketMatrix.scale' Expected an itterable of len3. Recieved len {len(value)}.")
                     #user is giving us a mix of Sockets and python types?..
                     iscombi = any(('Nex' in type(v).__name__) for v in value)
                     #not valid itterable
                     if (not iscombi) and not alltypes(*value,types=(float,int,bool),):
-                        raise NexError(f"AssignationError. 'SocketMatrix.s' Expected an itterable containing types 'Socket','int','float','bool'.")
+                        raise NexError(f"AssignationError. 'SocketMatrix.scale' Expected an itterable containing types 'Socket','int','float','bool'.")
                     value = NexWrappedFcts['combine_xyz'](value[0], value[1], value[2],) if (iscombi) else trypy_to_Vec3(value)
                 case _:
-                    raise NexError(f"AssignationError. 'SocketMatrix.s' Expected Vector-compatible values. Recieved '{type_name}'.")
+                    raise NexError(f"AssignationError. 'SocketMatrix.scale' Expected Vector-compatible values. Recieved '{type_name}'.")
 
             new = NexWrappedFcts['combine_transform'](loc,rot,value)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
-            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.s.setter",)
+            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.scale =..",)
             return None
 
     # ooooo      ooo                         .oooooo.                   .   
