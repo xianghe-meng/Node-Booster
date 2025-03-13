@@ -118,5 +118,7 @@ def strongtyping(PassedError):
 
             return func(*bound.args, **bound.kwargs)
 
+        wrapper.originalfunc = func
         return wrapper
+
     return decorator

@@ -88,19 +88,24 @@ def generate_documentation(tag=''):
     r = {}
     for f in get_nodesetter_functions(tag=tag):
         
+        #we wrapped our function, we need to access the real function to check the doc, not the wrapped one.
+        rf = f
+        if hasattr(f,'originalfunc'):
+            rf = f.originalfunc
+
         #collect args of this function
-        fargs = list(f.__code__.co_varnames[:f.__code__.co_argcount])
-        
+        fargs = list(rf.__code__.co_varnames[:rf.__code__.co_argcount])
+
         #remove strictly internal args from documentation
         if ('ng' in fargs):
             fargs.remove('ng')
         if ('callhistory' in fargs):
             fargs.remove('callhistory')
-        
+
         # support for *args parameters?
-        if (f.__code__.co_flags & 0x04):  # Function has *args
+        if (rf.__code__.co_flags & 0x04):  # Function has *args
             fargs.append(f'a, b, c,.. ')
-        
+
         #generate documentation function strings
         fstr = f'{f.__name__}({", ".join(fargs)})'
 

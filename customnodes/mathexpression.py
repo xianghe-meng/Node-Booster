@@ -29,7 +29,7 @@ import bpy
 
 import re, ast
 
-from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, is_float_compatible
+from ..utils.str_utils import word_wrap, match_exact_tokens, replace_exact_tokens, is_float_compatible
 from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, create_constant_input
 from ..nex.nodesetter import get_nodesetter_functions, generate_documentation
 
@@ -629,7 +629,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         try:
             ast_function_caller(astfctexp, node_tree=ng, vareq=vareq, consteq=consteq,)
         except Exception as e:
-            self.error_message = e
+            self.error_message = str(e)
             return None
 
         #we count the number of nodes
@@ -663,9 +663,9 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         opt.prop(self, "use_macros", text="π", toggle=True, )
 
         if (is_error):
-            lbl = col.row()
-            lbl.alert = is_error
-            lbl.label(text=self.error_message)
+            col = col.column(align=True)
+            col.separator(factor=1)
+            word_wrap(layout=col, alert=True, active=True, max_char=self.width/5.75, string=self.error_message,)
 
         layout.separator(factor=0.75)
 
