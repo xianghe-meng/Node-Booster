@@ -156,36 +156,31 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         This wrapper also: Handle namecollision functions, can auto convert args to Vector or Matrix, handle user errors."""
 
         def wrappedfunc(*args, **kwargs):
-
             fname = sockfunc.__name__
 
             if (len(args)>=1):
+
+                # some special functions accept that user pass a tuple instead. We need to unpack in order to read what's in the itterable.
+                if fname in {'combine_matrix','alleq','min','max'}:
+                    if (len(args)==1 and (type(args) in {tuple,set,list})):
+                        if (type(args[0]) in {tuple,set,list}):
+                            args = args[0]
+
+                # Name conflict with some native functions? If no NexType foud, we simply call builtin function
                 match fname:
-
-                    # some special functions accept tuple that may contain containing sockets, we need to unpack
-                    case 'combine_matrix':
-                        if (len(args)==1 and (type(args) in {tuple,set,list})):
-                            args = args[0]
-
-                    # same for min/max. If the user is not using any Socket, we call native py function
-                    case 'min' | 'max':
-                        if (len(args)==1 and (type(args) in {tuple,set,list})):
-                            args = args[0]
-                        if not any(('Nex' in type(v).__name__) for v in args):
-                            return min(*args, **kwargs) if (fname=='min') else max(*args, **kwargs)
-
-                    # Name conflict with math module functions? If no NexType foud, we simply call builtin math function
                     case 'cos'|'sin'|'tan'|'acos'|'asin'|'atan'|'cosh'|'sinh'|'tanh'|'sqrt'|'log'|'degrees'|'radians'|'floor'|'ceil'|'trunc':
                         if not any(('Nex' in type(v).__name__) for v in args):
                             mathfunction = getattr(math,fname)
                             return mathfunction(*args, **kwargs)
+                    case 'min'|'max':
+                        if not any(('Nex' in type(v).__name__) for v in args):
+                            return min(*args, **kwargs) if (fname=='min') else max(*args, **kwargs)
 
             #Process the passed args:
 
             # -1 sockfunc expect nodesockets, not nextype, we need to convert their args to sockets.. (we did that previously with 'sock_or_py_variables')
             args = [v.nxsock if ('Nex' in type(v).__name__) else v for v in args]
 
-                        
             # -2 support for tuple as vectors or matrix?
             if (auto_convert_itter):
                 args = [trypy_to_Vec3(v) if (type(v) in {tuple,list,set}) and (len(v)==3) and all((type(i) in {float,int}) for i in v) else v for v in args]
@@ -198,20 +193,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             #Call the socket function with wrapped error handling.
             try:
                 r = partialsockfunc(*args, **kwargs)
-
             except TypeError as e:
-                #Cook better error message to end user if he messed passed arguments to a socket function.
-                e = str(e)
-                if ('()' in e):
-                    errfname = e.split('()')[0]
-                    if ('() missing' in e) and ('required positional argument' in e):
-                        nbr = e.split('() missing ')[1][0]
-                        raise NexError(f"Function {errfname}() needs {nbr} more Param(s)")
-                    elif ('() takes' in e) and ('positional argument' in e):
-                        raise NexError(f"Function {errfname}() recieved Extra Param(s)")
                 raise
 
-            except nodesetter.InvalidTypePassedToSocket as e:
+            except nodesetter.UserParamError as e:
                 msg = str(e)
                 if ('Expected parameters in' in msg):
                     msg = f"TypeError. Function {fname}() Expected parameters in " + str(e).split('Expected parameters in ')[1]
@@ -222,7 +207,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 raise
 
             # Wrap return value as Nex as well
-
             if ((type(r) is not tuple) and (not issubclass(type(r), bpy.types.NodeSocket))):
                 raise Exception(f"Function '{sockfunc}' did not return a NodeSocket. This should never happen.")
 
@@ -428,6 +412,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+
                     #ensure type is correct, change type if necessary
                     current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
                     if (current_type!=self.nxstype):
@@ -443,7 +428,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
                 # wrong initialization?
                 case _:
-                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketFloat'. Was expecting 'None' | 'int' | 'float' | 'bool'.")
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to SocketFloat '{socket_name}'. Was expecting 'None' | 'int' | 'float' | 'bool'.")
 
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
@@ -761,6 +746,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+
                     #ensure type is correct, change type if necessary
                     current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
                     if (current_type!=self.nxstype):
@@ -775,7 +761,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
                 # wrong initialization?
                 case _:
-                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketBool'. Was expecting 'None' | 'bool'.")
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to SocketBool '{socket_name}'. Was expecting 'None' | 'bool'.")
 
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
@@ -889,6 +875,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+
                     #ensure type is correct, change type if necessary
                     current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
                     if (current_type!=self.nxstype):
@@ -1255,7 +1242,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return NexWrappedFcts['length'](self,)
         @length.setter
         def length(self, value):
-            #TODO lit looks like mathutils.length support setter
+            #TODO looks like mathutils.length support setter
             raise NexError("AssignationError. 'SocketVector.length' is read-only.")
 
         def normalized(self):
@@ -1311,6 +1298,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+
                     #ensure type is correct, change type if necessary
                     current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
                     if (current_type!=self.nxstype):
@@ -1545,6 +1533,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         outsock = create_socket(self.node_tree, in_out='OUTPUT', socket_type=out_type, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+
                     #ensure type is correct, change type if necessary
                     current_type = get_socket_type(self.node_tree, in_out='OUTPUT', identifier=outsock.identifier,)
                     if (current_type!=out_type):
@@ -1556,7 +1545,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     # simply link the sockets and see if it's valid
                     l = link_sockets(value.nxsock, outsock)
                     if (not l.is_valid):
-                        raise NexError(f"TypeError. Cannot assign '{value.nxtydsp}' to var '{socket_name}' of output '{self.nxtydsp}'.")
+                        raise NexError(f"TypeError. Cannot assign '{value.nxtydsp}' to output {self.nxtydsp} '{socket_name}'.")
 
                 # or we simply output a default python constant value
                 case _:
@@ -1575,6 +1564,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         outsock = create_socket(self.node_tree, in_out='OUTPUT', socket_type=out_type, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+
                     #ensure type is correct, change type if necessary
                     current_type = get_socket_type(self.node_tree, in_out='OUTPUT', identifier=outsock.identifier,)
                     if (current_type!=out_type):
@@ -1588,7 +1578,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         set_socket_defvalue(self.node_tree, value=newval, socket=outsock, in_out='OUTPUT',)
                     except Exception as e:
                         print(e)
-                        raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of output '{self.nxtydsp}'.")
+                        raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to output {self.nxtydsp} '{socket_name}'.")
 
     class NexOutputBool(NexOutput):
         nxstype = 'NodeSocketBool'

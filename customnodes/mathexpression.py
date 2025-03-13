@@ -145,7 +145,6 @@ def ast_function_caller(visited, node_tree=None, vareq:dict=None, consteq:dict=N
                 # evaluate it recursively and then call it.
                 evaluated_func = caller(node.func)
                 return evaluated_func(*evaluated_args)
-
             
             # we found a variable name? need to get it's socket value
             case ast.Name():
@@ -630,17 +629,6 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         try:
             ast_function_caller(astfctexp, node_tree=ng, vareq=vareq, consteq=consteq,)
         except Exception as e:
-            
-            #Better error message for user if wrong args passed
-            e = str(e)
-            if ('()' in e):
-                fname = e.split('()')[0]
-                if ('() missing' in e) and ('required positional argument' in e):
-                    nbr = e.split('() missing ')[1][0]
-                    e = f"Function '{fname}' needs {nbr} more Param(s)"
-                elif ('() takes' in e) and ('positional argument' in e):
-                    e = f"Function '{fname}' recieved Extra Param(s)"
-        
             self.error_message = e
             return None
 

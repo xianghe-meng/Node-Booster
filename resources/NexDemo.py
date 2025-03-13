@@ -33,7 +33,7 @@ newvec = combine_xyz(c, frame, ActiveLov.x)
 # Do Advanced Matrix and Vector operation 
 ActiveMat = bpy.context.object.matrix_world
 pytuple = (1,2,3)
-TransVec = (sockMatrix.inverted @ ActiveMat) @ newvec
+TransVec = (sockMatrix.inverted() @ ActiveMat) @ newvec.normalized()
 TransVec = sockMatrix @ cross(pytuple,TransVec,)
 TransVec = sqrt(TransVec) #math operations can also work entry-wise on vectors.
 minElement = min(separate_matrix(sockMatrix)) #get lowest socketfloat element of Matrix.
