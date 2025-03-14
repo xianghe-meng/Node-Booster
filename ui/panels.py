@@ -94,7 +94,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     word_wrap(layout=panel, alert=False, active=True, max_char='auto',
                         char_auto_sidepadding=0.9, context=context, string=n.bl_description,
                         )
-                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-extra-nodes-and-functionalities-for-nodeeditors"
+                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
 
                 header, panel = layout.panel("doc_glossid", default_closed=True,)
                 header.label(text="Glossary",)
@@ -217,7 +217,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     word_wrap(layout=panel, alert=False, active=True, max_char='auto',
                         char_auto_sidepadding=0.9, context=context, string=n.bl_description,
                         )
-                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-extra-nodes-and-functionalities-for-nodeeditors"
+                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
 
                 header, panel = layout.panel("dev_panelid", default_closed=True,)
                 header.label(text="Development",)
@@ -262,7 +262,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                 #     word_wrap(layout=panel, alert=False, active=True, max_char='auto',
                 #         char_auto_sidepadding=0.9, context=context, string=n.bl_description,
                 #         )
-                #     panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-extra-nodes-and-functionalities-for-nodeeditors"
+                #     panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
 
                 # header, panel = layout.panel("dev_panelid", default_closed=True,)
                 # header.label(text="Development",)
@@ -310,7 +310,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     word_wrap(layout=panel, alert=False, active=True, max_char='auto',
                         char_auto_sidepadding=0.9, context=context, string=n.bl_description,
                         )
-                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-extra-nodes-and-functionalities-for-nodeeditors"
+                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
 
                 header, panel = layout.panel("doc_glossid", default_closed=True,)
                 header.label(text="Glossary",)
@@ -381,7 +381,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     word_wrap(layout=panel, alert=False, active=True, max_char='auto',
                         char_auto_sidepadding=0.9, context=context, string=n.bl_description,
                         )
-                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-extra-nodes-and-functionalities-for-nodeeditors"
+                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
                     
                 header, panel = layout.panel("dev_panelid", default_closed=True,)
                 header.label(text="Development",)
@@ -400,7 +400,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     word_wrap(layout=panel, alert=False, active=True, max_char='auto',
                         char_auto_sidepadding=0.9, context=context, string=n.bl_description,
                         )
-                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-extra-nodes-and-functionalities-for-nodeeditors"
+                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
                     
                 header, panel = layout.panel("dev_panelid", default_closed=True,)
                 header.label(text="Development",)
@@ -433,7 +433,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     word_wrap(layout=panel, alert=False, active=True, max_char='auto',
                         char_auto_sidepadding=0.9, context=context, string=n.bl_description,
                         )
-                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-extra-nodes-and-functionalities-for-nodeeditors"
+                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
 
                 header, panel = layout.panel("dev_panelid", default_closed=True,)
                 header.label(text="Development",)
