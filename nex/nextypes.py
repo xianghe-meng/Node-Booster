@@ -110,6 +110,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             case bpy.types.NodeSocketBool():
                 return NexBool(fromsocket=socket)
 
+            case bpy.types.NodeSocketInt():
+                return NexInt(fromsocket=socket)
+
             case bpy.types.NodeSocketFloat():
                 return NexFloat(fromsocket=socket)
 
@@ -118,9 +121,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
             case bpy.types.NodeSocketMatrix():
                 return NexMtx(fromsocket=socket)
-
-            case bpy.types.NodeSocketInt():
-                raise Exception(f"ERROR: AutoNexType() not implemented yet") #return NexInt(fromsocket=socket)
 
             case bpy.types.NodeSocketColor():
                 raise Exception(f"ERROR: AutoNexType() not implemented yet") #return NexCol(fromsocket=socket)
@@ -876,6 +876,78 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
 
+    # ooooo      ooo                       ooooo                 .   
+    # `888b.     `8'                       `888'               .o8   
+    #  8 `88b.    8   .ooooo.  oooo    ooo  888  ooo. .oo.   .o888oo 
+    #  8   `88b.  8  d88' `88b  `88b..8P'   888  `888P"Y88b    888   
+    #  8     `88b.8  888ooo888    Y888'     888   888   888    888   
+    #  8       `888  888    .o  .o8"'88b    888   888   888    888 . 
+    # o8o        `8  `Y8bod8P' o88'   888o o888o o888o o888o   "888" 
+                                            
+    #TODO this one could have optimized node. Nodesetter functions could check like we are already doing with NexVec & containsVecs()
+
+    class NexInt(NexMath, NexCompare, NexBitwise, Nex):
+
+        init_counter = 0
+        node_inst = NODEINSTANCE
+        node_tree = node_inst.node_tree
+
+        nxstype = 'NodeSocketInt'
+        nxtydsp = 'SocketInt'
+        nxchar = 'i'
+
+        def __init__(self, socket_name='', value=None, fromsocket=None, manualdef=False,):
+
+            self.nxid = NexInt.init_counter
+            NexInt.init_counter += 1
+
+            if (manualdef):
+                return None
+            if (fromsocket is not None):
+                self.nxsock = fromsocket
+                return None
+
+            type_name = type(value).__name__
+            match type_name: 
+
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
+
+                #Initialize a new nextype with a default value socket
+                case 'NoneType' | 'int' | 'float':
+
+                    #ensure name chosen is correct
+                    assert socket_name!='', "Nex Initialization should always define a socket_name."
+                    if (socket_name in ALLINPUTS):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    ALLINPUTS.append(socket_name)
+
+                    #get socket, create if non existent
+                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    if (outsock is None):
+                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
+                    elif (type(outsock) is list):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+
+                    #ensure type is correct, change type if necessary
+                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    if (current_type!=self.nxstype):
+                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+
+                    self.nxsock = outsock
+                    self.nxsnam = socket_name
+
+                    #ensure default value of socket in node instance
+                    if (value is not None):
+                        set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=int(value), in_out='INPUT',)
+
+                # wrong initialization?
+                case _:
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to SocketInt '{socket_name}'. Was expecting 'int' | 'Float'.")
+
+            dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
+            return None
+
     # ooooo      ooo                       oooooo     oooo                     
     # `888b.     `8'                        `888.     .8'                      
     #  8 `88b.    8   .ooooo.  oooo    ooo   `888.   .8'    .ooooo.   .ooooo.  
@@ -1459,7 +1531,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     nextoys = {}
     nextoys['nexusertypes'] = {
         'inbool':NexBool,
-        # 'inint':NexInt,
+        'inint':NexInt,
         'infloat':NexFloat,
         'invec':NexVec,
         # 'incol':NexCol,

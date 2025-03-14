@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 #TODO bake operator in panel as well, like math
+#TODO if auto depsgraph enabled, and user press exec button, execution occurs twice. due to deps trigger..
 
 import bpy
 
@@ -29,49 +30,49 @@ NEXFUNCDOC = generate_documentation(tag='nexscript')
 NEXNOTATIONDOC = {
     'a + b': {
                 'name':"Addition",
-                'desc':"Add between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
+                'desc':"Add between SocketFloats, SocketInts, SocketBools, SocketVectors.\nType conversion is implicit."},
     'a - b': {
                 'name':"Subtraction.",
-                'desc':"Subtract between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
+                'desc':"Subtract between SocketFloats, SocketInts, SocketBools, SocketVectors.\nType conversion is implicit."},
     'a * b': {
                 'name':"Multiplication.",
-                'desc':"Multiply between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
+                'desc':"Multiply between SocketFloats, SocketInts, SocketBools, SocketVectors.\nType conversion is implicit."},
     'a ** b': {
                 'name':"Power.",
-                'desc':"Raise SocketFloats and/or SocketVectors by a float compatible type."},
+                'desc':"Raise SocketFloats, SocketInts, SocketBools, SocketVectors\nType conversion is implicit."},
     'a / b': {
                 'name':"Division.",
-                'desc':"Divide between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
+                'desc':"Divide between SocketFloats, SocketInts, SocketBools, SocketVectors.\nType conversion is implicit."},
     'a // b': {
                 'name':"FloorDiv.",
-                'desc':"Do a FloorDiv operation between SocketFloats and/or SocketVectors.\nType conversion is implicit."},
+                'desc':"Do a FloorDiv operation between SocketFloats, SocketInts, SocketBools, SocketVectors.\nType conversion is implicit."},
     'a % b': {
                 'name':"Modulo.",
-                'desc':"Do a Modulo operation between SocketFloats and/or entry-wise SocketVectors.\nType conversion is implicit."},
+                'desc':"Do a Modulo operation between SocketFloats, SocketInts, SocketBools, and entry-wise SocketVectors.\nType conversion is implicit."},
     'a == b': {
                 'name':"Equal.",
-                'desc':"Compare if A and B are equals.\n\nPlease note that chaining comparison is not supported ex: 'a == b == c'.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+                'desc':"Compare if A and B are equals.\n\nPlease note that chaining comparison is not supported ex: 'a == b == c'.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool.\nWill return a SocketBool."},
     'a != b': {
                 'name':"Not Equal.",
-                'desc':"Compare if A and B are not equals.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+                'desc':"Compare if A and B are not equals.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool.\nWill return a SocketBool."},
     'a > b': {
                 'name':"Greater.",
-                'desc':"Compare if A is greater than B.\n\nPlease note that chaining comparison is not supported ex: 'a > b > c'.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+                'desc':"Compare if A is greater than B.\n\nPlease note that chaining comparison is not supported ex: 'a > b > c'.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool.\nWill return a SocketBool."},
     'a >= b': {
                 'name':"Greater or Equal.",
-                'desc':"Compare if A is greater or equal than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+                'desc':"Compare if A is greater or equal than B.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool.\nWill return a SocketBool."},
     'a < b': {
                 'name':"Lesser.",
-                'desc':"Compare if A is lesser than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+                'desc':"Compare if A is lesser than B.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool.\nWill return a SocketBool."},
     'a <= b': {
                 'name':"Lesser or Equal.",
-                'desc':"Compare if A is lesser or equal than B.\n\nSupports SocketFloats, SocketVectors & SocketBool.\nWill return a SocketBool."},
+                'desc':"Compare if A is lesser or equal than B.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool.\nWill return a SocketBool."},
     '-a': {
                 'name':"Negate.",
-                'desc':"Negate using the 'a = -a' notation.\n\nSupports SocketFloats & SocketVectors."},
+                'desc':"Negate using the 'a = -a' notation.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool."},
     'abs(a)': {
                 'name':"Absolute.",
-                'desc':"Get the absolute value of a SocketFloat or SocketVector."},
+                'desc':"Get the absolute value of a SocketFloat, SocketInt or SocketVector."},
     'round(a)': {
                 'name':"Round.",
                 'desc':"Round a SocketFloat or entry-wise SocketVector.\n\nex: 1.49 will become 1\n1.51 will become 2."},
@@ -388,54 +389,63 @@ class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
         exec_namespace.update(nextoys['nexusertypes'])
         exec_namespace.update(nextoys['nexuserfunctions'])
         script_vars = {} #catch variables from exec?
-            
-        try:
+        
+        #Don't want all the pretty user error wrapping for user? set it to True
+        if False:
             compiled_script = compile(
                 source=final_script,
                 filename=self.user_textdata.name,
                 mode="exec",
                 )
             exec(compiled_script, exec_namespace, script_vars)
+        else:
+            try:
+                compiled_script = compile(
+                    source=final_script,
+                    filename=self.user_textdata.name,
+                    mode="exec",
+                    )
+                exec(compiled_script, exec_namespace, script_vars)
 
-        except SyntaxError as e:
-            #print more information in console
-            full, short = prettyError(e)
-            print(full)
-            # set error to True
-            set_socket_label(ng,0, label="SynthaxError",)
-            set_socket_defvalue(ng,0, value=True,)
-            # Display error
-            self.error_message =  short
-            # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
-            self.cleanse_nodes()
-            return None
+            except SyntaxError as e:
+                #print more information in console
+                full, short = prettyError(e)
+                print(full)
+                # set error to True
+                set_socket_label(ng,0, label="SynthaxError",)
+                set_socket_defvalue(ng,0, value=True,)
+                # Display error
+                self.error_message =  short
+                # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
+                self.cleanse_nodes()
+                return None
 
-        except NexError as e:
-            #print more information in console
-            full, short = prettyError(e, userfilename=self.user_textdata.name,)
-            print(full)
-            # set error to True
-            set_socket_label(ng,0, label="NexError",)
-            set_socket_defvalue(ng,0, value=True,)
-            # Display error
-            self.error_message = short
-            # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
-            self.cleanse_nodes()
-            return None
+            except NexError as e:
+                #print more information in console
+                full, short = prettyError(e, userfilename=self.user_textdata.name,)
+                print(full)
+                # set error to True
+                set_socket_label(ng,0, label="NexError",)
+                set_socket_defvalue(ng,0, value=True,)
+                # Display error
+                self.error_message = short
+                # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
+                self.cleanse_nodes()
+                return None
 
-        except Exception as e:
-            #print more information in console
-            full, short = prettyError(e, userfilename=self.user_textdata.name,)
-            print(full)
-            #print more information
-            print("Full Traceback Error:")
-            traceback.print_exc()
-            # set error to True
-            set_socket_label(ng,0, label="PythonError",)
-            set_socket_defvalue(ng,0, value=True,)
-            # Display error
-            self.error_message = short
-            return None
+            except Exception as e:
+                #print more information in console
+                full, short = prettyError(e, userfilename=self.user_textdata.name,)
+                print(full)
+                #print more information
+                print("Full Traceback Error:")
+                traceback.print_exc()
+                # set error to True
+                set_socket_label(ng,0, label="PythonError",)
+                set_socket_defvalue(ng,0, value=True,)
+                # Display error
+                self.error_message = short
+                return None
 
         #check on vars..
         #make sure there are Nex types in the user expression
