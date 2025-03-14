@@ -366,7 +366,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     #                                                         888                                                           
     #                                                        o888o
 
-    class NexFloatVecMath:
+    class NexMath:
         """Basic math operand for math between NexFloat NexBool NexInt NexVector & python float int bool Vector list[3] set[3] tuple[3] Vector[3].
         Nodesetter functions will be in charge of deciding which nodes to use"""
 
@@ -573,7 +573,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                           args = trypy_to_Vec3(other), self
                     else: args = float(other), self
 
-                case _: raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketFloat'.")
+                case _: raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by '{self.nxtydsp}'.")
 
             return NexWrappedFcts['mod'](*args,)
 
@@ -593,7 +593,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                           args = self, trypy_to_Vec3(other)
                     else: args = self, float(other)
 
-                case _: raise NexError(f"TypeError. Cannot perform floordiv on type 'SocketFloat' with '{type(other).__name__}'.")
+                case _: raise NexError(f"TypeError. Cannot perform floordiv on type '{self.nxtydsp}' with '{type(other).__name__}'.")
 
             return NexWrappedFcts['floordiv'](*args,)
     
@@ -613,7 +613,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                           args = trypy_to_Vec3(other), self
                     else: args = float(other), self
 
-                case _: raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketFloat'.")
+                case _: raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by '{self.nxtydsp}'.")
 
             return NexWrappedFcts['floordiv'](*args,)
 
@@ -626,6 +626,104 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __round__(self): # round(self)
             return NexWrappedFcts['round'](self,)
 
+    class NexCompare:
+        """Basic comparison operand between all possible types.
+        Nodesetter functions will be in charge of deciding which nodes to use"""
+
+        def _generalcompare(self, other, op):
+            """internal compare function"""
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = self, trypy_to_Vec3(other)
+
+                case 'int' | 'float' | 'bool':
+                    match self_type:
+                        case 'NexVec':  args = self, trypy_to_Vec3(other)
+                        case 'NexBool': args = self, bool(other)
+                        case _:         args = self, float(other)
+
+                case _: raise NexError(f"TypeError. Cannot compare '{self.nxtydsp}' with '{type(other).__name__}'.")
+
+            return NexWrappedFcts[op](*args,)
+
+        def __eq__(self, other): # self == other
+            return  self._generalcompare(other, 'iseq')
+
+        def __ne__(self, other): # self != other
+            return  self._generalcompare(other, 'isuneq')
+
+        def __lt__(self, other): # self < other
+            return  self._generalcompare(other, 'isless')
+
+        def __le__(self, other): # self <= other
+            return  self._generalcompare(other, 'islesseq')
+
+        def __gt__(self, other): # self > other
+            return  self._generalcompare(other, 'isgreater')
+
+        def __ge__(self, other): # self >= other
+            return  self._generalcompare(other, 'isgreatereq')
+
+    class NexBitwise:
+
+        def __and__(self, other): # self & other
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+
+                case 'bool':
+                    args = self, other
+                case 'float' | 'int':
+                    args = self, bool(other)
+
+                case 'tuple' | 'set' | 'list' | 'Vector':
+                    if not alltypes(*other, types=(float,int,bool)):
+                        NexError(f"TypeError. Cannot perform '&' bitwise operation on a '{type(other).__name__}' that do not contain exclusively types bool, int, float. {other}.")
+                    args = self, any(bool(v) for v in other)
+
+                case _: raise NexError(f"TypeError. Cannot perform '&' bitwise operation between '{self.nxtydsp}' and '{type(other).__name__}'.")
+
+            return NexWrappedFcts['booland'](*args,)
+
+        def __rand__(self, other): # other & self
+            # commutative operation.
+            return self.__and__(other)
+
+        def __or__(self, other): # self | other
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+
+                case 'bool':
+                    args = self, other
+                case 'float' | 'int':
+                    args = self, bool(other)
+
+                case 'tuple' | 'set' | 'list' | 'Vector':
+                    if not alltypes(*other, types=(float,int,bool)):
+                        NexError(f"TypeError. Cannot perform '|' bitwise operation on a '{type(other).__name__}' that do not contain exclusively types bool, int, float. {other}.")
+                    args = self, any(bool(v) for v in other)
+
+                case _: raise NexError(f"TypeError. Cannot perform '|' bitwise operation between '{self.nxtydsp}' and '{type(other).__name__}'.")
+
+            return NexWrappedFcts['boolor'](*args,)
+
+        def __ror__(self, other): # other | self
+            # commutative operation.
+            return self.__or__(other)
+        
     # ooooo      ooo                       oooooooooooo oooo                          .   
     # `888b.     `8'                       `888'     `8 `888                        .o8   
     #  8 `88b.    8   .ooooo.  oooo    ooo  888          888   .ooooo.   .oooo.   .o888oo 
@@ -634,7 +732,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     #  8       `888  888    .o  .o8"'88b    888          888  888   888 d8(  888    888 . 
     # o8o        `8  `Y8bod8P' o88'   888o o888o        o888o `Y8bod8P' `Y888""8o   "888" 
                                                                                         
-    class NexFloat(NexFloatVecMath, Nex):
+    class NexFloat(NexMath, NexCompare, NexBitwise, Nex):
 
         init_counter = 0
         node_inst = NODEINSTANCE
@@ -708,89 +806,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return None
 
         # ---------------------
-        # NexFloat Comparisons
-        #NOTE a==b==c will not work because and is involved and we cannot override it.. and/or/not keywords rely on python booleans type...
-
-        def __eq__(self, other): # self == other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketFloat' and '{type(other).__name__}'.")
-            return NexWrappedFcts['iseq'](*args,)
-
-        def __ne__(self, other): # self != other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketFloat' and '{type(other).__name__}'.")
-            return NexWrappedFcts['isuneq'](*args,)
-
-        def __lt__(self, other): # self < other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '<' comparison between types 'SocketFloat' and '{type(other).__name__}'.")
-            return NexWrappedFcts['isless'](*args,)
-
-        def __le__(self, other): # self <= other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '<=' comparison between types 'SocketFloat' and '{type(other).__name__}'.")
-            return NexWrappedFcts['islesseq'](*args,)
-
-        def __gt__(self, other): # self > other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '>' comparison between types 'SocketFloat' and '{type(other).__name__}'.")
-            return NexWrappedFcts['isgreater'](*args,)
-
-        def __ge__(self, other): # self >= other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketFloat' and '{type(other).__name__}'.")
-            return NexWrappedFcts['isgreatereq'](*args,)
-
-
-        # ---------------------
         # NexFloat Functions & Properties
         # ...
 
@@ -802,7 +817,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     #  8       `888  888    .o  .o8"'88b    888    .88P 888   888 888   888  888  
     # o8o        `8  `Y8bod8P' o88'   888o o888bood8P'  `Y8bod8P' `Y8bod8P' o888o 
 
-    class NexBool(NexFloatVecMath, Nex):
+    class NexBool(NexMath, NexCompare, NexBitwise, Nex):
 
         init_counter = 0
         node_inst = NODEINSTANCE
@@ -864,65 +879,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
 
-        # ---------------------
-        # NexBool Comparisons
-        #NOTE a==b==c will not work because and is involved and we cannot override it.. and/or/not keywords rely on python booleans type...
-
-        def __eq__(self, other): # self == other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexBool' | 'bool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketBool' and '{type(other).__name__}'.")
-            return NexWrappedFcts['iseq'](*args,)
-
-        def __ne__(self, other): # self != other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexBool' | 'bool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketBool' and '{type(other).__name__}'.")
-            return NexWrappedFcts['isuneq'](*args,)
-
-        # ---------------------
-        # NexBool Bitwise Operations
-
-        def __and__(self, other): # self & other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexBool' | 'bool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    raise NexError(f"TypeError. Bitwise operation '&' is exclusive between 'SocketBool'.")
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '&' bitwise operation between 'SocketBool' and '{type(other).__name__}'.")
-            return NexWrappedFcts['booland'](*args,)
-
-        def __rand__(self, other): # other & self
-            # commutative operation.
-            return self.__and__(other)
-
-        def __or__(self, other): # self | other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexBool' | 'bool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    raise NexError(f"TypeError. Bitwise operation '|' is exclusive between 'SocketBool'.")
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '|' bitwise operation between 'SocketBool' and '{type(other).__name__}'.")
-            return NexWrappedFcts['boolor'](*args,)
-
-        def __ror__(self, other): # other | self
-            # commutative operation.
-            return self.__or__(other)
-
     # ooooo      ooo                       oooooo     oooo                     
     # `888b.     `8'                        `888.     .8'                      
     #  8 `88b.    8   .ooooo.  oooo    ooo   `888.   .8'    .ooooo.   .ooooo.  
@@ -931,7 +887,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     #  8       `888  888    .o  .o8"'88b        `888'      888    .o 888   .o8 
     # o8o        `8  `Y8bod8P' o88'   888o       `8'       `Y8bod8P' `Y8bod8P' 
 
-    class NexVec(NexFloatVecMath, Nex):
+    class NexVec(NexMath, NexCompare, NexBitwise, Nex):
 
         init_counter = 0
         node_inst = NODEINSTANCE
@@ -1024,77 +980,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _:
                     raise NexError(f"TypeError. Cannot matrix-multiply '{type(other).__name__}' with 'SocketVector'.")
             return NexWrappedFcts['transformloc'](*args,)
-
-
-        # ---------------------
-        # NexVec Comparisons
-        #NOTE a==b==c will not work because and is involved and we cannot override it.. and/or/not keywords rely on python booleans type...
-
-        def __eq__(self, other): # self == other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, trypy_to_Vec3(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '==' comparison between types 'SocketVector' and '{type(other).__name__}'.")
-            return NexWrappedFcts['iseq'](*args,)
-
-        def __ne__(self, other): # self != other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, trypy_to_Vec3(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '!=' comparison between types 'SocketVector' and '{type(other).__name__}'.")
-            return NexWrappedFcts['isuneq'](*args,)
-
-        def __lt__(self, other): # self < other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, trypy_to_Vec3(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '<' comparison between types 'SocketVector' and '{type(other).__name__}'.")
-            return NexWrappedFcts['isless'](*args,)
-
-        def __le__(self, other): # self <= other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, trypy_to_Vec3(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '<=' comparison between types 'SocketVector' and '{type(other).__name__}'.")
-            return NexWrappedFcts['islesseq'](*args,)
-
-        def __gt__(self, other): # self > other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, trypy_to_Vec3(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '>' comparison between types 'SocketVector' and '{type(other).__name__}'.")
-            return NexWrappedFcts['isgreater'](*args,)
-
-        def __ge__(self, other): # self >= other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, trypy_to_Vec3(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform '>=' comparison between types 'SocketVector' and '{type(other).__name__}'.")
-            return NexWrappedFcts['isgreatereq'](*args,)
 
         # ---------------------
         # NexVec Itter
