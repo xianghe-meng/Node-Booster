@@ -503,15 +503,15 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(other).__name__
 
             match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
 
-                case 'NexVec' | 'Vector' | 'list' | 'set' | 'tuple':
-                    raise NexError(f"TypeError. Cannot raise '{self.nxtydsp}' to the power of a Vector. Exponent must be float compatible.")
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = self, trypy_to_Vec3(other)
 
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
-                    
+
                 case _: raise NexError(f"TypeError. Cannot raise type '{self.nxtydsp}' to the power of '{type(other).__name__}'.")
 
             return NexWrappedFcts['pow'](*args,)
@@ -519,9 +519,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __rpow__(self, other): #other ** self
             self_type = type(self).__name__
             type_name = type(other).__name__
-
-            if (self_type == 'NexVec'):
-                raise NexError(f"TypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketVector'.")
 
             match type_name:
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
