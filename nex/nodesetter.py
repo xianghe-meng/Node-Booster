@@ -13,10 +13,12 @@ import bpy
 from functools import partial
 from mathutils import Vector, Matrix, Quaternion
 
+from ..nex.pytonode import py_to_Vec3, py_to_Mtx16
 from ..utils.node_utils import link_sockets, frame_nodes, create_constant_input
 from ..utils.fct_utils import alltypes, anytype
 from ..utils.fct_utils import strongtyping as user_paramError
 
+sAny = bpy.types.NodeSocket
 sBoo = bpy.types.NodeSocketBool
 sInt = bpy.types.NodeSocketInt
 sFlo = bpy.types.NodeSocketFloat
@@ -29,7 +31,7 @@ sVec = bpy.types.NodeSocketVector
 sVecXYZ = bpy.types.NodeSocketVectorXYZ
 sVecT = bpy.types.NodeSocketVectorTranslation
 
-NODE_YOFF, NODE_XOFF = 120, 70
+NODE_YOFF, NODE_XOFF = 90, 70
 TAGGED = []
 
 
@@ -1041,7 +1043,6 @@ def pow(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     n:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo|sVec:
-    print(a,n)
     if containsVecs(n):
         return generalvecparrallelfloatmath(ng,callhistory, 'POWER',a,n)
     if containsVecs(a):
@@ -1883,6 +1884,111 @@ def mapsmoo(ng, callhistory,
     if containsVecs(v,a,b,x,y):
         return generalmaprange(ng,callhistory, 'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y)
     return generalmaprange(ng,callhistory, 'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
+
+@user_domain('nexscript')
+@user_doc(nexscript="Switch.\nSwap between the different given parameters depending on the passed parameter type at position 0 and index at position 1.\n\nThe first parameter must be a type in 'float', 'int', 'bool', 'vec', 'mat'.")
+@user_paramError(UserParamError)
+def switch(ng, callhistory,
+    Type:str,
+    idx:sFlo|sInt|sBoo|float|int|bool,
+    *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sMtx|float|int|Vector|Matrix,
+    ) -> sFlo|sInt|sBoo|sVec|sMtx:
+
+    #TODO support quaternion and color type here
+    eq = {'float':'FLOAT', 'int':'INT', 'bool':'BOOLEAN', 'vec':'VECTOR', 'mat':'MATRIX',} #'quat':'ROTATION', 'color':'RGBA'
+    if (Type not in eq.keys()):
+        raise UserParamError(f"Function switch(Type, idx, a b,..) expected it's first 'Type' argument to be in 'float', 'int', 'bool', 'vec', 'mat'. Recieved '{Type}'.")
+
+    if (len(values) in {0,1}):
+        raise UserParamError(f"Function switch() needs at least four Params.")
+    
+    uniquename = get_unique_name('Switch', callhistory)
+    node = None
+    needs_linking = False
+
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0,200,)
+        node = ng.nodes.new('GeometryNodeIndexSwitch')
+        node.data_type = eq[Type]
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        needs_linking = True
+        if (uniquename):
+            node.name = node.label = uniquename #Tag the node, in order to avoid unessessary build
+
+    #link index
+    match idx:
+        case sFlo() | sInt() | sBoo():
+            if needs_linking:
+                link_sockets(idx, node.inputs[0])
+
+        case float() | int():
+            idx = int(idx)
+            if (node.inputs[0].default_value!=idx):
+                node.inputs[0].default_value = idx
+                assert_purple_node(node)
+
+    #create new slots if neccessary
+    if len(values)>(len(node.inputs)-2):
+        for _ in range(len(values)-2):
+            node.index_switch_items.new()
+
+    #convert passed params to correct python types
+    convparams = []
+    for p in values:
+        if issubclass(type(p),sAny):
+            convparams.append(p)
+            continue
+        try:
+            match Type:
+                case 'int': convparams.append(int(p))
+                case 'float': convparams.append(float(p))
+                case 'bool': convparams.append(bool(p))
+                case 'vec': convparams.append(py_to_Vec3(p))
+                case 'mat': convparams.append(py_to_Mtx16(p))
+        except:
+            raise UserParamError(f"Function switch() is set on mode '{Type}' but a type '{type(p).__name__}' was passed.")
+
+    #link the rest
+    for i,val in enumerate(convparams):
+        i += 1
+        match val:
+
+            case _ if issubclass(type(val),sAny):
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+
+            case int() | float() | bool():
+                if (node.inputs[i].default_value!=val):
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case Vector():
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case Matrix():
+                #unfortunately we are forced to create a new node, there's no .default_value option for type SocketMatrix..
+                rowflatten = [v for row in val for v in row]
+                if (uniquename):
+                      defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f"C|{uniquename}|def{i}")
+                else: defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f'C|{rowflatten[:]}') #enough space in nodename property? hmm. this function should't be used with no uniquename anyway..
+                if needs_linking:
+                    link_sockets(defval, node.inputs[i])
+
+            case None: pass
+
+            case _: raise Exception(f"InternalError. Function switch() recieved unsupported type '{type(val).__name__}'.")
+
+    return node.outputs[0]
 
 @user_domain('nexscript')
 @user_doc(nexscript="Position Attribute.\nGet the GeometryNode 'Position' SocketVector input attribute.")
