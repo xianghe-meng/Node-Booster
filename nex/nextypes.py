@@ -200,6 +200,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 msg = str(e)
                 if ('Expected parameters in' in msg):
                     msg = f"TypeError. Function {fname}() Expected parameters in " + str(e).split('Expected parameters in ')[1]
+                else:
+                    print(f"Uncatched error with function {partialsockfunc}(). {e}")
                 raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.
 
             except Exception as e:
@@ -225,13 +227,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     NexWrappedUserFcts = {f.__name__ : wrap_socketfunctions(f, auto_convert_itter=True)
                         for f in nodesetter.get_nodesetter_functions(tag='nexscript')}
 
-    # ooooo      ooo                       
-    # `888b.     `8'                       
-    #  8 `88b.    8   .ooooo.  oooo    ooo 
-    #  8   `88b.  8  d88' `88b  `88b..8P'  
-    #  8     `88b.8  888ooo888    Y888'    
-    #  8       `888  888    .o  .o8"'88b   
-    # o8o        `8  `Y8bod8P' o88'   888o 
+    # ooooo      ooo                            oooooooooo.                               
+    # `888b.     `8'                            `888'   `Y8b                              
+    #  8 `88b.    8   .ooooo.  oooo    ooo       888     888  .oooo.    .oooo.o  .ooooo.  
+    #  8   `88b.  8  d88' `88b  `88b..8P'        888oooo888' `P  )88b  d88(  "8 d88' `88b 
+    #  8     `88b.8  888ooo888    Y888'          888    `88b  .oP"888  `"Y88b.  888ooo888 
+    #  8       `888  888    .o  .o8"'88b         888    .88P d8(  888  o.  )88b 888    .o 
+    # o8o        `8  `Y8bod8P' o88'   888o      o888bood8P'  `Y888""8o 8""888P' `Y8bod8P' 
 
     class Nex:
         """parent class of all Nex subclasses"""
@@ -304,6 +306,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             raise NexError(f"TypeError.  '{self.nxtydsp}' has no abs() method.")
         def __round__(self): # round(self)
             raise NexError(f"TypeError.  '{self.nxtydsp}' has no round() method.")
+        
+        # MatMult
         def __matmul__(self, other): # self @ other
             raise NexError(f"TypeError.  '{self.nxtydsp}' do not support operand '@'.")
         def __rmatmul__(self, other): # other @ self
@@ -352,6 +356,276 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return f"<{type(self.nxsock).__name__ if self.nxsock else 'NoneSocket'} {type(self).__name__}{self.nxid}>"
             return f"<{type(self)}{self.nxid} nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
 
+    # ooooo      ooo                              .oooooo.                                                             .o8  
+    # `888b.     `8'                             d8P'  `Y8b                                                           "888  
+    #  8 `88b.    8   .ooooo.  oooo    ooo      888      888 oo.ooooo.   .ooooo.  oooo d8b  .oooo.   ooo. .oo.    .oooo888  
+    #  8   `88b.  8  d88' `88b  `88b..8P'       888      888  888' `88b d88' `88b `888""8P `P  )88b  `888P"Y88b  d88' `888  
+    #  8     `88b.8  888ooo888    Y888'         888      888  888   888 888ooo888  888      .oP"888   888   888  888   888  
+    #  8       `888  888    .o  .o8"'88b        `88b    d88'  888   888 888    .o  888     d8(  888   888   888  888   888  
+    # o8o        `8  `Y8bod8P' o88'   888o       `Y8bood8P'   888bod8P' `Y8bod8P' d888b    `Y888""8o o888o o888o `Y8bod88P" 
+    #                                                         888                                                           
+    #                                                        o888o
+
+    class NexFloatVecMath:
+        """Basic math operand for math between NexFloat NexBool NexInt NexVector & python float int bool Vector list[3] set[3] tuple[3] Vector[3].
+        Nodesetter functions will be in charge of deciding which nodes to use"""
+
+        def __add__(self, other): # self + other
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = self, trypy_to_Vec3(other)
+
+                case 'int' | 'float' | 'bool':
+                    if (self_type == 'NexVec'):
+                          args = self, trypy_to_Vec3(other)
+                    else: args = self, float(other)
+
+                case _: raise NexError(f"TypeError. Cannot add type '{self.nxtydsp}' to '{type(other).__name__}'.")
+
+            return NexWrappedFcts['add'](*args,)
+
+        def __radd__(self, other): # other + self
+            # commutative operation.
+            return self.__add__(other)
+
+        def __sub__(self, other): # self - other
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = self, trypy_to_Vec3(other)
+
+                case 'int' | 'float' | 'bool':
+                    if (self_type == 'NexVec'):
+                          args = self, trypy_to_Vec3(other)
+                    else: args = self, float(other)
+
+                case _: raise NexError(f"TypeError. Cannot subtract type '{self.nxtydsp}' with '{type(other).__name__}'.")
+
+            return NexWrappedFcts['sub'](*args,)
+
+        def __rsub__(self, other): # other - self
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = other, self
+
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = trypy_to_Vec3(other), self
+
+                case 'int' | 'float' | 'bool':
+                    if (self_type == 'NexVec'):
+                          args = trypy_to_Vec3(other), self
+                    else: args = float(other), self
+
+                case _: raise NexError(f"TypeError. Cannot subtract '{type(other).__name__}' with '{self.nxtydsp}'.")
+
+            return NexWrappedFcts['sub'](*args,)
+
+        def __mul__(self, other): # self * other
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = self, trypy_to_Vec3(other)
+
+                case 'int' | 'float' | 'bool':
+                    if (self_type == 'NexVec'):
+                          args = self, trypy_to_Vec3(other)
+                    else: args = self, float(other)
+
+                case _: raise NexError(f"TypeError. Cannot multiply type '{self.nxtydsp}' with '{type(other).__name__}'.")
+
+            return NexWrappedFcts['mult'](*args,)
+
+        def __rmul__(self, other): # other * self
+            # commutative operation.
+            return self.__mul__(other)
+
+        def __truediv__(self, other): # self / other
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = self, trypy_to_Vec3(other)
+
+                case 'int' | 'float' | 'bool':
+                    if (self_type == 'NexVec'):
+                          args = self, trypy_to_Vec3(other)
+                    else: args = self, float(other)
+
+                case _: raise NexError(f"TypeError. Cannot divide type '{self.nxtydsp}' by '{type(other).__name__}'.")
+
+            return NexWrappedFcts['div'](*args,)
+
+        def __rtruediv__(self, other): # other / self
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = other, self
+
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = trypy_to_Vec3(other), self
+
+                case 'int' | 'float' | 'bool':
+                    if (self_type == 'NexVec'):
+                          args = trypy_to_Vec3(other), self
+                    else: args = float(other), self
+
+                case _: raise NexError(f"TypeError. Cannot divide '{type(other).__name__}' by '{self.nxtydsp}'.")
+
+            return NexWrappedFcts['div'](*args,)
+
+        def __pow__(self, other): #self ** other
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+
+                case 'NexVec' | 'Vector' | 'list' | 'set' | 'tuple':
+                    raise NexError(f"TypeError. Cannot raise '{self.nxtydsp}' to the power of a Vector. Exponent must be float compatible.")
+
+                case 'int' | 'float' | 'bool':
+                    args = self, float(other)
+                    
+                case _: raise NexError(f"TypeError. Cannot raise type '{self.nxtydsp}' to the power of '{type(other).__name__}'.")
+
+            return NexWrappedFcts['pow'](*args,)
+
+        def __rpow__(self, other): #other ** self
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            if (self_type == 'NexVec'):
+                raise NexError(f"TypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketVector'.")
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = other, self
+
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = trypy_to_Vec3(other), self
+
+                case 'int' | 'float' | 'bool':
+                    args = float(other), self
+
+                case _: raise NexError(f"TypeError. Cannot raise '{type(other).__name__}' to the power of '{self.nxtydsp}'.")
+
+            return NexWrappedFcts['pow'](*args,)
+
+        def __mod__(self, other): # self % other
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = self, trypy_to_Vec3(other)
+
+                case 'int' | 'float' | 'bool':
+                    if (self_type == 'NexVec'):
+                          args = self, trypy_to_Vec3(other)
+                    else: args = self, float(other)
+
+                case _: raise NexError(f"TypeError. Cannot compute type '{self.nxtydsp}' modulo '{type(other).__name__}'.")
+
+            return NexWrappedFcts['mod'](*args,)
+
+        def __rmod__(self, other): # other % self
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = other, self
+
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = trypy_to_Vec3(other), self
+
+                case 'int' | 'float' | 'bool':
+                    if (self_type == 'NexVec'):
+                          args = trypy_to_Vec3(other), self
+                    else: args = float(other), self
+
+                case _: raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketFloat'.")
+
+            return NexWrappedFcts['mod'](*args,)
+
+        def __floordiv__(self, other): # self // other
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = self, other
+
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = self, trypy_to_Vec3(other)
+
+                case 'int' | 'float' | 'bool':
+                    if (self_type == 'NexVec'):
+                          args = self, trypy_to_Vec3(other)
+                    else: args = self, float(other)
+
+                case _: raise NexError(f"TypeError. Cannot perform floordiv on type 'SocketFloat' with '{type(other).__name__}'.")
+
+            return NexWrappedFcts['floordiv'](*args,)
+    
+        def __rfloordiv__(self, other): # other // self
+            self_type = type(self).__name__
+            type_name = type(other).__name__
+
+            match type_name:
+                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                    args = other, self
+
+                case 'Vector' | 'list' | 'set' | 'tuple':
+                    args = trypy_to_Vec3(other), self
+
+                case 'int' | 'float' | 'bool':
+                    if (self_type == 'NexVec'):
+                          args = trypy_to_Vec3(other), self
+                    else: args = float(other), self
+
+                case _: raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketFloat'.")
+
+            return NexWrappedFcts['floordiv'](*args,)
+
+        def __neg__(self): # -self
+            return NexWrappedFcts['neg'](self,)
+
+        def __abs__(self): # abs(self)
+            return NexWrappedFcts['abs'](self,)
+        
+        def __round__(self): # round(self)
+            return NexWrappedFcts['round'](self,)
+
     # ooooo      ooo                       oooooooooooo oooo                          .   
     # `888b.     `8'                       `888'     `8 `888                        .o8   
     #  8 `88b.    8   .ooooo.  oooo    ooo  888          888   .ooooo.   .oooo.   .o888oo 
@@ -360,8 +634,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     #  8       `888  888    .o  .o8"'88b    888          888  888   888 d8(  888    888 . 
     # o8o        `8  `Y8bod8P' o88'   888o o888o        o888o `Y8bod8P' `Y888""8o   "888" 
                                                                                         
-    class NexFloat(Nex):
-        
+    class NexFloat(NexFloatVecMath, Nex):
+
         init_counter = 0
         node_inst = NODEINSTANCE
         node_tree = node_inst.node_tree
@@ -432,182 +706,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
-        
-        # ---------------------
-        # NexFloat Math Operand
-
-        def __add__(self, other): # self + other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool': 
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot add type 'SocketFloat' to '{type(other).__name__}'.")
-            return NexWrappedFcts['add'](*args,)
-
-        def __radd__(self, other): # other + self
-            # commutative operation.
-            return self.__add__(other)
-
-        def __sub__(self, other): # self - other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot subtract type 'SocketFloat' with '{type(other).__name__}'.")
-            return NexWrappedFcts['sub'](*args,)
-
-        def __rsub__(self, other): # other - self
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexInt' | 'NexBool':
-                    args = other, self
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = float(other), self
-                case _:
-                    raise NexError(f"TypeError. Cannot subtract '{type(other).__name__}' with 'SocketFloat'.")
-            return NexWrappedFcts['sub'](*args,)
-
-        def __mul__(self, other): # self * other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot multiply type 'SocketFloat' with '{type(other).__name__}'.")
-            return NexWrappedFcts['mult'](*args,)
-
-        def __rmul__(self, other): # other * self
-            # commutative operation.
-            return self.__mul__(other)
-
-        def __truediv__(self, other): # self / other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot divide type 'SocketFloat' by '{type(other).__name__}'.")
-            return NexWrappedFcts['div'](*args,)
-
-        def __rtruediv__(self, other): # other / self
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexInt' | 'NexBool':
-                    args = other, self
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = float(other), self
-                case _:
-                    raise NexError(f"TypeError. Cannot divide '{type(other).__name__}' by 'SocketFloat'.")
-            return NexWrappedFcts['div'](*args,)
-
-        def __pow__(self, other): #self ** other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot raise type 'SocketFloat' to the power of '{type(other).__name__}'.")
-            return NexWrappedFcts['pow'](*args,)
-
-        def __rpow__(self, other): #other ** self
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexInt' | 'NexBool':
-                    args = other, self
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = float(other), self
-                case _:
-                    raise NexError(f"TypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketFloat'.")
-            return NexWrappedFcts['pow'](*args,)
-
-        def __mod__(self, other): # self % other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot compute type 'SocketFloat' modulo '{type(other).__name__}'.")
-            return NexWrappedFcts['mod'](*args,)
-
-        def __rmod__(self, other): # other % self
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexInt' | 'NexBool':
-                    args = other, self
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = float(other), self
-                case _:
-                    raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketFloat'.")
-            return NexWrappedFcts['mod'](*args,)
-
-        def __floordiv__(self, other): # self // other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform floordiv on type 'SocketFloat' with '{type(other).__name__}'.")
-            return NexWrappedFcts['floordiv'](*args,)
-
-        def __rfloordiv__(self, other): # other // self
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexInt' | 'NexBool':
-                    args = other, self
-                case _ if ('Nex' in type_name):
-                    return NotImplemented
-                case 'int' | 'float' | 'bool':
-                    args = float(other), self
-                case _:
-                    raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketFloat'.")
-            return NexWrappedFcts['floordiv'](*args,)
-
-        def __neg__(self): # -self
-            return NexWrappedFcts['neg'](self,)
-
-        def __abs__(self): # abs(self)
-            return NexWrappedFcts['abs'](self,)
-        
-        def __round__(self): # round(self)
-            return NexWrappedFcts['round'](self,)
 
         # ---------------------
         # NexFloat Comparisons
@@ -704,7 +802,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     #  8       `888  888    .o  .o8"'88b    888    .88P 888   888 888   888  888  
     # o8o        `8  `Y8bod8P' o88'   888o o888bood8P'  `Y8bod8P' `Y8bod8P' o888o 
 
-    class NexBool(Nex):
+    class NexBool(NexFloatVecMath, Nex):
 
         init_counter = 0
         node_inst = NODEINSTANCE
@@ -833,8 +931,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     #  8       `888  888    .o  .o8"'88b        `888'      888    .o 888   .o8 
     # o8o        `8  `Y8bod8P' o88'   888o       `8'       `Y8bod8P' `Y8bod8P' 
 
-    class NexVec(Nex):
-        
+    class NexVec(NexFloatVecMath, Nex):
+
         init_counter = 0
         node_inst = NODEINSTANCE
         node_tree = node_inst.node_tree
@@ -896,150 +994,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return None
 
         # ---------------------
-        # NexVec Math Operand
-
-        def __add__(self, other): # self + other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, trypy_to_Vec3(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot add type 'SocketVector' to '{type(other).__name__}'.")
-            return NexWrappedFcts['add'](*args,)
-
-        def __radd__(self, other): # other + self
-            # commutative operation.
-            return self.__add__(other)
-
-        def __sub__(self, other): # self - other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, trypy_to_Vec3(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot subtract type 'SocketVector' with '{type(other).__name__}'.")
-            return NexWrappedFcts['sub'](*args,)
-
-        def __rsub__(self, other): # other - self
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = other, self
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = trypy_to_Vec3(other), self
-                case _:
-                    raise NexError(f"TypeError. Cannot subtract '{type(other).__name__}' with 'SocketVector'.")
-            return NexWrappedFcts['sub'](*args,)
-
-        def __mul__(self, other): # self * other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, trypy_to_Vec3(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot multiply type 'SocketVector' with '{type(other).__name__}'.")
-            return NexWrappedFcts['mult'](*args,)
-
-        def __rmul__(self, other): # other * self
-            # commutative operation.
-            return self.__mul__(other)
-
-        def __truediv__(self, other): # self / other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, trypy_to_Vec3(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot divide type 'SocketVector' by '{type(other).__name__}'.")
-            return NexWrappedFcts['div'](*args,)
-
-        def __rtruediv__(self, other): # other / self
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = other, self
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = trypy_to_Vec3(other), self
-                case _:
-                    raise NexError(f"TypeError. Cannot divide '{type(other).__name__}' by 'SocketVector'.")
-            return NexWrappedFcts['div'](*args,)
-
-        def __pow__(self, other):  # self ** other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'int' | 'float' | 'bool':
-                    args = self, float(other)
-                case 'NexVec' | 'Vector':
-                    raise NexError(f"TypeError. Cannot raise a Vector to another Vector. Exponent must be float compatible.")
-                case _:
-                    raise NexError(f"TypeError. Cannot raise 'SocketVector' to the power of '{type(other).__name__}'.")
-            return NexWrappedFcts['pow'](*args,)
-
-        def __rpow__(self, other):  # other ** self
-            raise NexError(f"TypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketVector'.")
-
-        def __mod__(self, other): # self % other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, trypy_to_Vec3(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot compute type 'SocketVector' modulo '{type(other).__name__}'.")
-            return NexWrappedFcts['mod'](*args,)
-
-        def __rmod__(self, other): # other % self
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = other, self
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = trypy_to_Vec3(other), self
-                case _:
-                    raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketVector'.")
-            return NexWrappedFcts['mod'](*args,)
-
-        def __floordiv__(self, other): # self // other
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = self, other
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = self, trypy_to_Vec3(other)
-                case _:
-                    raise NexError(f"TypeError. Cannot perform floordiv on type 'SocketVector' with '{type(other).__name__}'.")
-            return NexWrappedFcts['floordiv'](*args,)
-
-        def __rfloordiv__(self, other): # other // self
-            type_name = type(other).__name__
-            match type_name:
-                case 'NexFloat' | 'NexInt' | 'NexBool':
-                    args = other, self
-                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
-                    args = trypy_to_Vec3(other), self
-                case _:
-                    raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketVector'.")
-            return NexWrappedFcts['floordiv'](*args,)
-        
-        def __neg__(self): # -self
-            return NexWrappedFcts['neg'](self,)
-
-        def __abs__(self): # abs(self)
-            return NexWrappedFcts['abs'](self,)
-
-        def __round__(self): # round(self)
-            return NexWrappedFcts['round'](self,)
+        # NexVec MatMult Operations
 
         def __matmul__(self, other): # self @ other
             type_name = type(other).__name__
@@ -1320,7 +1275,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return None
 
         # ---------------------
-        # NexMtx Math Operand
+        # NexMtx MatMult Operations
 
         def __matmul__(self, other): # self @ other
             type_name = type(other).__name__

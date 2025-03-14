@@ -794,7 +794,7 @@ def generalmatrixmath(ng, callhistory,
 def generalcombsepa(ng, callhistory,
     operation_type:str,
     data_type:str, 
-    input_data:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sMtx|tuple|list|set,
+    input_data:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sMtx|Vector|tuple|list|set,
     ) -> tuple|sVec|sMtx:
     """Generic function for creating 'combine' or 'separate' nodes, over multiple types"""
 
@@ -852,9 +852,19 @@ def generalcombsepa(ng, callhistory,
     match operation_type:
 
         case 'SEPARATE':
-            assert type(input_data) in {sVec, sVecXYZ, sVecT, sMtx}, "This function is expecting to recieve a SocketVector or SocketMatrix"
-            if needs_linking:
-                link_sockets(input_data, node.inputs[0])
+            val = input_data
+            match val:
+                case sVec() | sVecXYZ() | sVecT() | sMtx():
+                    if needs_linking:
+                        link_sockets(val, node.inputs[0])
+
+                case Vector():
+                    if node.inputs[0].default_value[:] != val[:]:
+                        node.inputs[0].default_value = val
+                        assert_purple_node(node)
+
+                case _: raise Exception(f"InternalError. Type '{type(val).__name__}' not supported in separate() operation. Previous check should've pick up on this.")
+
             return tuple(node.outputs)
 
         case 'COMBINE':
@@ -878,7 +888,7 @@ def generalcombsepa(ng, callhistory,
 
                     case None: pass
 
-                    case _: raise Exception(f"InternalError. Type '{type(val).__name__}' not supported in combine operation. Previous check should've pick up on this.")
+                    case _: raise Exception(f"InternalError. Type '{type(val).__name__}' not supported in combine() operation. Previous check should've pick up on this.")
 
     return node.outputs[0]
 
@@ -1380,7 +1390,7 @@ def length(ng, callhistory,
 @user_doc(nexscript="Separate Vector.\nSeparate a SocketVector into a tuple of 3 SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
 @user_paramError(UserParamError)
 def separate_xyz(ng, callhistory,
-    vA:sVec|sVecXYZ|sVecT,
+    vA:sVec|sVecXYZ|sVecT|Vector,
     ) -> tuple:
     return generalcombsepa(ng,callhistory, 'SEPARATE','VECTORXYZ', vA,)
 

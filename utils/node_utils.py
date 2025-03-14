@@ -311,7 +311,10 @@ def create_new_nodegroup(name, in_sockets={}, out_sockets={},):
 
 def link_sockets(socket1, socket2):
     """link two nodes together in a nodetree"""
-
+    # if not issubclass(type(socket1), bpy.types.NodeSocket):
+    #     return None
+    # if not issubclass(type(socket2), bpy.types.NodeSocket):
+    #     return None
     ng = socket1.id_data
     return ng.links.new(socket1, socket2)
 
