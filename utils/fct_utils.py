@@ -7,7 +7,10 @@ import types
 import inspect
 import typing
 import functools
+from collections import namedtuple
 
+
+ColorRGBA = namedtuple('ColorRGBA', ['r','g','b','a'])
 
 def anytype(*args, types:tuple=None) -> bool:
     """Returns True if any argument in *args is an instance of any type in the 'types' tuple."""

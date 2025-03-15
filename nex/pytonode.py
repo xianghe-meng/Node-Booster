@@ -5,9 +5,9 @@
 
 import bpy 
 
+bpy_array = bpy.types.bpy_prop_array
 from mathutils import Color, Euler, Matrix, Quaternion, Vector
-from collections import namedtuple
-RGBAColor = namedtuple('RGBAColor', ['r','g','b','a'])
+from ..utils.fct_utils import ColorRGBA
 
 
 def py_to_Vec3(value):
@@ -22,6 +22,24 @@ def py_to_Vec3(value):
             return Vector((float(value), float(value), float(value),))
         case _:
             raise TypeError(f"type {type(value).__name__}({value[:]}) is not compatible with 'SocketVector'.")
+
+def py_to_RGBA(value):
+    match value:
+        case Color():
+            return ColorRGBA(value[0], value[1], value[2], 1.0)
+        case list() | set() | tuple():
+            if len(value) not in (3, 4):
+                raise TypeError(f"{type(value).__name__}({list(value)}) should have 3 or 4 elements for 'ColorRGBA' compatibility.")
+            if (len(value)==3):
+                return ColorRGBA(value[0], value[1], value[2], 1.0)
+            else:
+                return ColorRGBA(value[0], value[1], value[2], value[3])
+        case int() | float() | bool():
+            v = float(value)
+            return ColorRGBA(v, v, v, 1.0)
+        case _:
+            extra = value[:] if hasattr(value, '__getitem__') else value
+            raise TypeError(f"type {type(value).__name__}({extra}) is not compatible with 'ColorRGBA'.")
 
 def py_to_Mtx16(value):
     match value:
@@ -46,7 +64,7 @@ def py_to_Sockdata(value):
     matrix_special_label = ''
 
     #we sanatize out possible types depending on their length
-    if (type(value) in {tuple, list, set, Vector, Euler, bpy.types.bpy_prop_array}):
+    if (type(value) in {tuple, list, set, Vector, Euler, bpy_array}):
 
         if type(value) in {tuple, list, set}:
             if any('Nex' in type(e).__name__ for e in value):
@@ -62,7 +80,7 @@ def py_to_Sockdata(value):
             value = Vector(value + [0.0]*(3 - n))
 
         elif (n == 4):
-            value = RGBAColor(*value)
+            value = ColorRGBA(*value)
 
         elif (4 < n <= 16):
             if (n < 16):
@@ -98,11 +116,11 @@ def py_to_Sockdata(value):
             socket_type = 'NodeSocketVector'
 
         case Color():
-            value = RGBAColor(*value,1) #add alpha channel
+            value = ColorRGBA(*value,1) #add alpha channel
             repr_label = str(tuple(round(n,4) for n in value))
             socket_type = 'NodeSocketColor'
 
-        case RGBAColor():
+        case ColorRGBA():
             repr_label = str(tuple(round(n,4) for n in value))
             socket_type = 'NodeSocketColor'
 

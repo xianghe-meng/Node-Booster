@@ -23,13 +23,11 @@ import bpy
 
 import traceback
 import math, random
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Color
 from functools import partial
 
 from ..__init__ import dprint
-from ..nex.pytonode import py_to_Sockdata, py_to_Mtx16, py_to_Vec3
-from ..nex import nodesetter
-from ..utils.fct_utils import alltypes, anytype
+from ..utils.fct_utils import alltypes, anytype, ColorRGBA
 from ..utils.node_utils import (
     create_new_nodegroup,
     set_socket_defvalue,
@@ -44,7 +42,8 @@ from ..utils.node_utils import (
     create_constant_input,
     frame_nodes,
 )
-
+from ..nex.pytonode import py_to_Sockdata, py_to_Mtx16, py_to_Vec3, py_to_RGBA
+from ..nex import nodesetter
 
 NEXUSER_EQUIVALENCE = {
     #inputs
@@ -87,7 +86,7 @@ def NexErrorWrapper(convert_func):
 trypy_to_Sockdata = NexErrorWrapper(py_to_Sockdata)
 trypy_to_Mtx16 = NexErrorWrapper(py_to_Mtx16)
 trypy_to_Vec3 = NexErrorWrapper(py_to_Vec3)
-
+trypy_to_RGBA = NexErrorWrapper(py_to_RGBA)
 
 # oooooooooooo                         .                                  
 # `888'     `8                       .o8                                  
@@ -123,12 +122,12 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 return NexMtx(fromsocket=socket)
 
             case bpy.types.NodeSocketColor():
-                raise Exception(f"ERROR: AutoNexType() not implemented yet") #return NexCol(fromsocket=socket)
+                return NexCol(fromsocket=socket)
 
             case bpy.types.NodeSocketRotation():
                 return NexVec(fromsocket=socket) 
                 return NexQuat(fromsocket=socket) #TODO
-            
+
             case _: raise Exception(f"ERROR: AutoNexType(): Unrecognized '{socket}' of type '{type(socket).__name__}'")
 
     def create_Nex_constant(NexType, value,):
@@ -1146,7 +1145,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return self[:]
         @xyz.setter
         def xyz(self, value):
-            if (type(value) is tuple and len(value)==3):
+            if (type(value) in {tuple,Vector} and len(value)==3):
                   self[:] = value
             else: raise NexError("TypeError. Assignment to SocketVector.xyz is expected to be a tuple of length 3 containing sockets or Python values.")
 
@@ -1155,11 +1154,229 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return NexWrappedFcts['length'](self,)
         @length.setter
         def length(self, value):
-            #TODO looks like mathutils.length support setter
+            #TODO looks like mathutils.length support setter. need to find formula and apply it
             raise NexError("AssignationError. 'SocketVector.length' is read-only.")
 
         def normalized(self):
             return NexWrappedFcts['normalize'](self,)
+
+    # ooooo      ooo                         .oooooo.             oooo                     
+    # `888b.     `8'                        d8P'  `Y8b            `888                     
+    #  8 `88b.    8   .ooooo.  oooo    ooo 888           .ooooo.   888   .ooooo.  oooo d8b 
+    #  8   `88b.  8  d88' `88b  `88b..8P'  888          d88' `88b  888  d88' `88b `888""8P 
+    #  8     `88b.8  888ooo888    Y888'    888          888   888  888  888   888  888     
+    #  8       `888  888    .o  .o8"'88b   `88b    ooo  888   888  888  888   888  888     
+    # o8o        `8  `Y8bod8P' o88'   888o  `Y8bood8P'  `Y8bod8P' o888o `Y8bod8P' d888b    
+                                                                     
+    class NexCol(Nex):
+
+        init_counter = 0
+        node_inst = NODEINSTANCE
+        node_tree = node_inst.node_tree
+
+        nxstype = 'NodeSocketColor'
+        nxtydsp = 'SocketColor'
+        nxchar = 'c'
+
+        def __init__(self, socket_name='', value=None, fromsocket=None, manualdef=False,):
+
+            self.nxid = NexCol.init_counter
+            NexCol.init_counter += 1
+
+            if (manualdef):
+                return None
+            if (fromsocket is not None):
+                self.nxsock = fromsocket
+                return None
+                        
+            type_name = type(value).__name__
+            match type_name:
+
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
+
+                #Initialize a new nextype with a default value socket
+                case 'NoneType' | 'bpy_prop_array' | 'Color' | 'list' | 'set' | 'tuple':
+
+                    #ensure name chosen is correct
+                    assert socket_name!='', "Nex Initialization should always define a socket_name."
+                    if (socket_name in ALLINPUTS):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    ALLINPUTS.append(socket_name)
+
+                    #get socket, create if non existent
+                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    if (outsock is None):
+                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
+                    elif (type(outsock) is list):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+
+                    #ensure type is correct, change type if necessary
+                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    if (current_type!=self.nxstype):
+                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+
+                    self.nxsock = outsock
+                    self.nxsnam = socket_name
+
+                    #ensure default value of socket in node instance
+                    if (value is not None):
+                        fval = trypy_to_RGBA(value)
+                        set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
+
+                case _:
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketVector'. Was expecting 'None' | 'Vector[3]' | 'list[3]' | 'set[3]' | 'tuple[3]' | 'int' | 'float' | 'bool'.")
+
+            dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
+            return None
+
+        # ---------------------
+        # NexCol Itter
+
+        # def __len__(self): #len(itter)
+        #     return 3
+
+        # def __iter__(self): #for f in itter
+        #     for i in range(3):
+        #         yield self[i]
+
+        # def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
+
+        #     match key:
+        #         case int(): #vec[i]
+        #             sep_xyz = NexWrappedFcts['separate_xyz'](self,)
+        #             if key not in (0,1,2):
+        #                 raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+        #             return sep_xyz[key]
+                
+        #         case slice(): #vec[:i]
+        #             sep_xyz = NexWrappedFcts['separate_xyz'](self,)
+        #             indices = range(*key.indices(3))
+        #             return tuple(sep_xyz[i] for i in indices)
+                
+        #         case _: raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
+
+        # def __setitem__(self, key, value): #x[0] += a+b
+        #     to_frame = []
+        #     type_name = type(value).__name__
+
+        #     match key:
+        #         case int(): #vec[i]
+        #             if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
+        #                 raise NexError(f"TypeError. Value assigned to VectorSocket[i] must float compatible. Recieved '{type_name}'.")
+        #             x, y, z = NexWrappedFcts['separate_xyz'](self,)
+        #             to_frame.append(x.nxsock.node)
+        #             match key:
+        #                 case 0: new_xyz = value, y, z
+        #                 case 1: new_xyz = x, value, z
+        #                 case 2: new_xyz = x, y, value
+        #                 case _: raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+
+        #         case slice():
+        #             if (key!=slice(None,None,None)):
+        #                 raise NexError("Only [:] slicing is supported for SocketVector.")
+        #             new_xyz = value
+        #             if (len(new_xyz)!=3):
+        #                 raise NexError("Slice assignment requires exactly 3 values.")
+
+        #         case _: raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
+
+        #     new = NexWrappedFcts['combine_xyz'](*new_xyz,)
+        #     self.nxsock = new.nxsock
+        #     self.nxid = new.nxid
+        #     to_frame.append(new.nxsock.node)
+
+        #     frame_nodes(self.node_tree, *to_frame, label=f"v.setitem[{key if (type(key) is int) else ':'}]",)
+
+        #     return None
+
+        # ---------------------
+        # NexCol Functions & Properties
+        # We try to immitate mathutils https://docs.blender.org/api/current/mathutils.html
+
+        _attributes = Nex._attributes + ('r','g','b','rgb','h','s','v','hsv','alpha','lightness','blackbody')
+
+        @property
+        def r(self):
+            return self[0]
+        @r.setter
+        def r(self, value):
+            self[0] = value
+
+        @property
+        def g(self):
+            return self[1]
+        @g.setter
+        def g(self, value):
+            self[1] = value
+
+        @property
+        def b(self):
+            return self[2]
+        @b.setter
+        def b(self, value):
+            self[2] = value
+
+        @property
+        def rgb(self):
+            return self[:3]
+        @rgb.setter
+        def rgb(self, value):
+            if (type(value) in {tuple,Color} and len(value)==3):
+                  self[:3] = value[:]
+            else: raise NexError("TypeError. Assignment to SocketColor.rgb is expected to be a tuple of length 3 containing sockets or Python values.")
+
+        @property
+        def h(self):
+            pass
+        @h.setter
+        def h(self, value):
+            pass
+
+        @property
+        def s(self):
+            pass
+        @s.setter
+        def s(self, value):
+            pass
+
+        @property
+        def v(self):
+            pass
+        @v.setter
+        def v(self, value):
+            pass
+
+        @property
+        def hsv(self):
+            pass
+        @hsv.setter
+        def hsv(self, value):
+            if (type(value) is tuple and len(value)==3):
+                  pass
+            else: raise NexError("TypeError. Assignment to SocketColor.hsv is expected to be a tuple of length 3 containing sockets or Python values.")
+
+        @property
+        def alpha(self):
+            return self[3]
+        @alpha.setter
+        def alpha(self, value):
+            self[3] = value
+
+        @property
+        def lightness(self):
+            pass
+        @lightness.setter
+        def lightness(self, value):
+            pass
+
+        @property
+        def blackbody(self):
+            pass
+        @blackbody.setter
+        def blackbody(self, value):
+            #TODO find algo for setter
+            raise NexError("AssignationError. 'SocketColor.blackbody' is read-only.")
 
     # ooooo      ooo                       ooo        ooooo     .               
     # `888b.     `8'                       `88.       .888'   .o8               
@@ -1538,7 +1755,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         'inint':NexInt,
         'infloat':NexFloat,
         'invec':NexVec,
-        # 'incol':NexCol,
+        'incol':NexCol,
         # 'inquat':NexQuat,
         'inmat':NexMtx,
         'outbool':NexOutputBool,

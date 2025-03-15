@@ -12,6 +12,7 @@ from math import hypot
 from mathutils import Vector, Matrix
 
 from .draw_utils import get_dpifac
+from .fct_utils import ColorRGBA
 
 
 def get_node_absolute_location(node):
@@ -101,6 +102,10 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
     assert in_out in {'INPUT','OUTPUT'}, "set_socket_defvalue(): in_out arg not valid"
     assert not (idx is None and socket is None), "Please pass either a socket or an index to a socket"
 
+    #convert color to list
+    if type(value) is ColorRGBA:
+        value = value[:]
+
     # setting a default value of a input is very different from an output.
     #  - set a defaultval input can only be done by changing all node instances input of that nodegroup..
     #  - set a defaultval output can be done within the ng
@@ -168,7 +173,8 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
                     for l in socket.links:
                         ng.links.remove(l)
                 #we set def value, simply..
-                socket.default_value = value
+                if (socket.default_value!=value): #NOTE Vector/Color won't like that, will always be False.. need to use [:]!=[:] for two vec..
+                    socket.default_value = value
 
     elif (in_out=='INPUT'):
         
@@ -183,7 +189,8 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
         
         instancesocket = node.inputs[idx]
         if (instancesocket.type not in {'ROTATION','MATRIX'}):
-            instancesocket.default_value = value
+            if (instancesocket.default_value!=value): #NOTE Vector/Color won't like that, will always be False.. need to use [:]!=[:] for two vec..
+                instancesocket.default_value = value
             
     return None
 
