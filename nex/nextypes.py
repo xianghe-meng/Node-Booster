@@ -343,9 +343,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         # Nex Itter
         def __len__(self): #len(itter)
             raise NexError(f"TypeError. '{self.nxtydsp}' has no len() method.")
-        def __iter__(self): #for f in itter
-            raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
         def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
+            raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
+        def __iter__(self): #for f in itter
             raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
         def __setitem__(self, key, value): #x[0] += a+b
             raise NexError(f"TypeError. '{self.nxtydsp}' is not an itterable.")
@@ -1059,17 +1059,12 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __len__(self): #len(itter)
             return 3
 
-        def __iter__(self): #for f in itter
-            for i in range(3):
-                yield self[i]
-
         def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
-
             match key:
                 case int(): #vec[i]
                     sep_xyz = NexWrappedFcts['separate_xyz'](self,)
                     if key not in (0,1,2):
-                        raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+                        raise NexError("IndexError. indice in SocketVector[i] exceeded maximal range of 2.")
                     return sep_xyz[key]
                 
                 case slice(): #vec[:i]
@@ -1077,7 +1072,11 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     indices = range(*key.indices(3))
                     return tuple(sep_xyz[i] for i in indices)
                 
-                case _: raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
+                case _: raise NexError("TypeError. indices in SocketVector[i] must be integers or slices.")
+
+        def __iter__(self): #for f in itter
+            for i in range(len(self)):
+                yield self[i]
 
         def __setitem__(self, key, value): #x[0] += a+b
             to_frame = []
@@ -1086,14 +1085,14 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             match key:
                 case int(): #vec[i]
                     if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
-                        raise NexError(f"TypeError. Value assigned to VectorSocket[i] must float compatible. Recieved '{type_name}'.")
+                        raise NexError(f"TypeError. Value assigned to SocketVector[i] must float compatible. Recieved '{type_name}'.")
                     x, y, z = NexWrappedFcts['separate_xyz'](self,)
                     to_frame.append(x.nxsock.node)
                     match key:
                         case 0: new_xyz = value, y, z
                         case 1: new_xyz = x, value, z
                         case 2: new_xyz = x, y, value
-                        case _: raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+                        case _: raise NexError("IndexError. indice in SocketVector[i] exceeded maximal range of 2.")
 
                 case slice():
                     if (key!=slice(None,None,None)):
@@ -1102,14 +1101,14 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     if (len(new_xyz)!=3):
                         raise NexError("Slice assignment requires exactly 3 values.")
 
-                case _: raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
+                case _: raise NexError("TypeError. indices in SocketVector[i] must be integers or slices.")
 
             new = NexWrappedFcts['combine_xyz'](*new_xyz,)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             to_frame.append(new.nxsock.node)
 
-            frame_nodes(self.node_tree, *to_frame, label=f"v.setitem[{key if (type(key) is int) else ':'}]",)
+            frame_nodes(self.node_tree, *to_frame, label=f"Vec.setitem[{key if (type(key) is int) else ':'}]",)
 
             return None
 
@@ -1145,9 +1144,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return self[:]
         @xyz.setter
         def xyz(self, value):
-            if (type(value) in {tuple,Vector} and len(value)==3):
-                  self[:] = value
-            else: raise NexError("TypeError. Assignment to SocketVector.xyz is expected to be a tuple of length 3 containing sockets or Python values.")
+            if not (type(value) in {tuple,Vector} and len(value)==3):
+                raise NexError("TypeError. Assignment to SocketVector.xyz is expected to be a tuple of length 3 containing sockets or Python values.")
+            self[:] = value
 
         @property
         def length(self):
@@ -1225,7 +1224,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
 
                 case _:
-                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketVector'. Was expecting 'None' | 'Vector[3]' | 'list[3]' | 'set[3]' | 'tuple[3]' | 'int' | 'float' | 'bool'.")
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketColor'. Was expecting 'None' | 'Vector[3]' | 'list[3]' | 'set[3]' | 'tuple[3]' | 'int' | 'float' | 'bool'.")
 
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
@@ -1233,68 +1232,68 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         # ---------------------
         # NexCol Itter
 
-        # def __len__(self): #len(itter)
-        #     return 3
+        def __len__(self): #len(itter)
+            return 4
 
-        # def __iter__(self): #for f in itter
-        #     for i in range(3):
-        #         yield self[i]
+        def __getitem__(self, key): #suport c = col[0], r,g,b,a = col ect..
+            match key:
+                case int(): #col[i]
+                    sep_col = NexWrappedFcts['separate_color']('RGB',self,)
+                    if key not in (0,1,2,3):
+                        raise NexError("IndexError. indice in SocketColor[i] exceeded maximal range of 3.")
+                    return sep_col[key]
 
-        # def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
+                case slice(): #col[:i]
+                    sep_col = NexWrappedFcts['separate_color']('RGB',self,)
+                    indices = range(*key.indices(4))
+                    return tuple(sep_col[i] for i in indices)
 
-        #     match key:
-        #         case int(): #vec[i]
-        #             sep_xyz = NexWrappedFcts['separate_xyz'](self,)
-        #             if key not in (0,1,2):
-        #                 raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
-        #             return sep_xyz[key]
-                
-        #         case slice(): #vec[:i]
-        #             sep_xyz = NexWrappedFcts['separate_xyz'](self,)
-        #             indices = range(*key.indices(3))
-        #             return tuple(sep_xyz[i] for i in indices)
-                
-        #         case _: raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
+                case _: raise NexError("TypeError. indices in SocketColor[i] must be integers or slices.")
 
-        # def __setitem__(self, key, value): #x[0] += a+b
-        #     to_frame = []
-        #     type_name = type(value).__name__
+        def __iter__(self): #for f in itter
+            for i in range(len(self)):
+                yield self[i]
 
-        #     match key:
-        #         case int(): #vec[i]
-        #             if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
-        #                 raise NexError(f"TypeError. Value assigned to VectorSocket[i] must float compatible. Recieved '{type_name}'.")
-        #             x, y, z = NexWrappedFcts['separate_xyz'](self,)
-        #             to_frame.append(x.nxsock.node)
-        #             match key:
-        #                 case 0: new_xyz = value, y, z
-        #                 case 1: new_xyz = x, value, z
-        #                 case 2: new_xyz = x, y, value
-        #                 case _: raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+        def __setitem__(self, key, value): #x[0] += a+b
+            to_frame = []
+            type_name = type(value).__name__
 
-        #         case slice():
-        #             if (key!=slice(None,None,None)):
-        #                 raise NexError("Only [:] slicing is supported for SocketVector.")
-        #             new_xyz = value
-        #             if (len(new_xyz)!=3):
-        #                 raise NexError("Slice assignment requires exactly 3 values.")
+            match key:
+                case int(): #vec[i]
+                    if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
+                        raise NexError(f"TypeError. Value assigned to SocketColor[i] must float compatible. Recieved '{type_name}'.")
+                    r, g, b, a = NexWrappedFcts['separate_color']('RGB', self,)
+                    to_frame.append(a.nxsock.node)
+                    match key:
+                        case 0: new_col = value, g, b, a
+                        case 1: new_col = r, value, b, a
+                        case 2: new_col = r, g, value, a
+                        case 3: new_col = r, g, b, value
+                        case _: raise NexError("IndexError. indice in SocketColor[i] exceeded maximal range of 3.")
 
-        #         case _: raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
+                case slice():
+                    if (key!=slice(None,None,None)):
+                        raise NexError("Only [:] slicing is supported for SocketColor.")
+                    new_col = value
+                    if (len(new_col)!=4):
+                        raise NexError("Slice assignment requires exactly 4 values.")
 
-        #     new = NexWrappedFcts['combine_xyz'](*new_xyz,)
-        #     self.nxsock = new.nxsock
-        #     self.nxid = new.nxid
-        #     to_frame.append(new.nxsock.node)
+                case _: raise NexError("TypeError. indices in SocketColor[i] must be integers or slices.")
 
-        #     frame_nodes(self.node_tree, *to_frame, label=f"v.setitem[{key if (type(key) is int) else ':'}]",)
+            new = NexWrappedFcts['combine_color']('RGB',*new_col,)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+            to_frame.append(new.nxsock.node)
 
-        #     return None
+            frame_nodes(self.node_tree, *to_frame, label=f"Col.setitem[{key if (type(key) is int) else ':'}]",)
+
+            return None
 
         # ---------------------
         # NexCol Functions & Properties
         # We try to immitate mathutils https://docs.blender.org/api/current/mathutils.html
 
-        _attributes = Nex._attributes + ('r','g','b','rgb','h','s','v','hsv','alpha','lightness','blackbody')
+        _attributes = Nex._attributes + ('r','g','b','rgb','h','s','v','hsv','l','hsl','a','lightness','blackbody')
 
         @property
         def r(self):
@@ -1319,64 +1318,158 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def rgb(self):
-            return self[:3]
+            return self[:][:3]
         @rgb.setter
         def rgb(self, value):
-            if (type(value) in {tuple,Color} and len(value)==3):
-                  self[:3] = value[:]
-            else: raise NexError("TypeError. Assignment to SocketColor.rgb is expected to be a tuple of length 3 containing sockets or Python values.")
+            if not (type(value) in {tuple,Color,Vector,NexVec} and len(value)==3):
+                raise NexError("TypeError. Assignment to SocketColor.rgb is expected to be a tuple of length 3 containing sockets or Python values.")
+            to_frame = []
+
+            _, _, _, a = NexWrappedFcts['separate_color']('RGB', self,)
+            to_frame.append(a.nxsock.node)
+
+            new = NexWrappedFcts['combine_color']('RGB', value[0], value[1], value[2], a,)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+
+            to_frame.append(new.nxsock.node)
+            frame_nodes(self.node_tree, *to_frame, label=f"Col.setitem.rgb",)
 
         @property
         def h(self):
-            pass
+            return NexWrappedFcts['separate_color']('HSV', self,)[0]
         @h.setter
         def h(self, value):
-            pass
+            to_frame = []
+            type_name = type(value).__name__
+            if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
+                raise NexError(f"TypeError. Value assigned to SocketColor.h must float compatible. Recieved '{type_name}'.")
+
+            _, s, v, a = NexWrappedFcts['separate_color']('HSV', self,)
+            to_frame.append(a.nxsock.node)
+
+            new = NexWrappedFcts['combine_color']('HSV', value, s, v, a,)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+
+            to_frame.append(new.nxsock.node)
+            frame_nodes(self.node_tree, *to_frame, label=f"Col.setitem.h",)
 
         @property
         def s(self):
-            pass
+            return NexWrappedFcts['separate_color']('HSV', self,)[1]
         @s.setter
         def s(self, value):
-            pass
+            to_frame = []
+            type_name = type(value).__name__
+            if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
+                raise NexError(f"TypeError. Value assigned to SocketColor.s must float compatible. Recieved '{type_name}'.")
+
+            h, _, v, a = NexWrappedFcts['separate_color']('HSV', self,)
+            to_frame.append(a.nxsock.node)
+
+            new = NexWrappedFcts['combine_color']('HSV', h, value, v, a,)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+
+            to_frame.append(new.nxsock.node)
+            frame_nodes(self.node_tree, *to_frame, label=f"Col.setitem.s",)
 
         @property
         def v(self):
-            pass
+            return NexWrappedFcts['separate_color']('HSV', self,)[2]
         @v.setter
         def v(self, value):
-            pass
+            to_frame = []
+            type_name = type(value).__name__
+            if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
+                raise NexError(f"TypeError. Value assigned to SocketColor.v must float compatible. Recieved '{type_name}'.")
+
+            h, s, _, a = NexWrappedFcts['separate_color']('HSV', self,)
+            to_frame.append(a.nxsock.node)
+
+            new = NexWrappedFcts['combine_color']('HSV', h, s, value, a,)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+
+            to_frame.append(new.nxsock.node)
+            frame_nodes(self.node_tree, *to_frame, label=f"Col.setitem.v",)
 
         @property
         def hsv(self):
-            pass
+            return NexWrappedFcts['separate_color']('HSV', self,)[:3]
         @hsv.setter
         def hsv(self, value):
-            if (type(value) is tuple and len(value)==3):
-                  pass
-            else: raise NexError("TypeError. Assignment to SocketColor.hsv is expected to be a tuple of length 3 containing sockets or Python values.")
+            if not (type(value) in {tuple,Color,Vector,NexVec} and len(value)==3):
+                raise NexError("TypeError. Assignment to SocketColor.hsv is expected to be a tuple of length 3 containing sockets or Python values.")
+            to_frame = []
+
+            _, _, _, a = NexWrappedFcts['separate_color']('HSV', self,)
+            to_frame.append(a.nxsock.node)
+
+            new = NexWrappedFcts['combine_color']('HSV', value[0], value[1], value[2], a,)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+
+            to_frame.append(new.nxsock.node)
+            frame_nodes(self.node_tree, *to_frame, label=f"Col.setitem.hsv",)
 
         @property
-        def alpha(self):
+        def a(self):
             return self[3]
-        @alpha.setter
-        def alpha(self, value):
+        @a.setter
+        def a(self, value):
             self[3] = value
 
         @property
-        def lightness(self):
-            pass
-        @lightness.setter
-        def lightness(self, value):
-            pass
+        def l(self):
+            return NexWrappedFcts['separate_color']('HSL', self,)[2]
+        @l.setter
+        def l(self, value):
+            to_frame = []
+            type_name = type(value).__name__
+            if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
+                raise NexError(f"TypeError. Value assigned to SocketColor.l must float compatible. Recieved '{type_name}'.")
+
+            h, s, _, a = NexWrappedFcts['separate_color']('HSL', self,)
+            to_frame.append(a.nxsock.node)
+
+            new = NexWrappedFcts['combine_color']('HSL', h, s, value, a,)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+
+            to_frame.append(new.nxsock.node)
+            frame_nodes(self.node_tree, *to_frame, label=f"Col.setitem.l",)
 
         @property
-        def blackbody(self):
-            pass
-        @blackbody.setter
-        def blackbody(self, value):
-            #TODO find algo for setter
-            raise NexError("AssignationError. 'SocketColor.blackbody' is read-only.")
+        def hsl(self):
+            return NexWrappedFcts['separate_color']('HSL', self,)[:3]
+        @hsl.setter
+        def hsl(self, value):
+            if not (type(value) in {tuple,Color,Vector,NexVec} and len(value)==3):
+                raise NexError("TypeError. Assignment to SocketColor.hsl is expected to be a tuple of length 3 containing sockets or Python values.")
+            to_frame = []
+
+            _, _, _, a = NexWrappedFcts['separate_color']('HSL', self,)
+            to_frame.append(a.nxsock.node)
+
+            new = NexWrappedFcts['combine_color']('HSL', value[0], value[1], value[2], a,)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+
+            to_frame.append(new.nxsock.node)
+            frame_nodes(self.node_tree, *to_frame, label=f"Col.setitem.hsl",)
+
+        # TODO .c .m .y .k .cmyk would be really nice!
+        
+        # TODO need to get and set blackbody! find formula!
+        # complete nodesetter.get_blackbody
+        # @property
+        # def blackbody(self):
+        #     pass
+        # @blackbody.setter
+        # def blackbody(self, value):
+        #     pass
 
     # ooooo      ooo                       ooo        ooooo     .               
     # `888b.     `8'                       `88.       .888'   .o8               
@@ -1510,8 +1603,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         #def __len__(self): #len(itter)
         #    return 16??
-        #def __iter__
         #def __getitem__
+        #def __iter__
         #def __setitem__
 
         # ---------------------

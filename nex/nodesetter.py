@@ -7,6 +7,12 @@
 
 # NOTE The 'callhistory' internal parameter is an important functonality! Thanks to it, we can define a stable tag id for nodes generation,
 #  this functionality let us re-execute the functions to update potential .default_value without rebuilding the entire nodetree nodes and links again.
+# NOTE problem, calling functions often ex Vec.x Col.r ect.. will create a new node on each getter operation. 
+# To resolved superfuls creation of node the 'callhistory' functionality could perhaps create tags not based on function call, but based on function and their arguments.
+# The tag could look like F|funcname(ArgUniqueID1,ArgUniqueID2,ArgUniqueID3). This was implemented previously but we quickly reached limit of function name char[64]
+# this unique_tag would also need to support python types that may change on each execution (if the user is passing #frame or a obj.location to the function, we
+# need to find a way to recognize this value cross execution which is no easy task)
+
 
 import bpy 
 
@@ -15,7 +21,7 @@ from mathutils import Vector, Matrix, Quaternion
 
 from ..nex.pytonode import py_to_Vec3, py_to_Mtx16
 from ..utils.node_utils import link_sockets, frame_nodes, create_constant_input
-from ..utils.fct_utils import alltypes, anytype
+from ..utils.fct_utils import alltypes, anytype, ColorRGBA
 from ..utils.fct_utils import strongtyping as user_paramError
 
 sAny = bpy.types.NodeSocket
@@ -155,6 +161,78 @@ def assert_purple_node(node):
 #  `Y8bood8P'   `Y8bod8P' o888o o888o `Y8bod8P' d888b    `Y888""8o o888o      o888o        `Y8bod8P'   "888" 8""888P' 
 
 
+def generalnewnode(ng, callhistory, 
+    unique_name:str,
+    node_type:str,
+    *inputs, #passed inputs should correspond to node.inputs in an orderly manner
+    ) -> tuple:
+    """generic operation for adding anew node."""
+
+    #WIP currently unused
+    uniquename = get_unique_name(unique_name,callhistory)
+    node = None
+    needs_linking = False
+
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0,200,)
+
+        node = ng.nodes.new(node_type)
+
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        needs_linking = True
+        if (uniquename):
+            node.name = node.label = uniquename #Tag the node, in order to avoid unessessary build
+
+    for i, val in enumerate(inputs):
+        match val:
+
+            case _ if issubclass(type(val),sAny):
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+            
+            case _:
+                raise Exception("Resto of Implementation Needed")
+    
+    return node.outputs[0]
+
+def generalreroute(ng, callhistory, socket,):
+    """generic operation for adding a reroute."""
+
+    uniquename = get_unique_name('Reroute',callhistory)
+    node = None
+    needs_linking = False
+
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0,200,)
+
+        node = ng.nodes.new('NodeReroute')
+
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        needs_linking = True
+        if (uniquename):
+            node.name = node.label = uniquename #Tag the node, in order to avoid unessessary build
+
+    if needs_linking:
+        link_sockets(socket, node.inputs[0])
+
+    return node.outputs[0]
+
 def generalfloatmath(ng, callhistory,
     operation_type:str,
     val1:sFlo|sInt|sBoo|float|int|None=None,
@@ -209,36 +287,6 @@ def generalfloatmath(ng, callhistory,
             case None: pass
 
             case _: raise Exception(f"InternalError. Function generalfloatmath({operation_type}) recieved unsupported type '{type(val).__name__}'. This Error should've been catched previously!")
-
-    return node.outputs[0]
-
-def reroute(ng, callhistory, socket,):
-    """generic operation for adding a reroute."""
-
-    uniquename = get_unique_name('Reroute',callhistory)
-    node = None
-    needs_linking = False
-
-    if (uniquename):
-        node = ng.nodes.get(uniquename)
-
-    if (node is None):
-        last = ng.nodes.active
-        if (last):
-              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
-        else: location = (0,200,)
-
-        node = ng.nodes.new('NodeReroute')
-
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-
-        needs_linking = True
-        if (uniquename):
-            node.name = node.label = uniquename #Tag the node, in order to avoid unessessary build
-
-    if needs_linking:
-        link_sockets(socket, node.inputs[0])
 
     return node.outputs[0]
 
@@ -863,20 +911,44 @@ def generalmatrixmath(ng, callhistory,
 def generalcombsepa(ng, callhistory,
     operation_type:str,
     data_type:str, 
-    input_data:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sMtx|Vector|tuple|list|set,
+    input_data:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|sMtx|Vector|tuple|list|set,
     ) -> tuple|sVec|sMtx:
     """Generic function for creating 'combine' or 'separate' nodes, over multiple types"""
 
     node_types = {
         'SEPARATE': {
             'VECTORXYZ': 'ShaderNodeSeparateXYZ',
+            'COLORRGB': 'FunctionNodeSeparateColor',
+            'COLORHSV': 'FunctionNodeSeparateColor',
+            'COLORHSL': 'FunctionNodeSeparateColor',
             'MATRIXFLAT': 'FunctionNodeSeparateMatrix',
             'MATRIXTRANSFORM': 'FunctionNodeSeparateTransform',
             },
         'COMBINE': {
             'VECTORXYZ': 'ShaderNodeCombineXYZ',
+            'COLORRGB': 'FunctionNodeCombineColor',
+            'COLORHSV': 'FunctionNodeCombineColor',
+            'COLORHSL': 'FunctionNodeCombineColor',
             'MATRIXFLAT': 'FunctionNodeCombineMatrix',
             'MATRIXTRANSFORM': 'FunctionNodeCombineTransform',
+            },
+        }
+    prefix_names = {
+        'SEPARATE': {
+            'VECTORXYZ': "Sepa VecXYZ",
+            'COLORRGB': "Sepa ColRgb",
+            'COLORHSV': "Sepa ColHsv",
+            'COLORHSL': "Sepa ColHsl",
+            'MATRIXFLAT': "Sepa MtxFlat",
+            'MATRIXTRANSFORM': "Sepa Transf",
+            },
+        'COMBINE': {
+            'VECTORXYZ': "Comb VecXYZ",
+            'COLORRGB': "Comb ColRgb",
+            'COLORHSV': "Comb ColHsv",
+            'COLORHSL': "Comb ColHsl",
+            'MATRIXFLAT': "Comb MtxFlat",
+            'MATRIXTRANSFORM': "Comb Transf",
             },
         }
 
@@ -884,19 +956,6 @@ def generalcombsepa(ng, callhistory,
     if data_type not in node_types[operation_type]:
         raise ValueError(f"Unsupported data_type '{data_type}' for operation '{operation_type}'")
     nodetype = node_types[operation_type][data_type]
-
-    prefix_names = {
-        'SEPARATE': {
-            'VECTORXYZ': "Sepa VecXYZ",
-            'MATRIXFLAT': "Sepa MtxFlat",
-            'MATRIXTRANSFORM': "Sepa Transf",
-            },
-        'COMBINE': {
-            'VECTORXYZ': "Comb VecXYZ",
-            'MATRIXFLAT': "Comb MtxFlat",
-            'MATRIXTRANSFORM': "Comb Transf",
-            },
-        }
 
     nameid = prefix_names[operation_type][data_type]
     uniquename = get_unique_name(nameid, callhistory)
@@ -911,6 +970,8 @@ def generalcombsepa(ng, callhistory,
               location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
         else: location = (0,200,)
         node = ng.nodes.new(nodetype)
+        if (data_type in {'COLORHSV','COLORHSL'}):
+            node.mode = data_type.replace('COLOR','')
         node.location = location
         ng.nodes.active = node
 
@@ -923,7 +984,7 @@ def generalcombsepa(ng, callhistory,
         case 'SEPARATE':
             val = input_data
             match val:
-                case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sVecT() | sMtx():
+                case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sVecT() | sCol() | sMtx():
                     if needs_linking:
                         link_sockets(val, node.inputs[0])
 
@@ -1672,6 +1733,32 @@ def rotaxis(ng, callhistory,
     vC:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector|None=None,
     ) -> sVec:
     return generalverotate(ng, callhistory, 'AXIS_ANGLE',False, vA,vC,vX,fA,None,)
+
+@user_domain('nexclassmethod')
+def separate_color(ng, callhistory,
+    mode:str,
+    cA:sVec|sVecXYZ|sVecT|sCol,#|ColorRGBA,
+    ) -> tuple:
+    assert mode in {'RGB','HSV','HSL'}, f"{mode} not in 'RGB','HSV','HSL'"
+    return generalcombsepa(ng,callhistory, 'SEPARATE',f'COLOR{mode}', cA,)
+@user_domain('nexclassmethod')
+def combine_color(ng, callhistory,
+    mode:str,
+    f1:sFlo|sInt|sBoo|float|int,
+    f2:sFlo|sInt|sBoo|float|int,
+    f3:sFlo|sInt|sBoo|float|int,
+    f4:sFlo|sInt|sBoo|float|int,
+    ) -> sVec:
+    assert mode in {'RGB','HSV','HSL'}, f"{mode} not in 'RGB','HSV','HSL'"
+    return generalcombsepa(ng,callhistory, 'COMBINE',f'COLOR{mode}', (f1,f2,f3,f4),)
+
+# @user_domain('nexclassmethod')
+# def get_blackbody(ng, callhistory,
+# generalnode(ng, callhistory, 
+#     unique_name:str,
+#     node_type:str,
+#     *inputs, #passed inputs should correspond to node.inputs in an orderly manner
+#     )
 
 #covered internally in nexscript via python prop or function
 @user_domain('nexclassmethod')

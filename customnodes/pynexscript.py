@@ -124,6 +124,39 @@ NEXNOTATIONDOC = {
     'mA.inverted()': {
                 'name':"Invert Matrix.",
                 'desc':"Return the inverted matrix.\n\nIs a read-only property."},
+    'Col.r': {
+                'name':"Color Red Channel.",
+                'desc':"Get or Assign a SocketColor R value.\n\nIs equivalent to the 'Col[0]' notation."},
+    'Col.g': {
+                'name':"Color Green Channel.",
+                'desc':"Get or Assign a SocketColor G value.\n\nIs equivalent to the 'Col[1]' notation."},
+    'Col.b': {
+                'name':"Color Blue Channel.",
+                'desc':"Get or Assign a SocketColor B value.\n\nIs equivalent to the 'Col[2]' notation."},
+    'Col.rgb': {
+                'name':"Color RGB tuple.",
+                'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding RGB channels of a SocketColor.\nAccepts Assigning a SocketVector or Vector as XYZ to RGB values as well.\n\nIs equivalent to the 'Col[:]' notation."},
+    'Col.h': {
+                'name':"Color Hue Channel.",
+                'desc':"Get or Assign a SocketColor H value."},
+    'Col.s': {
+                'name':"Color Saturation Channel.",
+                'desc':"Get or Assign a SocketColor S value."},
+    'Col.v': {
+                'name':"Color Value Channel.",
+                'desc':"Get or Assign a SocketColor V value."},
+    'Col.hsv': {
+                'name':"Color HSV tuple.",
+                'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding HSV channels of a SocketColor.\nAccepts Assigning a SocketVector or Vector as XYZ to HSV values as well."},
+    'Col.l': {
+                'name':"Color Lightness Channel.",
+                'desc':"Get or Assign a SocketColor L value."},
+    'Col.hsl': {
+                'name':"Color HSL tuple.",
+                'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding HSL channels of a SocketColor.\nAccepts Assigning a SocketVector or Vector as XYZ to HSL values as well."},
+    'Col.a': {
+                'name':"Color Alpha Channel.",
+                'desc':"Get or Assign a SocketColor A value.\n\nIs equivalent to the 'Col[3]' notation."},
     }
 
 
