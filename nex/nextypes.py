@@ -22,7 +22,7 @@
 import bpy
 
 import traceback
-import math
+import math, random
 from mathutils import Vector, Matrix
 from functools import partial
 
@@ -157,6 +157,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         def wrappedfunc(*args, **kwargs):
             fname = sockfunc.__name__
+            values = tuple(args) + tuple(kwargs.values())
 
             if (len(args)>=1):
 
@@ -169,11 +170,14 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 # Name conflict with some native functions? If no NexType foud, we simply call builtin function
                 match fname:
                     case 'cos'|'sin'|'tan'|'acos'|'asin'|'atan'|'cosh'|'sinh'|'tanh'|'sqrt'|'log'|'degrees'|'radians'|'floor'|'ceil'|'trunc':
-                        if not any(('Nex' in type(v).__name__) for v in args):
+                        if not any(('Nex' in type(v).__name__) for v in values):
                             mathfunction = getattr(math,fname)
                             return mathfunction(*args, **kwargs)
+                    # case 'randint':
+                    #     if not any(('Nex' in type(v).__name__) for v in values):
+                    #         return random.randint(*args, **kwargs)
                     case 'min'|'max':
-                        if not any(('Nex' in type(v).__name__) for v in args):
+                        if not any(('Nex' in type(v).__name__) for v in values):
                             return min(*args, **kwargs) if (fname=='min') else max(*args, **kwargs)
 
             #Process the passed args:
@@ -1395,7 +1399,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     #  8     `88b.8  888ooo888    Y888'    888      888  888   888    888   
     #  8       `888  888    .o  .o8"'88b   `88b    d88'  888   888    888 . 
     # o8o        `8  `Y8bod8P' o88'   888o  `Y8bood8P'   `V88V"V8P'   "888" 
-                                                                        
+
     class NexOutput(Nex):
         """A nex output is just a simple linking operation. We only assign to an output.
         After assinging the final output not a lot of other operations are possible"""
@@ -1435,7 +1439,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     out_type = self.nxstype
                     if (out_type=='NodeSocketNexAutomatic'):
                         out_type = value.nxstype
-                    
+
                     #get socket, create if non existent
                     outsock = get_socket(self.node_tree, in_out='OUTPUT', socket_name=socket_name,)
                     if (outsock is None):

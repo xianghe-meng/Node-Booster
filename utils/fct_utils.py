@@ -108,7 +108,7 @@ def strongtyping(PassedError):
                     # param_value is a tuple of items
                     for item in param_value:
                         if not check_annotation(item, annotated_type):
-                            raise PassedError(f"Function {func.__name__}({parameternames}..) accepts Params of type {pretty(annotated_type)}. Recieved {pretty(item,istype=True)}.")
+                            raise PassedError(f"Function {func.__name__}({parameternames}{', ' if parameternames else ''}{param_name}..) accepts Params of type {pretty(annotated_type)}. Recieved {pretty(item,istype=True)}.")
                 else:
                     # Normal parameter check a single value
                     if not check_annotation(param_value, annotated_type):
