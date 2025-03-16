@@ -43,6 +43,7 @@ TAGGED = []
 
 def convert_pyargs(*args, toVector=False, toFloat=False, toBool=False, toRGBA=False, toMatrix=False,) -> tuple:
     """convert the passed args to python types ignoring sockets"""
+    #NOTE the wrap_socketfunctions already should convert py parameters of a functions when in use in a NexScript.
     if (toFloat):
         return [float(a) if (type(a) in (int,bool)) else a for a in args]
     if (toBool):
@@ -59,7 +60,7 @@ def containsVecs(*args) -> bool:
     return anytype(*args ,types=(sVec, sVecXYZ, sVecT, Vector),)
 
 def containsCols(*args) -> bool:
-    return anytype(*args ,types=(sCol, ColorRGBA),)
+    return anytype(*args ,types=(sCol, Color, ColorRGBA),)
 
 def user_domain(*tags):
     """decorator to easily retrieve functions names by tag on an orderly manner at runtime"""
@@ -493,9 +494,9 @@ def generalverotate(ng, callhistory,
 def generalmix(ng, callhistory,
     data_type:str,
     factor:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector|None=None,
-    val1:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector|None=None,
-    val2:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector|None=None,
-    ) -> sFlo|sVec:
+    val1:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA|None=None,
+    val2:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA|None=None,
+    ) -> sFlo|sVec|sCol:
     """generic operation for adding a mix node and linking."""
 
     uniquename = get_unique_name('Mix',callhistory)
@@ -535,18 +536,18 @@ def generalmix(ng, callhistory,
         case 'RGBA':
             outidx = 2
             indexes = (0,6,7)
-            args = convert_pyargs(*args, toRGBA=True,)
+            args = (factor, *convert_pyargs(val1, val2, toRGBA=True,),)
         case _:
             raise Exception("Integration Needed")
 
     for i,val in zip(indexes,args):
         match val:
 
-            case sFlo() | sInt() | sBoo() | sVec() | sVecXYZ() | sVecT():
+            case _ if issubclass(type(val),sAny):
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
-            case Vector():
+            case Vector() | ColorRGBA():
                 if node.inputs[i].default_value[:] != val[:]:
                     node.inputs[i].default_value = val
                     assert_purple_node(node)
@@ -1017,6 +1018,7 @@ def generalcombsepa(ng, callhistory,
             'MATRIXTRANSFORM': 'FunctionNodeCombineTransform',
             },
         }
+
     prefix_names = {
         'SEPARATE': {
             'VECTORXYZ': "Sepa VecXYZ",
@@ -1827,21 +1829,25 @@ def rotaxis(ng, callhistory,
     ) -> sVec:
     return generalverotate(ng, callhistory, 'AXIS_ANGLE',False, vA,vC,vX,fA,None,)
 
-@user_domain('nexclassmethod')
+@user_domain('nexscript')
+@user_doc(nexscript="Separate Color.\nSeparate a SocketColor into a tuple of 4 SocketFloat depending on the optionally passed mode in 'RGB','HSV','HSL'.\nThe fourth element of the tuple must be the alpha.\n\nTip: you can use python slicing notations instead.")
+@user_paramError(UserParamError)
 def separate_color(ng, callhistory,
-    mode:str,
-    cA:sVec|sVecXYZ|sVecT|sCol,#|ColorRGBA,
+    colA:sVec|sVecXYZ|sVecT|sCol,
+    mode:str='RGB',
     ) -> tuple:
     assert mode in {'RGB','HSV','HSL'}, f"{mode} not in 'RGB','HSV','HSL'"
-    return generalcombsepa(ng,callhistory, 'SEPARATE',f'COLOR{mode}', cA,)
-@user_domain('nexclassmethod')
+    return generalcombsepa(ng,callhistory, 'SEPARATE',f'COLOR{mode}', colA,)
+@user_domain('nexscript')
+@user_doc(nexscript="Combine Color.\nCombine 4 SocketFloat, SocketInt or SocketBool into a SocketColor depending on the optionally passed mode in 'RGB','HSV','HSL'.\nThe fourth element of the tuple must be the alpha.")
+@user_paramError(UserParamError)
 def combine_color(ng, callhistory,
-    mode:str,
     f1:sFlo|sInt|sBoo|float|int,
     f2:sFlo|sInt|sBoo|float|int,
     f3:sFlo|sInt|sBoo|float|int,
     f4:sFlo|sInt|sBoo|float|int,
-    ) -> sVec:
+    mode:str='RGB',
+    ) -> sCol:
     assert mode in {'RGB','HSV','HSL'}, f"{mode} not in 'RGB','HSV','HSL'"
     return generalcombsepa(ng,callhistory, 'COMBINE',f'COLOR{mode}', (f1,f2,f3,f4),)
 
@@ -2115,14 +2121,18 @@ def alleq(ng, callhistory,
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Mix.\nLinear Interpolation between value A and B from given factor F.")
-@user_doc(nexscript="Mix.\nLinear Interpolation between value A and B from given factor F.\nSupports SocketFloat and SocketVector.")
+@user_doc(nexscript="Mix.\nLinear Interpolation between value A and B from given factor F.\nSupports SocketFloat, SocketVector and SocketColor.")
 @user_paramError(UserParamError)
 def lerp(ng, callhistory,
     f:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
+    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
+    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     ) -> sFlo|sVec:
-    if containsVecs(f,a,b):
+    if containsVecs(f):
+        return generalmix(ng,callhistory, 'VECTOR',f,a,b)
+    if containsCols(a,b):
+        return generalmix(ng,callhistory, 'RGBA',f,a,b)
+    if containsVecs(a,b):
         return generalmix(ng,callhistory, 'VECTOR',f,a,b)
     return generalmix(ng,callhistory, 'FLOAT',f,a,b)
 @user_domain('mathex','nexscript')
@@ -2131,8 +2141,8 @@ def lerp(ng, callhistory,
 @user_paramError(UserParamError)
 def mix(ng, callhistory,
     f:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
+    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
+    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     ) -> sFlo|sVec:
     return lerp(ng,callhistory, f,a,b)
 

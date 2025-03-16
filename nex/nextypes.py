@@ -21,6 +21,7 @@
 
 import bpy
 
+bpy_array = bpy.types.bpy_prop_array
 import traceback
 import math, random
 from mathutils import Vector, Matrix, Color
@@ -190,7 +191,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
             # -2 support for tuple as vectors or matrix?
             if (auto_convert_itter):
-                args = [trypy_to_Vec3(v) if (type(v) in {tuple,list,set}) and (len(v)==3) and all((type(i) in {float,int}) for i in v) else v for v in args]
+                args = [trypy_to_Vec3(v) if (type(v) in {tuple,list,set,Vector}) and (len(v)==3) and all((type(i) in {float,int}) for i in v) else v for v in args]
+                args = [trypy_to_RGBA(v) if (type(v) in {tuple,list,set,Color,bpy_array}) and (len(v)==4) and all((type(i) in {float,int}) for i in v) else v for v in args]
                 args = [trypy_to_Mtx16(v) if (type(v) in {tuple,list,set}) and (len(v)==16) and all((type(i) in {float,int}) for i in v) else v for v in args]
 
             #define a function with the first two args already defined
@@ -381,7 +383,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             self_type = type(self).__name__
             type_name = type(other).__name__
 
-            print("__add",self_type , type_name)
             match type_name:
                 case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexCol':
                     args = self, other
@@ -1336,13 +1337,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __getitem__(self, key): #suport c = col[0], r,g,b,a = col ect..
             match key:
                 case int(): #col[i]
-                    sep_col = NexWrappedFcts['separate_color']('RGB',self,)
+                    sep_col = NexWrappedFcts['separate_color'](self, mode='RGB')
                     if key not in (0,1,2,3):
                         raise NexError("IndexError. indice in SocketColor[i] exceeded maximal range of 3.")
                     return sep_col[key]
 
                 case slice(): #col[:i]
-                    sep_col = NexWrappedFcts['separate_color']('RGB',self,)
+                    sep_col = NexWrappedFcts['separate_color'](self, mode='RGB')
                     indices = range(*key.indices(4))
                     return tuple(sep_col[i] for i in indices)
 
@@ -1360,7 +1361,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case int(): #vec[i]
                     if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                         raise NexError(f"TypeError. Value assigned to SocketColor[i] must float compatible. Recieved '{type_name}'.")
-                    r, g, b, a = NexWrappedFcts['separate_color']('RGB', self,)
+                    r, g, b, a = NexWrappedFcts['separate_color'](self, mode='RGB')
                     to_frame.append(a.nxsock.node)
                     match key:
                         case 0: new_col = value, g, b, a
@@ -1378,7 +1379,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
                 case _: raise NexError("TypeError. indices in SocketColor[i] must be integers or slices.")
 
-            new = NexWrappedFcts['combine_color']('RGB',*new_col,)
+            new = NexWrappedFcts['combine_color'](*new_col, mode='RGB')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             to_frame.append(new.nxsock.node)
@@ -1423,10 +1424,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 raise NexError("TypeError. Assignment to SocketColor.rgb is expected to be a tuple of length 3 containing sockets or Python values.")
             to_frame = []
 
-            _, _, _, a = NexWrappedFcts['separate_color']('RGB', self,)
+            _, _, _, a = NexWrappedFcts['separate_color'](self, mode='RGB')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color']('RGB', value[0], value[1], value[2], a,)
+            new = NexWrappedFcts['combine_color'](value[0], value[1], value[2], a, mode='RGB')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1435,7 +1436,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def h(self):
-            return NexWrappedFcts['separate_color']('HSV', self,)[0]
+            return NexWrappedFcts['separate_color'](self, mode='HSV')[0]
         @h.setter
         def h(self, value):
             to_frame = []
@@ -1443,10 +1444,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                 raise NexError(f"TypeError. Value assigned to SocketColor.h must float compatible. Recieved '{type_name}'.")
 
-            _, s, v, a = NexWrappedFcts['separate_color']('HSV', self,)
+            _, s, v, a = NexWrappedFcts['separate_color'](self, mode='HSV')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color']('HSV', value, s, v, a,)
+            new = NexWrappedFcts['combine_color'](value, s, v, a, mode='HSV')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1455,7 +1456,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def s(self):
-            return NexWrappedFcts['separate_color']('HSV', self,)[1]
+            return NexWrappedFcts['separate_color'](self, mode='HSV')[1]
         @s.setter
         def s(self, value):
             to_frame = []
@@ -1463,10 +1464,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                 raise NexError(f"TypeError. Value assigned to SocketColor.s must float compatible. Recieved '{type_name}'.")
 
-            h, _, v, a = NexWrappedFcts['separate_color']('HSV', self,)
+            h, _, v, a = NexWrappedFcts['separate_color'](self, mode='HSV')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color']('HSV', h, value, v, a,)
+            new = NexWrappedFcts['combine_color'](h, value, v, a, mode='HSV')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1475,7 +1476,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def v(self):
-            return NexWrappedFcts['separate_color']('HSV', self,)[2]
+            return NexWrappedFcts['separate_color'](self, mode='HSV')[2]
         @v.setter
         def v(self, value):
             to_frame = []
@@ -1483,10 +1484,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                 raise NexError(f"TypeError. Value assigned to SocketColor.v must float compatible. Recieved '{type_name}'.")
 
-            h, s, _, a = NexWrappedFcts['separate_color']('HSV', self,)
+            h, s, _, a = NexWrappedFcts['separate_color'](self, mode='HSV')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color']('HSV', h, s, value, a,)
+            new = NexWrappedFcts['combine_color'](h, s, value, a, mode='HSV')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1495,17 +1496,17 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def hsv(self):
-            return NexWrappedFcts['separate_color']('HSV', self,)[:3]
+            return NexWrappedFcts['separate_color'](self, mode='HSV')[:3]
         @hsv.setter
         def hsv(self, value):
             if not (type(value) in {tuple,Color,Vector,NexVec} and len(value)==3):
                 raise NexError("TypeError. Assignment to SocketColor.hsv is expected to be a tuple of length 3 containing sockets or Python values.")
             to_frame = []
 
-            _, _, _, a = NexWrappedFcts['separate_color']('HSV', self,)
+            _, _, _, a = NexWrappedFcts['separate_color'](self, mode='HSV')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color']('HSV', value[0], value[1], value[2], a,)
+            new = NexWrappedFcts['combine_color'](value[0], value[1], value[2], a, mode='HSV')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1521,7 +1522,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def l(self):
-            return NexWrappedFcts['separate_color']('HSL', self,)[2]
+            return NexWrappedFcts['separate_color'](self, mode='HSL')[2]
         @l.setter
         def l(self, value):
             to_frame = []
@@ -1529,10 +1530,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                 raise NexError(f"TypeError. Value assigned to SocketColor.l must float compatible. Recieved '{type_name}'.")
 
-            h, s, _, a = NexWrappedFcts['separate_color']('HSL', self,)
+            h, s, _, a = NexWrappedFcts['separate_color'](self, mode='HSL')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color']('HSL', h, s, value, a,)
+            new = NexWrappedFcts['combine_color'](h, s, value, a, mode='HSL')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1541,17 +1542,17 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def hsl(self):
-            return NexWrappedFcts['separate_color']('HSL', self,)[:3]
+            return NexWrappedFcts['separate_color'](self, mode='HSL')[:3]
         @hsl.setter
         def hsl(self, value):
             if not (type(value) in {tuple,Color,Vector,NexVec} and len(value)==3):
                 raise NexError("TypeError. Assignment to SocketColor.hsl is expected to be a tuple of length 3 containing sockets or Python values.")
             to_frame = []
 
-            _, _, _, a = NexWrappedFcts['separate_color']('HSL', self,)
+            _, _, _, a = NexWrappedFcts['separate_color'](self, mode='HSL')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color']('HSL', value[0], value[1], value[2], a,)
+            new = NexWrappedFcts['combine_color'](value[0], value[1], value[2], a, mode='HSL')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
