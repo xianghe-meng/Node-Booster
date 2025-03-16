@@ -66,6 +66,7 @@ def strongtyping(PassedError):
             return annot
         annot = str(annot)
         annot = annot.replace('bpy.types.','').replace('NodeSocket','Socket')
+        annot = annot.replace('| bl_ext.ExtraNodes.nodebooster.utils.fct_utils.ColorRGBA','') #internal type. User don't have access to ColorRGBA
         annot = annot.replace('SocketVectorXYZ | ','').replace('SocketVectorTranslation | ','') #internal dumb distinctions..
         annot = annot.replace(' |',',')
         annot = annot.replace("<class '",'').replace("'>",'')

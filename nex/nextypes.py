@@ -209,9 +209,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 msg = str(e)
                 if ('Expected parameters in' in msg):
                     msg = f"TypeError. Function {fname}() Expected parameters in " + str(e).split('Expected parameters in ')[1]
-                else:
-                    print(f"Uncatched error with function {partialsockfunc}(). {e}")
-                raise NexError(msg) #Note that a previous NexError Should've been raised prior to that.
+                raise NexError(msg) #Note that Ideally, a previous NexError Should've been raised prior to that.
 
             except Exception as e:
                 print(f"ERROR: wrap_socketfunctions.{fname}() caught error {type(e).__name__}")
