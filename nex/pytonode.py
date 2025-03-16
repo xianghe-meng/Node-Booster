@@ -12,50 +12,59 @@ from ..utils.fct_utils import ColorRGBA
 
 def py_to_Vec3(value):
     match value:
+        
         case Vector():
             if (len(value)!=3): raise TypeError(f"Vector({value[:]}) should have 3 elements for 'SocketVector' compatibility.")
             return value
-        case list() | set() | tuple():
+
+        case list() | set() | tuple() | bpy_array():
             if (len(value)!=3): raise TypeError(f"{type(value).__name__}({value[:]}) should have 3 float elements for 'SocketVector' compatibility.")
             return Vector(value)
+
         case int() | float() | bool():
             return Vector((float(value), float(value), float(value),))
-        case _:
-            raise TypeError(f"type {type(value).__name__}({value[:]}) is not compatible with 'SocketVector'.")
+
+        case _: raise TypeError(f"type {type(value).__name__}({value[:]}) is not compatible with 'SocketVector'.")
 
 def py_to_RGBA(value):
     match value:
+
+        case ColorRGBA():
+            return value
+
         case Color():
             return ColorRGBA(value[0], value[1], value[2], 1.0)
-        case list() | set() | tuple():
+
+        case list() | set() | tuple() | bpy_array() | Vector():
             if len(value) not in (3, 4):
                 raise TypeError(f"{type(value).__name__}({list(value)}) should have 3 or 4 elements for 'ColorRGBA' compatibility.")
             if (len(value)==3):
-                return ColorRGBA(value[0], value[1], value[2], 1.0)
-            else:
-                return ColorRGBA(value[0], value[1], value[2], value[3])
+                  return ColorRGBA(value[0], value[1], value[2], 1.0)
+            else: return ColorRGBA(value[0], value[1], value[2], value[3])
+
         case int() | float() | bool():
             v = float(value)
             return ColorRGBA(v, v, v, 1.0)
+
         case _:
             extra = value[:] if hasattr(value, '__getitem__') else value
             raise TypeError(f"type {type(value).__name__}({extra}) is not compatible with 'ColorRGBA'.")
 
 def py_to_Mtx16(value):
     match value:
+
         case Matrix():
             rowflatten = [v for row in value for v in row]
-            if (len(value)!=4):
-                raise TypeError(f"type Matrix({rowflatten[:]}) type should have 4 rows or 4 elements of float values for 'SocketMatrix' compatibility.")
-            if (len(rowflatten)!=16):
-                raise TypeError(f"type Matrix({rowflatten[:]}) should contain a total of 16 elements for 'SocketMatrix' compatibility. {len(rowflatten)} found.")
+            if (len(value)!=4): raise TypeError(f"type Matrix({rowflatten[:]}) type should have 4 rows or 4 elements of float values for 'SocketMatrix' compatibility.")
+            if (len(rowflatten)!=16): raise TypeError(f"type Matrix({rowflatten[:]}) should contain a total of 16 elements for 'SocketMatrix' compatibility. {len(rowflatten)} found.")
             return value
+
         case list() | set() | tuple():
             if (len(value)!=16): raise TypeError(f"{type(value).__name__}({value[:]}) should contain 16 float elements for 'SocketMatrix' compatibility. {len(value)} elements found.")
             rows = [value[i*4:(i+1)*4] for i in range(4)]
             return Matrix(rows)
-        case _:
-            raise TypeError(f"Cannot convert type {type(value).__name__}({value[:]}) to Matrix().")
+        
+        case _: raise TypeError(f"Cannot convert type {type(value).__name__}({value[:]}) to Matrix().")
 
 def py_to_Sockdata(value):
     """Convert a given python variable into data we can use to create and assign sockets"""

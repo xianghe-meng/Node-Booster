@@ -17,9 +17,9 @@
 import bpy 
 
 from functools import partial
-from mathutils import Vector, Matrix, Quaternion
+from mathutils import Vector, Matrix, Quaternion, Color
 
-from ..nex.pytonode import py_to_Vec3, py_to_Mtx16
+from ..nex.pytonode import py_to_Vec3, py_to_Mtx16, py_to_RGBA
 from ..utils.node_utils import link_sockets, frame_nodes, create_constant_input
 from ..utils.fct_utils import alltypes, anytype, ColorRGBA
 from ..utils.fct_utils import strongtyping as user_paramError
@@ -41,13 +41,25 @@ NODE_YOFF, NODE_XOFF = 90, 70
 TAGGED = []
 
 
-def convert_args(*args, toVector=False,) -> tuple:
+def convert_pyargs(*args, toVector=False, toFloat=False, toBool=False, toRGBA=False, toMatrix=False,) -> tuple:
+    """convert the passed args to python types ignoring sockets"""
+    if (toFloat):
+        return [float(a) if (type(a) in (int,bool)) else a for a in args]
+    if (toBool):
+        return [bool(a) if (type(a) in (int,float)) else a for a in args]
     if (toVector):
-        return [Vector((a,a,a)) if type(a) in (int,bool,float) else a for a in args]
+        return [py_to_Vec3(a) if (type(a) in (int,bool,float,Vector)) else a for a in args]
+    if (toRGBA):
+        return [py_to_RGBA(a) if (type(a) in (int,bool,float,Color,Vector)) else a for a in args]
+    if (toMatrix):
+        return [py_to_Mtx16(a) if (type(a) in (int,bool,float,Matrix)) else a for a in args]
     return None
 
 def containsVecs(*args) -> bool:
     return anytype(*args ,types=(sVec, sVecXYZ, sVecT, Vector),)
+
+def containsCols(*args) -> bool:
+    return anytype(*args ,types=(sCol, ColorRGBA),)
 
 def user_domain(*tags):
     """decorator to easily retrieve functions names by tag on an orderly manner at runtime"""
@@ -352,6 +364,69 @@ def generalvecmath(ng, callhistory,
 
     return node.outputs[outidx]
 
+@user_domain('nexclassmethod')
+def generalcolormath(ng, callhistory,
+    blend_type:str,
+    colA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|ColorRGBA|Vector,
+    colB:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|ColorRGBA|Vector,
+    factor:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|None=1.0,
+    ) -> sCol:
+    """Generic operation for adding a vector math node and linking."""
+
+    if not alltypes(colA, colB, types=(sFlo,sInt,sBoo,sVec,sVecXYZ,sVecT,sCol,float,int,bool,ColorRGBA,Vector),):
+        raise Exception(f"InternalError. Function generalcolormath('{blend_type}') did not recieved color compatible type. Recieved '{type(colA).__name__}' and '{type(colB).__name__}'. This Error should've been catched previously!")
+
+    uniquename = get_unique_name('ColorMath',callhistory)
+    node = None
+    needs_linking = False
+    indexes = (0,6,7)
+    args = (factor, *convert_pyargs(colA, colB, toRGBA=True,),)
+
+    if (uniquename):
+        node = ng.nodes.get(uniquename)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0, 200)
+        node = ng.nodes.new('ShaderNodeMix')
+        node.data_type = 'RGBA'
+        node.blend_type = blend_type
+        node.clamp_result = False #clamp_result
+        node.clamp_factor = False #clamp_factor
+        node.location = location
+        ng.nodes.active = node
+
+        needs_linking = True
+        if (uniquename):
+            node.name = node.label = uniquename
+    
+    for i,val in zip(indexes, args):
+        match val:
+
+            case _ if issubclass(type(val),sAny):
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+
+            case ColorRGBA():
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val[:]
+                    assert_purple_node(node)
+
+            case float() | int() | bool():
+                if type(val) is bool:
+                    val = float(val)
+                if node.inputs[i].default_value != val:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case None: pass
+
+            case _: raise Exception(f"InternalError. Function generalcolormath('{blend_type}') recieved unsupported type '{type(val).__name__}'. This Error should've been catched previously!")
+
+    return node.outputs[2]
+
 def generalverotate(ng, callhistory,
     rotation_type:str,
     invert:bool,
@@ -439,7 +514,7 @@ def generalmix(ng, callhistory,
         node = ng.nodes.new('ShaderNodeMix')
         node.data_type = data_type
         node.clamp_factor = False
-        node.factor_mode = 'NON_UNIFORM'
+        node.factor_mode = 'NON_UNIFORM' #For vector, we always mix non uniformly. float will be converted to vector anyway
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
 
@@ -452,10 +527,15 @@ def generalmix(ng, callhistory,
         case 'FLOAT':
             outidx = 0
             indexes = (0,2,3)
+            args = convert_pyargs(*args, toFloat=True,)
         case 'VECTOR':
             outidx = 1
             indexes = (1,4,5)
-            args = convert_args(*args, toVector=True,)
+            args = convert_pyargs(*args, toVector=True,)
+        case 'RGBA':
+            outidx = 2
+            indexes = (0,6,7)
+            args = convert_pyargs(*args, toRGBA=True,)
         case _:
             raise Exception("Integration Needed")
 
@@ -471,7 +551,7 @@ def generalmix(ng, callhistory,
                     node.inputs[i].default_value = val
                     assert_purple_node(node)
 
-            case float() | int() | bool():
+            case float():
                 if type(val) is bool:
                     val = float(val)
                 if (node.inputs[i].default_value!=val):
@@ -591,7 +671,7 @@ def generalmaprange(ng, callhistory,
         case 'FLOAT_VECTOR':
             outidx = 1
             indexes = (6,7,8,9,10,11)
-            args = convert_args(*args, toVector=True,)
+            args = convert_pyargs(*args, toVector=True,)
         case _:
             raise Exception("Integration Needed")
 
@@ -646,15 +726,14 @@ def generalminmax(ng, callhistory,
 def generalcompare(ng, callhistory,
     data_type:str,
     operation:str,
-    val1:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector|None=None,
-    val2:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector|None=None,
+    val1:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA|None=None,
+    val2:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA|None=None,
     epsilon:sFlo|sInt|sBoo|float|int|None=None,
     ) -> sBoo:
     """generic operation for comparison operation and linking."""
 
     uniquename = get_unique_name('Compa',callhistory)
     node = None
-    args = (val1, val2, epsilon,)
     needs_linking = False
 
     if (uniquename):
@@ -681,9 +760,13 @@ def generalcompare(ng, callhistory,
     match data_type:
         case 'FLOAT':
             indexes = (0,1,12)
+            args = (*convert_pyargs(val1,val2, toFloat=True,), epsilon,)
+        case 'RGBA':
+            indexes = (6,7,12)
+            args = (*convert_pyargs(val1,val2, toRGBA=True,), epsilon,)
         case 'VECTOR':
             indexes = (4,5,12)
-            args = convert_args(*args, toVector=True,)
+            args = (*convert_pyargs(val1,val2, toVector=True,), epsilon,)
         case _:
             raise Exception("Integration Needed")
 
@@ -699,9 +782,10 @@ def generalcompare(ng, callhistory,
                     node.inputs[i].default_value = val
                     assert_purple_node(node)
 
-            case float() | int() | bool():
-                if type(val) is bool:
-                    val = float(val)
+            case ColorRGBA():
+                raise Exception("To Implement")
+
+            case float():
                 if (node.inputs[i].default_value!=val):
                     node.inputs[i].default_value = val
                     assert_purple_node(node)
@@ -1092,6 +1176,7 @@ def generalswitch(ng, callhistory,
                 case 'float': converted.append(float(p))
                 case 'bool': converted.append(bool(p))
                 case 'vec': converted.append(py_to_Vec3(p))
+                case 'col': converted.append(py_to_RGBA(p))
                 case 'mat': converted.append(py_to_Mtx16(p))
         except:
             raise UserParamError(f"Function switch{Type}() Recieved an unexpected type '{type(p).__name__}'.")
@@ -1168,7 +1253,7 @@ def generalrandom(ng, callhistory,
         case 'FLOAT_VECTOR':
             outidx = 0
             indexes = (0,1,7,8)
-            args = (py_to_Vec3(valmin), py_to_Vec3(valmax), ID, seed)
+            args = (*convert_pyargs(valmin,valmax, toVector=True,), ID, seed)
         case 'FLOAT':
             outidx = 1
             indexes = (2,3,7,8)
@@ -1228,9 +1313,11 @@ class UserParamError(Exception):
 @user_doc(mathex="Addition.\nEquivalent to the '+' symbol.")
 @user_paramError(UserParamError)
 def add(ng, callhistory,
-    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    ) -> sFlo|sVec:
+    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
+    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
+    ) -> sFlo|sVec|sCol:
+    if containsCols(a,b):
+        return generalcolormath(ng,callhistory, 'ADD',a,b)
     if containsVecs(a,b):
         return generalvecmath(ng,callhistory, 'ADD',a,b)
     return generalfloatmath(ng,callhistory, 'ADD',a,b)
@@ -1240,9 +1327,11 @@ def add(ng, callhistory,
 @user_doc(mathex="Subtraction.\nEquivalent to the '-' symbol.")
 @user_paramError(UserParamError)
 def sub(ng, callhistory,
-    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    ) -> sFlo|sVec:
+    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
+    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
+    ) -> sFlo|sVec|sCol:
+    if containsCols(a,b):
+        return generalcolormath(ng,callhistory, 'SUBTRACT',a,b)
     if containsVecs(a,b):
         return generalvecmath(ng,callhistory, 'SUBTRACT',a,b)
     return generalfloatmath(ng,callhistory, 'SUBTRACT',a,b)
@@ -1252,9 +1341,11 @@ def sub(ng, callhistory,
 @user_doc(mathex="Multiplications.\nEquivalent to the '*' symbol.")
 @user_paramError(UserParamError)
 def mult(ng, callhistory,
-    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    ) -> sFlo|sVec:
+    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
+    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
+    ) -> sFlo|sVec|sCol:
+    if containsCols(a,b):
+        return generalcolormath(ng,callhistory, 'MULTIPLY',a,b)
     if containsVecs(a,b):
         return generalvecmath(ng,callhistory, 'MULTIPLY',a,b)
     return generalfloatmath(ng,callhistory, 'MULTIPLY',a,b)
@@ -1264,9 +1355,11 @@ def mult(ng, callhistory,
 @user_doc(mathex="Division.\nEquivalent to the '/' symbol.")
 @user_paramError(UserParamError)
 def div(ng, callhistory,
-    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    ) -> sFlo|sVec:
+    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
+    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
+    ) -> sFlo|sVec|sCol:
+    if containsCols(a,b):
+        return generalcolormath(ng,callhistory, 'DIVIDE',a,b)
     if containsVecs(a,b):
         return generalvecmath(ng,callhistory, 'DIVIDE',a,b)
     return generalfloatmath(ng,callhistory, 'DIVIDE',a,b)
@@ -1915,6 +2008,7 @@ def iseq(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|Vector,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|Vector,
     )->sBoo:
+    # NOTE it is a little strange to assume 1 == Vector(1,1,1)  == Color(1,1,1,1)? but oh well, that's how blender comparison system works with it's implicit types.
     if alltypes(a,b,types=(sBoo, bool),):
         return generalboolmath(ng,callhistory, 'XNOR', a,b)
     if containsVecs(a,b):

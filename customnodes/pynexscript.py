@@ -30,19 +30,19 @@ NEXFUNCDOC = generate_documentation(tag='nexscript')
 NEXNOTATIONDOC = {
     'a + b': {
                 'name':"Addition",
-                'desc':"Add between SocketFloats, SocketInts, SocketBools, SocketVectors.\nType conversion is implicit."},
+                'desc':"Add between SocketFloats, SocketInts, SocketBools, SocketVector or SocketColors.\nType conversion is implicit."},
     'a - b': {
                 'name':"Subtraction.",
-                'desc':"Subtract between SocketFloats, SocketInts, SocketBools, SocketVectors.\nType conversion is implicit."},
+                'desc':"Subtract between SocketFloats, SocketInts, SocketBools, SocketVector or SocketColors.\nType conversion is implicit."},
     'a * b': {
                 'name':"Multiplication.",
-                'desc':"Multiply between SocketFloats, SocketInts, SocketBools, SocketVectors.\nType conversion is implicit."},
-    'a ** b': {
-                'name':"Power.",
-                'desc':"Raise SocketFloats, SocketInts, SocketBools, SocketVectors\nType conversion is implicit."},
+                'desc':"Multiply between SocketFloats, SocketInts, SocketBools, SocketVector or SocketColors.\nType conversion is implicit."},
     'a / b': {
                 'name':"Division.",
-                'desc':"Divide between SocketFloats, SocketInts, SocketBools, SocketVectors.\nType conversion is implicit."},
+                'desc':"Divide between SocketFloats, SocketInts, SocketBools, SocketVectors or SocketColors.\nType conversion is implicit."},
+    'a ** b': {
+                'name':"Power.",
+                'desc':"Raise SocketFloats, SocketInts, SocketBools, SocketVector\nType conversion is implicit."},
     'a // b': {
                 'name':"FloorDiv.",
                 'desc':"Do a FloorDiv operation between SocketFloats, SocketInts, SocketBools, SocketVectors.\nType conversion is implicit."},

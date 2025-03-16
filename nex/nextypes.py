@@ -165,19 +165,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     if (len(args)==1 and (type(args) in {tuple,set,list})):
                         if (type(args[0]) in {tuple,set,list}):
                             args = args[0]
+                            values = tuple(args) + tuple(kwargs.values())
 
                 # Name conflict with some native functions? If no NexType foud, we simply call builtin function
                 match fname:
+
                     case 'cos'|'sin'|'tan'|'acos'|'asin'|'atan'|'cosh'|'sinh'|'tanh'|'sqrt'|'log'|'degrees'|'radians'|'floor'|'ceil'|'trunc':
                         if not any(('Nex' in type(v).__name__) for v in values):
                             mathfunction = getattr(math,fname)
                             return mathfunction(*args, **kwargs)
-                    # case 'randint':
-                    #     if not any(('Nex' in type(v).__name__) for v in values):
-                    #         return random.randint(*args, **kwargs)
+
                     case 'min'|'max':
                         if not any(('Nex' in type(v).__name__) for v in values):
                             return min(*args, **kwargs) if (fname=='min') else max(*args, **kwargs)
+
+                    # case 'randint':
+                    #     if not any(('Nex' in type(v).__name__) for v in values):
+                    #         return random.randint(*args, **kwargs)
 
             #Process the passed args:
 
@@ -356,7 +360,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         # print the Nex
         def __repr__(self):
-            return f"<{type(self.nxsock).__name__ if self.nxsock else 'NoneSocket'} {type(self).__name__}{self.nxid}>"
+            return f"<{type(self).__name__}{self.nxid} for {type(self.nxsock).__name__ if self.nxsock else 'NoneSocket'}>"
             return f"<{type(self)}{self.nxid} nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
 
     # ooooo      ooo                              .oooooo.                                                             .o8  
@@ -370,24 +374,32 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     #                                                        o888o
 
     class NexMath:
-        """Basic math operand for math between NexFloat NexBool NexInt NexVector & python float int bool Vector list[3] set[3] tuple[3] Vector[3].
+        """Basic math operand for math between NexFloat NexBool NexInt NexVector NexColor & python float int bool Vector list set tuple Vector Color of correct Length.
         Nodesetter functions will be in charge of deciding which nodes to use"""
 
         def __add__(self, other): # self + other
             self_type = type(self).__name__
             type_name = type(other).__name__
 
+            print("__add",self_type , type_name)
             match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexCol':
                     args = self, other
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
-                    args = self, trypy_to_Vec3(other)
-
                 case 'int' | 'float' | 'bool':
-                    if (self_type == 'NexVec'):
-                          args = self, trypy_to_Vec3(other)
-                    else: args = self, float(other)
+                    match self_type:
+                        case 'NexVec': args = self, trypy_to_Vec3(other)
+                        case 'NexCol': args = self, trypy_to_RGBA(other)
+                        case _:        args = self, float(other)
+
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
+                    match len(other):
+                        case 3: args = self, trypy_to_Vec3(other)
+                        case 4: args = self, trypy_to_RGBA(other)
+                        case _: raise NexError(f"TypeError. Cannot add type '{self.nxtydsp}' with '{type(other).__name__}' of length {len(other)}. Use length 3 or 4 for SocketVector or SocketColor conversion.")
+
+                case 'Color': 
+                    args = self, trypy_to_RGBA(other)
 
                 case _: raise NexError(f"TypeError. Cannot add type '{self.nxtydsp}' to '{type(other).__name__}'.")
 
@@ -402,16 +414,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(other).__name__
 
             match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexCol':
                     args = self, other
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
-                    args = self, trypy_to_Vec3(other)
-
                 case 'int' | 'float' | 'bool':
-                    if (self_type == 'NexVec'):
-                          args = self, trypy_to_Vec3(other)
-                    else: args = self, float(other)
+                    match self_type:
+                        case 'NexVec': args = self, trypy_to_Vec3(other)
+                        case 'NexCol': args = self, trypy_to_RGBA(other)
+                        case _:        args = self, float(other)
+
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
+                    match len(other):
+                        case 3: args = self, trypy_to_Vec3(other)
+                        case 4: args = self, trypy_to_RGBA(other)
+                        case _: raise NexError(f"TypeError. Cannot subtract type '{self.nxtydsp}' with '{type(other).__name__}' of length {len(other)}. Use length 3 or 4 for SocketVector or SocketColor conversion.")
+
+                case 'Color': 
+                    args = self, trypy_to_RGBA(other)
 
                 case _: raise NexError(f"TypeError. Cannot subtract type '{self.nxtydsp}' with '{type(other).__name__}'.")
 
@@ -422,16 +441,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(other).__name__
 
             match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexCol':
                     args = other, self
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
-                    args = trypy_to_Vec3(other), self
-
                 case 'int' | 'float' | 'bool':
-                    if (self_type == 'NexVec'):
-                          args = trypy_to_Vec3(other), self
-                    else: args = float(other), self
+                    match self_type:
+                        case 'NexVec': args = trypy_to_Vec3(other), self
+                        case 'NexCol': args = trypy_to_RGBA(other), self
+                        case _:        args = float(other), self
+
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
+                    match len(other):
+                        case 3: args = trypy_to_Vec3(other), self
+                        case 4: args = trypy_to_RGBA(other), self
+                        case _: raise NexError(f"TypeError. Cannot subtract type '{type(other).__name__}' with '{type(other).__name__}' of length {len(other)}. Use length 3 or 4 for SocketVector or SocketColor conversion.")
+
+                case 'Color': 
+                    args = trypy_to_RGBA(other), self
 
                 case _: raise NexError(f"TypeError. Cannot subtract '{type(other).__name__}' with '{self.nxtydsp}'.")
 
@@ -442,16 +468,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(other).__name__
 
             match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexCol':
                     args = self, other
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
-                    args = self, trypy_to_Vec3(other)
-
                 case 'int' | 'float' | 'bool':
-                    if (self_type == 'NexVec'):
-                          args = self, trypy_to_Vec3(other)
-                    else: args = self, float(other)
+                    match self_type:
+                        case 'NexVec': args = self, trypy_to_Vec3(other)
+                        case 'NexCol': args = self, trypy_to_RGBA(other)
+                        case _:        args = self, float(other)
+
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
+                    match len(other):
+                        case 3: args = self, trypy_to_Vec3(other)
+                        case 4: args = self, trypy_to_RGBA(other)
+                        case _: raise NexError(f"TypeError. Cannot multiply type '{self.nxtydsp}' with '{type(other).__name__}' of length {len(other)}. Use length 3 or 4 for SocketVector or SocketColor conversion.")
+
+                case 'Color': 
+                    args = self, trypy_to_RGBA(other)
 
                 case _: raise NexError(f"TypeError. Cannot multiply type '{self.nxtydsp}' with '{type(other).__name__}'.")
 
@@ -466,16 +499,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(other).__name__
 
             match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexCol':
                     args = self, other
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
-                    args = self, trypy_to_Vec3(other)
-
                 case 'int' | 'float' | 'bool':
-                    if (self_type == 'NexVec'):
-                          args = self, trypy_to_Vec3(other)
-                    else: args = self, float(other)
+                    match self_type:
+                        case 'NexVec': args = self, trypy_to_Vec3(other)
+                        case 'NexCol': args = self, trypy_to_RGBA(other)
+                        case _:        args = self, float(other)
+
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
+                    match len(other):
+                        case 3: args = self, trypy_to_Vec3(other)
+                        case 4: args = self, trypy_to_RGBA(other)
+                        case _: raise NexError(f"TypeError. Cannot divide type '{self.nxtydsp}' with '{type(other).__name__}' of length {len(other)}. Use length 3 or 4 for SocketVector or SocketColor conversion.")
+
+                case 'Color':
+                    args = self, trypy_to_RGBA(other)
 
                 case _: raise NexError(f"TypeError. Cannot divide type '{self.nxtydsp}' by '{type(other).__name__}'.")
 
@@ -486,16 +526,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(other).__name__
 
             match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexCol':
                     args = other, self
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
-                    args = trypy_to_Vec3(other), self
-
                 case 'int' | 'float' | 'bool':
-                    if (self_type == 'NexVec'):
-                          args = trypy_to_Vec3(other), self
-                    else: args = float(other), self
+                    match self_type:
+                        case 'NexVec': args = trypy_to_Vec3(other), self
+                        case 'NexCol': args = trypy_to_RGBA(other), self
+                        case _:        args = float(other), self
+
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
+                    match len(other):
+                        case 3: args = trypy_to_Vec3(other), self
+                        case 4: args = trypy_to_RGBA(other), self
+                        case _: raise NexError(f"TypeError. Cannot divide type '{type(other).__name__}' with '{type(other).__name__}' of length {len(other)}. Use length 3 or 4 for SocketVector or SocketColor conversion.")
+
+                case 'Color': 
+                    args = trypy_to_RGBA(other), self
 
                 case _: raise NexError(f"TypeError. Cannot divide '{type(other).__name__}' by '{self.nxtydsp}'.")
 
@@ -505,15 +552,21 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             self_type = type(self).__name__
             type_name = type(other).__name__
 
+            if (self_type=='NexCol'):
+                raise NexError(f"TypeError. Cannot raise a Color.")
+
             match type_name:
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
                     args = self, trypy_to_Vec3(other)
 
                 case 'int' | 'float' | 'bool':
                     args = self, float(other)
+                
+                case 'NexCol' | 'Color':
+                    raise NexError(f"TypeError. Cannot raise a Color.")
 
                 case _: raise NexError(f"TypeError. Cannot raise type '{self.nxtydsp}' to the power of '{type(other).__name__}'.")
 
@@ -523,15 +576,21 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             self_type = type(self).__name__
             type_name = type(other).__name__
 
+            if (self_type=='NexCol'):
+                raise NexError(f"TypeError. Cannot raise a Color.")
+
             match type_name:
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = other, self
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
                     args = trypy_to_Vec3(other), self
 
                 case 'int' | 'float' | 'bool':
                     args = float(other), self
+
+                case 'NexCol' | 'Color':
+                    raise NexError(f"TypeError. Cannot raise a Color.")
 
                 case _: raise NexError(f"TypeError. Cannot raise '{type(other).__name__}' to the power of '{self.nxtydsp}'.")
 
@@ -541,17 +600,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             self_type = type(self).__name__
             type_name = type(other).__name__
 
+            if (self_type=='NexCol'):
+                raise NexError(f"TypeError. Cannot compute modulo of a Color.")
+
             match type_name:
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
                     args = self, trypy_to_Vec3(other)
 
                 case 'int' | 'float' | 'bool':
-                    if (self_type == 'NexVec'):
-                          args = self, trypy_to_Vec3(other)
-                    else: args = self, float(other)
+                    match self_type:
+                        case 'NexVec': args = self, trypy_to_Vec3(other)
+                        case _:        args = self, float(other)
+
+                case 'NexCol' | 'Color':
+                    raise NexError(f"TypeError. Cannot compute modulo of a Color.")
 
                 case _: raise NexError(f"TypeError. Cannot compute type '{self.nxtydsp}' modulo '{type(other).__name__}'.")
 
@@ -561,17 +626,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             self_type = type(self).__name__
             type_name = type(other).__name__
 
+            if (self_type=='NexCol'):
+                raise NexError(f"TypeError. Cannot compute modulo of a Color.")
+                
             match type_name:
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = other, self
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
                     args = trypy_to_Vec3(other), self
 
                 case 'int' | 'float' | 'bool':
-                    if (self_type == 'NexVec'):
-                          args = trypy_to_Vec3(other), self
-                    else: args = float(other), self
+                    match self_type:
+                        case 'NexVec': args = trypy_to_Vec3(other), self
+                        case _:        args = float(other), self
+
+                case 'NexCol' | 'Color':
+                    raise NexError(f"TypeError. Cannot compute modulo of a Color.")
 
                 case _: raise NexError(f"TypeError. Cannot compute modulo of '{type(other).__name__}' by '{self.nxtydsp}'.")
 
@@ -581,17 +652,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             self_type = type(self).__name__
             type_name = type(other).__name__
 
+            if (self_type=='NexCol'):
+                raise NexError(f"TypeError. Cannot compute floordiv of a Color.")
+
             match type_name:
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
                     args = self, trypy_to_Vec3(other)
 
                 case 'int' | 'float' | 'bool':
-                    if (self_type == 'NexVec'):
-                          args = self, trypy_to_Vec3(other)
-                    else: args = self, float(other)
+                    match self_type:
+                        case 'NexVec': args = self, trypy_to_Vec3(other)
+                        case _:        args = self, float(other)
+
+                case 'NexCol' | 'Color':
+                    raise NexError(f"TypeError. Cannot compute floordiv of a Color.")
 
                 case _: raise NexError(f"TypeError. Cannot perform floordiv on type '{self.nxtydsp}' with '{type(other).__name__}'.")
 
@@ -601,29 +678,50 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             self_type = type(self).__name__
             type_name = type(other).__name__
 
+            if (self_type=='NexCol'):
+                raise NexError(f"TypeError. Cannot compute floordiv of a Color.")
+
             match type_name:
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = other, self
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
                     args = trypy_to_Vec3(other), self
 
                 case 'int' | 'float' | 'bool':
-                    if (self_type == 'NexVec'):
-                          args = trypy_to_Vec3(other), self
-                    else: args = float(other), self
+                    match self_type:
+                        case 'NexVec': args = trypy_to_Vec3(other), self
+                        case _:        args = float(other), self
+
+                case 'NexCol' | 'Color':
+                    raise NexError(f"TypeError. Cannot compute floordiv of a Color.")
 
                 case _: raise NexError(f"TypeError. Cannot perform floor division of '{type(other).__name__}' by '{self.nxtydsp}'.")
 
             return NexWrappedFcts['floordiv'](*args,)
 
         def __neg__(self): # -self
+            self_type = type(self).__name__
+
+            if (self_type=='NexCol'):
+                raise NexError(f"TypeError. Cannot negate a Color.")
+
             return NexWrappedFcts['neg'](self,)
 
         def __abs__(self): # abs(self)
+            self_type = type(self).__name__
+
+            if (self_type=='NexCol'):
+                raise NexError(f"TypeError. Cannot compute abs() of a Color.")
+
             return NexWrappedFcts['abs'](self,)
         
         def __round__(self): # round(self)
+            self_type = type(self).__name__
+
+            if (self_type=='NexCol'):
+                raise NexError(f"TypeError. Cannot compute round() of a Color.")
+
             return NexWrappedFcts['round'](self,)
 
     class NexCompare:
@@ -639,7 +737,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
                     args = self, other
 
-                case 'Vector' | 'list' | 'set' | 'tuple':
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
                     args = self, trypy_to_Vec3(other)
 
                 case 'int' | 'float' | 'bool':
@@ -987,7 +1085,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
                 
                 #Initialize a new nextype with a default value socket
-                case 'NoneType' | 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                case 'NoneType' | 'bpy_prop_array' | 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     
                     #ensure name chosen is correct
                     assert socket_name!='', "Nex Initialization should always define a socket_name."
@@ -1167,7 +1265,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     #  8       `888  888    .o  .o8"'88b   `88b    ooo  888   888  888  888   888  888     
     # o8o        `8  `Y8bod8P' o88'   888o  `Y8bood8P'  `Y8bod8P' o888o `Y8bod8P' d888b    
                                                                      
-    class NexCol(Nex):
+    class NexCol(NexMath, Nex):
 
         init_counter = 0
         node_inst = NODEINSTANCE
@@ -1224,7 +1322,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
 
                 case _:
-                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketColor'. Was expecting 'None' | 'Vector[3]' | 'list[3]' | 'set[3]' | 'tuple[3]' | 'int' | 'float' | 'bool'.")
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketColor'. Was expecting 'None' | 'Color[3]' | 'list[4]' | 'set[4]' | 'tuple[4]'.")
 
             dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
             return None
