@@ -565,35 +565,38 @@ def generalmix(ng, callhistory,
 
     return node.outputs[outidx]
 
-def generalvecentryfloatmath(ng, callhistory,
+def generalentryfloatmath(ng, callhistory,
+    sepa_data_type:str,
     operation_type:str,
-    vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector|None=None,
+    A:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector|None=None,
     fB:sFlo|sInt|sBoo|float|int|None=None,
     fC:sFlo|sInt|sBoo|float|int|None=None,
     ) -> sVec:
-    """Apply regular float math to each element of the vector.  newvA = func(vA.x,b,c), func(vA.y,b,c), func(vA.z,b,c)  """
+    """Apply regular float math to each element of a separated enement, rely on the general separate and combine functions.
+    ex: newvA = func(vA.x,b,c), func(vA.y,b,c), func(vA.z,b,c)"""
 
-    floats = separate_xyz(ng, callhistory, vA)
+    floats = generalcombsepa(ng,callhistory,'SEPARATE',sepa_data_type, A,)
     sepnode = floats[0].node
-    
-    newfloats = set()
-    for i,fE in enumerate(floats):
+
+    newfloats = []
+    for i,fA in enumerate(floats):
         ng.nodes.active = sepnode
-        fN = generalfloatmath(ng, callhistory, operation_type, fE,fB,fC,)
-        newfloats.add(fN)
+        fN = generalfloatmath(ng, callhistory, operation_type, fA,fB,fC,)
+        newfloats.append(fN)
         continue
 
-    rvec = combine_xyz(ng, callhistory, *newfloats)
-    frame_nodes(ng, floats[0].node, rvec.node, label='Vec EntryWise FloatMath',)
+    r = generalcombsepa(ng,callhistory,'COMBINE',sepa_data_type, newfloats,)
+    frame_nodes(ng, floats[0].node, r.node, label='EntryWise FloatMath',)
 
-    return rvec
+    return r
 
-def generalvecparrallelfloatmath(ng, callhistory,
+def generalparrallelvecfloatmath(ng, callhistory,
     operation_type:str,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     vB:sVec|sVecXYZ|sVecT|Vector,
     ) -> sVec:
     """Apply regular float math to each element of the vector.  newvA = func(vA.x,vB.x), func(vA.y,vB.y), func(vA.z,vB.z)  """
+    #NOTE this one is exclusive for Vectors, perhaps we can make it any sepa/comb type compatible like function above later as well.
 
     setA = generalcombsepa(ng,callhistory, 'SEPARATE','VECTORXYZ', vA,)
     setB = generalcombsepa(ng,callhistory, 'SEPARATE','VECTORXYZ', vB,)
@@ -1375,9 +1378,9 @@ def pow(ng, callhistory,
     n:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo|sVec:
     if containsVecs(n):
-        return generalvecparrallelfloatmath(ng,callhistory, 'POWER',a,n)
+        return generalparrallelvecfloatmath(ng,callhistory, 'POWER',a,n)
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'POWER',a,n)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','POWER',a,n)
     return generalfloatmath(ng,callhistory, 'POWER',a,n)
 
 @user_domain('mathex','nexscript')
@@ -1390,7 +1393,7 @@ def log(ng, callhistory,
     ) -> sFlo|sVec:
     # for nexcript, math.log will be called if given param is python float or int
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'LOGARITHM',a,n)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','LOGARITHM',a,n)
     return generalfloatmath(ng,callhistory, 'LOGARITHM',a,n)
 
 @user_domain('mathex','nexscript')
@@ -1402,7 +1405,7 @@ def sqrt(ng, callhistory,
     ) -> sFlo|sVec:
     # for nexcript, math.sqrt will be called if given param is python float or int
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'SQRT',a)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','SQRT',a)
     return generalfloatmath(ng,callhistory, 'SQRT',a)
 
 @user_domain('mathex','nexscript')
@@ -1413,7 +1416,7 @@ def invsqrt(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo|sVec:
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'INVERSE_SQRT',a)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','INVERSE_SQRT',a)
     return generalfloatmath(ng,callhistory, 'INVERSE_SQRT',a)
 
 @user_domain('mathex','nexscript')
@@ -1459,7 +1462,7 @@ def round(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'ROUND',a)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','ROUND',a)
     return generalfloatmath(ng,callhistory, 'ROUND',a)
 
 @user_domain('mathex','nexscript')
@@ -1495,7 +1498,7 @@ def trunc(ng, callhistory,
     ) -> sFlo|sVec:
     # for nexcript, math.trunc will be called if given param is python float or int
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'TRUNC',a)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','TRUNC',a)
     return generalfloatmath(ng,callhistory, 'TRUNC',a)
 
 @user_domain('mathex','nexscript')
@@ -1565,7 +1568,7 @@ def pingpong(ng, callhistory,
     scale:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec:
     if containsVecs(v):
-        return generalvecentryfloatmath(ng,callhistory, 'PINGPONG',v,scale)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','PINGPONG',v,scale)
     return generalfloatmath(ng,callhistory, 'PINGPONG',v,scale)
 
 #covered internally in nexscript via python dunder overload
@@ -1623,7 +1626,7 @@ def asin(ng, callhistory,
     ) -> sFlo|sVec:
     # for nexcript, math.asin will be called if given param is python float or int
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'ARCSINE',a)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','ARCSINE',a)
     return generalfloatmath(ng,callhistory, 'ARCSINE',a)
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Arccosine of A.")
@@ -1634,7 +1637,7 @@ def acos(ng, callhistory,
     ) -> sFlo|sVec:
     # for nexcript, math.acos will be called if given param is python float or int
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'ARCCOSINE',a)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','ARCCOSINE',a)
     return generalfloatmath(ng,callhistory, 'ARCCOSINE',a)
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Arctangent of A.")
@@ -1645,7 +1648,7 @@ def atan(ng, callhistory,
     ) -> sFlo|sVec:
     # for nexcript, math.atan will be called if given param is python float or int
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'ARCTANGENT',a)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','ARCTANGENT',a)
     return generalfloatmath(ng,callhistory, 'ARCTANGENT',a)
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Sine of A.")
@@ -1656,7 +1659,7 @@ def sinh(ng, callhistory,
     ) -> sFlo|sVec:
     # for nexcript, math.sinh will be called if given param is python float or int
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'SINH',a)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','SINH',a)
     return generalfloatmath(ng,callhistory, 'SINH',a)
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Cosine of A.")
@@ -1667,7 +1670,7 @@ def cosh(ng, callhistory,
     ) -> sFlo|sVec:
     # for nexcript, math.cosh will be called if given param is python float or int
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'COSH',a)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','COSH',a)
     return generalfloatmath(ng,callhistory, 'COSH',a)
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Tangent of A.")
@@ -1678,7 +1681,7 @@ def tanh(ng, callhistory,
     ) -> sFlo|sVec:
     # for nexcript, math.tanh will be called if given param is python float or int
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'TANH',a)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','TANH',a)
     return generalfloatmath(ng,callhistory, 'TANH',a)
 
 @user_domain('mathex')
@@ -1698,7 +1701,7 @@ def radians(ng, callhistory,
     ) -> sFlo|sVec:
     # for nexcript, math.radians will be called if given param is python float or int
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'RADIANS',a)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','RADIANS',a)
     return generalfloatmath(ng,callhistory, 'RADIANS',a)
 
 @user_domain('mathex')
@@ -1718,7 +1721,7 @@ def degrees(ng, callhistory,
     ) -> sFlo|sVec:
     # for nexcript, math.degrees will be called if given param is python float or int
     if containsVecs(a):
-        return generalvecentryfloatmath(ng,callhistory, 'DEGREES',a)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','DEGREES',a)
     return generalfloatmath(ng,callhistory, 'DEGREES',a)
 
 @user_domain('nexscript')
@@ -1796,7 +1799,7 @@ def length(ng, callhistory,
 @user_doc(nexscript="Separate Vector.\nSeparate a SocketVector into a tuple of 3 SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
 @user_paramError(UserParamError)
 def separate_xyz(ng, callhistory,
-    vA:sVec|sVecXYZ|sVecT|Vector,
+    vA:sVec|sVecXYZ|sVecT|sCol|Vector,
     ) -> tuple:
     return generalcombsepa(ng,callhistory, 'SEPARATE','VECTORXYZ', vA,)
 @user_domain('nexscript')
@@ -1845,11 +1848,11 @@ def combine_color(ng, callhistory,
     f1:sFlo|sInt|sBoo|float|int,
     f2:sFlo|sInt|sBoo|float|int,
     f3:sFlo|sInt|sBoo|float|int,
-    f4:sFlo|sInt|sBoo|float|int,
+    fA:sFlo|sInt|sBoo|float|int,
     mode:str='RGB',
     ) -> sCol:
     assert mode in {'RGB','HSV','HSL'}, f"{mode} not in 'RGB','HSV','HSL'"
-    return generalcombsepa(ng,callhistory, 'COMBINE',f'COLOR{mode}', (f1,f2,f3,f4),)
+    return generalcombsepa(ng,callhistory, 'COMBINE',f'COLOR{mode}', (f1,f2,f3,fA),)
 
 # @user_domain('nexclassmethod')
 # def get_blackbody(ng, callhistory,
@@ -2147,28 +2150,32 @@ def mix(ng, callhistory,
     return lerp(ng,callhistory, f,a,b)
 
 @user_domain('mathex','nexscript')
-@user_doc(mathex="Clamping.\nClamp a value a between min A an max B.")
-@user_doc(nexscript="Clamping.\nClamp a value a between min A an max B.\nSupports SocketFloat and entry-wise SocketVector if A & B are float compatible.")
+@user_doc(mathex="Clamping.\nClamp a value between min/max A & B default set on 0 & 1.")
+@user_doc(nexscript="Clamping.\nClamp a value between min/max A & B default set on 0 & 1.\nSupports SocketFloat and entry-wise SocketVector, SocketColor.")
 @user_paramError(UserParamError)
 def clamp(ng, callhistory,
-    v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo|sVec:
+    v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector,
+    a:sFlo|sInt|sBoo|float|int=0,
+    b:sFlo|sInt|sBoo|float|int=1,
+    ) -> sFlo|sVec|sCol:
+    if containsCols(v):
+        return generalentryfloatmath(ng,callhistory,'COLORRGB','CLAMP.MINMAX',v,a,b)
     if containsVecs(v):
-        return generalvecentryfloatmath(ng,callhistory, 'CLAMP.MINMAX',v,a,b)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','CLAMP.MINMAX',v,a,b)
     return generalfloatmath(ng,callhistory, 'CLAMP.MINMAX',v,a,b)
 @user_domain('mathex','nexscript')
-@user_doc(mathex="AutoClamping.\nClamp a value a between auto-defined min/max A & B.")
-@user_doc(nexscript="AutoClamping.\nClamp a value a between auto-defined min/max A & B.\nSupports SocketFloat and entry-wise SocketVector if A & B are float compatible.")
+@user_doc(mathex="AutoClamping.\nClamp a value between auto-defined min/max A & B default set on 0 & 1.")
+@user_doc(nexscript="AutoClamping.\nClamp a value between auto-defined min/max A & B default set on 0 & 1.\nSupports SocketFloat and entry-wise SocketVector, SocketColor.")
 @user_paramError(UserParamError)
 def clampauto(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    a:sFlo|sInt|sBoo|float|int,
-    b:sFlo|sInt|sBoo|float|int,
-    ) -> sFlo|sVec:
+    a:sFlo|sInt|sBoo|float|int=0,
+    b:sFlo|sInt|sBoo|float|int=1,
+    ) -> sFlo|sVec|sCol:
+    if containsCols(v):
+        return generalentryfloatmath(ng,callhistory,'COLORRGB','CLAMP.RANGE',v,a,b)
     if containsVecs(v):
-        return generalvecentryfloatmath(ng,callhistory, 'CLAMP.RANGE',v,a,b)
+        return generalentryfloatmath(ng,callhistory,'VECTORXYZ','CLAMP.RANGE',v,a,b)
     return generalfloatmath(ng,callhistory, 'CLAMP.RANGE',v,a,b)
 
 @user_domain('mathex','nexscript')
