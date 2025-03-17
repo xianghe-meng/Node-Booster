@@ -9,7 +9,7 @@
 #  this functionality let us re-execute the functions to update potential .default_value without rebuilding the entire nodetree nodes and links again.
 # NOTE problem, calling functions often ex Vec.x Col.r ect.. will create a new node on each getter operation. 
 # To resolved superfuls creation of node the 'callhistory' functionality could perhaps create tags not based on function call, but based on function and their arguments.
-# The tag could look like F|funcname(ArgUniqueID1,ArgUniqueID2,ArgUniqueID3). This was implemented previously but we quickly reached limit of function name char[64]
+0# The tag could look like F|funcname(ArgUniqueID1,ArgUniqueID2,ArgUniqueID3). This was implemented previously but we quickly reached limit of function name char[64]
 # this unique_tag would also need to support python types that may change on each execution (if the user is passing #frame or a obj.location to the function, we
 # need to find a way to recognize this value cross execution which is no easy task)
 
@@ -1853,11 +1853,11 @@ def combine_color(ng, callhistory,
 
 # @user_domain('nexclassmethod')
 # def get_blackbody(ng, callhistory,
-# generalnode(ng, callhistory, 
-#     unique_name:str,
-#     node_type:str,
-#     *inputs, #passed inputs should correspond to node.inputs in an orderly manner
-#     )
+#     generalnode(ng, callhistory, 
+#         unique_name:str,
+#         node_type:str,
+#         *inputs, #passed inputs should correspond to node.inputs in an orderly manner
+#         )
 
 #covered internally in nexscript via python prop or function
 @user_domain('nexclassmethod')
@@ -2277,46 +2277,46 @@ def switchmat(ng, callhistory,
 
 
 @user_domain('nexscript')
-@user_doc(nexscript="Random (Boolean).\n Get a random boolean value with probability P. Optionally pass a seed number and an ID SocketInt.")
+@user_doc(nexscript="Random (Boolean).\nGet a random boolean.\nOptionally: pass a probability default set on 0.5, a seed number, and an ID SocketInt.")
 @user_paramError(UserParamError)
 def randbool(ng, callhistory,
-    p:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool,
+    prob:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool=0.5,
     seed:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|None=None,
     ID:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|None=None,
     ) -> sBoo:
-    return generalrandom(ng,callhistory,'BOOLEAN', None,None,p,seed,ID)
+    return generalrandom(ng,callhistory,'BOOLEAN', None,None,prob,seed,ID)
 @user_domain('nexscript')
-@user_doc(nexscript="Random (Int).\n. Get a random value between value A and B. Optionally pass a seed number and an ID SocketInt.")
+@user_doc(nexscript="Random (Int).\nGet a random integer number.\nOptionally: define a min/max range by default set on -10k & 10k, a seed number, and an ID SocketInt.")
 @user_paramError(UserParamError)
 def randint(ng, callhistory, 
-    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool,
-    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool,
+    min:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool=-10_000,
+    max:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool=10_000,
     seed:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|None=None,
     ID:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|None=None,
     ) -> sInt:
     # for nexcript, shall we call  random.randint if all args are py? Hmm. users might not want that.
-    return generalrandom(ng,callhistory,'INT', a,b,None,seed,ID)
+    return generalrandom(ng,callhistory,'INT', min,max,None,seed,ID)
 @user_domain('nexscript')
-@user_doc(nexscript="Random (Float).\n. Get a random value between value A and B. Optionally pass a seed number and an ID SocketInt.")
+@user_doc(nexscript="Random (Float).\nGet a random float number.\nOptionally: define a min/max range by default set on -10k & 10k, a seed number, and an ID SocketInt.")
 @user_paramError(UserParamError)
 def randfloat(ng, callhistory,
-    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool,
-    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool,
+    min:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool=-10_000,
+    max:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool=10_000,
     seed:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|None=None,
     ID:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|None=None,
     ) -> sFlo:
-    return generalrandom(ng,callhistory,'FLOAT', a,b,None,seed,ID)
+    return generalrandom(ng,callhistory,'FLOAT', min,max,None,seed,ID)
 @user_domain('nexscript')
-@user_doc(nexscript="Random (Vector).\n. Get a random value between value A and B. Optionally pass a seed number and an ID SocketInt.")
+@user_doc(nexscript="Random (Vector).\nGet a random Vector.\nOptionally: define a min/max range by default set on (0,0,0) & (1,1,1), a seed number, and an ID SocketInt.")
 @user_paramError(UserParamError)
 def randvec(ng, callhistory,
-    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|Vector|list|tuple|set,
-    b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|Vector|list|tuple|set,
+    min:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|Vector=Vector((0,0,0)),
+    max:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|Vector=Vector((1,1,1)),
     seed:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|None=None,
     ID:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|None=None,
     ) -> sVec:
-    return generalrandom(ng,callhistory,'VECTOR_FLOAT', a,b,None,seed,ID)
- 
+    return generalrandom(ng,callhistory,'FLOAT_VECTOR', min,max,None,seed,ID)
+
 
 @user_domain('nexscript')
 @user_doc(nexscript="Position Attribute.\nGet the GeometryNode 'Position' SocketVector input attribute.")
