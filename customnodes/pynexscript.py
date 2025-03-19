@@ -51,31 +51,31 @@ NEXNOTATIONDOC = {
                 'desc':"Do a Modulo operation between SocketFloats, SocketInts, SocketBools, and entry-wise SocketVectors.\nType conversion is implicit."},
     'a == b': {
                 'name':"Equal.",
-                'desc':"Compare if A and B are equals.\n\nPlease note that chaining comparison is not supported ex: 'a == b == c'.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool.\nWill return a SocketBool."},
+                'desc':"Compare if A and B are equals.\n\nPlease note that chaining comparison is not supported ex: 'a == b == c'.\n\nSupports SocketFloats, SocketInts, SocketBools, SocketVectors, SocketColors.\nWill return a SocketBool."},
     'a != b': {
                 'name':"Not Equal.",
-                'desc':"Compare if A and B are not equals.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool.\nWill return a SocketBool."},
+                'desc':"Compare if A and B are not equals.\n\nSupports SocketFloats, SocketInts, SocketBools, SocketVectors, SocketColors.\nWill return a SocketBool."},
     'a > b': {
                 'name':"Greater.",
-                'desc':"Compare if A is greater than B.\n\nPlease note that chaining comparison is not supported ex: 'a > b > c'.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool.\nWill return a SocketBool."},
+                'desc':"Compare if A is greater than B.\n\nPlease note that chaining comparison is not supported ex: 'a > b > c'.\n\nSupports SocketFloats, SocketInts, SocketBools, SocketVectors, SocketColors.\nWill return a SocketBool."},
     'a >= b': {
                 'name':"Greater or Equal.",
-                'desc':"Compare if A is greater or equal than B.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool.\nWill return a SocketBool."},
+                'desc':"Compare if A is greater or equal than B.\n\nSupports SocketFloats, SocketInts, SocketBools, SocketVectors, SocketColors.\nWill return a SocketBool."},
     'a < b': {
                 'name':"Lesser.",
-                'desc':"Compare if A is lesser than B.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool.\nWill return a SocketBool."},
+                'desc':"Compare if A is lesser than B.\n\nSupports SocketFloats, SocketInts, SocketBools, SocketVectors, SocketColors.\nWill return a SocketBool."},
     'a <= b': {
                 'name':"Lesser or Equal.",
-                'desc':"Compare if A is lesser or equal than B.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool.\nWill return a SocketBool."},
+                'desc':"Compare if A is lesser or equal than B.\n\nSupports SocketFloats, SocketInts, SocketBools, SocketVectors, SocketColors.\nWill return a SocketBool."},
     '-a': {
                 'name':"Negate.",
                 'desc':"Negate using the 'a = -a' notation.\n\nSupports SocketFloats, SocketInts, SocketVectors, SocketBool."},
     'abs(a)': {
                 'name':"Absolute.",
-                'desc':"Get the absolute value of a SocketFloat, SocketInt or SocketVector."},
+                'desc':"Get the absolute value of a SocketFloat, SocketInt, SocketVector or SocketColor."},
     'round(a)': {
                 'name':"Round.",
-                'desc':"Round a SocketFloat or entry-wise SocketVector.\n\nex: 1.49 will become 1\n1.51 will become 2."},
+                'desc':"Round a SocketFloat or entry-wise SocketVector and SocketColor.\n\nex: 1.49 will become 1\n1.51 will become 2."},
     'bX & bY': {
                 'name':"Bitwise And.",
                 'desc':"Boolean math 'and' operation between two SocketBool or python bool types.\nWill return a SocketBool."},

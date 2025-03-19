@@ -69,40 +69,38 @@ def py_to_Mtx16(value):
         
         case _: raise TypeError(f"Cannot convert type {type(value).__name__}({value[:]}) to Matrix().")
 
-def py_to_Sockdata(value):
-    """Convert a given python variable into data we can use to create and assign sockets"""
-    #TODO do we want to support numpy as well? or else?
+def py_to_Sockdata(value, return_value_only=False):
+    """Convert a given python variable into data we can use to create and assign sockets default value, type and label."""
 
-    matrix_special_label = ''
+    matrix_label = ''
 
     #we sanatize out possible types depending on their length
     if (type(value) in {tuple, list, set, Vector, Euler, bpy_array}):
 
         if type(value) in {tuple, list, set}:
-            if any('Nex' in type(e).__name__ for e in value):
-                raise TypeError(f"Cannot convert '{type(value).__name__.title()}' containing SocketTypes to a SocketData.")
+            if any('Nex' in type(e).__name__ for e in value) or any('Node' in type(e).__name__ for e in value):
+                raise TypeError(f"Cannot assign a '{type(value).__name__}' containing a SocketTypes to a Socket default value.")
 
         value = list(value)
         n = len(value)
 
-        if (n == 1):
-            value = float(value[0])
+        match n:
+            case 0: value = Vector((0,0,0))
+            case 1: value = Vector((value[0],0,0))
+            case 2: value = Vector((value[0],value[1],0))
+            case 3: value = Vector(value)
+            case 4: value = ColorRGBA(*value)
 
-        elif (n <= 3):
-            value = Vector(value + [0.0]*(3 - n))
+            case _ if n <= 16:
+                if (n != 16):
+                    matrix_label = f'List[{len(value)}]'
+                    nulmatrix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    value.extend(nulmatrix[len(value):])
+                flatTorows = [value[i*4:(i+1)*4] for i in range(4)]
+                value = Matrix(flatTorows)
 
-        elif (n == 4):
-            value = ColorRGBA(*value)
-
-        elif (4 < n <= 16):
-            if (n < 16):
-                matrix_special_label = f'List[{len(value)}]'
-                nulmatrix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                value.extend(nulmatrix[len(value):])
-            value =  Matrix([value[i*4:(i+1)*4] for i in range(4)])
-
-        else:
-            raise TypeError(f"Converting a type '{type(value).__name__.title()}' of lenght {n} to a SocketData is not supported.")
+            case _:
+                raise TypeError(f"Cannot assign a '{type(value).__name__}' of lenght {n} to a Socket default value.")
 
     # then we define the socket type string & the potential socket label
     match value:
@@ -141,7 +139,7 @@ def py_to_Sockdata(value):
             socket_type = 'NodeSocketRotation'
 
         case Matrix():
-            repr_label = "MatrixValue" if (not matrix_special_label) else matrix_special_label
+            repr_label = "4x4Matrix" if (not matrix_label) else matrix_label
             socket_type = 'NodeSocketMatrix'
 
         case bpy.types.Object():
@@ -161,6 +159,8 @@ def py_to_Sockdata(value):
             socket_type = 'NodeSocketImage'
 
         case _:
-            raise TypeError(f"Converting a '{type(value).__name__.title()}' to a SocketData is not possible.")
+            raise TypeError(f"Assigning a '{type(value).__name__}' to a Socket default value is not possible.")
 
+    if (return_value_only):
+        return value
     return value, repr_label, socket_type

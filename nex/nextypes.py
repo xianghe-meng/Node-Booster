@@ -24,7 +24,7 @@ import bpy
 bpy_array = bpy.types.bpy_prop_array
 import traceback
 import math, random
-from mathutils import Vector, Matrix, Color
+from mathutils import Vector, Matrix, Color, Euler
 from functools import partial
 
 from ..__init__ import dprint
@@ -151,7 +151,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         new.nxsock = newsock
         return new
 
-    def wrap_socketfunctions(sockfunc, auto_convert_itter=False):
+    def wrap_socketfunctions(sockfunc, typeconvert_args=False):
         """Wrap nodesetter function with interal nodetree & history args, & wrap with NexTypes, so can recieve and output NexTypes automatically.
         This wrapper also: Handle namecollision functions, can auto convert args to Vector or Matrix, handle user errors."""
 
@@ -189,11 +189,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             # -1 sockfunc expect nodesockets, not nextype, we need to convert their args to sockets.. (we did that previously with 'sock_or_py_variables')
             args = [v.nxsock if ('Nex' in type(v).__name__) else v for v in args]
 
-            # -2 support for tuple as vectors or matrix?
-            if (auto_convert_itter):
-                args = [trypy_to_Vec3(v) if (type(v) in {tuple,list,set,Vector}) and (len(v)==3) and all((type(i) in {float,int}) for i in v) else v for v in args]
-                args = [trypy_to_RGBA(v) if (type(v) in {tuple,list,set,Color,bpy_array}) and (len(v)==4) and all((type(i) in {float,int}) for i in v) else v for v in args]
-                args = [trypy_to_Mtx16(v) if (type(v) in {tuple,list,set}) and (len(v)==16) and all((type(i) in {float,int}) for i in v) else v for v in args]
+            # -2 automatically convert the passed argument of a function
+            if (typeconvert_args):
+                args = [trypy_to_Sockdata(v, return_value_only=True) 
+                        if type(v) in {tuple, list, set, Vector, Euler, Color, Matrix, bpy_array,}
+                        and all((type(i) in {float,int,bool}) for i in v)
+                        else v
+                        for v in args]
 
             #define a function with the first two args already defined
             node_tree = NODEINSTANCE.node_tree
@@ -228,10 +230,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         return wrappedfunc
 
     # Let's generate the user and internal NexWrapped functions
-    NexWrappedFcts = {f.__name__ : wrap_socketfunctions(f, auto_convert_itter=False)
+    NexWrappedFcts = {f.__name__ : wrap_socketfunctions(f, typeconvert_args=False)
                         for f in nodesetter.get_nodesetter_functions(tag='all')}
 
-    NexWrappedUserFcts = {f.__name__ : wrap_socketfunctions(f, auto_convert_itter=True)
+    NexWrappedUserFcts = {f.__name__ : wrap_socketfunctions(f, typeconvert_args=True)
                         for f in nodesetter.get_nodesetter_functions(tag='nexscript')}
 
     # ooooo      ooo                            oooooooooo.                               
@@ -708,19 +710,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return NexWrappedFcts['neg'](self,)
 
         def __abs__(self): # abs(self)
-            self_type = type(self).__name__
-
-            if (self_type=='NexCol'):
-                raise NexError(f"TypeError. Cannot compute abs() of a Color.")
-
             return NexWrappedFcts['abs'](self,)
         
         def __round__(self): # round(self)
-            self_type = type(self).__name__
-
-            if (self_type=='NexCol'):
-                raise NexError(f"TypeError. Cannot compute round() of a Color.")
-
             return NexWrappedFcts['round'](self,)
 
     class NexCompare:

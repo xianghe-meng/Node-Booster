@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
+import re
 import types
 import inspect
 import typing
@@ -66,7 +67,7 @@ def strongtyping(PassedError):
             return annot
         annot = str(annot)
         annot = annot.replace('bpy.types.','').replace('NodeSocket','Socket')
-        annot = annot.replace('| bl_ext.ExtraNodes.nodebooster.utils.fct_utils.ColorRGBA','') #internal type. User don't have access to ColorRGBA
+        annot = re.sub(r'\| bl_ext.*?\.nodebooster\.utils\.fct_utils\.ColorRGBA', '| ColorRGBA', annot) #internal type. User don't have access to ColorRGBA
         annot = annot.replace('SocketVectorXYZ | ','').replace('SocketVectorTranslation | ','') #internal dumb distinctions..
         annot = annot.replace(' |',',')
         annot = annot.replace("<class '",'').replace("'>",'')

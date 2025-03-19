@@ -1017,10 +1017,10 @@ def generalcombsepa(ng, callhistory,
         }
 
     assert operation_type in {'SEPARATE','COMBINE'}
-    if data_type not in node_types[operation_type]:
+    if (data_type not in node_types[operation_type]):
         raise ValueError(f"Unsupported data_type '{data_type}' for operation '{operation_type}'")
-    nodetype = node_types[operation_type][data_type]
 
+    nodetype = node_types[operation_type][data_type]
     nameid = prefix_names[operation_type][data_type]
     uniquename = get_unique_name(nameid, callhistory)
     needs_linking = False
@@ -1060,9 +1060,9 @@ def generalcombsepa(ng, callhistory,
                         node.inputs[0].default_value = val
                         assert_purple_node(node)
 
-                case Vector():
+                case Vector() | ColorRGBA():
                     if node.inputs[0].default_value[:] != val[:]:
-                        node.inputs[0].default_value = val
+                        node.inputs[0].default_value = val[:]
                         assert_purple_node(node)
 
                 case _: raise Exception(f"InternalError. Type '{type(val).__name__}' not supported in separate() operation. Previous check should've pick up on this.")
@@ -1070,6 +1070,7 @@ def generalcombsepa(ng, callhistory,
             return tuple(node.outputs)
 
         case 'COMBINE':
+            #input_data is Expected to get a tuple here!
             for i, val in enumerate(input_data):
                 match val:
 
@@ -1097,12 +1098,12 @@ def generalcombsepa(ng, callhistory,
 def generalswitch(ng, callhistory,
     Type:str,
     idx:sFlo|sInt|sBoo|float|int|bool,
-    *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sMtx|float|int|bool|Vector|Matrix|tuple|set|list,
-    ) -> sFlo|sInt|sBoo|sVec|sMtx:
+    *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|sMtx|float|int|bool|Vector|Matrix,
+    ) -> sFlo|sInt|sBoo|sVec|sCol|sMtx:
 
     #TODO support quaternion and color type here
-    eq = {'float':'FLOAT', 'int':'INT', 'bool':'BOOLEAN', 'vec':'VECTOR', 'mat':'MATRIX',} #'quat':'ROTATION', 'color':'RGBA'
-    if (Type not in eq.keys()):
+    data_type_eq = {'float':'FLOAT', 'int':'INT', 'bool':'BOOLEAN', 'vec':'VECTOR', 'mat':'MATRIX','col':'RGBA'} #'quat':'ROTATION'
+    if (Type not in data_type_eq.keys()):
         raise Exception(f"Function generalswitch recieved wrong type arg.")
 
     uniquename = get_unique_name('Switch', callhistory)
@@ -1118,7 +1119,7 @@ def generalswitch(ng, callhistory,
               location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
         else: location = (0,200,)
         node = ng.nodes.new('GeometryNodeIndexSwitch')
-        node.data_type = eq[Type]
+        node.data_type = data_type_eq[Type]
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
 
@@ -1177,9 +1178,9 @@ def generalswitch(ng, callhistory,
                     node.inputs[i].default_value = val
                     assert_purple_node(node)
 
-            case Vector():
+            case Vector() | ColorRGBA():
                 if node.inputs[i].default_value[:] != val[:]:
-                    node.inputs[i].default_value = val
+                    node.inputs[i].default_value = val[:]
                     assert_purple_node(node)
 
             case Matrix():
@@ -1414,8 +1415,10 @@ def nroot(ng, callhistory,
 @user_doc(mathex="Absolute of A.")
 @user_paramError(UserParamError)
 def abs(ng, callhistory,
-    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
+    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|Vector|ColorRGBA,
     ) -> sFlo|sVec:
+    if containsCols(a):
+        return generalentryfloatmath(ng,callhistory,'COLORRGB','ABSOLUTE',a)
     if containsVecs(a):
         return generalvecmath(ng,callhistory,'ABSOLUTE',a)
     return generalfloatmath(ng,callhistory,'ABSOLUTE',a)
@@ -1436,8 +1439,10 @@ def neg(ng, callhistory,
 @user_doc(mathex="Round a Float value.\nex: 1.49 will become 1\n1.51 will become 2.")
 @user_paramError(UserParamError)
 def round(ng, callhistory,
-    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
+    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|Vector|ColorRGBA,
     ) -> sFlo|sVec:
+    if containsCols(a):
+        return generalentryfloatmath(ng,callhistory,'COLORRGB','ROUND',a)
     if containsVecs(a):
         return generalentryfloatmath(ng,callhistory,'VECTORXYZ','ROUND',a)
     return generalfloatmath(ng,callhistory,'ROUND',a)
@@ -1813,7 +1818,7 @@ def rotaxis(ng, callhistory,
 @user_doc(nexscript="Separate Color.\nSeparate a SocketColor into a tuple of 4 SocketFloat depending on the optionally passed mode in 'RGB','HSV','HSL'.\nThe fourth element of the tuple must be the alpha.\n\nTip: you can use python slicing notations instead.")
 @user_paramError(UserParamError)
 def separate_color(ng, callhistory,
-    colA:sVec|sVecXYZ|sVecT|sCol,
+    colA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|ColorRGBA,
     mode:str='RGB',
     ) -> tuple:
     assert mode in {'RGB','HSV','HSL'}, f"{mode} not in 'RGB','HSV','HSL'"
@@ -2089,7 +2094,7 @@ def boolnot(ng, callhistory,
     return generalboolmath(ng,callhistory,'NOT',a)
 
 @user_domain('nexscript')
-@user_doc(nexscript="All Equals.\nCheck if all passed arguments have equal values.\n\nCompatible with SocketFloats, SocketVectors and SocketBool. Will return a SocketBool.")
+@user_doc(nexscript="All Equals.\nCheck if all passed arguments have equal values.\n\nCompatible with SocketFloats, SocketBools, SocketInts, SocketVectors, SocketColors. Will return a SocketBool.")
 @user_paramError(UserParamError)
 def alleq(ng, callhistory,
     *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
@@ -2136,7 +2141,7 @@ def mix(ng, callhistory,
 @user_doc(nexscript="Clamping.\nClamp a value between min/max A & B default set on 0 & 1.\nSupports SocketFloat and entry-wise SocketVector, SocketColor.")
 @user_paramError(UserParamError)
 def clamp(ng, callhistory,
-    v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector,
+    v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     a:sFlo|sInt|sBoo|float|int=0,
     b:sFlo|sInt|sBoo|float|int=1,
     ) -> sFlo|sVec|sCol:
@@ -2150,7 +2155,7 @@ def clamp(ng, callhistory,
 @user_doc(nexscript="AutoClamping.\nClamp a value between auto-defined min/max A & B default set on 0 & 1.\nSupports SocketFloat and entry-wise SocketVector, SocketColor.")
 @user_paramError(UserParamError)
 def clampauto(ng, callhistory,
-    v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
+    v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     a:sFlo|sInt|sBoo|float|int=0,
     b:sFlo|sInt|sBoo|float|int=1,
     ) -> sFlo|sVec|sCol:
@@ -2250,16 +2255,25 @@ def switchfloat(ng, callhistory,
 @user_paramError(UserParamError)
 def switchvec(ng, callhistory,
     idx:sFlo|sInt|sBoo|float|int|bool,
-    *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|Vector|list|tuple|set,
+    *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
     ) -> sVec:
     if (len(values) in {0,1}): raise UserParamError(f"Function switchvec() needs at least three Params.")
     return generalswitch(ng,callhistory,'vec',idx,*values)
+@user_domain('nexscript')
+@user_doc(nexscript="Switch (Color).\nSwap between the different Color parameters depending on the index.")
+@user_paramError(UserParamError)
+def switchcol(ng, callhistory,
+    idx:sFlo|sInt|sBoo|float|int|bool,
+    *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
+    ) -> sCol:
+    if (len(values) in {0,1}): raise UserParamError(f"Function switchcol() needs at least three Params.")
+    return generalswitch(ng,callhistory,'col',idx,*values)
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Matrix).\nSwap between the different Matrix parameters depending on the index.")
 @user_paramError(UserParamError)
 def switchmat(ng, callhistory,
     idx:sFlo|sInt|sBoo|float|int|bool,
-    *values:sMtx|Matrix|list|tuple|set,
+    *values:sMtx|Matrix,
     ) -> sMtx:
     if (len(values) in {0,1}): raise UserParamError(f"Function switchmat() needs at least three Params.")
     return generalswitch(ng,callhistory,'mat',idx,*values)
