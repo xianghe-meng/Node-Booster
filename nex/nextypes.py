@@ -1255,6 +1255,11 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def normalized(self):
             return NexWrappedFcts['normalize'](self,)
 
+        def to_color(self):
+            _r = NexWrappedFcts['switchcol'](0,self,ColorRGBA(1,1,1,1),)
+            frame_nodes(self.node_tree, _r.nxsock.node, label=f"Vec.to_color()",)
+            return _r
+
     # ooooo      ooo                         .oooooo.             oooo                     
     # `888b.     `8'                        d8P'  `Y8b            `888                     
     #  8 `88b.    8   .ooooo.  oooo    ooo 888           .ooooo.   888   .ooooo.  oooo d8b 
@@ -1566,6 +1571,11 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         # @blackbody.setter
         # def blackbody(self, value):
         #     pass
+
+        def to_vector(self):
+            _r = NexWrappedFcts['switchvec'](0,self,Vector((0,0,0)),)
+            frame_nodes(self.node_tree, _r.nxsock.node, label=f"Col.to_vector()",)
+            return _r
 
     # ooooo      ooo                       ooo        ooooo     .               
     # `888b.     `8'                       `88.       .888'   .o8               

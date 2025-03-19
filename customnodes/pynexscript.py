@@ -99,7 +99,10 @@ NEXNOTATIONDOC = {
                 'desc':"Return a SocketFloat value corresponding to the length of SocketVector.\n\nIs a read-only property."},
     'vA.normalized()': {
                 'name':"Vector Noralization.",
-                'desc':"Return a normalized SocketVector.\n\nIs a read-only property."},
+                'desc':"Return a normalized SocketVector."},
+    'vA.to_color()': {
+                'name':"Vector to Color.",
+                'desc':"Return a RGBAColor from a VectorXYZ."},
     'mA @ mB': {
                 'name':"Matrix Multiplication.",
                 'desc':"Multiply matrixes together."},
@@ -117,13 +120,13 @@ NEXNOTATIONDOC = {
                 'desc':"Return the SocketBool status if the matrix is indeed invertible.\n\nIs a read-only property."},
     'mA.determinant()': {
                 'name':"Matrix Determinant.",
-                'desc':"Return the SocketFloat determinant of the matrix.\n\nIs a read-only property."},
+                'desc':"Return the SocketFloat determinant of the matrix."},
     'mA.transposed()': {
                 'name':"Transpose Matrix.",
-                'desc':"Return the transposed matrix.\n\nIs a read-only property."},
+                'desc':"Return the transposed matrix."},
     'mA.inverted()': {
                 'name':"Invert Matrix.",
-                'desc':"Return the inverted matrix.\n\nIs a read-only property."},
+                'desc':"Return the inverted matrix."},
     'Col.r': {
                 'name':"Color Red Channel.",
                 'desc':"Get or Assign a SocketColor R value.\n\nIs equivalent to the 'Col[0]' notation."},
@@ -157,6 +160,9 @@ NEXNOTATIONDOC = {
     'Col.a': {
                 'name':"Color Alpha Channel.",
                 'desc':"Get or Assign a SocketColor A value.\n\nIs equivalent to the 'Col[3]' notation."},
+    'Col.to_vector()': {
+                'name':"Color to Vector.",
+                'desc':"Return a VectorXYZ from a RGBAColor."},
     }
 
 
