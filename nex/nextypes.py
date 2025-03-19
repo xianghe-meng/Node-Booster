@@ -5,10 +5,6 @@
 # NOTE all these types are meant for the pynexscripy.py node.
 #  The node is a python script evaluator that is meant to toy with these sockets.
 
-# NOTE implicit type conversion
-#  is it really a good idea to implicitly make functions and operand work cross types? ex: NexVec + NexFloat..
-#  Perhaps the typing should be a little stronger and user should convert their Nex type manually.
-
 # TODO later
 #  Optimization:
 #  - NexFactory exec is bad for performance? This factory are initialized in the main node class once per execution. Can be frequent.
@@ -17,6 +13,10 @@
 #  Code Redundency:
 #  - A lot of operation overloads are very simimar. Some math and comparison operation are repeated across many NexTypes.
 #    perhaps could centralize some operations via class inheritence 'NexMath' 'NexCompare' to not repeat function def?
+#  - Complex task: Maybe find a smart way to centralized ALL AND ANY type conversion and type error handling? 
+#    We do type conversion and checks in dunder overloads, we do conversions in nodesetter function wrapper, and in the nodesetter module as well.
+#    Blender type conversion is complex and sometimes do not make sense. It depends on the nodes we are using and the default arguments types as well.
+#    Implicit Conversion is wild. Sometimes a color can be evaluated as a float and a float as Color, and sometimes we might want to apply stricter rules in NexScript.
 
 
 import bpy
@@ -733,17 +733,24 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(other).__name__
 
             match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexCol':
                     args = self, other
 
                 case 'Vector' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
-                    args = self, trypy_to_Vec3(other)
+                    match len(other):
+                        case 3: args = self, trypy_to_Vec3(other)
+                        case 4: args = self, trypy_to_RGBA(other)
+                        case _: raise NexError(f"TypeError. Cannot compare type '{self.nxtydsp}' with '{type(other).__name__}' of length {len(other)}. Use length 3 or 4 for SocketVector or SocketColor conversion.")
 
                 case 'int' | 'float' | 'bool':
                     match self_type:
-                        case 'NexVec':  args = self, trypy_to_Vec3(other)
                         case 'NexBool': args = self, bool(other)
+                        case 'NexVec':  args = self, trypy_to_Vec3(other)
+                        case 'NexCol':  args = self, trypy_to_RGBA(other)
                         case _:         args = self, float(other)
+
+                case 'Color': 
+                    args = self, trypy_to_RGBA(other)
 
                 case _: raise NexError(f"TypeError. Cannot compare '{self.nxtydsp}' with '{type(other).__name__}'.")
 
@@ -774,7 +781,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(other).__name__
 
             match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexCol':
                     args = self, other
 
                 case 'bool':
@@ -782,9 +789,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'float' | 'int':
                     args = self, bool(other)
 
-                case 'tuple' | 'set' | 'list' | 'Vector':
+                case 'Vector' | 'Color' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
                     if not alltypes(*other, types=(float,int,bool)):
-                        NexError(f"TypeError. Cannot perform '&' bitwise operation on a '{type(other).__name__}' that do not contain exclusively types bool, int, float. {other}.")
+                        raise NexError(f"TypeError. Cannot perform '&' bitwise operation on a '{type(other).__name__}' that do not contain types bool, int, float. {other}.")
                     args = self, any(bool(v) for v in other)
 
                 case _: raise NexError(f"TypeError. Cannot perform '&' bitwise operation between '{self.nxtydsp}' and '{type(other).__name__}'.")
@@ -800,7 +807,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(other).__name__
 
             match type_name:
-                case 'NexVec' | 'NexFloat' | 'NexInt' | 'NexBool':
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexCol':
                     args = self, other
 
                 case 'bool':
@@ -808,9 +815,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'float' | 'int':
                     args = self, bool(other)
 
-                case 'tuple' | 'set' | 'list' | 'Vector':
+                case 'Vector' | 'Color' | 'list' | 'set' | 'tuple' | 'bpy_prop_array':
                     if not alltypes(*other, types=(float,int,bool)):
-                        NexError(f"TypeError. Cannot perform '|' bitwise operation on a '{type(other).__name__}' that do not contain exclusively types bool, int, float. {other}.")
+                        raise NexError(f"TypeError. Cannot perform '|' bitwise operation on a '{type(other).__name__}' that do not contain types bool, int, float. {other}.")
                     args = self, any(bool(v) for v in other)
 
                 case _: raise NexError(f"TypeError. Cannot perform '|' bitwise operation between '{self.nxtydsp}' and '{type(other).__name__}'.")
@@ -820,7 +827,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __ror__(self, other): # other | self
             # commutative operation.
             return self.__or__(other)
-        
+
     # ooooo      ooo                       oooooooooooo oooo                          .   
     # `888b.     `8'                       `888'     `8 `888                        .o8   
     #  8 `88b.    8   .ooooo.  oooo    ooo  888          888   .ooooo.   .oooo.   .o888oo 
@@ -1264,7 +1271,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     #  8       `888  888    .o  .o8"'88b   `88b    ooo  888   888  888  888   888  888     
     # o8o        `8  `Y8bod8P' o88'   888o  `Y8bood8P'  `Y8bod8P' o888o `Y8bod8P' d888b    
                                                                      
-    class NexCol(NexMath, Nex):
+    class NexCol(NexMath, NexCompare, NexBitwise, Nex):
 
         init_counter = 0
         node_inst = NODEINSTANCE

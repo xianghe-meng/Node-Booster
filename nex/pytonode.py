@@ -12,10 +12,13 @@ from ..utils.fct_utils import ColorRGBA
 
 def py_to_Vec3(value):
     match value:
-        
+
         case Vector():
             if (len(value)!=3): raise TypeError(f"Vector({value[:]}) should have 3 elements for 'SocketVector' compatibility.")
             return value
+
+        case ColorRGBA() | Color():
+            return Vector((value[0],value[1],value[2]))
 
         case list() | set() | tuple() | bpy_array():
             if (len(value)!=3): raise TypeError(f"{type(value).__name__}({value[:]}) should have 3 float elements for 'SocketVector' compatibility.")
