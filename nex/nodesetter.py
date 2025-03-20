@@ -30,7 +30,7 @@ sInt = bpy.types.NodeSocketInt
 sFlo = bpy.types.NodeSocketFloat
 sCol = bpy.types.NodeSocketColor
 sMtx = bpy.types.NodeSocketMatrix
-sQut = bpy.types.NodeSocketRotation
+sRot = bpy.types.NodeSocketRotation
 sVec = bpy.types.NodeSocketVector
 
 #tell me why these type exist? what's the reason? Very annoying to support..
@@ -974,8 +974,8 @@ def generalmatrixmath(ng, callhistory,
 def generalcombsepa(ng, callhistory,
     operation_type:str,
     data_type:str, 
-    input_data:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|sMtx|Vector|tuple|list|set,
-    ) -> tuple|sVec|sMtx:
+    input_data:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|sRot|sMtx|Vector|ColorRGBA|tuple|list|set,
+    ) -> tuple|sVec|sMtx|sRot:
     """Generic function for creating 'combine' or 'separate' nodes, over multiple types"""
 
     node_types = {
@@ -984,6 +984,7 @@ def generalcombsepa(ng, callhistory,
             'COLORRGB': 'FunctionNodeSeparateColor',
             'COLORHSV': 'FunctionNodeSeparateColor',
             'COLORHSL': 'FunctionNodeSeparateColor',
+            'QUATWXYZ': 'FunctionNodeRotationToQuaternion',
             'MATRIXFLAT': 'FunctionNodeSeparateMatrix',
             'MATRIXTRANSFORM': 'FunctionNodeSeparateTransform',
             },
@@ -992,17 +993,18 @@ def generalcombsepa(ng, callhistory,
             'COLORRGB': 'FunctionNodeCombineColor',
             'COLORHSV': 'FunctionNodeCombineColor',
             'COLORHSL': 'FunctionNodeCombineColor',
+            'QUATWXYZ': 'FunctionNodeQuaternionToRotation',
             'MATRIXFLAT': 'FunctionNodeCombineMatrix',
             'MATRIXTRANSFORM': 'FunctionNodeCombineTransform',
             },
         }
-
     prefix_names = {
         'SEPARATE': {
             'VECTORXYZ': "Sepa VecXYZ",
             'COLORRGB': "Sepa ColRgb",
             'COLORHSV': "Sepa ColHsv",
             'COLORHSL': "Sepa ColHsl",
+            'QUATWXYZ': "Sepa Quat",
             'MATRIXFLAT': "Sepa MtxFlat",
             'MATRIXTRANSFORM': "Sepa Transf",
             },
@@ -1011,6 +1013,7 @@ def generalcombsepa(ng, callhistory,
             'COLORRGB': "Comb ColRgb",
             'COLORHSV': "Comb ColHsv",
             'COLORHSL': "Comb ColHsl",
+            'QUATWXYZ': "Comb Quat",
             'MATRIXFLAT': "Comb MtxFlat",
             'MATRIXTRANSFORM': "Comb Transf",
             },
@@ -1778,14 +1781,14 @@ def length(ng, callhistory,
     return generalvecmath(ng,callhistory,'LENGTH',vA)
 
 @user_domain('nexscript')
-@user_doc(nexscript="Separate Vector.\nSeparate a SocketVector into a tuple of 3 SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
+@user_doc(nexscript="Separate Vector.\nSeparate a SocketVector into a tuple of 3 XYZ SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
 @user_paramError(UserParamError)
 def separate_xyz(ng, callhistory,
     vA:sVec|sVecXYZ|sVecT|sCol|Vector,
     ) -> tuple:
     return generalcombsepa(ng,callhistory,'SEPARATE','VECTORXYZ',vA)
 @user_domain('nexscript')
-@user_doc(nexscript="Combine Vector.\nCombine 3 SocketFloat, SocketInt or SocketBool into a SocketVector.")
+@user_doc(nexscript="Combine Vector.\nCombine 3 XYZ SocketFloat, SocketInt or SocketBool into a SocketVector.")
 @user_paramError(UserParamError)
 def combine_xyz(ng, callhistory,
     fX:sFlo|sInt|sBoo|float|int,
@@ -1911,6 +1914,25 @@ def transformdir(ng, callhistory,
     return generalmatrixmath(ng,callhistory,'transformdir',vA,mB,None)
 
 @user_domain('nexscript')
+@user_doc(nexscript="Separate Quaternion.\nSeparate a SocketRotation into a tuple of 4 XYZW SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ, myW = qA' instead.")
+@user_paramError(UserParamError)
+def separate_quaternion(ng, callhistory,
+    vA:sVec|sVecXYZ|sVecT|sCol|sRot,
+    ) -> tuple:
+    wxyz = generalcombsepa(ng,callhistory,'SEPARATE','QUATWXYZ',vA)
+    return wxyz[1], wxyz[2], wxyz[3], wxyz[0]
+@user_domain('nexscript')
+@user_doc(nexscript="Combine Quaternion.\nCombine 4 XYZW SocketFloat, SocketInt or SocketBool into a SocketRotation.")
+@user_paramError(UserParamError)
+def combine_quaternion(ng, callhistory,
+    fX:sFlo|sInt|sBoo|float|int,
+    fY:sFlo|sInt|sBoo|float|int,
+    fZ:sFlo|sInt|sBoo|float|int,
+    fW:sFlo|sInt|sBoo|float|int,
+    ) -> sRot:
+    return generalcombsepa(ng,callhistory,'COMBINE','QUATWXYZ',(fW,fX,fY,fZ),)
+
+@user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Flatten).\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")
 @user_paramError(UserParamError)
 def separate_matrix(ng, callhistory,
@@ -1941,7 +1963,7 @@ def separate_transform(ng, callhistory,
 @user_paramError(UserParamError)
 def combine_transform(ng, callhistory,
     vL:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    vR:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sQut|float|int|Vector|Quaternion,
+    vR:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sRot|float|int|Vector|Quaternion,
     vS:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sMtx:
     if type(vL) in {int, float}: vL = Vector((vL,vL,vL))

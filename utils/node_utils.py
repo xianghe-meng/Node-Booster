@@ -139,8 +139,9 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
                     defnod = ng.nodes.new('FunctionNodeQuaternionToRotation')
                     defnod.name = defnod.label = defnodname
                     defnod.location = (outnod.location.x, outnod.location.y + 350)
-                #link it
-                if (not socket.links):
+                    #link it
+                    for l in socket.links:
+                        ng.links.remove(l)
                     ng.links.new(defnod.outputs[0], socket)
                 #assign values
                 for sock,v in zip(defnod.inputs, value):
@@ -155,12 +156,13 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
                     defnod = ng.nodes.new('FunctionNodeCombineMatrix')
                     defnod.name = defnod.label = defnodname
                     defnod.location = (outnod.location.x + 150, outnod.location.y + 350)
+                    #link it
+                    for l in socket.links:
+                        ng.links.remove(l)
+                    ng.links.new(defnod.outputs[0], socket)
                     #the node comes with tainted default values
                     for inp in defnod.inputs:
                         inp.default_value = 0
-                #link it
-                if (not socket.links):
-                    ng.links.new(defnod.outputs[0], socket)
                 #assign flatten values
                 colflatten = [v for col in zip(*value) for v in col]
                 for sock,v in zip(defnod.inputs, colflatten):

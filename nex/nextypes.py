@@ -24,7 +24,7 @@ import bpy
 bpy_array = bpy.types.bpy_prop_array
 import traceback
 import math, random
-from mathutils import Vector, Matrix, Color, Euler
+from mathutils import Vector, Matrix, Color, Euler, Quaternion
 from functools import partial
 
 from ..__init__ import dprint
@@ -126,8 +126,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 return NexCol(fromsocket=socket)
 
             case bpy.types.NodeSocketRotation():
-                return NexVec(fromsocket=socket) 
-                return NexQuat(fromsocket=socket) #TODO
+                return NexQuat(fromsocket=socket)
 
             case _: raise Exception(f"ERROR: AutoNexType(): Unrecognized '{socket}' of type '{type(socket).__name__}'")
 
@@ -940,7 +939,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _ if ('Nex' in type_name):
                     raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
 
-                #Initialize a new nextype with a default value socket
                 case 'NoneType' | 'bool':
 
                     #ensure name chosen is correct
@@ -1012,7 +1010,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _ if ('Nex' in type_name):
                     raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
 
-                #Initialize a new nextype with a default value socket
                 case 'NoneType' | 'int' | 'float':
 
                     #ensure name chosen is correct
@@ -1082,7 +1079,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _ if ('Nex' in type_name):
                     raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
                 
-                #Initialize a new nextype with a default value socket
                 case 'NoneType' | 'bpy_prop_array' | 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
                     
                     #ensure name chosen is correct
@@ -1195,7 +1191,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         raise NexError("Only [:] slicing is supported for SocketVector.")
                     new_xyz = value
                     if (len(new_xyz)!=3):
-                        raise NexError("Slice assignment requires exactly 3 values.")
+                        raise NexError("Slice assignment requires exactly 3 values in XYZ for SocketVector.")
 
                 case _: raise NexError("TypeError. indices in SocketVector[i] must be integers or slices.")
 
@@ -1295,7 +1291,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _ if ('Nex' in type_name):
                     raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
 
-                #Initialize a new nextype with a default value socket
                 case 'NoneType' | 'bpy_prop_array' | 'Color' | 'list' | 'set' | 'tuple':
 
                     #ensure name chosen is correct
@@ -1360,7 +1355,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(value).__name__
 
             match key:
-                case int(): #vec[i]
+                case int(): #col[i]
                     if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                         raise NexError(f"TypeError. Value assigned to SocketColor[i] must float compatible. Recieved '{type_name}'.")
                     r, g, b, a = NexWrappedFcts['separate_color'](self, mode='RGB')
@@ -1377,7 +1372,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         raise NexError("Only [:] slicing is supported for SocketColor.")
                     new_col = value
                     if (len(new_col)!=4):
-                        raise NexError("Slice assignment requires exactly 4 values.")
+                        raise NexError("Slice assignment requires exactly 4 values in RGBA for SocketColor.")
 
                 case _: raise NexError("TypeError. indices in SocketColor[i] must be integers or slices.")
 
@@ -1577,6 +1572,173 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             frame_nodes(self.node_tree, _r.nxsock.node, label=f"Col.to_vector()",)
             return _r
 
+    # ooooo      ooo                       ooooooooo.                 .   
+    # `888b.     `8'                       `888   `Y88.             .o8   
+    #  8 `88b.    8   .ooooo.  oooo    ooo  888   .d88'  .ooooo.  .o888oo 
+    #  8   `88b.  8  d88' `88b  `88b..8P'   888ooo88P'  d88' `88b   888   
+    #  8     `88b.8  888ooo888    Y888'     888`88b.    888   888   888   
+    #  8       `888  888    .o  .o8"'88b    888  `88b.  888   888   888 . 
+    # o8o        `8  `Y8bod8P' o88'   888o o888o  o888o `Y8bod8P'   "888" 
+
+    class NexQuat(Nex):
+
+        init_counter = 0
+        node_inst = NODEINSTANCE
+        node_tree = node_inst.node_tree
+
+        nxstype = 'NodeSocketRotation'
+        nxtydsp = 'SocketRotation'
+        nxchar = 'r'
+
+        def __init__(self, socket_name='', value=None, fromsocket=None, manualdef=False,):
+
+            self.nxid = NexQuat.init_counter
+            NexQuat.init_counter += 1
+
+            if (manualdef):
+                return None
+            if (fromsocket is not None):
+                self.nxsock = fromsocket
+                return None
+
+            type_name = type(value).__name__
+            match type_name:
+
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
+
+                case 'NoneType': #| 'Quaternion' | 'Vector' | 'Euler' | 'list' | 'set' | 'tuple':
+
+                    #ensure name chosen is correct
+                    assert socket_name!='', "Nex Initialization should always define a socket_name."
+                    if (socket_name in ALLINPUTS):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+                    ALLINPUTS.append(socket_name)
+
+                    #get socket, create if non existent
+                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    if (outsock is None):
+                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
+                    elif (type(outsock) is list):
+                        raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
+
+                    #ensure type is correct, change type if necessary
+                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    if (current_type!=self.nxstype):
+                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+
+                    self.nxsock = outsock
+                    self.nxsnam = socket_name
+
+                case _:
+                    raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketRotation'. Was expecting 'None'.")
+
+            dprint(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:{self}')
+            return None
+
+        # ---------------------
+        # NexQuat Itter
+
+        def __len__(self): #len(itter)
+            return 4
+
+        def __getitem__(self, key):
+            match key:
+                case int(): #q[i]
+                    sep_quat = NexWrappedFcts['separate_quaternion'](self)
+                    if key not in (0,1,2,3):
+                        raise NexError("IndexError. indice in SocketRotation[i] exceeded maximal range of 3.")
+                    return sep_quat[key]
+
+                case slice(): #q[:i]
+                    sep_quat = NexWrappedFcts['separate_quaternion'](self)
+                    indices = range(*key.indices(4))
+                    return tuple(sep_quat[i] for i in indices)
+
+                case _: raise NexError("TypeError. indices in SocketRotation[i] must be integers or slices.")
+
+        def __iter__(self): #for f in itter
+            for i in range(len(self)):
+                yield self[i]
+
+        def __setitem__(self, key, value): #x[0] += a+b
+            to_frame = []
+            type_name = type(value).__name__
+
+            match key:
+                case int(): #q[i]
+                    if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
+                        raise NexError(f"TypeError. Value assigned to SocketRotation[i] must float compatible. Recieved '{type_name}'.")
+                    x, y, z, w = NexWrappedFcts['separate_quaternion'](self)
+                    to_frame.append(x.nxsock.node)
+                    match key:
+                        case 0: new_quat = value, y, z, w
+                        case 1: new_quat = x, value, z, w
+                        case 2: new_quat = x, y, value, w
+                        case 3: new_quat = x, y, z, value
+                        case _: raise NexError("IndexError. indice in SocketRotation[i] exceeded maximal range of 3.")
+
+                case slice():
+                    if (key!=slice(None,None,None)):
+                        raise NexError("Only [:] slicing is supported for SocketRotation.")
+                    new_quat = value
+                    if (len(new_quat)!=4):
+                        raise NexError("Slice assignment requires exactly 4 values in XYZW for SocketRotation.")
+
+                case _: raise NexError("TypeError. indices in SocketRotation[i] must be integers or slices.")
+
+            new = NexWrappedFcts['combine_quaternion'](*new_quat)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+            to_frame.append(new.nxsock.node)
+
+            frame_nodes(self.node_tree, *to_frame, label=f"Quat.setitem[{key if (type(key) is int) else ':'}]",)
+
+            return None
+
+        # ---------------------
+        # NexQuat Functions & Properties
+        # We try to immitate mathutils https://docs.blender.org/api/current/mathutils.html
+
+        _attributes = Nex._attributes + ('x','y','z','w','xyzw')
+
+        @property
+        def x(self):
+            return self[0]
+        @x.setter
+        def x(self, value):
+            self[0] = value
+
+        @property
+        def y(self):
+            return self[1]
+        @y.setter
+        def y(self, value):
+            self[1] = value
+
+        @property
+        def z(self):
+            return self[2]
+        @z.setter
+        def z(self, value):
+            self[2] = value
+
+        @property
+        def w(self):
+            return self[3]
+        @w.setter
+        def w(self, value):
+            self[3] = value
+
+        @property
+        def xyzw(self):
+            return self[:]
+        @xyzw.setter
+        def xyzw(self, value):
+            if not (type(value) in {tuple,Quaternion} and len(value)==4):
+                raise NexError("TypeError. Assignment to SockerRotation.xyzw is expected to be a tuple of length 4 containing sockets or Python values.")
+            self[:] = value[:]
+
     # ooooo      ooo                       ooo        ooooo     .               
     # `888b.     `8'                       `88.       .888'   .o8               
     #  8 `88b.    8   .ooooo.  oooo    ooo  888b     d'888  .o888oo oooo    ooo 
@@ -1612,7 +1774,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _ if ('Nex' in type_name):
                     raise NexError(f"Invalid Input Initialization. Cannot initialize a 'SocketInput' with another Socket.")
 
-                #Initialize a new nextype with a default value socket
                 case 'NoneType': # | 'Matrix' | 'list' | 'set' | 'tuple':
 
                     #ensure name chosen is correct
@@ -1955,7 +2116,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         'infloat':NexFloat,
         'invec':NexVec,
         'incol':NexCol,
-        # 'inquat':NexQuat,
+        'inquat':NexQuat,
         'inmat':NexMtx,
         'outbool':NexOutputBool,
         'outint':NexOutputInt,
