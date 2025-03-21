@@ -9,7 +9,7 @@
 import bpy 
 
 from math import hypot
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Quaternion
 
 from .draw_utils import get_dpifac
 from .fct_utils import ColorRGBA
@@ -122,10 +122,10 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
             assert socket in sockets[:], "Socket not found from input. Did you feed the right socket?"
         if (idx is None):
             for i,s in enumerate(sockets):
-                if s==socket:
+                if (s==socket):
                     idx = i
                     break
-        
+
         # for some socket types, they don't have any default_values property.
         # so we need to improvise and place a new node and link it!
         match socket.type:
@@ -179,20 +179,24 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
                     socket.default_value = value
 
     elif (in_out=='INPUT'):
-        
+
         assert node is not None, "for inputs please pass a node instance to tweak the input values to"
-        
+
         if (idx is None):
             for i,s in enumerate(ng.nodes["Group Input"].outputs):
                 if (s==socket):
                     idx = i
                     break
             assert idx is not None, "Error, couldn't find idx.."
-        
+
         instancesocket = node.inputs[idx]
-        if (instancesocket.type not in {'ROTATION','MATRIX'}):
-            if (instancesocket.default_value!=value): #NOTE Vector/Color won't like that, will always be False.. need to use [:]!=[:] for two vec..
-                instancesocket.default_value = value
+
+        #rotation and matrixes don't have a default value
+        if (instancesocket.type in {'ROTATION','MATRIX'}):
+            return None
+
+        if (instancesocket.default_value!=value): #NOTE Vector/Color won't like that, will always be False.. need to use [:]!=[:] for two vec..
+            instancesocket.default_value = value
             
     return None
 
@@ -279,6 +283,16 @@ def create_constant_input(ng, nodetype, value, uniquetag, location='auto', width
         case 'ShaderNodeValue':
             if (node.outputs[0].default_value!=value):
                 node.outputs[0].default_value = value
+            return node.outputs[0]
+
+        case 'FunctionNodeQuaternionToRotation':
+            assert type(value) is Quaternion, f"Please make sure passed value is of Quaternion type. Currently is of {type(value).__name__}"
+            assert len(value)==4, f"Please make sure the passed Quaternion has 4 WXYZ elements. Currently contains {len(value)}"
+            #assign values
+            node.inputs[0].default_value = value.w
+            node.inputs[1].default_value = value.x
+            node.inputs[2].default_value = value.y
+            node.inputs[3].default_value = value.z
             return node.outputs[0]
 
         case 'FunctionNodeCombineMatrix':

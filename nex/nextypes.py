@@ -43,7 +43,7 @@ from ..utils.node_utils import (
     create_constant_input,
     frame_nodes,
 )
-from ..nex.pytonode import py_to_Sockdata, py_to_Mtx16, py_to_Vec3, py_to_RGBA
+from ..nex.pytonode import py_to_Sockdata, py_to_Mtx16, py_to_Vec3, py_to_RGBA, py_to_Quat4
 from ..nex import nodesetter
 
 NEXUSER_EQUIVALENCE = {
@@ -87,6 +87,7 @@ def NexErrorWrapper(convert_func):
 trypy_to_Sockdata = NexErrorWrapper(py_to_Sockdata)
 trypy_to_Mtx16 = NexErrorWrapper(py_to_Mtx16)
 trypy_to_Vec3 = NexErrorWrapper(py_to_Vec3)
+trypy_to_Quat4 = NexErrorWrapper(py_to_Quat4)
 trypy_to_RGBA = NexErrorWrapper(py_to_RGBA)
 
 # oooooooooooo                         .                                  
@@ -1669,13 +1670,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case int(): #q[i]
                     if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                         raise NexError(f"TypeError. Value assigned to SocketRotation[i] must float compatible. Recieved '{type_name}'.")
-                    x, y, z, w = NexWrappedFcts['separate_quaternion'](self)
+                    w, x, y, z = NexWrappedFcts['separate_quaternion'](self)
                     to_frame.append(x.nxsock.node)
                     match key:
-                        case 0: new_quat = value, y, z, w
-                        case 1: new_quat = x, value, z, w
-                        case 2: new_quat = x, y, value, w
-                        case 3: new_quat = x, y, z, value
+                        case 0: new_quat = value, x, y, z
+                        case 1: new_quat = w, value, y, z
+                        case 2: new_quat = w, x, value, z
+                        case 3: new_quat = w, x, y, value
                         case _: raise NexError("IndexError. indice in SocketRotation[i] exceeded maximal range of 3.")
 
                 case slice():
@@ -1683,7 +1684,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         raise NexError("Only [:] slicing is supported for SocketRotation.")
                     new_quat = value
                     if (len(new_quat)!=4):
-                        raise NexError("Slice assignment requires exactly 4 values in XYZW for SocketRotation.")
+                        raise NexError("Slice assignment requires exactly 4 values in WXYZ for SocketRotation.")
 
                 case _: raise NexError("TypeError. indices in SocketRotation[i] must be integers or slices.")
 
@@ -1700,43 +1701,43 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         # NexQuat Functions & Properties
         # We try to immitate mathutils https://docs.blender.org/api/current/mathutils.html
 
-        _attributes = Nex._attributes + ('x','y','z','w','xyzw')
-
-        @property
-        def x(self):
-            return self[0]
-        @x.setter
-        def x(self, value):
-            self[0] = value
-
-        @property
-        def y(self):
-            return self[1]
-        @y.setter
-        def y(self, value):
-            self[1] = value
-
-        @property
-        def z(self):
-            return self[2]
-        @z.setter
-        def z(self, value):
-            self[2] = value
+        _attributes = Nex._attributes + ('x','y','z','w','wxyz')
 
         @property
         def w(self):
-            return self[3]
+            return self[0]
         @w.setter
         def w(self, value):
+            self[0] = value
+
+        @property
+        def x(self):
+            return self[1]
+        @x.setter
+        def x(self, value):
+            self[1] = value
+
+        @property
+        def y(self):
+            return self[2]
+        @y.setter
+        def y(self, value):
+            self[2] = value
+
+        @property
+        def z(self):
+            return self[3]
+        @z.setter
+        def z(self, value):
             self[3] = value
 
         @property
-        def xyzw(self):
+        def wxyz(self):
             return self[:]
-        @xyzw.setter
-        def xyzw(self, value):
+        @wxyz.setter
+        def wxyz(self, value):
             if not (type(value) in {tuple,Quaternion} and len(value)==4):
-                raise NexError("TypeError. Assignment to SockerRotation.xyzw is expected to be a tuple of length 4 containing sockets or Python values.")
+                raise NexError("TypeError. Assignment to SockerRotation.wxyz is expected to be a tuple of length 4 containing sockets or Python values.")
             self[:] = value[:]
 
     # ooooo      ooo                       ooo        ooooo     .               
@@ -1924,11 +1925,37 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.translation =..",)
             return None
 
-        #TODO
         #NOTE somehow mathutils.Matrix.rotation do not exist? why?
-        # @property
-        # def rotation(self):
-        #   ...
+        @property
+        def rotation(self):
+            return NexWrappedFcts['separate_transform'](self,)[1]
+        @rotation.setter
+        def rotation(self, value):
+            loc, rot, sca = NexWrappedFcts['separate_transform'](self,)
+            type_name = type(value).__name__
+            match type_name:
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexQuat':
+                    pass
+                case 'Quaternion' | 'Vector' | 'int' | 'float' | 'bool':
+                    value = trypy_to_Quat4(value)
+                case 'list' | 'set' | 'tuple':
+                    #correct lenght?
+                    if len(value)!=4:
+                        raise NexError(f"AssignationError. 'SocketMatrix.rotation' Expected an itterable of len4. Recieved len {len(value)}.")
+                    #user is giving us a mix of Sockets and python types?..
+                    iscombi = any(('Nex' in type(v).__name__) for v in value)
+                    #not valid itterable
+                    if (not iscombi) and not alltypes(*value, types=(float,int,bool),):
+                        raise NexError(f"AssignationError. 'SocketMatrix.rotation' Expected an itterable containing types 'Socket','int','float','bool'.")
+                    value = NexWrappedFcts['combine_quaternion'](*value,) if (iscombi) else trypy_to_Quat4(value)
+                case _:
+                    raise NexError(f"AssignationError. 'SocketMatrix.rotation' Expected Vector-compatible values. Recieved '{type_name}'.")
+
+            new = NexWrappedFcts['combine_transform'](loc,value,sca)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.rotation =..",)
+            return None
 
         #NOTE somehow mathutils.Matrix.scale do not exist? why?
         @property

@@ -974,7 +974,7 @@ def generalmatrixmath(ng, callhistory,
 def generalcombsepa(ng, callhistory,
     operation_type:str,
     data_type:str, 
-    input_data:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|sRot|sMtx|Vector|ColorRGBA|tuple|list|set,
+    input_data:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|sRot|sMtx|Vector|Quaternion|ColorRGBA|tuple|list|set,
     ) -> tuple|sVec|sMtx|sRot:
     """Generic function for creating 'combine' or 'separate' nodes, over multiple types"""
 
@@ -1056,17 +1056,27 @@ def generalcombsepa(ng, callhistory,
                     if needs_linking:
                         link_sockets(val, node.inputs[0])
 
-                case float() | int() | bool():
-                    val = float(val) if (type(val) is bool) else val
-                    val = Vector((val,val,val))
-                    if node.inputs[0].default_value[:] != val[:]:
-                        node.inputs[0].default_value = val
-                        assert_purple_node(node)
-
                 case Vector() | ColorRGBA():
                     if node.inputs[0].default_value[:] != val[:]:
                         node.inputs[0].default_value = val[:]
                         assert_purple_node(node)
+
+                case Quaternion(): #this is for separate_quaternion
+                    #unfortunately we are forced to create a new node, there's no quaternion .default_value option for type SocketRotation..
+                    if (uniquename):
+                          defval = create_constant_input(ng, 'FunctionNodeQuaternionToRotation', val, f"C|{uniquename}|def0")
+                    else: defval = create_constant_input(ng, 'FunctionNodeQuaternionToRotation', val, f'C|{val[:]}')
+                    if needs_linking:
+                        link_sockets(defval, node.inputs[0])
+
+                case Matrix(): #this is for separate_matrix
+                    #unfortunately we are forced to create a new node, there's no .default_value option for type SocketMatrix..
+                    rowflatten = [v for row in val for v in row]
+                    if (uniquename):
+                          defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f"C|{uniquename}|def0")
+                    else: defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f'C|{rowflatten[:]}') #enough space in nodename property? hmm. this function should't be used with no uniquename anyway..
+                    if needs_linking:
+                        link_sockets(defval, node.inputs[0])
 
                 case _: raise Exception(f"InternalError. Type '{type(val).__name__}' not supported in separate() operation. Previous check should've pick up on this.")
 
@@ -1091,6 +1101,14 @@ def generalcombsepa(ng, callhistory,
                         if node.inputs[i].default_value[:] != val[:]:
                             node.inputs[i].default_value = val
                             assert_purple_node(node)
+
+                    case Quaternion(): #this is for combine_transform, will have a quaternion element
+                        #unfortunately we are forced to create a new node, there's no quaternion .default_value option for type SocketRotation..
+                        if (uniquename):
+                              defval = create_constant_input(ng, 'FunctionNodeQuaternionToRotation', val, f"C|{uniquename}|def0")
+                        else: defval = create_constant_input(ng, 'FunctionNodeQuaternionToRotation', val, f'C|{val[:]}')
+                        if needs_linking:
+                            link_sockets(defval, node.inputs[i])
 
                     case None: pass
 
@@ -1914,15 +1932,16 @@ def transformdir(ng, callhistory,
     return generalmatrixmath(ng,callhistory,'transformdir',vA,mB,None)
 
 @user_domain('nexscript')
-@user_doc(nexscript="Separate Quaternion.\nSeparate a SocketRotation into a tuple of 4 XYZW SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ, myW = qA' instead.")
+@user_doc(nexscript="Separate Quaternion.\nSeparate a SocketRotation into a tuple of 4 WXYZ SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ, myW = qA' instead.")
 @user_paramError(UserParamError)
 def separate_quaternion(ng, callhistory,
-    vA:sVec|sVecXYZ|sVecT|sCol|sRot,
+    qA:sVec|sVecXYZ|sVecT|sCol|sRot|Quaternion|ColorRGBA,
     ) -> tuple:
-    wxyz = generalcombsepa(ng,callhistory,'SEPARATE','QUATWXYZ',vA)
-    return wxyz[1], wxyz[2], wxyz[3], wxyz[0]
+    #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
+    if (type(qA)==ColorRGBA): qA = Quaternion(qA[:])
+    return generalcombsepa(ng,callhistory,'SEPARATE','QUATWXYZ',qA)
 @user_domain('nexscript')
-@user_doc(nexscript="Combine Quaternion.\nCombine 4 XYZW SocketFloat, SocketInt or SocketBool into a SocketRotation.")
+@user_doc(nexscript="Combine Quaternion.\nCombine 4 WXYZ SocketFloat, SocketInt or SocketBool into a SocketRotation.")
 @user_paramError(UserParamError)
 def combine_quaternion(ng, callhistory,
     fX:sFlo|sInt|sBoo|float|int,
@@ -1930,13 +1949,13 @@ def combine_quaternion(ng, callhistory,
     fZ:sFlo|sInt|sBoo|float|int,
     fW:sFlo|sInt|sBoo|float|int,
     ) -> sRot:
-    return generalcombsepa(ng,callhistory,'COMBINE','QUATWXYZ',(fW,fX,fY,fZ),)
+    return generalcombsepa(ng,callhistory,'COMBINE','QUATWXYZ',(fX,fY,fZ,fW),)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Flatten).\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")
 @user_paramError(UserParamError)
 def separate_matrix(ng, callhistory,
-    mA:sMtx,
+    mA:sMtx|Matrix,
     ) -> tuple:
     return generalcombsepa(ng,callhistory,'SEPARATE','MATRIXFLAT',mA)
 @user_domain('nexscript')
@@ -1952,24 +1971,23 @@ def combine_matrix(ng, callhistory,
     return generalcombsepa(ng,callhistory,'COMBINE','MATRIXFLAT',floats)
 
 @user_domain('nexscript')
-@user_doc(nexscript="Separate Matrix (Transform).\nSeparate a SocketMatrix into a tuple of 3 SocketVector.")
+@user_doc(nexscript="Separate Matrix (Transform).\nSeparate a SocketMatrix into a tuple SocketVector, SocketRotation, SocketVector.")
 @user_paramError(UserParamError)
 def separate_transform(ng, callhistory,
-    mA:sMtx,
+    mA:sMtx|Matrix,
     ) -> tuple:
     return generalcombsepa(ng,callhistory,'SEPARATE','MATRIXTRANSFORM',mA)
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Transform).\nCombine 3 SocketVector into a SocketMatrix.")
 @user_paramError(UserParamError)
 def combine_transform(ng, callhistory,
-    vL:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    vR:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sRot|float|int|Vector|Quaternion,
-    vS:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
+    vL:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
+    qR:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sRot|Vector|Quaternion|ColorRGBA,
+    vS:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sMtx:
-    if type(vL) in {int, float}: vL = Vector((vL,vL,vL))
-    if type(vR) in {int, float}: vR = Vector((vR,vR,vR)) #support quaternion in here?
-    if type(vS) in {int, float}: vS = Vector((vS,vS,vS))
-    return generalcombsepa(ng,callhistory,'COMBINE','MATRIXTRANSFORM',(vL,vR,vS),)
+    #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
+    if (type(qR)==ColorRGBA): qR = Quaternion(qR[:])
+    return generalcombsepa(ng,callhistory,'COMBINE','MATRIXTRANSFORM',(vL,qR,vS),)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")

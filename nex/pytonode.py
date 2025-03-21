@@ -29,6 +29,30 @@ def py_to_Vec3(value):
 
         case _: raise TypeError(f"type {type(value).__name__}({value[:]}) is not compatible with 'SocketVector'.")
 
+def py_to_Quat4(value):
+    match value:
+
+        case Quaternion():
+            return value
+
+        case ColorRGBA():
+            return Quaternion(value)
+
+        case list() | set() | tuple() | bpy_array() | Vector() | Color():
+            if len(value) not in (3, 4):
+                raise TypeError(f"{type(value).__name__}({list(value)}) should have 3 or 4 elements for 'ColorRGBA' compatibility.")
+            if (len(value)==3):
+                  return Quaternion(value+1.0)
+            else: return Quaternion((value[0], value[1], value[2], value[3],))
+
+        case int() | float() | bool():
+            v = float(value)
+            return Quaternion((v,v,v,v))
+
+        case _:
+            extra = value[:] if hasattr(value, '__getitem__') else value
+            raise TypeError(f"type {type(value).__name__}({extra}) is not compatible with 'ColorRGBA'.")
+
 def py_to_RGBA(value):
     match value:
 

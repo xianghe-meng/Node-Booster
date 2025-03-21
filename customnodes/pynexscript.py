@@ -93,7 +93,7 @@ NEXNOTATIONDOC = {
                 'desc':"Get or Assign a SocketFloat value from the Z axis of a SocketVector.\n\nIs equivalent to the 'vA[2]' notation."},
     'vA.xyz': {
                 'name':"Vector XYZ tuple.",
-                'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding axes of a SocketVector.\n\nIs equivalent to the 'vA[:]' notation."},
+                'desc':"Get or Assign a tuple of 3 SocketFloat values from the corresponding XYZ axes of a SocketVector.\n\nIs equivalent to the 'vA[:]' notation."},
     'vA.length': {
                 'name':"Vector Length.",
                 'desc':"Return a SocketFloat value corresponding to the length of SocketVector.\n\nIs a read-only property."},
@@ -103,6 +103,21 @@ NEXNOTATIONDOC = {
     'vA.to_color()': {
                 'name':"Vector to Color.",
                 'desc':"Return a RGBAColor from a VectorXYZ."},
+    'qA.w': {
+                'name':"Quaternion W.",
+                'desc':"Get or Assign a SocketRotation W axis.\n\nIs equivalent to the 'qA[0]' notation."},
+    'qA.x': {
+                'name':"Quaternion X.",
+                'desc':"Get or Assign a SocketRotation X axis.\n\nIs equivalent to the 'qA[1]' notation."},
+    'qA.y': {
+                'name':"Quaternion Y.",
+                'desc':"Get or Assign a SocketRotation Y axis.\n\nIs equivalent to the 'qA[2]' notation."},
+    'qA.z': {
+                'name':"Quaternion Z.",
+                'desc':"Get or Assign a SocketRotation Z axis.\n\nIs equivalent to the 'qA[3]' notation."},
+    'qA.wxyz': {
+                'name':"Quaternion WXYZ tuple.",
+                'desc':"Get or Assign a tuple of 4 SocketFloat values from the corresponding WXYZ axes of a SocketRotation.\n\nIs equivalent to the 'qA[:]' notation."},
     'mA @ mB': {
                 'name':"Matrix Multiplication.",
                 'desc':"Multiply matrixes together."},
