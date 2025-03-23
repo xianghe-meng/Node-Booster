@@ -118,6 +118,12 @@ NEXNOTATIONDOC = {
     'qA.wxyz': {
                 'name':"Quaternion WXYZ tuple.",
                 'desc':"Get or Assign a tuple of 4 SocketFloat values from the corresponding WXYZ axes of a SocketRotation.\n\nIs equivalent to the 'qA[:]' notation."},
+    'qA.axis': {
+                'name':"Quaternion Rotation Axis.",
+                'desc':"Get or Assign a SocketVector Axis componement of a Rotation Quaternion."},
+    'qA.angle': {
+                'name':"Quaternion Rotation Angle.",
+                'desc':"Get or Assign a SocketFloat Angle componement of a Rotation Quaternion."},
     'mA @ mB': {
                 'name':"Matrix Multiplication.",
                 'desc':"Multiply matrixes together."},
@@ -127,6 +133,9 @@ NEXNOTATIONDOC = {
     'mA.translation': {
                 'name':"Matrix Translation.",
                 'desc':"Get or Assign a SocketVector Translation componement of a Transform Matrix."},
+    'mA.rotation': {
+                'name':"Matrix Rotation.",
+                'desc':"Get or Assign a SocketRotation Quaternion componement of a Transform Matrix."},
     'mA.scale': {
                 'name':"Matrix Scale.",
                 'desc':"Get or Assign a SocketVector Scale componement of a Transform Matrix."},

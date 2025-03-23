@@ -114,7 +114,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             case bpy.types.NodeSocketInt():
                 return NexInt(fromsocket=socket)
 
-            case bpy.types.NodeSocketFloat():
+            case bpy.types.NodeSocketFloat() | bpy.types.NodeSocketFloatAngle():
                 return NexFloat(fromsocket=socket)
 
             case bpy.types.NodeSocketVector() | bpy.types.NodeSocketVectorXYZ() | bpy.types.NodeSocketVectorTranslation():
@@ -1701,7 +1701,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         # NexQuat Functions & Properties
         # We try to immitate mathutils https://docs.blender.org/api/current/mathutils.html
 
-        _attributes = Nex._attributes + ('x','y','z','w','wxyz')
+        _attributes = Nex._attributes + ('x','y','z','w','wxyz','axis','angle')
 
         @property
         def w(self):
@@ -1739,6 +1739,58 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             if not (type(value) in {tuple,Quaternion} and len(value)==4):
                 raise NexError("TypeError. Assignment to SockerRotation.wxyz is expected to be a tuple of length 4 containing sockets or Python values.")
             self[:] = value[:]
+
+        @property
+        def axis(self):
+            return NexWrappedFcts['separate_rotation'](self,)[0]
+        @axis.setter
+        def axis(self, value):
+            axis, angle = NexWrappedFcts['separate_rotation'](self,)
+            type_name = type(value).__name__
+            match type_name:
+                case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexCol':
+                    pass
+                case 'Vector' | 'int' | 'float' | 'bool':
+                    value = trypy_to_Vec3(value)
+                case 'list' | 'set' | 'tuple':
+                    #correct lenght?
+                    if len(value)!=3:
+                        raise NexError(f"AssignationError. 'SocketRotation.axis' Expected an itterable of len3. Recieved len {len(value)}.")
+                    #user is giving us a mix of Sockets and python types?..
+                    iscombi = any(('Nex' in type(v).__name__) for v in value)
+                    #not valid itterable
+                    if (not iscombi) and not alltypes(*value, types=(float,int,bool),):
+                        raise NexError(f"AssignationError. 'SocketRotation.axis' Expected an itterable containing types 'Socket','int','float','bool'.")
+                    value = NexWrappedFcts['combine_xyz'](*value,) if (iscombi) else trypy_to_Vec3(value)
+                case _:
+                    raise NexError(f"AssignationError. 'SocketRotation.axis' Expected Vector-compatible values. Recieved '{type_name}'.")
+
+            new = NexWrappedFcts['combine_rotation'](value,angle)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+            frame_nodes(self.node_tree, axis.nxsock.node, new.nxsock.node, label="Rotation.axis =..",)
+            return None
+
+        @property
+        def angle(self):
+            return NexWrappedFcts['separate_rotation'](self,)[1]
+        @angle.setter
+        def angle(self, value):
+            axis, angle = NexWrappedFcts['separate_rotation'](self,)
+            type_name = type(value).__name__
+            match type_name:
+                case 'NexFloat' | 'NexInt' | 'NexBool':
+                    pass
+                case 'int' | 'float' | 'bool':
+                    value = float(value)
+                case _:
+                    raise NexError(f"AssignationError. 'SocketRotation.angle' Expected Float-compatible values. Recieved '{type_name}'.")
+
+            new = NexWrappedFcts['combine_rotation'](axis,value)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+            frame_nodes(self.node_tree, axis.nxsock.node, new.nxsock.node, label="Rotation.angle =..",)
+            return None
 
     # ooooo      ooo                       ooo        ooooo     .               
     # `888b.     `8'                       `88.       .888'   .o8               
@@ -1879,7 +1931,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         # NexMtx Functions & Properties
         # We try to immitate mathutils https://docs.blender.org/api/current/mathutils.html
 
-        _attributes = Nex._attributes + ('is_invertible','translation','rotation','scale',)
+        _attributes = Nex._attributes + ('translation','rotation','scale','is_invertible')
 
         def determinant(self):
             return NexWrappedFcts['matrixdeterminant'](self,)
@@ -1922,7 +1974,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             new = NexWrappedFcts['combine_transform'](value,rot,sca)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
-            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.translation =..",)
+            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="Matrix.translation =..",)
             return None
 
         #NOTE somehow mathutils.Matrix.rotation do not exist? why?
@@ -1954,7 +2006,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             new = NexWrappedFcts['combine_transform'](loc,value,sca)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
-            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.rotation =..",)
+            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="Matrix.rotation =..",)
             return None
 
         #NOTE somehow mathutils.Matrix.scale do not exist? why?
@@ -1986,7 +2038,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             new = NexWrappedFcts['combine_transform'](loc,rot,value)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
-            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="m.scale =..",)
+            frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="Matrix.scale =..",)
             return None
 
         @property

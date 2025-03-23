@@ -5,6 +5,11 @@
 # NOTE this module gather all kind of math function between sockets and/or between sockets and python types.
 #  When executing these functions, it will create and link new nodes automatically, from sockets to sockets and return another socket.
 
+# NOTE perhaps we should move this module, from accepting NodeSocket types, to accepting NexTypes only?
+# the problem with NodeSocket type is that there are many sub-type that are annoying to deal with.
+# All our function are strict typed. So when an user pass a SocketFloatAngle to a function designed for SocketFloat, will raise a type error..
+# And there's many useless subtype going on in the api..
+
 # NOTE The 'callhistory' internal parameter is an important functonality! Thanks to it, we can define a stable tag id for nodes generation,
 #  this functionality let us re-execute the functions to update potential .default_value without rebuilding the entire nodetree nodes and links again.
 # NOTE problem, calling functions often ex Vec.x Col.r ect.. will create a new node on each getter operation. 
@@ -985,6 +990,7 @@ def generalcombsepa(ng, callhistory,
             'COLORHSV': 'FunctionNodeSeparateColor',
             'COLORHSL': 'FunctionNodeSeparateColor',
             'QUATWXYZ': 'FunctionNodeRotationToQuaternion',
+            'QUATAXEANG': 'FunctionNodeRotationToAxisAngle',
             'MATRIXFLAT': 'FunctionNodeSeparateMatrix',
             'MATRIXTRANSFORM': 'FunctionNodeSeparateTransform',
             },
@@ -994,6 +1000,7 @@ def generalcombsepa(ng, callhistory,
             'COLORHSV': 'FunctionNodeCombineColor',
             'COLORHSL': 'FunctionNodeCombineColor',
             'QUATWXYZ': 'FunctionNodeQuaternionToRotation',
+            'QUATAXEANG': 'FunctionNodeAxisAngleToRotation',
             'MATRIXFLAT': 'FunctionNodeCombineMatrix',
             'MATRIXTRANSFORM': 'FunctionNodeCombineTransform',
             },
@@ -1005,6 +1012,7 @@ def generalcombsepa(ng, callhistory,
             'COLORHSV': "Sepa ColHsv",
             'COLORHSL': "Sepa ColHsl",
             'QUATWXYZ': "Sepa Quat",
+            'QUATAXEANG': "Sepa Axe&Angle",
             'MATRIXFLAT': "Sepa MtxFlat",
             'MATRIXTRANSFORM': "Sepa Transf",
             },
@@ -1014,6 +1022,7 @@ def generalcombsepa(ng, callhistory,
             'COLORHSV': "Comb ColHsv",
             'COLORHSL': "Comb ColHsl",
             'QUATWXYZ': "Comb Quat",
+            'QUATAXEANG': "Comb Axe&Angle",
             'MATRIXFLAT': "Comb MtxFlat",
             'MATRIXTRANSFORM': "Comb Transf",
             },
@@ -1114,7 +1123,7 @@ def generalcombsepa(ng, callhistory,
 
                     case _: raise Exception(f"InternalError. Type '{type(val).__name__}' not supported in combine() operation. Previous check should've pick up on this.")
 
-    return node.outputs[0]
+            return node.outputs[0]
 
 def generalswitch(ng, callhistory,
     Type:str,
@@ -1802,8 +1811,10 @@ def length(ng, callhistory,
 @user_doc(nexscript="Separate Vector.\nSeparate a SocketVector into a tuple of 3 XYZ SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
 @user_paramError(UserParamError)
 def separate_xyz(ng, callhistory,
-    vA:sVec|sVecXYZ|sVecT|sCol|Vector,
+    vA:sVec|sVecXYZ|sVecT|sCol|float|int|Vector,
     ) -> tuple:
+    if (type(vA) in {float, int}): 
+        vA = Vector((vA,vA,vA))
     return generalcombsepa(ng,callhistory,'SEPARATE','VECTORXYZ',vA)
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Vector.\nCombine 3 XYZ SocketFloat, SocketInt or SocketBool into a SocketVector.")
@@ -1839,10 +1850,14 @@ def rotaxis(ng, callhistory,
 @user_doc(nexscript="Separate Color.\nSeparate a SocketColor into a tuple of 4 SocketFloat depending on the optionally passed mode in 'RGB','HSV','HSL'.\nThe fourth element of the tuple must be the alpha.\n\nTip: you can use python slicing notations instead.")
 @user_paramError(UserParamError)
 def separate_color(ng, callhistory,
-    colA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|ColorRGBA,
+    colA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     mode:str='RGB',
     ) -> tuple:
     assert mode in {'RGB','HSV','HSL'}, f"{mode} not in 'RGB','HSV','HSL'"
+    if (type(colA) in {float, int}):
+        colA = ColorRGBA(colA, colA, colA, 1.0)
+    elif (type(colA) in {Vector,}):
+        colA = ColorRGBA(colA[0], colA[1], colA[2], 1.0)
     return generalcombsepa(ng,callhistory,'SEPARATE',f'COLOR{mode}',colA)
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Color.\nCombine 4 SocketFloat, SocketInt or SocketBool into a SocketColor depending on the optionally passed mode in 'RGB','HSV','HSL'.\nThe fourth element of the tuple must be the alpha.")
@@ -1944,12 +1959,35 @@ def separate_quaternion(ng, callhistory,
 @user_doc(nexscript="Combine Quaternion.\nCombine 4 WXYZ SocketFloat, SocketInt or SocketBool into a SocketRotation.")
 @user_paramError(UserParamError)
 def combine_quaternion(ng, callhistory,
+    fW:sFlo|sInt|sBoo|float|int,
     fX:sFlo|sInt|sBoo|float|int,
     fY:sFlo|sInt|sBoo|float|int,
     fZ:sFlo|sInt|sBoo|float|int,
-    fW:sFlo|sInt|sBoo|float|int,
     ) -> sRot:
     return generalcombsepa(ng,callhistory,'COMBINE','QUATWXYZ',(fX,fY,fZ,fW),)
+
+@user_domain('nexscript')
+@user_doc(nexscript="Separate Quaternion Rotation.\nSeparate a SocketRotation into a SocketVector Axis and a SocketFloat angle.")
+@user_paramError(UserParamError)
+def separate_rotation(ng, callhistory,
+    qA:sVec|sVecXYZ|sVecT|sCol|sRot|Quaternion|ColorRGBA,
+    ) -> tuple:
+    #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
+    if (type(qA)==ColorRGBA): qA = Quaternion(qA[:])
+    axis, angle = generalcombsepa(ng,callhistory,'SEPARATE','QUATAXEANG',qA)
+    #NOTE Special Case: Angle will be of type NodeSocketFloatAngle. our functions were not designed for that type. We already support VecXYZ & VecT..
+    # So instead of adding a new SocketFloatAngle support for every single function, we add a dummy +0 operation to convert it into a socket we like instead..
+    angle = generalfloatmath(ng,callhistory,'ADD',angle,0)
+    return axis, angle
+@user_domain('nexscript')
+@user_doc(nexscript="Combine Quaternion Rotation.\nCombine a Vector axis and a Float Angle into a SocketRotation.")
+@user_paramError(UserParamError)
+def combine_rotation(ng, callhistory,
+    vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector,
+    fA:sFlo|sInt|sBoo|float|int,
+    ) -> sRot:
+    if type(vA) in {float,int,bool}: vA = Vector((vA,vA,vA))
+    return generalcombsepa(ng,callhistory,'COMBINE','QUATAXEANG',(vA,fA),)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Flatten).\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")
@@ -1981,12 +2019,19 @@ def separate_transform(ng, callhistory,
 @user_doc(nexscript="Combine Matrix (Transform).\nCombine 3 SocketVector into a SocketMatrix.")
 @user_paramError(UserParamError)
 def combine_transform(ng, callhistory,
-    vL:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
-    qR:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sRot|Vector|Quaternion|ColorRGBA,
-    vS:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
+    vL:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
+    qR:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sRot|float|int|Vector|Quaternion|ColorRGBA,
+    vS:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sMtx:
     #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
-    if (type(qR)==ColorRGBA): qR = Quaternion(qR[:])
+    if (type(qR)==ColorRGBA):
+        qR = Quaternion(qR[:])
+    if (type(vL) in {float, int}):
+        vL = Vector((vL,vL,vL))
+    if (type(qR) in {float, int}):
+        qR = Quaternion((qR,qR,qR,qR))
+    if (type(vS) in {float, int}):
+        vS = Vector((vS,vS,vS))
     return generalcombsepa(ng,callhistory,'COMBINE','MATRIXTRANSFORM',(vL,qR,vS),)
 
 @user_domain('mathex','nexscript')
