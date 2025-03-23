@@ -4,6 +4,10 @@
 
 
 from . camerainfo import NODEBOOSTER_NG_camerainfo
+from . point_lightinfo import NODEBOOSTER_NG_point_lightinfo
+from . sun_lightinfo import NODEBOOSTER_NG_sun_lightinfo
+from . spot_lightinfo import NODEBOOSTER_NG_spot_lightinfo
+from . area_lightinfo import NODEBOOSTER_NG_area_lightinfo
 from . isrenderedview import NODEBOOSTER_NG_isrenderedview
 from . sequencervolume import NODEBOOSTER_NG_sequencervolume
 from . mathexpression import NODEBOOSTER_NG_mathexpression
@@ -16,6 +20,10 @@ from . pynexscript import NODEBOOSTER_NG_pynexscript
 classes = (
 
     NODEBOOSTER_NG_camerainfo,
+    NODEBOOSTER_NG_point_lightinfo,
+    NODEBOOSTER_NG_sun_lightinfo,
+    NODEBOOSTER_NG_spot_lightinfo,
+    NODEBOOSTER_NG_area_lightinfo,
     NODEBOOSTER_NG_isrenderedview,
     NODEBOOSTER_NG_sequencervolume,
     NODEBOOSTER_NG_mathexpression,
