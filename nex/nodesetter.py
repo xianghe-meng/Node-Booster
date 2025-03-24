@@ -1797,6 +1797,25 @@ def normalize(ng, callhistory,
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
 @user_paramError(UserParamError)
+def vectocolor(ng, callhistory,
+    vA:sVec|sVecXYZ|sVecT,
+    ) -> sCol:
+    x,y,z = separate_xyz(ng,callhistory,vA)
+    _r = combine_color(ng,callhistory,x,y,z,1.0)
+    frame_nodes(ng, x.node, _r.node, label=f"VecToCol",)
+    return _r
+
+#covered internally in nexscript via property or function
+@user_domain('nexclassmethod')
+@user_paramError(UserParamError)
+def vectorotation(ng, callhistory,
+    vA:sVec|sVecXYZ|sVecT,
+    ) -> sRot:
+    return generalnewnode(ng,callhistory,'VecToRot','FunctionNodeEulerToRotation',vA)[0]
+
+#covered internally in nexscript via property or function
+@user_domain('nexclassmethod')
+@user_paramError(UserParamError)
 def length(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo:
@@ -1866,6 +1885,17 @@ def combine_color(ng, callhistory,
     ) -> sCol:
     assert mode in {'RGB','HSV','HSL'}, f"{mode} not in 'RGB','HSV','HSL'"
     return generalcombsepa(ng,callhistory,'COMBINE',f'COLOR{mode}',(f1,f2,f3,fA),)
+
+#covered internally in nexscript via property or function
+@user_domain('nexclassmethod')
+@user_paramError(UserParamError)
+def coltovec(ng, callhistory,
+    colA:sCol,
+    ) -> sVec:
+    r,g,b,_ = separate_color(ng,callhistory,colA)
+    _r = combine_xyz(ng,callhistory,r,g,b)
+    frame_nodes(ng, r.node, _r.node, label=f"ColToVec",)
+    return _r
 
 # @user_domain('nexclassmethod')
 # def get_blackbody(ng, callhistory,
@@ -1995,7 +2025,7 @@ def rotationinvert(ng, callhistory,
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
 @user_paramError(UserParamError)
-def to_euler(ng, callhistory,
+def rotationtoeuler(ng, callhistory,
     qA:sRot,
     ) -> sVec:
     euler = generalnewnode(ng,callhistory,'RotToEuler','FunctionNodeRotationToEuler',qA)[0]
@@ -2003,14 +2033,6 @@ def to_euler(ng, callhistory,
     # So instead of adding a SocketType support for every single function, we add a dummy +0 operation to convert it into a socket we like instead..
     euler = generalvecmath(ng,callhistory,'ADD',euler,0)
     return euler
-
-#covered internally in nexscript via property or function
-@user_domain('nexclassmethod')
-@user_paramError(UserParamError)
-def to_quaternion(ng, callhistory,
-    vA:sVec|sVecXYZ|sVecT,
-    ) -> sRot:
-    return generalnewnode(ng,callhistory,'EulerToRot','FunctionNodeEulerToRotation',vA)[0]
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Flatten).\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")

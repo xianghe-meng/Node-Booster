@@ -1253,12 +1253,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return NexWrappedFcts['normalize'](self,)
 
         def to_color(self):
-            _r = NexWrappedFcts['switchcol'](0,self,ColorRGBA(1,1,1,1),)
-            frame_nodes(self.node_tree, _r.nxsock.node, label=f"Vec.to_color()",)
-            return _r
+            return NexWrappedFcts['vectocolor'](self,)
 
         def to_quaternion(self):
-            return NexWrappedFcts['to_quaternion'](self,)
+            return NexWrappedFcts['vectorotation'](self,)
 
 
     # ooooo      ooo                         .oooooo.             oooo                     
@@ -1573,9 +1571,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         #     pass
 
         def to_vector(self):
-            _r = NexWrappedFcts['switchvec'](0,self,Vector((0,0,0)),)
-            frame_nodes(self.node_tree, _r.nxsock.node, label=f"Col.to_vector()",)
-            return _r
+            return NexWrappedFcts['coltovec'](self,)
 
     # ooooo      ooo                       ooooooooo.                 .   
     # `888b.     `8'                       `888   `Y88.             .o8   
@@ -1800,7 +1796,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return NexWrappedFcts['rotationinvert'](self,)
 
         def to_euler(self):
-            return NexWrappedFcts['to_euler'](self,)
+            return NexWrappedFcts['rotationtoeuler'](self,)
 
 
     # ooooo      ooo                       ooo        ooooo     .               
