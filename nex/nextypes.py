@@ -117,7 +117,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             case bpy.types.NodeSocketFloat() | bpy.types.NodeSocketFloatAngle():
                 return NexFloat(fromsocket=socket)
 
-            case bpy.types.NodeSocketVector() | bpy.types.NodeSocketVectorXYZ() | bpy.types.NodeSocketVectorTranslation():
+            case bpy.types.NodeSocketVector() | bpy.types.NodeSocketVectorXYZ() | bpy.types.NodeSocketVectorTranslation() | bpy.types.NodeSocketVectorEuler():
                 return NexVec(fromsocket=socket)
 
             case bpy.types.NodeSocketMatrix():
@@ -129,7 +129,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             case bpy.types.NodeSocketRotation():
                 return NexQuat(fromsocket=socket)
 
-            case _: raise Exception(f"ERROR: AutoNexType(): Unrecognized '{socket}' of type '{type(socket).__name__}'")
+            case _: raise TypeError(f"AutoNexType() got Unrecognized '{socket}' of type '{type(socket).__name__}'")
 
     def create_Nex_constant(NexType, value,):
         """Create a new input node (if not already exist) ensure it's default value, then assign to a NexType & return it."""
@@ -1257,6 +1257,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             frame_nodes(self.node_tree, _r.nxsock.node, label=f"Vec.to_color()",)
             return _r
 
+        def to_quaternion(self):
+            return NexWrappedFcts['to_quaternion'](self,)
+
+
     # ooooo      ooo                         .oooooo.             oooo                     
     # `888b.     `8'                        d8P'  `Y8b            `888                     
     #  8 `88b.    8   .ooooo.  oooo    ooo 888           .ooooo.   888   .ooooo.  oooo d8b 
@@ -1794,6 +1798,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         def inverted(self):
             return NexWrappedFcts['rotationinvert'](self,)
+
+        def to_euler(self):
+            return NexWrappedFcts['to_euler'](self,)
+
 
     # ooooo      ooo                       ooo        ooooo     .               
     # `888b.     `8'                       `88.       .888'   .o8               

@@ -912,14 +912,10 @@ def generalmatrixmath(ng, callhistory,
     """generic operation for operation on Matrix."""
 
     match operation_type:
-        case 'matrixdeterminant':  nodetype, args, outidx = 'FunctionNodeMatrixDeterminant',  (mat1,),      0
-        case 'matrixinvert':       nodetype, args, outidx = 'FunctionNodeInvertMatrix',       (mat1,),      0
-        case 'matrixisinvertible': nodetype, args, outidx = 'FunctionNodeInvertMatrix',       (mat1,),      1
-        case 'matrixtranspose':    nodetype, args, outidx = 'FunctionNodeTransposeMatrix',    (mat1,),      0
-        case 'matrixmult':         nodetype, args, outidx = 'FunctionNodeMatrixMultiply',     (mat1,mat2,), 0
-        case 'transformloc':       nodetype, args, outidx = 'FunctionNodeTransformPoint',     (vec1,mat1,), 0
-        case 'projectloc':         nodetype, args, outidx = 'FunctionNodeTransformDirection', (vec1,mat1,), 0
-        case 'transformdir':       nodetype, args, outidx = 'FunctionNodeProjectPoint',       (vec1,mat1,), 0
+        case 'matrixmult':   nodetype, args, outidx = 'FunctionNodeMatrixMultiply',     (mat1,mat2,), 0
+        case 'transformloc': nodetype, args, outidx = 'FunctionNodeTransformPoint',     (vec1,mat1,), 0
+        case 'projectloc':   nodetype, args, outidx = 'FunctionNodeTransformDirection', (vec1,mat1,), 0
+        case 'transformdir': nodetype, args, outidx = 'FunctionNodeProjectPoint',       (vec1,mat1,), 0
         case _: raise Exception(f"Unsupported operation_type '{operation_type}' passed to generalbatchcompare().")
 
     uniquename = get_unique_name('MtxMath',callhistory)
@@ -1798,7 +1794,7 @@ def normalize(ng, callhistory,
     ) -> sVec:
     return generalvecmath(ng,callhistory,'NORMALIZE',vA)
 
-#covered internally in nexscript with NexVec.length
+#covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
 @user_paramError(UserParamError)
 def length(ng, callhistory,
@@ -1885,15 +1881,15 @@ def combine_color(ng, callhistory,
 def matrixdeterminant(ng, callhistory,
     mA:sMtx,
     ) -> sFlo:
-    return generalmatrixmath(ng,callhistory,'matrixdeterminant',None,mA,None)
-
+    return generalnewnode(ng,callhistory,'MtxDeter','FunctionNodeMatrixDeterminant',mA)[0]
+    
 #covered internally in nexscript via python prop or function
 @user_domain('nexclassmethod')
 @user_paramError(UserParamError)
 def matrixinvert(ng, callhistory,
     mA:sMtx,
     ) -> sMtx:
-    return generalmatrixmath(ng,callhistory,'matrixinvert',None,mA,None)
+    return generalnewnode(ng,callhistory,'MtxInvert','FunctionNodeInvertMatrix',mA)[0]
 
 #covered internally in nexscript via python prop or function
 @user_domain('nexclassmethod')
@@ -1901,7 +1897,7 @@ def matrixinvert(ng, callhistory,
 def matrixisinvertible(ng, callhistory,
     mA:sMtx,
     ) -> sBoo:
-    return generalmatrixmath(ng,callhistory,'matrixisinvertible',None,mA,None)
+    return generalnewnode(ng,callhistory,'MtxIsInv','FunctionNodeInvertMatrix',mA)[1]
 
 #covered internally in nexscript via python prop or function
 @user_domain('nexclassmethod')
@@ -1909,7 +1905,7 @@ def matrixisinvertible(ng, callhistory,
 def matrixtranspose(ng, callhistory,
     mA:sMtx,
     ) -> sMtx:
-    return generalmatrixmath(ng,callhistory,'matrixtranspose',None,mA,None)
+    return generalnewnode(ng,callhistory,'MtxTrans','FunctionNodeTransposeMatrix',mA)[0]
 
 #covered internally in nexscript via python dunder overload
 @user_domain('nexclassmethod')
@@ -1974,7 +1970,7 @@ def separate_rotation(ng, callhistory,
     #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
     if (type(qA)==ColorRGBA): qA = Quaternion(qA[:])
     axis, angle = generalcombsepa(ng,callhistory,'SEPARATE','QUATAXEANG',qA)
-    #NOTE Special Case: Angle will be of type NodeSocketFloatAngle. our functions were not designed for that type. We already support VecXYZ & VecT..
+    #NOTE Annoying Socket Type.. : 'angle' will be of type NodeSocketFloatAngle. our functions were not designed for that type. We already support VecXYZ & VecT..
     # So instead of adding a new SocketFloatAngle support for every single function, we add a dummy +0 operation to convert it into a socket we like instead..
     angle = generalfloatmath(ng,callhistory,'ADD',angle,0)
     return axis, angle
@@ -1988,14 +1984,33 @@ def combine_rotation(ng, callhistory,
     if type(vA) in {float,int,bool}: vA = Vector((vA,vA,vA))
     return generalcombsepa(ng,callhistory,'COMBINE','QUATAXEANG',(vA,fA),)
 
+#covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
 @user_paramError(UserParamError)
 def rotationinvert(ng, callhistory,
-    qA:sVec|sVecXYZ|sVecT|sCol|sRot,
+    qA:sRot,
     ) -> sRot:
-    #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
-    if (type(qA)==ColorRGBA): qA = Quaternion(qA[:])
     return generalnewnode(ng,callhistory,'InvertRot','FunctionNodeInvertRotation',qA)[0]
+
+#covered internally in nexscript via property or function
+@user_domain('nexclassmethod')
+@user_paramError(UserParamError)
+def to_euler(ng, callhistory,
+    qA:sRot,
+    ) -> sVec:
+    euler = generalnewnode(ng,callhistory,'RotToEuler','FunctionNodeRotationToEuler',qA)[0]
+    #NOTE Annoying Socket Type.. : 'euler' will be of type NodeSocketVectorEuler. our functions were not designed for that type. We already support VecXYZ & VecT..
+    # So instead of adding a SocketType support for every single function, we add a dummy +0 operation to convert it into a socket we like instead..
+    euler = generalvecmath(ng,callhistory,'ADD',euler,0)
+    return euler
+
+#covered internally in nexscript via property or function
+@user_domain('nexclassmethod')
+@user_paramError(UserParamError)
+def to_quaternion(ng, callhistory,
+    vA:sVec|sVecXYZ|sVecT,
+    ) -> sRot:
+    return generalnewnode(ng,callhistory,'EulerToRot','FunctionNodeEulerToRotation',vA)[0]
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Flatten).\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")

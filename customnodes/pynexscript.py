@@ -103,6 +103,9 @@ NEXNOTATIONDOC = {
     'vA.to_color()': {
                 'name':"Vector to Color.",
                 'desc':"Return a RGBAColor from a VectorXYZ."},
+    'vA.to_quaternion()': {
+                'name':"Vector Euler to Quaternion.",
+                'desc':"Return a SocketRotation from an SocketVector Euler angle."},
     'qA.w': {
                 'name':"Quaternion W.",
                 'desc':"Get or Assign a SocketRotation W axis.\n\nIs equivalent to the 'qA[0]' notation."},
@@ -127,6 +130,9 @@ NEXNOTATIONDOC = {
     'qA.inverted()': {
                 'name':"Invert Quaternion.",
                 'desc':"Return the inverted quaternion."},
+    'qA.to_euler()': {
+                'name':"Quaternion as Euler Vector.",
+                'desc':"Return the XYZ Euler Angle Vector equivalent of this quaternion."},
     'mA @ mB': {
                 'name':"Matrix Multiplication.",
                 'desc':"Multiply matrixes together."},
