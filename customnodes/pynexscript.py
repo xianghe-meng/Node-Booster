@@ -124,6 +124,9 @@ NEXNOTATIONDOC = {
     'qA.angle': {
                 'name':"Quaternion Rotation Angle.",
                 'desc':"Get or Assign a SocketFloat Angle componement of a Rotation Quaternion."},
+    'qA.inverted()': {
+                'name':"Invert Quaternion.",
+                'desc':"Return the inverted quaternion."},
     'mA @ mB': {
                 'name':"Matrix Multiplication.",
                 'desc':"Multiply matrixes together."},

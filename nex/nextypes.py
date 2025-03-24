@@ -1792,6 +1792,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             frame_nodes(self.node_tree, axis.nxsock.node, new.nxsock.node, label="Rotation.angle =..",)
             return None
 
+        def inverted(self):
+            return NexWrappedFcts['rotationinvert'](self,)
+
     # ooooo      ooo                       ooo        ooooo     .               
     # `888b.     `8'                       `88.       .888'   .o8               
     #  8 `88b.    8   .ooooo.  oooo    ooo  888b     d'888  .o888oo oooo    ooo 

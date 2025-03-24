@@ -175,14 +175,13 @@ def assert_purple_node(node):
 
 
 def generalnewnode(ng, callhistory, 
-    unique_name:str,
+    unique_tag:str,
     node_type:str,
-    *inputs, #passed inputs should correspond to node.inputs in an orderly manner
+    *inparams, #passed inputs should correspond to node.inputs in an orderly manner
     ) -> tuple:
     """generic operation for adding anew node."""
 
-    #WIP currently unused
-    uniquename = get_unique_name(unique_name,callhistory)
+    uniquename = get_unique_name(unique_tag,callhistory)
     node = None
     needs_linking = False
 
@@ -204,17 +203,17 @@ def generalnewnode(ng, callhistory,
         if (uniquename):
             node.name = node.label = uniquename #Tag the node, in order to avoid unessessary build
 
-    for i, val in enumerate(inputs):
+    for i, val in enumerate(inparams):
         match val:
 
             case _ if issubclass(type(val),sAny):
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
-            
+
             case _:
-                raise Exception("Resto of Implementation Needed")
+                raise Exception("Rest of Implementation Needed")
     
-    return node.outputs[0]
+    return tuple(node.outputs)
 
 def generalreroute(ng, callhistory, socket,):
     """generic operation for adding a reroute."""
@@ -1988,6 +1987,15 @@ def combine_rotation(ng, callhistory,
     ) -> sRot:
     if type(vA) in {float,int,bool}: vA = Vector((vA,vA,vA))
     return generalcombsepa(ng,callhistory,'COMBINE','QUATAXEANG',(vA,fA),)
+
+@user_domain('nexclassmethod')
+@user_paramError(UserParamError)
+def rotationinvert(ng, callhistory,
+    qA:sVec|sVecXYZ|sVecT|sCol|sRot,
+    ) -> sRot:
+    #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
+    if (type(qA)==ColorRGBA): qA = Quaternion(qA[:])
+    return generalnewnode(ng,callhistory,'InvertRot','FunctionNodeInvertRotation',qA)[0]
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Flatten).\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")
