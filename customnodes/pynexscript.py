@@ -104,7 +104,7 @@ NEXNOTATIONDOC = {
                 'name':"Vector to Color.",
                 'desc':"Return a RGBAColor from a VectorXYZ."},
     'vA.to_quaternion()': {
-                'name':"Vector Euler to Quaternion.",
+                'name':"Euler to Quaternion.",
                 'desc':"Return a SocketRotation from an SocketVector Euler angle."},
     'qA.w': {
                 'name':"Quaternion W.",

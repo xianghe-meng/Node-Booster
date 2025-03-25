@@ -1571,7 +1571,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         #     pass
 
         def to_vector(self):
-            return NexWrappedFcts['coltovec'](self,)
+            return NexWrappedFcts['colortovector'](self,)
 
     # ooooo      ooo                       ooooooooo.                 .   
     # `888b.     `8'                       `888   `Y88.             .o8   

@@ -1889,7 +1889,7 @@ def combine_color(ng, callhistory,
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
 @user_paramError(UserParamError)
-def coltovec(ng, callhistory,
+def colortovector(ng, callhistory,
     colA:sCol,
     ) -> sVec:
     r,g,b,_ = separate_color(ng,callhistory,colA)
@@ -1989,7 +1989,7 @@ def combine_quaternion(ng, callhistory,
     fY:sFlo|sInt|sBoo|float|int,
     fZ:sFlo|sInt|sBoo|float|int,
     ) -> sRot:
-    return generalcombsepa(ng,callhistory,'COMBINE','QUATWXYZ',(fX,fY,fZ,fW),)
+    return generalcombsepa(ng,callhistory,'COMBINE','QUATWXYZ',(fW,fX,fY,fZ),)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Quaternion Rotation.\nSeparate a SocketRotation into a SocketVector Axis and a SocketFloat angle.")
@@ -2052,6 +2052,94 @@ def combine_matrix(ng, callhistory,
     if (len(floats)!=16):
         raise UserParamError(f"Function combine_matrix() recieved itterable must be of len 16 to fit a 4x4 SocketMatrix")
     return generalcombsepa(ng,callhistory,'COMBINE','MATRIXFLAT',floats)
+
+@user_domain('nexscript')
+@user_doc(nexscript="Separate Matrix (Rows).\nSeparate a SocketMatrix into a tuple of 4 Quaternion SocketRotation, by rows.")
+@user_paramError(UserParamError)
+def separate_rows(ng, callhistory,
+    mA:sMtx|Matrix,
+    ) -> tuple:
+    floats = generalcombsepa(ng,callhistory,'SEPARATE','MATRIXFLAT',mA)
+    q1 = combine_quaternion(ng,callhistory, floats[0], floats[4], floats[8], floats[12],)
+    q2 = combine_quaternion(ng,callhistory, floats[1], floats[5], floats[9], floats[13],)
+    q3 = combine_quaternion(ng,callhistory, floats[2], floats[6], floats[10], floats[14],)
+    q4 = combine_quaternion(ng,callhistory, floats[3], floats[7], floats[11], floats[15],)
+    #arrange nodes
+    if (not q4.node.parent):
+        q2.node.location = q1.node.location.x, q1.node.location.y - 150
+        q3.node.location = q1.node.location.x, q1.node.location.y - 300
+        q4.node.location = q1.node.location.x, q1.node.location.y - 450
+    frame_nodes(ng, floats[0].node, q4.node, label='Sep Mtx Rows',)
+    return q1, q2, q3, q4
+@user_domain('nexscript')
+@user_doc(nexscript="Combine Matrix (Rows).\nCombine an itterable containing  4 Quaternion SocketRotation to a SocketMatrix, by rows.")
+@user_paramError(UserParamError)
+def combine_rows(ng, callhistory,
+    q1:sCol|sRot|Quaternion|ColorRGBA,
+    q2:sCol|sRot|Quaternion|ColorRGBA,
+    q3:sCol|sRot|Quaternion|ColorRGBA,
+    q4:sCol|sRot|Quaternion|ColorRGBA,
+    ) -> sMtx:
+    w1, x1, y1, z1 = separate_quaternion(ng,callhistory,q1)
+    w2, x2, y2, z2 = separate_quaternion(ng,callhistory,q2)
+    w3, x3, y3, z3 = separate_quaternion(ng,callhistory,q3)
+    w4, x4, y4, z4 = separate_quaternion(ng,callhistory,q4)
+    #arrange nodes
+    if (not w1.node.parent):
+        w2.node.location = w1.node.location.x, w1.node.location.y - 150
+        w3.node.location = w1.node.location.x, w1.node.location.y - 300
+        w4.node.location = w1.node.location.x, w1.node.location.y - 450
+    floats = [w1, w2, w3, w4,
+              x1, x2, x3, x4,
+              y1, y2, y3, y4,
+              z1, z2, z3, z4,]
+    _r = generalcombsepa(ng,callhistory,'COMBINE','MATRIXFLAT',floats)
+    frame_nodes(ng, w1.node, _r.node, label='Sep Mtx Rows',)
+    return _r
+
+@user_domain('nexscript')
+@user_doc(nexscript="Separate Matrix (Columns).\nSeparate a SocketMatrix into a tuple of 4 Quaternion SocketRotation, by columns.")
+@user_paramError(UserParamError)
+def separate_columns(ng, callhistory,
+    mA:sMtx|Matrix,
+    ) -> tuple:
+    floats = generalcombsepa(ng,callhistory,'SEPARATE','MATRIXFLAT',mA)
+    q1 = combine_quaternion(ng,callhistory, floats[0], floats[1], floats[2], floats[3],)
+    q2 = combine_quaternion(ng,callhistory, floats[4], floats[5], floats[6], floats[7],)
+    q3 = combine_quaternion(ng,callhistory, floats[8], floats[9], floats[10], floats[11],)
+    q4 = combine_quaternion(ng,callhistory, floats[12], floats[13], floats[14], floats[15],)
+    #arrange nodes
+    if (not q4.node.parent):
+        q2.node.location = q1.node.location.x, q1.node.location.y - 150
+        q3.node.location = q1.node.location.x, q1.node.location.y - 300
+        q4.node.location = q1.node.location.x, q1.node.location.y - 450
+    frame_nodes(ng, floats[0].node, q4.node, label='Sep Mtx Cols',)
+    return q1, q2, q3, q4
+@user_domain('nexscript')
+@user_doc(nexscript="Combine Matrix (Columns).\nCombine an itterable containing  4 Quaternion SocketRotation to a SocketMatrix, by columns.")
+@user_paramError(UserParamError)
+def combine_columns(ng, callhistory,
+    q1:sCol|sRot|Quaternion|ColorRGBA,
+    q2:sCol|sRot|Quaternion|ColorRGBA,
+    q3:sCol|sRot|Quaternion|ColorRGBA,
+    q4:sCol|sRot|Quaternion|ColorRGBA,
+    ) -> sMtx:
+    w1, x1, y1, z1 = separate_quaternion(ng,callhistory,q1)
+    w2, x2, y2, z2 = separate_quaternion(ng,callhistory,q2)
+    w3, x3, y3, z3 = separate_quaternion(ng,callhistory,q3)
+    w4, x4, y4, z4 = separate_quaternion(ng,callhistory,q4)
+    #arrange nodes
+    if (not w1.node.parent):
+        w2.node.location = w1.node.location.x, w1.node.location.y - 150
+        w3.node.location = w1.node.location.x, w1.node.location.y - 300
+        w4.node.location = w1.node.location.x, w1.node.location.y - 450
+    floats = [w1, x1, y1, z1,
+              w2, x2, y2, z2,
+              w3, x3, y3, z3,
+              w4, x4, y4, z4,]
+    _r = generalcombsepa(ng,callhistory,'COMBINE','MATRIXFLAT',floats)
+    frame_nodes(ng, w1.node, _r.node, label='Sep Mtx Cols',)
+    return _r
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Transform).\nSeparate a SocketMatrix into a tuple SocketVector, SocketRotation, SocketVector.")
