@@ -25,7 +25,8 @@ def py_to_Vec3(value):
             return Vector(value)
 
         case int() | float() | bool():
-            return Vector((float(value), float(value), float(value),))
+            v = float(value)
+            return Vector((v,v,v))
 
         case _: raise TypeError(f"type {type(value).__name__}({value[:]}) is not compatible with 'SocketVector'.")
 
@@ -42,7 +43,7 @@ def py_to_Quat4(value):
             if len(value) not in (3, 4):
                 raise TypeError(f"{type(value).__name__}({list(value)}) should have 3 or 4 elements for 'ColorRGBA' compatibility.")
             if (len(value)==3):
-                  return Quaternion(value+1.0)
+                  return Quaternion((value[0], value[1], value[2], 1.0))
             else: return Quaternion((value[0], value[1], value[2], value[3],))
 
         case int() | float() | bool():
@@ -71,7 +72,7 @@ def py_to_RGBA(value):
 
         case int() | float() | bool():
             v = float(value)
-            return ColorRGBA(v, v, v, 1.0)
+            return ColorRGBA(v,v,v,1.0)
 
         case _:
             extra = value[:] if hasattr(value, '__getitem__') else value
@@ -90,7 +91,7 @@ def py_to_Mtx16(value):
             if (len(value)!=16): raise TypeError(f"{type(value).__name__}({value[:]}) should contain 16 float elements for 'SocketMatrix' compatibility. {len(value)} elements found.")
             rows = [value[i*4:(i+1)*4] for i in range(4)]
             return Matrix(rows)
-        
+
         case _: raise TypeError(f"Cannot convert type {type(value).__name__}({value[:]}) to Matrix().")
 
 def py_to_Sockdata(value, return_value_only=False):

@@ -1975,7 +1975,7 @@ def transformdir(ng, callhistory,
 @user_doc(nexscript="Separate Quaternion.\nSeparate a SocketRotation into a tuple of 4 WXYZ SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ, myW = qA' instead.")
 @user_paramError(UserParamError)
 def separate_quaternion(ng, callhistory,
-    qA:sVec|sVecXYZ|sVecT|sCol|sRot|Quaternion|ColorRGBA,
+    qA:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     ) -> tuple:
     #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
     if (type(qA)==ColorRGBA): qA = Quaternion(qA[:])
@@ -1995,7 +1995,7 @@ def combine_quaternion(ng, callhistory,
 @user_doc(nexscript="Separate Quaternion Rotation.\nSeparate a SocketRotation into a SocketVector Axis and a SocketFloat angle.")
 @user_paramError(UserParamError)
 def separate_rotation(ng, callhistory,
-    qA:sVec|sVecXYZ|sVecT|sCol|sRot|Quaternion|ColorRGBA,
+    qA:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     ) -> tuple:
     #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
     if (type(qA)==ColorRGBA): qA = Quaternion(qA[:])
@@ -2060,8 +2060,8 @@ def separate_rows(ng, callhistory,
     mA:sMtx|Matrix,
     ) -> tuple:
     floats = generalcombsepa(ng,callhistory,'SEPARATE','MATRIXFLAT',mA)
-    q1 = combine_quaternion(ng,callhistory, floats[0], floats[4], floats[8], floats[12],)
-    q2 = combine_quaternion(ng,callhistory, floats[1], floats[5], floats[9], floats[13],)
+    q1 = combine_quaternion(ng,callhistory, floats[0], floats[4], floats[8],  floats[12],)
+    q2 = combine_quaternion(ng,callhistory, floats[1], floats[5], floats[9],  floats[13],)
     q3 = combine_quaternion(ng,callhistory, floats[2], floats[6], floats[10], floats[14],)
     q4 = combine_quaternion(ng,callhistory, floats[3], floats[7], floats[11], floats[15],)
     #arrange nodes
@@ -2075,10 +2075,10 @@ def separate_rows(ng, callhistory,
 @user_doc(nexscript="Combine Matrix (Rows).\nCombine an itterable containing  4 Quaternion SocketRotation to a SocketMatrix, by rows.")
 @user_paramError(UserParamError)
 def combine_rows(ng, callhistory,
-    q1:sCol|sRot|Quaternion|ColorRGBA,
-    q2:sCol|sRot|Quaternion|ColorRGBA,
-    q3:sCol|sRot|Quaternion|ColorRGBA,
-    q4:sCol|sRot|Quaternion|ColorRGBA,
+    q1:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
+    q2:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
+    q3:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
+    q4:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     ) -> sMtx:
     w1, x1, y1, z1 = separate_quaternion(ng,callhistory,q1)
     w2, x2, y2, z2 = separate_quaternion(ng,callhistory,q2)
@@ -2104,9 +2104,9 @@ def separate_columns(ng, callhistory,
     mA:sMtx|Matrix,
     ) -> tuple:
     floats = generalcombsepa(ng,callhistory,'SEPARATE','MATRIXFLAT',mA)
-    q1 = combine_quaternion(ng,callhistory, floats[0], floats[1], floats[2], floats[3],)
-    q2 = combine_quaternion(ng,callhistory, floats[4], floats[5], floats[6], floats[7],)
-    q3 = combine_quaternion(ng,callhistory, floats[8], floats[9], floats[10], floats[11],)
+    q1 = combine_quaternion(ng,callhistory, floats[0],  floats[1],  floats[2],  floats[3],)
+    q2 = combine_quaternion(ng,callhistory, floats[4],  floats[5],  floats[6],  floats[7],)
+    q3 = combine_quaternion(ng,callhistory, floats[8],  floats[9],  floats[10], floats[11],)
     q4 = combine_quaternion(ng,callhistory, floats[12], floats[13], floats[14], floats[15],)
     #arrange nodes
     if (not q4.node.parent):
@@ -2119,10 +2119,10 @@ def separate_columns(ng, callhistory,
 @user_doc(nexscript="Combine Matrix (Columns).\nCombine an itterable containing  4 Quaternion SocketRotation to a SocketMatrix, by columns.")
 @user_paramError(UserParamError)
 def combine_columns(ng, callhistory,
-    q1:sCol|sRot|Quaternion|ColorRGBA,
-    q2:sCol|sRot|Quaternion|ColorRGBA,
-    q3:sCol|sRot|Quaternion|ColorRGBA,
-    q4:sCol|sRot|Quaternion|ColorRGBA,
+    q1:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
+    q2:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
+    q3:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
+    q4:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     ) -> sMtx:
     w1, x1, y1, z1 = separate_quaternion(ng,callhistory,q1)
     w2, x2, y2, z2 = separate_quaternion(ng,callhistory,q2)

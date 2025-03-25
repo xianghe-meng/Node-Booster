@@ -1176,7 +1176,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(value).__name__
 
             match key:
-                case int(): #vec[i]
+                case int(): #vec[i] =
                     if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                         raise NexError(f"TypeError. Value assigned to SocketVector[i] must float compatible. Recieved '{type_name}'.")
                     x, y, z = NexWrappedFcts['separate_xyz'](self,)
@@ -1187,7 +1187,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         case 2: new_xyz = x, y, value
                         case _: raise NexError("IndexError. indice in SocketVector[i] exceeded maximal range of 2.")
 
-                case slice():
+                case slice(): #vec[:] =
                     if (key!=slice(None,None,None)):
                         raise NexError("Only [:] slicing is supported for SocketVector.")
                     new_xyz = value
@@ -1358,7 +1358,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(value).__name__
 
             match key:
-                case int(): #col[i]
+                case int(): #col[i] =
                     if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                         raise NexError(f"TypeError. Value assigned to SocketColor[i] must float compatible. Recieved '{type_name}'.")
                     r, g, b, a = NexWrappedFcts['separate_color'](self, mode='RGB')
@@ -1370,7 +1370,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         case 3: new_col = r, g, b, value
                         case _: raise NexError("IndexError. indice in SocketColor[i] exceeded maximal range of 3.")
 
-                case slice():
+                case slice(): #col[:] =
                     if (key!=slice(None,None,None)):
                         raise NexError("Only [:] slicing is supported for SocketColor.")
                     new_col = value
@@ -1573,6 +1573,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def to_vector(self):
             return NexWrappedFcts['colortovector'](self,)
 
+        # def to_quaternion(self):
+        #     return NexWrappedFcts['colortorotation'](self,)
+
+
     # ooooo      ooo                       ooooooooo.                 .   
     # `888b.     `8'                       `888   `Y88.             .o8   
     #  8 `88b.    8   .ooooo.  oooo    ooo  888   .d88'  .ooooo.  .o888oo 
@@ -1667,7 +1671,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             type_name = type(value).__name__
 
             match key:
-                case int(): #q[i]
+                case int(): #q[i] =
                     if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                         raise NexError(f"TypeError. Value assigned to SocketRotation[i] must float compatible. Recieved '{type_name}'.")
                     w, x, y, z = NexWrappedFcts['separate_quaternion'](self)
@@ -1679,7 +1683,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         case 3: new_quat = w, x, y, value
                         case _: raise NexError("IndexError. indice in SocketRotation[i] exceeded maximal range of 3.")
 
-                case slice():
+                case slice(): #q[:] =
                     if (key!=slice(None,None,None)):
                         raise NexError("Only [:] slicing is supported for SocketRotation.")
                     new_quat = value
@@ -1755,7 +1759,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'list' | 'set' | 'tuple':
                     #correct lenght?
                     if len(value)!=3:
-                        raise NexError(f"AssignationError. 'SocketRotation.axis' Expected an itterable of len3. Recieved len {len(value)}.")
+                        raise NexError(f"AssignationError. 'SocketRotation.axis' Expected an itterable of len3. Recieved len{len(value)}.")
                     #user is giving us a mix of Sockets and python types?..
                     iscombi = any(('Nex' in type(v).__name__) for v in value)
                     #not valid itterable
@@ -1798,6 +1802,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def to_euler(self):
             return NexWrappedFcts['rotationtoeuler'](self,)
 
+        # def to_color(self):
+        #     return NexWrappedFcts['rotationtocolor'](self,)
 
     # ooooo      ooo                       ooo        ooooo     .               
     # `888b.     `8'                       `88.       .888'   .o8               
@@ -1946,16 +1952,11 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             for i in range(len(self)):
                 yield self[i]
 
-        def __setitem__(self, key, value): #m[0] += Quaternion((1,2,3,4))
+        def __setitem__(self, key, value): #m[0] = Quaternion((1,2,3,4))
             to_frame = []
-            type_name = type(value).__name__
-
-            #TODO support tuple and tuple of tuples
 
             match key:
-                case int(): #m[i]
-                    if (type_name not in {'NexQuat', 'NexCol', 'Quaternion'}):
-                        raise NexError(f"TypeError. Value assigned to SocketMatrix[i] must be Quaternion compatible. Recieved '{type_name}'.")
+                case int(): #m[i] =
                     q1, q2, q3, q4 = NexWrappedFcts['separate_rows'](self)
                     to_frame.append(q1.nxsock.node)
                     match key:
@@ -1965,7 +1966,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         case 3: new_rows = q1, q2, q3, value
                         case _: raise NexError("IndexError. indice in SocketMatrix[i] exceeded maximal range of 3.")
 
-                case slice():
+                case slice(): #m[:] =
                     if (key!=slice(None,None,None)):
                         raise NexError("Only [:] slicing is supported for SocketMatrix.")
                     new_rows = value
@@ -1974,7 +1975,35 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
                 case _: raise NexError("TypeError. indices in SocketMatrix[i] must be integers or slices.")
 
-            new = NexWrappedFcts['combine_rows'](*new_rows)
+            #need to convert items in rows to quaternion compatible, in case user passed a set
+            conv_rows = []
+            for q in new_rows:
+                row_typename = type(q).__name__
+                match row_typename:
+                    case 'NexQuat' | 'NexVec':
+                        newq = q
+                    case 'NexCol':
+                        r, g, b, a = NexWrappedFcts['separate_color'](q)
+                        newq =  NexWrappedFcts['combine_quaternion'](r,g,b,a)
+                        to_frame.append(r.nxsock.node)
+                    case 'Quaternion' | 'Vector' | 'Color' | 'bpy_prop_array' | 'int' | 'float' | 'bool':
+                        newq = trypy_to_Quat4(q)
+                    case 'list' | 'set' | 'tuple':
+                        #correct lenght?
+                        if len(q)!=4:
+                            raise NexError(f"AssignationError. Assigning to 'SocketMatrix' row Expected an itterable of len4. Recieved len{len(value)}.")
+                        #user is giving us a mix of Sockets and python types?..
+                        iscombi = any(('Nex' in type(v).__name__) for v in q)
+                        #not valid itterable
+                        if (not iscombi) and not alltypes(*q, types=(float,int,bool),):
+                            raise NexError(f"AssignationError.  Assigning to 'SocketMatrix' row Expected an itterable containing types 'Socket','int','float','bool'.")
+                        newq = NexWrappedFcts['combine_quaternion'](*q,) if (iscombi) else trypy_to_Quat4(q)
+                    case _:
+                        raise NexError(f"AssignationError.  Assigning to 'SocketMatrix' row Expected Quaternion-compatible values. Recieved '{row_typename}'.")
+                conv_rows.append(newq)
+                continue
+
+            new = NexWrappedFcts['combine_rows'](*conv_rows)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             to_frame.append(new.nxsock.node.parent)
@@ -2017,7 +2046,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'list' | 'set' | 'tuple':
                     #correct lenght?
                     if len(value)!=3:
-                        raise NexError(f"AssignationError. 'SocketMatrix.translation' Expected an itterable of len3. Recieved len {len(value)}.")
+                        raise NexError(f"AssignationError. 'SocketMatrix.translation' Expected an itterable of len3. Recieved len{len(value)}.")
                     #user is giving us a mix of Sockets and python types?..
                     iscombi = any(('Nex' in type(v).__name__) for v in value)
                     #not valid itterable
@@ -2049,7 +2078,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'list' | 'set' | 'tuple':
                     #correct lenght?
                     if len(value)!=4:
-                        raise NexError(f"AssignationError. 'SocketMatrix.rotation' Expected an itterable of len4. Recieved len {len(value)}.")
+                        raise NexError(f"AssignationError. 'SocketMatrix.rotation' Expected an itterable of len4. Recieved len{len(value)}.")
                     #user is giving us a mix of Sockets and python types?..
                     iscombi = any(('Nex' in type(v).__name__) for v in value)
                     #not valid itterable
@@ -2081,7 +2110,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case 'list' | 'set' | 'tuple':
                     #correct lenght?
                     if len(value)!=3:
-                        raise NexError(f"AssignationError. 'SocketMatrix.scale' Expected an itterable of len3. Recieved len {len(value)}.")
+                        raise NexError(f"AssignationError. 'SocketMatrix.scale' Expected an itterable of len3. Recieved len{len(value)}.")
                     #user is giving us a mix of Sockets and python types?..
                     iscombi = any(('Nex' in type(v).__name__) for v in value)
                     #not valid itterable
