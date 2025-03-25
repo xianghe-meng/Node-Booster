@@ -5,6 +5,8 @@
 
 from . camerainfo import NODEBOOSTER_NG_camerainfo
 from . lightinfo import NODEBOOSTER_NG_lightinfo
+from . sceneinfo import NODEBOOSTER_NG_sceneinfo
+from . renderinfo import NODEBOOSTER_NG_renderinfo
 from . isrenderedview import NODEBOOSTER_NG_isrenderedview
 from . sequencervolume import NODEBOOSTER_NG_sequencervolume
 from . mathexpression import NODEBOOSTER_NG_mathexpression
@@ -15,8 +17,10 @@ from . pynexscript import NODEBOOSTER_NG_pynexscript
 #NOTE order here will be order of appearance in the shift+a add menu
 classes = (
 
-    NODEBOOSTER_NG_camerainfo,
     NODEBOOSTER_NG_lightinfo,
+    NODEBOOSTER_NG_sceneinfo,
+    NODEBOOSTER_NG_renderinfo,
+    NODEBOOSTER_NG_camerainfo,
     NODEBOOSTER_NG_isrenderedview,
     NODEBOOSTER_NG_sequencervolume,
     NODEBOOSTER_NG_mathexpression,

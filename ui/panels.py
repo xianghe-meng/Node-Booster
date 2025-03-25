@@ -51,7 +51,8 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
         ng = context.space_data.edit_tree
         n = ng.nodes.active
 
-        layout.label(text=n.bl_label)
+        layout.label(text=n.bl_label, icon='NODE')
+        layout.separator(type='LINE')
         
         match n.bl_idname:
 
@@ -304,6 +305,22 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     prop.enabled = sett_win.allow_auto_pyexec
                     prop.prop(n,"execute_at_depsgraph")
 
+                header, panel = layout.panel("inputs_panelid", default_closed=True,)
+                header.label(text="Inputs",)
+                if (panel):
+                    
+                    col = panel.column()
+                    col.use_property_split = True
+                    col.use_property_decorate = True
+                    
+                    for s in n.inputs:
+                        row = col.row()
+                        row.active = not any(s.links)
+                        if hasattr(s,'default_value'):
+                            row.prop(s,'default_value', text=s.name,)
+                        else:
+                            row.prop(s,'type', text=s.name,)
+
                 header, panel = layout.panel("doc_panelid", default_closed=True,)
                 header.label(text="Documentation",)
                 if (panel):
@@ -442,7 +459,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
 
                     col = panel.column(align=True)
                     col.label(text="NodeTree:")
-                    col.template_ID(n, "node_tree")    
+                    col.template_ID(n, "node_tree") 
 
             case 'GeometryNodeNodeBoosterSceneInfo':
 
@@ -461,7 +478,26 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
 
                     col = panel.column(align=True)
                     col.label(text="NodeTree:")
-                    col.template_ID(n, "node_tree")   
+                    col.template_ID(n, "node_tree")
+
+            case 'GeometryNodeNodeBoosterRenderInfo':
+
+                header, panel = layout.panel("doc_panelid", default_closed=True,)
+                header.label(text="Documentation",)
+                if (panel):
+                    word_wrap(layout=panel, alert=False, active=True, max_char='auto',
+                        char_auto_sidepadding=0.9, context=context, string=n.bl_description,
+                        )
+                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
+
+                header, panel = layout.panel("dev_panelid", default_closed=True,)
+                header.label(text="Development",)
+                if (panel):
+                    panel.active = False
+
+                    col = panel.column(align=True)
+                    col.label(text="NodeTree:")
+                    col.template_ID(n, "node_tree")
                     
             case 'GeometryNodeNodeBoosterAreaLightInfo':
 
@@ -489,7 +525,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
 
                     col = panel.column(align=True)
                     col.label(text="NodeTree:")
-                    col.template_ID(n, "node_tree")   
+                    col.template_ID(n, "node_tree")
         return None
 
 

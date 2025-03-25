@@ -10,8 +10,10 @@ from collections.abc import Iterable
 from .__init__ import get_addon_prefs
 from .operators.palette import msgbus_palette_callback
 from .customnodes import (
-    NODEBOOSTER_NG_camerainfo,
     NODEBOOSTER_NG_lightinfo,
+    NODEBOOSTER_NG_sceneinfo,
+    NODEBOOSTER_NG_renderinfo,
+    NODEBOOSTER_NG_camerainfo,
     NODEBOOSTER_NG_pyexpression,
     NODEBOOSTER_NG_sequencervolume,
     NODEBOOSTER_NG_isrenderedview,
@@ -79,11 +81,12 @@ def nodebooster_handler_depspost(scene,desp):
     if (sett_plugin.debug_depsgraph):
         print("nodebooster_handler_depspost(): depsgraph signal")
 
-    #need to update camera nodes outputs
-    NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
-
-    #need to update light nodes outputs
+    #need to update custom nodes outputs
     NODEBOOSTER_NG_lightinfo.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_sceneinfo.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_renderinfo.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_sequencervolume.update_all_instances(from_depsgraph=True)
 
     #automatic re-evaluation of the Python Expression and Python Nex Nodes.
     #for security reasons, only if the user allows it expressively on each program session.
@@ -104,13 +107,11 @@ def nodebooster_handler_framepre(scene,desp):
     if (sett_plugin.debug_depsgraph):
         print("nodebooster_handler_framepre(): frame_pre signal")
 
-    #need to update camera nodes outputs
-    NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
-
-    #need to update light nodes outputs
+    #need to update custom nodes outputs
     NODEBOOSTER_NG_lightinfo.update_all_instances(from_depsgraph=True)
-
-    #need to update all volume sequencer nodes output value
+    NODEBOOSTER_NG_sceneinfo.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_renderinfo.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
     NODEBOOSTER_NG_sequencervolume.update_all_instances(from_depsgraph=True)
 
     #automatic re-evaluation of the Python Expression and Python Nex Nodes.
