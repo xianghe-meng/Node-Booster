@@ -11,7 +11,7 @@ from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue
 
 
 class NODEBOOSTER_NG_lightinfo(bpy.types.GeometryNodeCustomGroup):
-    """Custom Nodegroup: Gather informations about any area light.
+    """Custom Nodegroup: Gather informations about any lights.
     • Expect updates on each depsgraph post and frame_pre update signals"""
 
     bl_idname = "GeometryNodeNodeBoosterAreaLightInfo"

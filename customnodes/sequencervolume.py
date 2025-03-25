@@ -79,7 +79,7 @@ class NODEBOOSTER_NG_sequencervolume(bpy.types.GeometryNodeCustomGroup):
         scene = bpy.context.scene
         if (scene.sequence_editor is None):
             return 0
-        
+
         totvolume = 0
         sequences = scene.sequence_editor.sequences_all
         depsgraph = bpy.context.evaluated_depsgraph_get()

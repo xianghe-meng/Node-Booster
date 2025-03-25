@@ -411,7 +411,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     col.label(text="NodeTree:")
                     col.template_ID(n, "node_tree")
             
-            case 'GeometryNodeNodeBoosterCameraInfo':
+            case 'GeometryNodeNodeBoosterCameraInfoV2':
 
                 header, panel = layout.panel("params_panelid", default_closed=False,)
                 header.label(text="Parameters",)
@@ -419,10 +419,10 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                         
                     row = panel.row(align=True)
                     sub = row.row(align=True)
-                    sub.active = not n.use_scene_cam
 
                     if (n.use_scene_cam):
-                        sub.prop(bpy.context.scene, "camera", text="", icon="CAMERA_DATA")
+                          sub.enabled = False
+                          sub.prop(bpy.context.scene, "camera", text="", icon="CAMERA_DATA")
                     else: sub.prop(n, "camera_obj", text="", icon="CAMERA_DATA")
 
                     panel.prop(n, "use_scene_cam",)
@@ -444,6 +444,52 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     col.label(text="NodeTree:")
                     col.template_ID(n, "node_tree")    
 
+            case 'GeometryNodeNodeBoosterSceneInfo':
+
+                header, panel = layout.panel("doc_panelid", default_closed=True,)
+                header.label(text="Documentation",)
+                if (panel):
+                    word_wrap(layout=panel, alert=False, active=True, max_char='auto',
+                        char_auto_sidepadding=0.9, context=context, string=n.bl_description,
+                        )
+                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
+
+                header, panel = layout.panel("dev_panelid", default_closed=True,)
+                header.label(text="Development",)
+                if (panel):
+                    panel.active = False
+
+                    col = panel.column(align=True)
+                    col.label(text="NodeTree:")
+                    col.template_ID(n, "node_tree")   
+                    
+            case 'GeometryNodeNodeBoosterAreaLightInfo':
+
+                header, panel = layout.panel("params_panelid", default_closed=False,)
+                header.label(text="Parameters",)
+                if (panel):
+
+                    row = panel.row(align=True)
+                    sub = row.row(align=True)
+                    sub.prop(n, "light_obj", text="",)
+                    sub.prop(n, "light_type", text="", icon_only=True,)
+
+                header, panel = layout.panel("doc_panelid", default_closed=True,)
+                header.label(text="Documentation",)
+                if (panel):
+                    word_wrap(layout=panel, alert=False, active=True, max_char='auto',
+                        char_auto_sidepadding=0.9, context=context, string=n.bl_description,
+                        )
+                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
+
+                header, panel = layout.panel("dev_panelid", default_closed=True,)
+                header.label(text="Development",)
+                if (panel):
+                    panel.active = False
+
+                    col = panel.column(align=True)
+                    col.label(text="NodeTree:")
+                    col.template_ID(n, "node_tree")   
         return None
 
 

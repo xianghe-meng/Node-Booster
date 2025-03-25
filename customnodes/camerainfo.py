@@ -16,7 +16,7 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
     • Expect updates on each depsgraph post and frame_pre update signals"""
 
     bl_idname = "GeometryNodeNodeBoosterCameraInfoV2"
-    bl_label = "Camera info"
+    bl_label = "Camera Info"
 
     use_scene_cam: bpy.props.BoolProperty(
         default=True,
@@ -57,7 +57,7 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
                     "Sensor Height" : "NodeSocketFloat",
                 },
             )
-         
+
         ng = ng.copy() #always using a copy of the original ng
         
         self.node_tree = ng
@@ -111,9 +111,9 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
 
         row = layout.row(align=True)
         sub = row.row(align=True)
-        sub.enabled = not self.use_scene_cam
 
         if (self.use_scene_cam):
+              sub.enabled = False
               sub.prop(bpy.context.scene, "camera", text="", icon="CAMERA_DATA")
         else: sub.prop(self, "camera_obj", text="", icon="CAMERA_DATA")
 
