@@ -11,6 +11,10 @@ from .__init__ import get_addon_prefs
 from .operators.palette import msgbus_palette_callback
 from .customnodes import (
     NODEBOOSTER_NG_camerainfo,
+    NODEBOOSTER_NG_point_lightinfo,
+    NODEBOOSTER_NG_sun_lightinfo,
+    NODEBOOSTER_NG_spot_lightinfo,
+    NODEBOOSTER_NG_area_lightinfo,
     NODEBOOSTER_NG_pyexpression,
     NODEBOOSTER_NG_sequencervolume,
     NODEBOOSTER_NG_isrenderedview,
@@ -81,6 +85,12 @@ def nodebooster_handler_depspost(scene,desp):
     #need to update camera nodes outputs
     NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
 
+    #need to update light nodes outputs
+    NODEBOOSTER_NG_point_lightinfo.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_sun_lightinfo.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_spot_lightinfo.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_area_lightinfo.update_all_instances(from_depsgraph=True)
+
     #automatic re-evaluation of the Python Expression and Python Nex Nodes.
     #for security reasons, only if the user allows it expressively on each program session.
     if (sett_win.allow_auto_pyexec):
@@ -102,6 +112,12 @@ def nodebooster_handler_framepre(scene,desp):
 
     #need to update camera nodes outputs
     NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
+
+    #need to update light nodes outputs
+    NODEBOOSTER_NG_point_lightinfo.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_sun_lightinfo.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_spot_lightinfo.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_area_lightinfo.update_all_instances(from_depsgraph=True)
 
     #need to update all volume sequencer nodes output value
     NODEBOOSTER_NG_sequencervolume.update_all_instances(from_depsgraph=True)
