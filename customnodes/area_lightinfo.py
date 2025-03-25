@@ -45,6 +45,7 @@ class NODEBOOSTER_NG_area_lightinfo(bpy.types.GeometryNodeCustomGroup):
                     "Shape" : "NodeSocketString",
                     "Size X" : "NodeSocketFloat",
                     "Size Y" : "NodeSocketFloat",
+                    "Beam Spread" : "NodeSocketFloat",
                 },
             )
 
@@ -75,6 +76,7 @@ class NODEBOOSTER_NG_area_lightinfo(bpy.types.GeometryNodeCustomGroup):
             set_socket_defvalue(self.node_tree, 3, value=light_obj.data.shape)
             set_socket_defvalue(self.node_tree, 4, value=light_obj.data.size)
             set_socket_defvalue(self.node_tree, 5, value=light_obj.data.size_y)
+            set_socket_defvalue(self.node_tree, 6, value=light_obj.data.spread)
         else:
             set_socket_defvalue(self.node_tree, 0, value=None)
             set_socket_defvalue(self.node_tree, 1, value=[0.0, 0.0, 0.0, 0.0])
@@ -82,6 +84,7 @@ class NODEBOOSTER_NG_area_lightinfo(bpy.types.GeometryNodeCustomGroup):
             set_socket_defvalue(self.node_tree, 3, value="")
             set_socket_defvalue(self.node_tree, 4, value=0.0)
             set_socket_defvalue(self.node_tree, 5, value=0.0)
+            set_socket_defvalue(self.node_tree, 6, value=0.0)
 
         return None
 
