@@ -15,6 +15,40 @@ from .draw_utils import get_dpifac
 from .fct_utils import ColorRGBA
 
 
+def get_all_nodes(geometry=True, compositing=True, shader=True, ignore_ng_name="", match_idnames=None,):
+    """yield all nodes across many nodetree types"""
+    r = set()
+
+    if (shader):
+        for mat in bpy.data.materials:
+            if mat.use_nodes and mat.node_tree:
+                for n in mat.node_tree.nodes:
+                    r.add(n)
+
+    if (compositing):
+        for scn in bpy.data.scenes:
+            if scn.use_nodes and scn.node_tree:
+                for n in scn.node_tree.nodes:
+                    r.add(n)
+
+    for ng in bpy.data.node_groups:
+        if (ng.type=='GEOMETRY' and not geometry):
+            continue
+        if (ng.type=='COMPOSITING' and not compositing):
+            continue
+        if (ng.type=='SHADER' and not shader):
+            continue
+        if (ignore_ng_name!="" and ignore_ng_name in ng.name):
+            continue
+        for n in ng.nodes:
+            r.add(n)
+
+    if (ignore_ng_name):
+        return [n for n in r if (n.bl_idname in match_idnames)]
+
+    return r
+
+
 def get_node_absolute_location(node):
     """find the location of the node in global space"""
 
@@ -312,10 +346,10 @@ def create_constant_input(ng, nodetype, value, uniquetag, location='auto', width
     return None
 
 
-def create_new_nodegroup(name, in_sockets={}, out_sockets={},):
+def create_new_nodegroup(name, tree_type='GeometryNodeTree', in_sockets={}, out_sockets={},):
     """create new nodegroup with outputs from given dict {"name":"type",}"""
 
-    ng = bpy.data.node_groups.new(name=name, type='GeometryNodeTree',)
+    ng = bpy.data.node_groups.new(name=name, type=tree_type,)
     
     #create main input/output
     in_node = ng.nodes.new('NodeGroupInput')
