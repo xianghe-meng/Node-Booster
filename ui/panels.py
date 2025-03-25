@@ -700,34 +700,6 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
                     case "Loop Favorites":
                         row.label(text='', icon='EVENT_Y',)
 
-                    case "Select Downstream":
-                        row.label(text='', icon='EVENT_CTRL',)
-                        row.separator(factor=2.35)
-                        row.label(text='', icon='MOUSE_LMB',)
-
-                    case "Select Downstream (Add)":
-                        row.label(text='', icon='EVENT_SHIFT',)
-                        row.separator(factor=0.9)
-                        row.label(text='', icon='EVENT_CTRL',)
-                        row.separator(factor=2.35)
-                        row.label(text='', icon='MOUSE_LMB',)
-
-                    case "Select Upsteam":
-                        row.label(text='', icon='EVENT_CTRL',)
-                        row.separator(factor=2.35)
-                        row.label(text='', icon='EVENT_ALT',)
-                        row.separator(factor=2.35)
-                        row.label(text='', icon='MOUSE_LMB',)
-
-                    case "Select Upsteam (Add)":
-                        row.label(text='', icon='EVENT_SHIFT',)
-                        row.separator(factor=0.9)
-                        row.label(text='', icon='EVENT_CTRL',)
-                        row.separator(factor=2.35)
-                        row.label(text='', icon='EVENT_ALT',)
-                        row.separator(factor=2.35)
-                        row.label(text='', icon='MOUSE_LMB',)
-
                     case "Draw Frame":
                         row.label(text='', icon='IMPORT',)
                         row.label(text='', icon='EVENT_J',)

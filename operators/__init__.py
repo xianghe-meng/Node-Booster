@@ -9,7 +9,6 @@ from .drawroute import NODEBOOSTER_OT_draw_route
 from .bake import NODEBOOSTER_OT_bake_customnode
 from .purge import NODEBOOSTER_OT_node_purge_unused
 from .favorites import NODEBOOSTER_OT_favorite_add, NODEBOOSTER_OT_favorite_loop
-from .depselect import NODEBOOSTER_OT_dependency_select
 from .drawframes import NODEBOOSTER_OT_draw_frame
 from .chamfer import NODEBOOSTER_OT_chamfer
 from .palette import NODEBOOSTER_OT_setcolor, NODEBOOSTER_OT_palette_reset_color, NODEBOOSTER_OT_initalize_palette
@@ -22,7 +21,6 @@ classes = (
     NODEBOOSTER_OT_node_purge_unused,
     NODEBOOSTER_OT_favorite_add,
     NODEBOOSTER_OT_favorite_loop,
-    NODEBOOSTER_OT_dependency_select,
     NODEBOOSTER_OT_draw_frame,
     NODEBOOSTER_OT_chamfer,
     NODEBOOSTER_OT_setcolor,
@@ -43,10 +41,6 @@ KMI_DEFS = (
     ( NODEBOOSTER_OT_favorite_loop.bl_idname,     "Y",         "PRESS", False, False, False, (),                                       "Loop Favorites",          "SOLO_OFF",            True, ),
     ( NODEBOOSTER_OT_draw_frame.bl_idname,        "J",         "PRESS", False, False, False, (),                                       "Draw Frame",              "ALIGN_TOP",           True, ),
     ( NODEBOOSTER_OT_chamfer.bl_idname,           "B",         "PRESS", True,  False, False, (),                                       "Reroute Chamfer",         "MOD_BEVEL",           True, ),
-    ( NODEBOOSTER_OT_dependency_select.bl_idname, "LEFTMOUSE", "PRESS", True,  False, False, (("mode","downstream"),("repsel",True )), "Select Downstream",       "RESTRICT_SELECT_OFF", True, ),
-    ( NODEBOOSTER_OT_dependency_select.bl_idname, "LEFTMOUSE", "PRESS", True,  True,  False, (("mode","downstream"),("repsel",False)), "Select Downstream (Add)", "RESTRICT_SELECT_OFF", True, ),
-    ( NODEBOOSTER_OT_dependency_select.bl_idname, "LEFTMOUSE", "PRESS", True,  False, True,  (("mode","upstream"),  ("repsel",True )), "Select Upsteam",          "RESTRICT_SELECT_OFF", True, ),
-    ( NODEBOOSTER_OT_dependency_select.bl_idname, "LEFTMOUSE", "PRESS", True,  True,  True,  (("mode","upstream"),  ("repsel",False)), "Select Upsteam (Add)",    "RESTRICT_SELECT_OFF", True, ),
 
     )
 
