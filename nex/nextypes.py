@@ -1924,15 +1924,64 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         # ---------------------
         # NexMtx Itter
 
-        # TODO I need to support itter for matrix, but unsure if we should return 
-        # Loc,Rot,Scal, QuatRow1,QuatRow2,QuatRow3,QuatRow4, or 16 floats..
-        # Perhaps it's best to stick with mathutils behavior..
+        def __len__(self): #len(itter)
+            return 4
 
-        #def __len__(self): #len(itter)
-        #    return 16??
-        #def __getitem__
-        #def __iter__
-        #def __setitem__
+        def __getitem__(self, key):
+            match key:
+                case int(): #m[i]
+                    sep_rows = NexWrappedFcts['separate_rows'](self)
+                    if key not in (0,1,2,3):
+                        raise NexError("IndexError. indice in SocketMatrix[i] exceeded maximal range of 3.")
+                    return sep_rows[key]
+
+                case slice(): #m[:i]
+                    sep_rows = NexWrappedFcts['separate_rows'](self)
+                    indices = range(*key.indices(4))
+                    return tuple(sep_rows[i] for i in indices)
+
+                case _: raise NexError("TypeError. indices in SocketMatrix[i] must be integers or slices.")
+
+        def __iter__(self): #for f in itter
+            for i in range(len(self)):
+                yield self[i]
+
+        def __setitem__(self, key, value): #m[0] += Quaternion((1,2,3,4))
+            to_frame = []
+            type_name = type(value).__name__
+
+            #TODO support tuple and tuple of tuples
+
+            match key:
+                case int(): #m[i]
+                    if (type_name not in {'NexQuat', 'NexCol', 'Quaternion'}):
+                        raise NexError(f"TypeError. Value assigned to SocketMatrix[i] must be Quaternion compatible. Recieved '{type_name}'.")
+                    q1, q2, q3, q4 = NexWrappedFcts['separate_rows'](self)
+                    to_frame.append(q1.nxsock.node)
+                    match key:
+                        case 0: new_rows = value, q2, q3, q4
+                        case 1: new_rows = q1, value, q3, q4
+                        case 2: new_rows = q1, q2, value, q4
+                        case 3: new_rows = q1, q2, q3, value
+                        case _: raise NexError("IndexError. indice in SocketMatrix[i] exceeded maximal range of 3.")
+
+                case slice():
+                    if (key!=slice(None,None,None)):
+                        raise NexError("Only [:] slicing is supported for SocketMatrix.")
+                    new_rows = value
+                    if (len(new_rows)!=4):
+                        raise NexError("Slice assignment requires exactly 4 Quaternion compatible value.")
+
+                case _: raise NexError("TypeError. indices in SocketMatrix[i] must be integers or slices.")
+
+            new = NexWrappedFcts['combine_rows'](*new_rows)
+            self.nxsock = new.nxsock
+            self.nxid = new.nxid
+            to_frame.append(new.nxsock.node.parent)
+
+            frame_nodes(self.node_tree, *to_frame, label=f"Mtx.setitem[{key if (type(key) is int) else ':'}]",)
+
+            return None
 
         # ---------------------
         # NexMtx Functions & Properties
