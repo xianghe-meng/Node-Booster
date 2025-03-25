@@ -15,7 +15,7 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
     • By default the camera will always use the active camera.
     • Expect updates on each depsgraph post and frame_pre update signals"""
 
-    bl_idname = "GeometryNodeNodeBoosterCameraInfo"
+    bl_idname = "GeometryNodeNodeBoosterCameraInfoV2"
     bl_label = "Camera info"
 
     use_scene_cam: bpy.props.BoolProperty(
@@ -52,8 +52,9 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
                     "Shift Y" : "NodeSocketFloat",
                     "Clip Start" : "NodeSocketFloat",
                     "Clip End" : "NodeSocketFloat",
-                    "Resolution X" : "NodeSocketInt",
-                    "Resolution Y" : "NodeSocketInt",
+                    "Sensor Type" : "NodeSocketString",
+                    "Sensor Width" : "NodeSocketFloat",
+                    "Sensor Height" : "NodeSocketFloat",
                 },
             )
          
@@ -76,16 +77,27 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
 
         scene = bpy.context.scene
         cam_obj = scene.camera if (self.use_scene_cam) else self.camera_obj
-        set_socket_defvalue(self.node_tree, 0, value=cam_obj)
-        
+
         if (cam_obj and cam_obj.data):
+            set_socket_defvalue(self.node_tree, 0, value=cam_obj)
             set_socket_defvalue(self.node_tree, 1, value=cam_obj.data.angle)
             set_socket_defvalue(self.node_tree, 2, value=cam_obj.data.shift_x)
             set_socket_defvalue(self.node_tree, 3, value=cam_obj.data.shift_y)
             set_socket_defvalue(self.node_tree, 4, value=cam_obj.data.clip_start)
             set_socket_defvalue(self.node_tree, 5, value=cam_obj.data.clip_end)
-            set_socket_defvalue(self.node_tree, 6, value=scene.render.resolution_x)
-            set_socket_defvalue(self.node_tree, 7, value=scene.render.resolution_y)
+            set_socket_defvalue(self.node_tree, 6, value=cam_obj.data.sensor_fit)
+            set_socket_defvalue(self.node_tree, 7, value=cam_obj.data.sensor_width)
+            set_socket_defvalue(self.node_tree, 8, value=cam_obj.data.sensor_height)
+        else:
+            set_socket_defvalue(self.node_tree, 0, value=None)
+            set_socket_defvalue(self.node_tree, 1, value=0.0)
+            set_socket_defvalue(self.node_tree, 2, value=0.0)
+            set_socket_defvalue(self.node_tree, 3, value=0.0)
+            set_socket_defvalue(self.node_tree, 4, value=0.0)
+            set_socket_defvalue(self.node_tree, 5, value=0.0)
+            set_socket_defvalue(self.node_tree, 6, value="")
+            set_socket_defvalue(self.node_tree, 7, value=0.0)
+            set_socket_defvalue(self.node_tree, 8, value=0.0)
 
         return None
 
@@ -99,7 +111,7 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
 
         row = layout.row(align=True)
         sub = row.row(align=True)
-        sub.active = not self.use_scene_cam
+        sub.enabled = not self.use_scene_cam
 
         if (self.use_scene_cam):
               sub.prop(bpy.context.scene, "camera", text="", icon="CAMERA_DATA")
