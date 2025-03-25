@@ -160,6 +160,9 @@ NEXNOTATIONDOC = {
     'mA.inverted()': {
                 'name':"Invert Matrix.",
                 'desc':"Return the inverted matrix."},
+    'mA[1][2]': {
+                'name':"Matrix Itterable Notation",
+                'desc':"You are able to navigate a 4x4 matrix rows of quaternions.\nmA[0] will get you the first Quaternion row member of the Matrix.\nmA[4][0] will get you the first element of the last Quaternion row.\nmA[0] = (1,2,3,4) will replace the first row by a new one.\nmA[4,4] = 0 will replace the last element of the last row Quaternion."},
     'Col.r': {
                 'name':"Color Red Channel.",
                 'desc':"Get or Assign a SocketColor R value.\n\nIs equivalent to the 'Col[0]' notation."},

@@ -1338,7 +1338,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             match key:
                 case int(): #col[i]
                     sep_col = NexWrappedFcts['separate_color'](self, mode='RGB')
-                    if key not in (0,1,2,3):
+                    if (key not in {0,1,2,3}):
                         raise NexError("IndexError. indice in SocketColor[i] exceeded maximal range of 3.")
                     return sep_col[key]
 
@@ -1651,7 +1651,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             match key:
                 case int(): #q[i]
                     sep_quat = NexWrappedFcts['separate_quaternion'](self)
-                    if key not in (0,1,2,3):
+                    if (key not in {0,1,2,3}):
                         raise NexError("IndexError. indice in SocketRotation[i] exceeded maximal range of 3.")
                     return sep_quat[key]
 
@@ -1937,7 +1937,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             match key:
                 case int(): #m[i]
                     sep_rows = NexWrappedFcts['separate_rows'](self)
-                    if key not in (0,1,2,3):
+                    if (key not in {0,1,2,3}):
                         raise NexError("IndexError. indice in SocketMatrix[i] exceeded maximal range of 3.")
                     return sep_rows[key]
 
@@ -1946,7 +1946,12 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     indices = range(*key.indices(4))
                     return tuple(sep_rows[i] for i in indices)
 
-                case _: raise NexError("TypeError. indices in SocketMatrix[i] must be integers or slices.")
+                case tuple(): #m[i,j]
+                    i, j = key
+                    sep_rows = NexWrappedFcts['separate_rows'](self)
+                    return sep_rows[i][j]
+
+                case _: raise NexError("TypeError. indices in SocketMatrix[i] must be integers or slices or tuple.")
 
         def __iter__(self): #for f in itter
             for i in range(len(self)):
@@ -1958,7 +1963,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             match key:
                 case int(): #m[i] =
                     q1, q2, q3, q4 = NexWrappedFcts['separate_rows'](self)
-                    to_frame.append(q1.nxsock.node)
+                    to_frame.append(q4.nxsock.node.parent)
                     match key:
                         case 0: new_rows = value, q2, q3, q4
                         case 1: new_rows = q1, value, q3, q4
@@ -1973,7 +1978,22 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     if (len(new_rows)!=4):
                         raise NexError("Slice assignment requires exactly 4 Quaternion compatible value.")
 
-                case _: raise NexError("TypeError. indices in SocketMatrix[i] must be integers or slices.")
+                case tuple(): #m[i,j] =
+                    i, j = key
+                    if (i not in {0,1,2,3}) or (j not in {0,1,2,3}):
+                        raise NexError("IndexError. indices in SocketMatrix[i,j] exceeded maximal range of 3.")
+                    quats = NexWrappedFcts['separate_rows'](self)
+                    q1, q2, q3, q4 = quats
+                    to_frame.append(q4.nxsock.node.parent)
+                    newq = quats[i]
+                    newq[j] = value
+                    match i:
+                        case 0: new_rows = newq, q2, q3, q4
+                        case 1: new_rows = q1, newq, q3, q4
+                        case 2: new_rows = q1, q2, newq, q4
+                        case 3: new_rows = q1, q2, q3, newq
+
+                case _: raise NexError("TypeError. indices in SocketMatrix[i] must be integers or slices or tuple.")
 
             #need to convert items in rows to quaternion compatible, in case user passed a set
             conv_rows = []
@@ -1985,7 +2005,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     case 'NexCol':
                         r, g, b, a = NexWrappedFcts['separate_color'](q)
                         newq =  NexWrappedFcts['combine_quaternion'](r,g,b,a)
-                        to_frame.append(r.nxsock.node)
+                        to_frame.append(r.nxsock.node.parent)
                     case 'Quaternion' | 'Vector' | 'Color' | 'bpy_prop_array' | 'int' | 'float' | 'bool':
                         newq = trypy_to_Quat4(q)
                     case 'list' | 'set' | 'tuple':
@@ -2008,7 +2028,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             self.nxid = new.nxid
             to_frame.append(new.nxsock.node.parent)
 
-            frame_nodes(self.node_tree, *to_frame, label=f"Mtx.setitem[{key if (type(key) is int) else ':'}]",)
+            frame_nodes(self.node_tree, *to_frame, label=f"Mtx.setitem[{key if (type(key) is int) else ',' if (type(key) is tuple) else ':' }]",)
 
             return None
 

@@ -410,6 +410,7 @@ def frame_nodes(node_tree, *nodes, label="Frame",):
     """Create a Frame node in the given node_tree and parent the specified nodes to it."""
 
     # we check if there's not a frame already existing. Important for nodesetter.py
+    nodes = [n for n in nodes if (n is not None)]
     existing = set(n.parent.label for n in nodes if n.parent)
     frame_exist_already = len(existing) == 1 and next(iter(existing)) == label
 
