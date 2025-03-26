@@ -28,7 +28,7 @@ c += abs(frame)
 
 # Easily access Vector or Matrix componements.
 c += (myV.x ** myV.length) + sockMatrix.translation.z
-newvec = combine_xyz(c, frame, ActiveLoc.x)
+newvec = combixyz(c, frame, ActiveLoc.x)
 
 # Do Advanced Matrix and Vector operation 
 ActiveMat = bpy.context.object.matrix_world
@@ -36,7 +36,7 @@ pytuple = (1,2,3)
 TransVec = (sockMatrix.inverted() @ ActiveMat) @ newvec.normalized()
 TransVec = sockMatrix @ cross(pytuple,TransVec,)
 TransVec = sqrt(TransVec) #math operations can also work entry-wise on vectors.
-minElement = min(separate_matrix(sockMatrix)) #get lowest socketfloat element of Matrix.
+minElement = min(sepamatrix(sockMatrix)) #get lowest socketfloat element of Matrix.
 
 # types can be itterable
 newvalues = []
@@ -48,9 +48,9 @@ TransVec[:] = newvalues
 # Because we are using python you can create functions you can reuse too
 def entrywise_sinus_on_matrix_elements(M):
     new = []
-    for f in separate_matrix(M):
+    for f in sepamatrix(M):
         new.append(sin(f))
-    return combine_matrix(new)
+    return combimatrix(new)
 
 newMat = entrywise_sinus_on_matrix_elements(sockMatrix)
 

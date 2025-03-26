@@ -162,7 +162,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             if (len(args)>=1):
 
                 # some special functions accept that user pass a tuple instead. We need to unpack in order to read what's in the itterable.
-                if fname in {'combine_matrix','alleq','min','max'}:
+                if fname in {'combimatrix','alleq','min','max'}:
                     if (len(args)==1 and (type(args) in {tuple,set,list})):
                         if (type(args[0]) in {tuple,set,list}):
                             args = args[0]
@@ -1155,13 +1155,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __getitem__(self, key): #suport x = vec[0], x,y,z = vec ect..
             match key:
                 case int(): #vec[i]
-                    sep_xyz = NexWrappedFcts['separate_xyz'](self,)
+                    sep_xyz = NexWrappedFcts['sepaxyz'](self,)
                     if key not in (0,1,2):
                         raise NexError("IndexError. indice in SocketVector[i] exceeded maximal range of 2.")
                     return sep_xyz[key]
                 
                 case slice(): #vec[:i]
-                    sep_xyz = NexWrappedFcts['separate_xyz'](self,)
+                    sep_xyz = NexWrappedFcts['sepaxyz'](self,)
                     indices = range(*key.indices(3))
                     return tuple(sep_xyz[i] for i in indices)
                 
@@ -1179,7 +1179,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case int(): #vec[i] =
                     if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                         raise NexError(f"TypeError. Value assigned to SocketVector[i] must float compatible. Recieved '{type_name}'.")
-                    x, y, z = NexWrappedFcts['separate_xyz'](self,)
+                    x, y, z = NexWrappedFcts['sepaxyz'](self,)
                     to_frame.append(x.nxsock.node)
                     match key:
                         case 0: new_xyz = value, y, z
@@ -1196,7 +1196,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
                 case _: raise NexError("TypeError. indices in SocketVector[i] must be integers or slices.")
 
-            new = NexWrappedFcts['combine_xyz'](*new_xyz,)
+            new = NexWrappedFcts['combixyz'](*new_xyz,)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             to_frame.append(new.nxsock.node)
@@ -1256,7 +1256,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return NexWrappedFcts['vectocolor'](self,)
 
         def to_quaternion(self):
-            return NexWrappedFcts['vectorotation'](self,)
+            return NexWrappedFcts['vectorot'](self,)
 
 
     # ooooo      ooo                         .oooooo.             oooo                     
@@ -1337,13 +1337,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __getitem__(self, key): #suport c = col[0], r,g,b,a = col ect..
             match key:
                 case int(): #col[i]
-                    sep_col = NexWrappedFcts['separate_color'](self, mode='RGB')
+                    sep_col = NexWrappedFcts['sepacolor'](self, mode='RGB')
                     if (key not in {0,1,2,3}):
                         raise NexError("IndexError. indice in SocketColor[i] exceeded maximal range of 3.")
                     return sep_col[key]
 
                 case slice(): #col[:i]
-                    sep_col = NexWrappedFcts['separate_color'](self, mode='RGB')
+                    sep_col = NexWrappedFcts['sepacolor'](self, mode='RGB')
                     indices = range(*key.indices(4))
                     return tuple(sep_col[i] for i in indices)
 
@@ -1361,7 +1361,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case int(): #col[i] =
                     if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                         raise NexError(f"TypeError. Value assigned to SocketColor[i] must float compatible. Recieved '{type_name}'.")
-                    r, g, b, a = NexWrappedFcts['separate_color'](self, mode='RGB')
+                    r, g, b, a = NexWrappedFcts['sepacolor'](self, mode='RGB')
                     to_frame.append(a.nxsock.node)
                     match key:
                         case 0: new_col = value, g, b, a
@@ -1379,7 +1379,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
                 case _: raise NexError("TypeError. indices in SocketColor[i] must be integers or slices.")
 
-            new = NexWrappedFcts['combine_color'](*new_col, mode='RGB')
+            new = NexWrappedFcts['combicolor'](*new_col, mode='RGB')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             to_frame.append(new.nxsock.node)
@@ -1424,10 +1424,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 raise NexError("TypeError. Assignment to SocketColor.rgb is expected to be a tuple of length 3 containing sockets or Python values.")
             to_frame = []
 
-            _, _, _, a = NexWrappedFcts['separate_color'](self, mode='RGB')
+            _, _, _, a = NexWrappedFcts['sepacolor'](self, mode='RGB')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color'](value[0], value[1], value[2], a, mode='RGB')
+            new = NexWrappedFcts['combicolor'](value[0], value[1], value[2], a, mode='RGB')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1436,7 +1436,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def h(self):
-            return NexWrappedFcts['separate_color'](self, mode='HSV')[0]
+            return NexWrappedFcts['sepacolor'](self, mode='HSV')[0]
         @h.setter
         def h(self, value):
             to_frame = []
@@ -1444,10 +1444,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                 raise NexError(f"TypeError. Value assigned to SocketColor.h must float compatible. Recieved '{type_name}'.")
 
-            _, s, v, a = NexWrappedFcts['separate_color'](self, mode='HSV')
+            _, s, v, a = NexWrappedFcts['sepacolor'](self, mode='HSV')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color'](value, s, v, a, mode='HSV')
+            new = NexWrappedFcts['combicolor'](value, s, v, a, mode='HSV')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1456,7 +1456,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def s(self):
-            return NexWrappedFcts['separate_color'](self, mode='HSV')[1]
+            return NexWrappedFcts['sepacolor'](self, mode='HSV')[1]
         @s.setter
         def s(self, value):
             to_frame = []
@@ -1464,10 +1464,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                 raise NexError(f"TypeError. Value assigned to SocketColor.s must float compatible. Recieved '{type_name}'.")
 
-            h, _, v, a = NexWrappedFcts['separate_color'](self, mode='HSV')
+            h, _, v, a = NexWrappedFcts['sepacolor'](self, mode='HSV')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color'](h, value, v, a, mode='HSV')
+            new = NexWrappedFcts['combicolor'](h, value, v, a, mode='HSV')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1476,7 +1476,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def v(self):
-            return NexWrappedFcts['separate_color'](self, mode='HSV')[2]
+            return NexWrappedFcts['sepacolor'](self, mode='HSV')[2]
         @v.setter
         def v(self, value):
             to_frame = []
@@ -1484,10 +1484,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                 raise NexError(f"TypeError. Value assigned to SocketColor.v must float compatible. Recieved '{type_name}'.")
 
-            h, s, _, a = NexWrappedFcts['separate_color'](self, mode='HSV')
+            h, s, _, a = NexWrappedFcts['sepacolor'](self, mode='HSV')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color'](h, s, value, a, mode='HSV')
+            new = NexWrappedFcts['combicolor'](h, s, value, a, mode='HSV')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1496,17 +1496,17 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def hsv(self):
-            return NexWrappedFcts['separate_color'](self, mode='HSV')[:3]
+            return NexWrappedFcts['sepacolor'](self, mode='HSV')[:3]
         @hsv.setter
         def hsv(self, value):
             if not (type(value) in {tuple,Color,Vector,NexVec} and len(value)==3):
                 raise NexError("TypeError. Assignment to SocketColor.hsv is expected to be a tuple of length 3 containing sockets or Python values.")
             to_frame = []
 
-            _, _, _, a = NexWrappedFcts['separate_color'](self, mode='HSV')
+            _, _, _, a = NexWrappedFcts['sepacolor'](self, mode='HSV')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color'](value[0], value[1], value[2], a, mode='HSV')
+            new = NexWrappedFcts['combicolor'](value[0], value[1], value[2], a, mode='HSV')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1522,7 +1522,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def l(self):
-            return NexWrappedFcts['separate_color'](self, mode='HSL')[2]
+            return NexWrappedFcts['sepacolor'](self, mode='HSL')[2]
         @l.setter
         def l(self, value):
             to_frame = []
@@ -1530,10 +1530,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                 raise NexError(f"TypeError. Value assigned to SocketColor.l must float compatible. Recieved '{type_name}'.")
 
-            h, s, _, a = NexWrappedFcts['separate_color'](self, mode='HSL')
+            h, s, _, a = NexWrappedFcts['sepacolor'](self, mode='HSL')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color'](h, s, value, a, mode='HSL')
+            new = NexWrappedFcts['combicolor'](h, s, value, a, mode='HSL')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1542,17 +1542,17 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def hsl(self):
-            return NexWrappedFcts['separate_color'](self, mode='HSL')[:3]
+            return NexWrappedFcts['sepacolor'](self, mode='HSL')[:3]
         @hsl.setter
         def hsl(self, value):
             if not (type(value) in {tuple,Color,Vector,NexVec} and len(value)==3):
                 raise NexError("TypeError. Assignment to SocketColor.hsl is expected to be a tuple of length 3 containing sockets or Python values.")
             to_frame = []
 
-            _, _, _, a = NexWrappedFcts['separate_color'](self, mode='HSL')
+            _, _, _, a = NexWrappedFcts['sepacolor'](self, mode='HSL')
             to_frame.append(a.nxsock.node)
 
-            new = NexWrappedFcts['combine_color'](value[0], value[1], value[2], a, mode='HSL')
+            new = NexWrappedFcts['combicolor'](value[0], value[1], value[2], a, mode='HSL')
             self.nxsock = new.nxsock
             self.nxid = new.nxid
 
@@ -1571,7 +1571,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         #     pass
 
         def to_vector(self):
-            return NexWrappedFcts['colortovector'](self,)
+            return NexWrappedFcts['colortovec'](self,)
 
         # def to_quaternion(self):
         #     return NexWrappedFcts['colortorotation'](self,)
@@ -1650,13 +1650,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __getitem__(self, key):
             match key:
                 case int(): #q[i]
-                    sep_quat = NexWrappedFcts['separate_quaternion'](self)
+                    sep_quat = NexWrappedFcts['sepaquat'](self)
                     if (key not in {0,1,2,3}):
                         raise NexError("IndexError. indice in SocketRotation[i] exceeded maximal range of 3.")
                     return sep_quat[key]
 
                 case slice(): #q[:i]
-                    sep_quat = NexWrappedFcts['separate_quaternion'](self)
+                    sep_quat = NexWrappedFcts['sepaquat'](self)
                     indices = range(*key.indices(4))
                     return tuple(sep_quat[i] for i in indices)
 
@@ -1674,7 +1674,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case int(): #q[i] =
                     if (type_name not in {'NexFloat', 'NexInt', 'NexBool', 'int', 'float'}):
                         raise NexError(f"TypeError. Value assigned to SocketRotation[i] must float compatible. Recieved '{type_name}'.")
-                    w, x, y, z = NexWrappedFcts['separate_quaternion'](self)
+                    w, x, y, z = NexWrappedFcts['sepaquat'](self)
                     to_frame.append(x.nxsock.node)
                     match key:
                         case 0: new_quat = value, x, y, z
@@ -1692,7 +1692,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
                 case _: raise NexError("TypeError. indices in SocketRotation[i] must be integers or slices.")
 
-            new = NexWrappedFcts['combine_quaternion'](*new_quat)
+            new = NexWrappedFcts['combiquat'](*new_quat)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             to_frame.append(new.nxsock.node)
@@ -1746,10 +1746,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def axis(self):
-            return NexWrappedFcts['separate_rotation'](self,)[0]
+            return NexWrappedFcts['separot'](self,)[0]
         @axis.setter
         def axis(self, value):
-            axis, angle = NexWrappedFcts['separate_rotation'](self,)
+            axis, angle = NexWrappedFcts['separot'](self,)
             type_name = type(value).__name__
             match type_name:
                 case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexCol':
@@ -1765,11 +1765,11 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     #not valid itterable
                     if (not iscombi) and not alltypes(*value, types=(float,int,bool),):
                         raise NexError(f"AssignationError. 'SocketRotation.axis' Expected an itterable containing types 'Socket','int','float','bool'.")
-                    value = NexWrappedFcts['combine_xyz'](*value,) if (iscombi) else trypy_to_Vec3(value)
+                    value = NexWrappedFcts['combixyz'](*value,) if (iscombi) else trypy_to_Vec3(value)
                 case _:
                     raise NexError(f"AssignationError. 'SocketRotation.axis' Expected Vector-compatible values. Recieved '{type_name}'.")
 
-            new = NexWrappedFcts['combine_rotation'](value,angle)
+            new = NexWrappedFcts['combirot'](value,angle)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             frame_nodes(self.node_tree, axis.nxsock.node, new.nxsock.node, label="Rotation.axis =..",)
@@ -1777,10 +1777,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         @property
         def angle(self):
-            return NexWrappedFcts['separate_rotation'](self,)[1]
+            return NexWrappedFcts['separot'](self,)[1]
         @angle.setter
         def angle(self, value):
-            axis, angle = NexWrappedFcts['separate_rotation'](self,)
+            axis, angle = NexWrappedFcts['separot'](self,)
             type_name = type(value).__name__
             match type_name:
                 case 'NexFloat' | 'NexInt' | 'NexBool':
@@ -1790,17 +1790,17 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                 case _:
                     raise NexError(f"AssignationError. 'SocketRotation.angle' Expected Float-compatible values. Recieved '{type_name}'.")
 
-            new = NexWrappedFcts['combine_rotation'](axis,value)
+            new = NexWrappedFcts['combirot'](axis,value)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             frame_nodes(self.node_tree, axis.nxsock.node, new.nxsock.node, label="Rotation.angle =..",)
             return None
 
         def inverted(self):
-            return NexWrappedFcts['rotationinvert'](self,)
+            return NexWrappedFcts['rotinvert'](self,)
 
         def to_euler(self):
-            return NexWrappedFcts['rotationtoeuler'](self,)
+            return NexWrappedFcts['rottoeuler'](self,)
 
         # def to_color(self):
         #     return NexWrappedFcts['rotationtocolor'](self,)
@@ -1936,19 +1936,19 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def __getitem__(self, key):
             match key:
                 case int(): #m[i]
-                    sep_rows = NexWrappedFcts['separate_rows'](self)
+                    sep_rows = NexWrappedFcts['separows'](self)
                     if (key not in {0,1,2,3}):
                         raise NexError("IndexError. indice in SocketMatrix[i] exceeded maximal range of 3.")
                     return sep_rows[key]
 
                 case slice(): #m[:i]
-                    sep_rows = NexWrappedFcts['separate_rows'](self)
+                    sep_rows = NexWrappedFcts['separows'](self)
                     indices = range(*key.indices(4))
                     return tuple(sep_rows[i] for i in indices)
 
                 case tuple(): #m[i,j]
                     i, j = key
-                    sep_rows = NexWrappedFcts['separate_rows'](self)
+                    sep_rows = NexWrappedFcts['separows'](self)
                     return sep_rows[i][j]
 
                 case _: raise NexError("TypeError. indices in SocketMatrix[i] must be integers or slices or tuple.")
@@ -1962,7 +1962,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
             match key:
                 case int(): #m[i] =
-                    q1, q2, q3, q4 = NexWrappedFcts['separate_rows'](self)
+                    q1, q2, q3, q4 = NexWrappedFcts['separows'](self)
                     to_frame.append(q4.nxsock.node.parent)
                     match key:
                         case 0: new_rows = value, q2, q3, q4
@@ -1982,7 +1982,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     i, j = key
                     if (i not in {0,1,2,3}) or (j not in {0,1,2,3}):
                         raise NexError("IndexError. indices in SocketMatrix[i,j] exceeded maximal range of 3.")
-                    quats = NexWrappedFcts['separate_rows'](self)
+                    quats = NexWrappedFcts['separows'](self)
                     q1, q2, q3, q4 = quats
                     to_frame.append(q4.nxsock.node.parent)
                     newq = quats[i]
@@ -2003,8 +2003,8 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     case 'NexQuat' | 'NexVec':
                         newq = q
                     case 'NexCol':
-                        r, g, b, a = NexWrappedFcts['separate_color'](q)
-                        newq =  NexWrappedFcts['combine_quaternion'](r,g,b,a)
+                        r, g, b, a = NexWrappedFcts['sepacolor'](q)
+                        newq =  NexWrappedFcts['combiquat'](r,g,b,a)
                         to_frame.append(r.nxsock.node.parent)
                     case 'Quaternion' | 'Vector' | 'Color' | 'bpy_prop_array' | 'int' | 'float' | 'bool':
                         newq = trypy_to_Quat4(q)
@@ -2017,13 +2017,13 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         #not valid itterable
                         if (not iscombi) and not alltypes(*q, types=(float,int,bool),):
                             raise NexError(f"AssignationError.  Assigning to 'SocketMatrix' row Expected an itterable containing types 'Socket','int','float','bool'.")
-                        newq = NexWrappedFcts['combine_quaternion'](*q,) if (iscombi) else trypy_to_Quat4(q)
+                        newq = NexWrappedFcts['combiquat'](*q,) if (iscombi) else trypy_to_Quat4(q)
                     case _:
                         raise NexError(f"AssignationError.  Assigning to 'SocketMatrix' row Expected Quaternion-compatible values. Recieved '{row_typename}'.")
                 conv_rows.append(newq)
                 continue
 
-            new = NexWrappedFcts['combine_rows'](*conv_rows)
+            new = NexWrappedFcts['combirows'](*conv_rows)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             to_frame.append(new.nxsock.node.parent)
@@ -2047,16 +2047,16 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         def transposed(self):
             return NexWrappedFcts['matrixtranspose'](self,)
 
-        #TODO .decompose() #Same as separate_transform
+        #TODO .decompose() #Same as sepatransforms
         #TODO .normalized() #Return a column normalized matrix
         #TODO .row & .col return tuple of 4Quat setter & getter.
 
         @property
         def translation(self):
-            return NexWrappedFcts['separate_transform'](self,)[0]
+            return NexWrappedFcts['sepatransforms'](self,)[0]
         @translation.setter
         def translation(self, value):
-            loc, rot, sca = NexWrappedFcts['separate_transform'](self,)
+            loc, rot, sca = NexWrappedFcts['sepatransforms'](self,)
             type_name = type(value).__name__
             match type_name:
                 case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec':
@@ -2072,11 +2072,11 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     #not valid itterable
                     if (not iscombi) and not alltypes(*value, types=(float,int,bool),):
                         raise NexError(f"AssignationError. 'SocketMatrix.translation' Expected an itterable containing types 'Socket','int','float','bool'.")
-                    value = NexWrappedFcts['combine_xyz'](*value,) if (iscombi) else trypy_to_Vec3(value)
+                    value = NexWrappedFcts['combixyz'](*value,) if (iscombi) else trypy_to_Vec3(value)
                 case _:
                     raise NexError(f"AssignationError. 'SocketMatrix.translation' Expected Vector-compatible values. Recieved '{type_name}'.")
 
-            new = NexWrappedFcts['combine_transform'](value,rot,sca)
+            new = NexWrappedFcts['combitransforms'](value,rot,sca)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="Matrix.translation =..",)
@@ -2085,10 +2085,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         #NOTE somehow mathutils.Matrix.rotation do not exist? why?
         @property
         def rotation(self):
-            return NexWrappedFcts['separate_transform'](self,)[1]
+            return NexWrappedFcts['sepatransforms'](self,)[1]
         @rotation.setter
         def rotation(self, value):
-            loc, rot, sca = NexWrappedFcts['separate_transform'](self,)
+            loc, rot, sca = NexWrappedFcts['sepatransforms'](self,)
             type_name = type(value).__name__
             match type_name:
                 case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec' | 'NexQuat':
@@ -2104,11 +2104,11 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     #not valid itterable
                     if (not iscombi) and not alltypes(*value, types=(float,int,bool),):
                         raise NexError(f"AssignationError. 'SocketMatrix.rotation' Expected an itterable containing types 'Socket','int','float','bool'.")
-                    value = NexWrappedFcts['combine_quaternion'](*value,) if (iscombi) else trypy_to_Quat4(value)
+                    value = NexWrappedFcts['combiquat'](*value,) if (iscombi) else trypy_to_Quat4(value)
                 case _:
                     raise NexError(f"AssignationError. 'SocketMatrix.rotation' Expected Vector-compatible values. Recieved '{type_name}'.")
 
-            new = NexWrappedFcts['combine_transform'](loc,value,sca)
+            new = NexWrappedFcts['combitransforms'](loc,value,sca)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="Matrix.rotation =..",)
@@ -2117,10 +2117,10 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
         #NOTE somehow mathutils.Matrix.scale do not exist? why?
         @property
         def scale(self):
-            return NexWrappedFcts['separate_transform'](self,)[2]
+            return NexWrappedFcts['sepatransforms'](self,)[2]
         @scale.setter
         def scale(self, value):
-            loc, rot, sca = NexWrappedFcts['separate_transform'](self,)
+            loc, rot, sca = NexWrappedFcts['sepatransforms'](self,)
             type_name = type(value).__name__
             match type_name:
                 case 'NexFloat' | 'NexInt' | 'NexBool' | 'NexVec':
@@ -2136,11 +2136,11 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     #not valid itterable
                     if (not iscombi) and not alltypes(*value,types=(float,int,bool),):
                         raise NexError(f"AssignationError. 'SocketMatrix.scale' Expected an itterable containing types 'Socket','int','float','bool'.")
-                    value = NexWrappedFcts['combine_xyz'](value[0], value[1], value[2],) if (iscombi) else trypy_to_Vec3(value)
+                    value = NexWrappedFcts['combixyz'](value[0], value[1], value[2],) if (iscombi) else trypy_to_Vec3(value)
                 case _:
                     raise NexError(f"AssignationError. 'SocketMatrix.scale' Expected Vector-compatible values. Recieved '{type_name}'.")
 
-            new = NexWrappedFcts['combine_transform'](loc,rot,value)
+            new = NexWrappedFcts['combitransforms'](loc,rot,value)
             self.nxsock = new.nxsock
             self.nxid = new.nxid
             frame_nodes(self.node_tree, loc.nxsock.node, new.nxsock.node, label="Matrix.scale =..",)

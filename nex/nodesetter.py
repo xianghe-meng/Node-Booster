@@ -619,7 +619,7 @@ def generalparrallelvecfloatmath(ng, callhistory,
         results[1].node.location.y += 200
         results[2].node.location.y += 0
 
-    rvec = combine_xyz(ng, callhistory, *results)
+    rvec = combixyz(ng, callhistory, *results)
     
     #arrange nodes
     if (not rvec.node.parent):
@@ -1065,7 +1065,7 @@ def generalcombsepa(ng, callhistory,
                         node.inputs[0].default_value = val[:]
                         assert_purple_node(node)
 
-                case Quaternion(): #this is for separate_quaternion
+                case Quaternion(): #this is for sepaquat()
                     #unfortunately we are forced to create a new node, there's no quaternion .default_value option for type SocketRotation..
                     if (uniquename):
                           defval = create_constant_input(ng, 'FunctionNodeQuaternionToRotation', val, f"C|{uniquename}|def0")
@@ -1073,7 +1073,7 @@ def generalcombsepa(ng, callhistory,
                     if needs_linking:
                         link_sockets(defval, node.inputs[0])
 
-                case Matrix(): #this is for separate_matrix
+                case Matrix(): #this is for sepamatrix()
                     #unfortunately we are forced to create a new node, there's no .default_value option for type SocketMatrix..
                     rowflatten = [v for row in val for v in row]
                     if (uniquename):
@@ -1106,7 +1106,7 @@ def generalcombsepa(ng, callhistory,
                             node.inputs[i].default_value = val
                             assert_purple_node(node)
 
-                    case Quaternion(): #this is for combine_transform, will have a quaternion element
+                    case Quaternion(): #this is for combitransforms, will have a quaternion element
                         #unfortunately we are forced to create a new node, there's no quaternion .default_value option for type SocketRotation..
                         if (uniquename):
                               defval = create_constant_input(ng, 'FunctionNodeQuaternionToRotation', val, f"C|{uniquename}|def0")
@@ -1800,15 +1800,15 @@ def normalize(ng, callhistory,
 def vectocolor(ng, callhistory,
     vA:sVec|sVecXYZ|sVecT,
     ) -> sCol:
-    x,y,z = separate_xyz(ng,callhistory,vA)
-    _r = combine_color(ng,callhistory,x,y,z,1.0)
+    x,y,z = sepaxyz(ng,callhistory,vA)
+    _r = combicolor(ng,callhistory,x,y,z,1.0)
     frame_nodes(ng, x.node, _r.node, label=f"VecToCol",)
     return _r
 
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
 @user_paramError(UserParamError)
-def vectorotation(ng, callhistory,
+def vectorot(ng, callhistory,
     vA:sVec|sVecXYZ|sVecT,
     ) -> sRot:
     return generalnewnode(ng,callhistory,'VecToRot','FunctionNodeEulerToRotation',vA)[0]
@@ -1824,7 +1824,7 @@ def length(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Vector.\nSeparate a SocketVector into a tuple of 3 XYZ SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
 @user_paramError(UserParamError)
-def separate_xyz(ng, callhistory,
+def sepaxyz(ng, callhistory,
     vA:sVec|sVecXYZ|sVecT|sCol|float|int|Vector,
     ) -> tuple:
     if (type(vA) in {float, int}): 
@@ -1833,7 +1833,7 @@ def separate_xyz(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Vector.\nCombine 3 XYZ SocketFloat, SocketInt or SocketBool into a SocketVector.")
 @user_paramError(UserParamError)
-def combine_xyz(ng, callhistory,
+def combixyz(ng, callhistory,
     fX:sFlo|sInt|sBoo|float|int,
     fY:sFlo|sInt|sBoo|float|int,
     fZ:sFlo|sInt|sBoo|float|int,
@@ -1863,7 +1863,7 @@ def rotaxis(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Color.\nSeparate a SocketColor into a tuple of 4 SocketFloat depending on the optionally passed mode in 'RGB','HSV','HSL'.\nThe fourth element of the tuple must be the alpha.\n\nTip: you can use python slicing notations instead.")
 @user_paramError(UserParamError)
-def separate_color(ng, callhistory,
+def sepacolor(ng, callhistory,
     colA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     mode:str='RGB',
     ) -> tuple:
@@ -1876,7 +1876,7 @@ def separate_color(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Color.\nCombine 4 SocketFloat, SocketInt or SocketBool into a SocketColor depending on the optionally passed mode in 'RGB','HSV','HSL'.\nThe fourth element of the tuple must be the alpha.")
 @user_paramError(UserParamError)
-def combine_color(ng, callhistory,
+def combicolor(ng, callhistory,
     f1:sFlo|sInt|sBoo|float|int,
     f2:sFlo|sInt|sBoo|float|int,
     f3:sFlo|sInt|sBoo|float|int,
@@ -1889,11 +1889,11 @@ def combine_color(ng, callhistory,
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
 @user_paramError(UserParamError)
-def colortovector(ng, callhistory,
+def colortovec(ng, callhistory,
     colA:sCol,
     ) -> sVec:
-    r,g,b,_ = separate_color(ng,callhistory,colA)
-    _r = combine_xyz(ng,callhistory,r,g,b)
+    r,g,b,_ = sepacolor(ng,callhistory,colA)
+    _r = combixyz(ng,callhistory,r,g,b)
     frame_nodes(ng, r.node, _r.node, label=f"ColToVec",)
     return _r
 
@@ -1974,7 +1974,7 @@ def transformdir(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Quaternion.\nSeparate a SocketRotation into a tuple of 4 WXYZ SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ, myW = qA' instead.")
 @user_paramError(UserParamError)
-def separate_quaternion(ng, callhistory,
+def sepaquat(ng, callhistory,
     qA:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     ) -> tuple:
     #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
@@ -1983,7 +1983,7 @@ def separate_quaternion(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Quaternion.\nCombine 4 WXYZ SocketFloat, SocketInt or SocketBool into a SocketRotation.")
 @user_paramError(UserParamError)
-def combine_quaternion(ng, callhistory,
+def combiquat(ng, callhistory,
     fW:sFlo|sInt|sBoo|float|int,
     fX:sFlo|sInt|sBoo|float|int,
     fY:sFlo|sInt|sBoo|float|int,
@@ -1994,7 +1994,7 @@ def combine_quaternion(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Quaternion Rotation.\nSeparate a SocketRotation into a SocketVector Axis and a SocketFloat angle.")
 @user_paramError(UserParamError)
-def separate_rotation(ng, callhistory,
+def separot(ng, callhistory,
     qA:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     ) -> tuple:
     #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
@@ -2007,7 +2007,7 @@ def separate_rotation(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Quaternion Rotation.\nCombine a Vector axis and a Float Angle into a SocketRotation.")
 @user_paramError(UserParamError)
-def combine_rotation(ng, callhistory,
+def combirot(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector,
     fA:sFlo|sInt|sBoo|float|int,
     ) -> sRot:
@@ -2017,7 +2017,7 @@ def combine_rotation(ng, callhistory,
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
 @user_paramError(UserParamError)
-def rotationinvert(ng, callhistory,
+def rotinvert(ng, callhistory,
     qA:sRot,
     ) -> sRot:
     return generalnewnode(ng,callhistory,'InvertRot','FunctionNodeInvertRotation',qA)[0]
@@ -2025,10 +2025,10 @@ def rotationinvert(ng, callhistory,
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
 @user_paramError(UserParamError)
-def rotationtoeuler(ng, callhistory,
+def rottoeuler(ng, callhistory,
     qA:sRot,
     ) -> sVec:
-    euler = generalnewnode(ng,callhistory,'RotToEuler','FunctionNodeRotationToEuler',qA)[0]
+    euler = generalnewnode(ng,callhistory,'RotToEuler','FunctionNoderottoeuler',qA)[0]
     #NOTE Annoying Socket Type.. : 'euler' will be of type NodeSocketVectorEuler. our functions were not designed for that type. We already support VecXYZ & VecT..
     # So instead of adding a SocketType support for every single function, we add a dummy +0 operation to convert it into a socket we like instead..
     euler = generalvecmath(ng,callhistory,'ADD',euler,0)
@@ -2037,33 +2037,33 @@ def rotationtoeuler(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Flatten).\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")
 @user_paramError(UserParamError)
-def separate_matrix(ng, callhistory,
+def sepamatrix(ng, callhistory,
     mA:sMtx|Matrix,
     ) -> tuple:
     return generalcombsepa(ng,callhistory,'SEPARATE','MATRIXFLAT',mA)
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Flatten).\nCombine an itterable containing  16 SocketFloat, SocketInt or SocketBool arranged by columns to a SocketMatrix.")
 @user_paramError(UserParamError)
-def combine_matrix(ng, callhistory,
+def combimatrix(ng, callhistory,
     *floats:sFlo|sInt|sBoo|float|int,
     ) -> sMtx:
     if (type(floats) not in {tuple, set, list}):
-        raise UserParamError(f"Function combine_matrix() recieved unsupported type '{type(floats).__name__}' was expecting a tuple of 16 float compatible values.")
+        raise UserParamError(f"Function combimatrix() recieved unsupported type '{type(floats).__name__}' was expecting a tuple of 16 float compatible values.")
     if (len(floats)!=16):
-        raise UserParamError(f"Function combine_matrix() recieved itterable must be of len 16 to fit a 4x4 SocketMatrix")
+        raise UserParamError(f"Function combimatrix() recieved itterable must be of len 16 to fit a 4x4 SocketMatrix")
     return generalcombsepa(ng,callhistory,'COMBINE','MATRIXFLAT',floats)
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Rows).\nSeparate a SocketMatrix into a tuple of 4 Quaternion SocketRotation, by rows.")
 @user_paramError(UserParamError)
-def separate_rows(ng, callhistory,
+def separows(ng, callhistory,
     mA:sMtx|Matrix,
     ) -> tuple:
     floats = generalcombsepa(ng,callhistory,'SEPARATE','MATRIXFLAT',mA)
-    q1 = combine_quaternion(ng,callhistory, floats[0], floats[4], floats[8],  floats[12],)
-    q2 = combine_quaternion(ng,callhistory, floats[1], floats[5], floats[9],  floats[13],)
-    q3 = combine_quaternion(ng,callhistory, floats[2], floats[6], floats[10], floats[14],)
-    q4 = combine_quaternion(ng,callhistory, floats[3], floats[7], floats[11], floats[15],)
+    q1 = combiquat(ng,callhistory, floats[0], floats[4], floats[8],  floats[12],)
+    q2 = combiquat(ng,callhistory, floats[1], floats[5], floats[9],  floats[13],)
+    q3 = combiquat(ng,callhistory, floats[2], floats[6], floats[10], floats[14],)
+    q4 = combiquat(ng,callhistory, floats[3], floats[7], floats[11], floats[15],)
     #arrange nodes
     if (not q4.node.parent):
         q2.node.location = q1.node.location.x, q1.node.location.y - 150
@@ -2074,16 +2074,16 @@ def separate_rows(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Rows).\nCombine an itterable containing  4 Quaternion SocketRotation to a SocketMatrix, by rows.")
 @user_paramError(UserParamError)
-def combine_rows(ng, callhistory,
+def combirows(ng, callhistory,
     q1:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     q2:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     q3:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     q4:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     ) -> sMtx:
-    w1, x1, y1, z1 = separate_quaternion(ng,callhistory,q1)
-    w2, x2, y2, z2 = separate_quaternion(ng,callhistory,q2)
-    w3, x3, y3, z3 = separate_quaternion(ng,callhistory,q3)
-    w4, x4, y4, z4 = separate_quaternion(ng,callhistory,q4)
+    w1, x1, y1, z1 = sepaquat(ng,callhistory,q1)
+    w2, x2, y2, z2 = sepaquat(ng,callhistory,q2)
+    w3, x3, y3, z3 = sepaquat(ng,callhistory,q3)
+    w4, x4, y4, z4 = sepaquat(ng,callhistory,q4)
     #arrange nodes
     if (not w1.node.parent):
         w2.node.location = w1.node.location.x, w1.node.location.y - 150
@@ -2100,14 +2100,14 @@ def combine_rows(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Columns).\nSeparate a SocketMatrix into a tuple of 4 Quaternion SocketRotation, by columns.")
 @user_paramError(UserParamError)
-def separate_columns(ng, callhistory,
+def separacols(ng, callhistory,
     mA:sMtx|Matrix,
     ) -> tuple:
     floats = generalcombsepa(ng,callhistory,'SEPARATE','MATRIXFLAT',mA)
-    q1 = combine_quaternion(ng,callhistory, floats[0],  floats[1],  floats[2],  floats[3],)
-    q2 = combine_quaternion(ng,callhistory, floats[4],  floats[5],  floats[6],  floats[7],)
-    q3 = combine_quaternion(ng,callhistory, floats[8],  floats[9],  floats[10], floats[11],)
-    q4 = combine_quaternion(ng,callhistory, floats[12], floats[13], floats[14], floats[15],)
+    q1 = combiquat(ng,callhistory, floats[0],  floats[1],  floats[2],  floats[3],)
+    q2 = combiquat(ng,callhistory, floats[4],  floats[5],  floats[6],  floats[7],)
+    q3 = combiquat(ng,callhistory, floats[8],  floats[9],  floats[10], floats[11],)
+    q4 = combiquat(ng,callhistory, floats[12], floats[13], floats[14], floats[15],)
     #arrange nodes
     if (not q4.node.parent):
         q2.node.location = q1.node.location.x, q1.node.location.y - 150
@@ -2118,16 +2118,16 @@ def separate_columns(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Columns).\nCombine an itterable containing  4 Quaternion SocketRotation to a SocketMatrix, by columns.")
 @user_paramError(UserParamError)
-def combine_columns(ng, callhistory,
+def combicols(ng, callhistory,
     q1:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     q2:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     q3:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     q4:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     ) -> sMtx:
-    w1, x1, y1, z1 = separate_quaternion(ng,callhistory,q1)
-    w2, x2, y2, z2 = separate_quaternion(ng,callhistory,q2)
-    w3, x3, y3, z3 = separate_quaternion(ng,callhistory,q3)
-    w4, x4, y4, z4 = separate_quaternion(ng,callhistory,q4)
+    w1, x1, y1, z1 = sepaquat(ng,callhistory,q1)
+    w2, x2, y2, z2 = sepaquat(ng,callhistory,q2)
+    w3, x3, y3, z3 = sepaquat(ng,callhistory,q3)
+    w4, x4, y4, z4 = sepaquat(ng,callhistory,q4)
     #arrange nodes
     if (not w1.node.parent):
         w2.node.location = w1.node.location.x, w1.node.location.y - 150
@@ -2144,14 +2144,14 @@ def combine_columns(ng, callhistory,
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Transform).\nSeparate a SocketMatrix into a tuple SocketVector, SocketRotation, SocketVector.")
 @user_paramError(UserParamError)
-def separate_transform(ng, callhistory,
+def sepatransforms(ng, callhistory,
     mA:sMtx|Matrix,
     ) -> tuple:
     return generalcombsepa(ng,callhistory,'SEPARATE','MATRIXTRANSFORM',mA)
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Transform).\nCombine 3 SocketVector into a SocketMatrix.")
 @user_paramError(UserParamError)
-def combine_transform(ng, callhistory,
+def combitransforms(ng, callhistory,
     vL:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     qR:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sRot|float|int|Vector|Quaternion|ColorRGBA,
     vS:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
