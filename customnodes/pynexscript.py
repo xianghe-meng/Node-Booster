@@ -237,29 +237,19 @@ def transform_nex_script(original_text:str, nextypes:list) -> str:
 
     return '\n'.join(lines)
 
-# unused for now
-# def extract_nex_variables(script:str, nextypes:list) -> str:
-#     """Extracts variable names and their Nex types from the given script."""
-    
-#     # Create a regex pattern to match lines like "varname : nexType = ..."
-#     pattern = re.compile(
-#         r"^\s*(\w+)\s*:\s*(" + "|".join(nextypes) + r")\s*=",
-#         re.MULTILINE
-#     )
-#     return pattern.findall(script)
-
 
 class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
     """Custom NodeGroup: Executes a Python script containing 'Nex' language. 'Nex' stands for nodal expression.\
     With Nex, you can efficiently and easily interpret python code into Geometry-Node nodal programming.
-    • WIP text about synthax.
-    • WIP text about how it works"""
+    • Create a new text-data and initiate Nex input and output using `a:infloat` or `z:outfloat = a` for example.
+    • These created input variables are SocketTypes, do math, write code with them, then assign their values to an output.
+    • An example of NexCode is available in your text editor template panel."""
 
     #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
     #TODO maybe should add a nodebooster panel in text editor for quick execution?
 
     bl_idname = "GeometryNodeNodeBoosterPyNexScript"
-    bl_label = "Python Nex Script (WIP)"
+    bl_label = "Python Nex Script"
     # bl_icon = 'SCRIPT'
 
     error_message : bpy.props.StringProperty(
