@@ -98,6 +98,7 @@ def get_socket(ng, socket_name='Foo', in_out='OUTPUT',):
         return r[0]
     return r
 
+
 def crosseditor_sockettype_adjustment(socket_type:str, editor_type:str):
     """ensure the socket types are correct depending on the nodes editor"""
 
@@ -114,13 +115,14 @@ def crosseditor_sockettype_adjustment(socket_type:str, editor_type:str):
                 pass
         
         case 'COMPOSITING':
-            #No bool in compositor. We can support it easily tho.
+            #No bool in compositor. Use int instead
             if (socket_type=='NodeSocketBool'):
                 socket_type = 'NodeSocketInt'
 
     if (socket_type not in compatibility_table):
         return 'Invalid'
     return socket_type
+
 
 def get_socketui_from_socket(ng, idx=None, in_out='OUTPUT', identifier=None,):
     """return a given socket index as an interface item, either find the socket by it's index, name or socketidentifier"""
@@ -173,17 +175,25 @@ def get_socket_defvalue(ng, idx, in_out='OUTPUT',):
             raise Exception("get_socket_defvalue(): in_out arg not valid")
 
 
-def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, node=None,):
+def set_socket_defvalue(ng, idx=None, socket=None, socket_name='', in_out='OUTPUT', value=None, node=None,):
     """set the value of the given nodegroups inputs or output sockets"""
 
     assert in_out in {'INPUT','OUTPUT'}, "set_socket_defvalue(): in_out arg not valid"
-    assert not (idx is None and socket is None), "Please pass either a socket or an index to a socket"
+
+    in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
+
+    if (socket_name):
+        match in_out:
+            case 'OUTPUT': socket = out_nod.inputs[socket_name]
+            case 'INPUT':  socket = in_nod.outputs[socket_name]
+
+    assert not (idx is None and socket is None), "Please pass either a socket, an index to a socket, or a socket name"
 
     #convert color to list
     if type(value) is ColorRGBA:
         value = value[:]
 
-    #convert booleans to int if in compositor editor
+    #No bool in compositor. Use int instead
     if (ng.type=='COMPOSITING' and type(value) is bool):
         value = int(value)
 
@@ -194,9 +204,7 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
     match in_out:
 
         case 'OUTPUT':
-
-            outnod = ng.nodes["Group Output"]
-            sockets = outnod.inputs
+            sockets = out_nod.inputs
 
             #fine our socket
             if (socket is None):
@@ -221,7 +229,7 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
                     if (defnod is None):
                         defnod = ng.nodes.new('FunctionNodeQuaternionToRotation')
                         defnod.name = defnod.label = defnodname
-                        defnod.location = (outnod.location.x, outnod.location.y + 350)
+                        defnod.location = (out_nod.location.x, out_nod.location.y + 350)
                         #link it
                         for l in socket.links:
                             ng.links.remove(l)
@@ -238,7 +246,7 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
                     if (defnod is None):
                         defnod = ng.nodes.new('FunctionNodeCombineMatrix')
                         defnod.name = defnod.label = defnodname
-                        defnod.location = (outnod.location.x + 150, outnod.location.y + 350)
+                        defnod.location = (out_nod.location.x + 150, out_nod.location.y + 350)
                         #link it
                         for l in socket.links:
                             ng.links.remove(l)
@@ -266,7 +274,7 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
             assert node is not None, "for inputs please pass a node instance to tweak the input values to"
 
             if (idx is None):
-                for i,s in enumerate(ng.nodes["Group Input"].outputs):
+                for i,s in enumerate(in_nod.outputs):
                     if (s==socket):
                         idx = i
                         break
@@ -403,19 +411,17 @@ def create_new_nodegroup(name, tree_type='GeometryNodeTree', in_sockets={}, out_
     """create new nodegroup with outputs from given dict {"name":"type",}"""
 
     ng = bpy.data.node_groups.new(name=name, type=tree_type,)
-    
+
     #create main input/output
-    in_node = ng.nodes.new('NodeGroupInput')
-    in_node.location.x -= 200
-    out_node = ng.nodes.new('NodeGroupOutput')
-    out_node.location.x += 200
+    in_nod, out_nod = ng.nodes.new('NodeGroupInput'), ng.nodes.new('NodeGroupOutput')
+    in_nod.location.x -= 200 ; out_nod.location.x += 200
 
     #create the sockets
     for socket_name, socket_type in in_sockets.items():
         create_socket(ng, in_out='INPUT', socket_type=socket_type, socket_name=socket_name,)
     for socket_name, socket_type in out_sockets.items():
         create_socket(ng, in_out='OUTPUT', socket_type=socket_type, socket_name=socket_name,)
-        
+
     return ng
 
 
@@ -445,21 +451,18 @@ def replace_node(node_tree, old_node, node_group):
 
     # Determine the appropriate node type for a node group.
     match node_tree.bl_idname:
-        case 'ShaderNodeTree':
-            new_node_type = 'ShaderNodeGroup'
-        case 'CompositorNodeTree':
-            new_node_type = 'CompositorNodeGroup'
-        case 'GeometryNodeTree':
-            new_node_type = 'GeometryNodeGroup'
+        case 'ShaderNodeTree':     ng_type = 'ShaderNodeGroup'
+        case 'CompositorNodeTree': ng_type = 'CompositorNodeGroup'
+        case 'GeometryNodeTree':   ng_type = 'GeometryNodeGroup'
         case _:
-            print(f"replace_node() does not support'{node_tree.bl_idname}'.")
+            print(f"replace_node() does not support '{node_tree.bl_idname}'.")
             return None
 
     # Delete the old node.
     node_tree.nodes.remove(old_node)
 
     # Create the new node group node.
-    new_node = node_tree.nodes.new(new_node_type)
+    new_node = node_tree.nodes.new(ng_type)
     new_node.location = old_node_location
     new_node.width = old_node_width
 
