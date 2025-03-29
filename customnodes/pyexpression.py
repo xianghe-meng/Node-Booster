@@ -8,6 +8,7 @@ import bpy
 from ..__init__ import get_addon_prefs
 from ..resources import cust_icon
 from ..nex.pytonode import py_to_Sockdata
+from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     create_new_nodegroup,
     set_socket_defvalue,
@@ -206,6 +207,82 @@ class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
                         if (n==self):
                             users.add(o)
         return users
+
+    def draw_panel(self, layout, context):
+        """draw in the nodebooster N panel 'Active Node'"""
+
+        n = self
+        sett_win = context.window_manager.nodebooster
+
+        header, panel = layout.panel("params_panelid", default_closed=False,)
+        header.label(text="Parameters",)
+        if (panel):
+
+            is_error = bool(n.error_message)
+            col = panel.column(align=True)
+            row = col.row(align=True)
+            row.alert = is_error
+            row.prop(n, "user_pyapiexp", placeholder="C.object.name", text="",)
+
+            if (is_error):
+                lbl = col.row()
+                lbl.alert = is_error
+                lbl.label(text=n.error_message)
+
+            panel.prop(sett_win,"authorize_automatic_execution")
+
+            prop = panel.column()
+            prop.enabled = sett_win.authorize_automatic_execution
+            prop.prop(n,"execute_at_depsgraph")
+
+        header, panel = layout.panel("prefs_panelid", default_closed=True,)
+        header.label(text="Namespace",)
+        if (panel):
+
+            panel.separator(factor=0.3)
+
+            col = panel.column(align=True)
+            for info in (
+                "import bpy",
+                "from random import *",
+                "from mathutils import *",
+                "from math import *",
+                "context = bpy.context",
+                "scene = context.scene",
+                "#frame = scene.frame_current",
+                "D = bpy.data ; C = bpy.context",
+                "self = NodeUserObject",
+                ):
+                row = col.row(align=True).box()
+                row.scale_y = 0.65
+                row.label(text=info)
+
+            panel.separator(factor=0.6)
+
+        header, panel = layout.panel("doc_panelid", default_closed=True,)
+        header.label(text="Documentation",)
+        if (panel):
+            word_wrap(layout=panel, alert=False, active=True, max_char='auto',
+                char_auto_sidepadding=0.9, context=context, string=n.bl_description,
+                )
+            panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
+
+        header, panel = layout.panel("dev_panelid", default_closed=True,)
+        header.label(text="Development",)
+        if (panel):
+            panel.active = False
+                            
+            col = panel.column(align=True)
+            col.label(text="NodeTree:")
+            col.template_ID(n, "node_tree")
+            
+            col = panel.column(align=True)
+            col.label(text="Execution Count:")
+            row = col.row()
+            row.enabled = False
+            row.prop(n, "debug_evaluation_counter", text="",)
+
+        return None
 
     @classmethod
     def update_all_instances(cls, from_autoexec=False,):

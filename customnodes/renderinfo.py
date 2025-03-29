@@ -13,11 +13,11 @@ from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue, get_al
 class Base():
 
     bl_label = "Render Info"
-    __desc__  = """Custom Nodgroup: Gather informations about your active scene render info.
+    bl_description  = """Custom Nodgroup: Gather informations about your active scene render info.
     • Expect updates on each depsgraph post and frame_pre update signals"""
     bl_idname = "NodeBoosterRenderInfo"
     auto_update = {'FRAME_PRE','DEPS_POST',}
-    tree_type = "ChildrenDefined"
+    tree_type = "*ChildrenDefined*"
 
     @classmethod
     def poll(cls, context):
@@ -84,7 +84,31 @@ class Base():
         """node interface drawing"""
 
         return None
-        
+
+    def draw_panel(self, layout, context):
+        """draw in the nodebooster N panel 'Active Node'"""
+
+        n = self
+
+        header, panel = layout.panel("doc_panelid", default_closed=True,)
+        header.label(text="Documentation",)
+        if (panel):
+            word_wrap(layout=panel, alert=False, active=True, max_char='auto',
+                char_auto_sidepadding=0.9, context=context, string=n.bl_description,
+                )
+            panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
+
+        header, panel = layout.panel("dev_panelid", default_closed=True,)
+        header.label(text="Development",)
+        if (panel):
+            panel.active = False
+
+            col = panel.column(align=True)
+            col.label(text="NodeTree:")
+            col.template_ID(n, "node_tree")
+
+        return None
+
     @classmethod
     def update_all_instances(cls, from_autoexec=False,):
         """search for all nodes of this type and update them"""

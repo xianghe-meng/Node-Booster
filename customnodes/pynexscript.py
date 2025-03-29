@@ -605,6 +605,123 @@ class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
+    def draw_panel(self, layout, context):
+        """draw in the nodebooster N panel 'Active Node'"""
+    
+        n = self
+        sett_win = context.window_manager.nodebooster
+
+        header, panel = layout.panel("params_panelid", default_closed=False,)
+        header.label(text="Parameters",)
+        if (panel):
+
+            is_error = bool(n.error_message)
+            col = panel.column(align=True)
+            row = col.row(align=True)
+            field = row.row(align=True)
+            field.alert = is_error
+            field.prop(n, "user_textdata", text="", icon="TEXT", placeholder="NexScript.py",)
+            row.prop(n, "execute_script", text="", icon="PLAY", invert_checkbox=n.execute_script,)
+
+            if (is_error):
+                lbl = col.row()
+                lbl.alert = is_error
+                lbl.label(text=n.error_message)
+
+            panel.prop(sett_win,"authorize_automatic_execution")
+            
+            prop = panel.column()
+            prop.enabled = sett_win.authorize_automatic_execution
+            prop.prop(n,"execute_at_depsgraph")
+
+        header, panel = layout.panel("inputs_panelid", default_closed=True,)
+        header.label(text="Inputs",)
+        if (panel):
+            
+            col = panel.column()
+            col.use_property_split = True
+            col.use_property_decorate = True
+            
+            if n.inputs:
+                for s in n.inputs:
+                    row = col.row()
+                    row.active = not any(s.links)
+                    if hasattr(s,'default_value'):
+                        row.prop(s,'default_value', text=s.name,)
+                    else:
+                        row.prop(s,'type', text=s.name,)
+            else:
+                col.label(text="No Input Created")
+
+        header, panel = layout.panel("doc_panelid", default_closed=True,)
+        header.label(text="Documentation",)
+        if (panel):
+            word_wrap(layout=panel, alert=False, active=True, max_char='auto',
+                char_auto_sidepadding=0.9, context=context, string=n.bl_description,
+                )
+            panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
+
+        header, panel = layout.panel("doc_glossid", default_closed=True,)
+        header.label(text="Glossary",)
+        if (panel):
+
+            col = panel.column()
+
+            for symbol,v in NEXNOTATIONDOC.items():
+
+                desc = v['name']+'\n'+v['desc'] if v['desc'] else v['name']
+                row = col.row()
+                row.scale_y = 0.65
+                row.box().label(text=symbol,)
+
+                col.separator(factor=0.5)
+
+                word_wrap(layout=col, alert=False, active=True, max_char='auto',
+                    char_auto_sidepadding=0.95, context=context, string=desc, alignment='LEFT',
+                    )
+                col.separator()
+
+            for fname,fdoc in NEXFUNCDOC.items():
+
+                row = col.row()
+                row.scale_y = 0.65
+                row.box().label(text=fdoc['repr'],)
+
+                col.separator(factor=0.5)
+
+                word_wrap(layout=col, alert=False, active=True, max_char='auto',
+                    char_auto_sidepadding=0.95, context=context, string=fdoc['doc'], alignment='LEFT',
+                    )
+                col.separator()
+                
+        header, panel = layout.panel("dev_panelid", default_closed=True,)
+        header.label(text="Development",)
+        if (panel):
+            panel.active = False
+                            
+            col = panel.column(align=True)
+            col.label(text="NodeTree:")
+            col.template_ID(n, "node_tree")
+
+            col = panel.column(align=True)
+            col.label(text="NodesCreated:")
+            row = col.row()
+            row.enabled = False
+            row.prop(n, "debug_nodes_quantity", text="",)
+
+            col = panel.column(align=True)
+            col.label(text="Execution Count:")
+            row = col.row()
+            row.enabled = False
+            row.prop(n, "debug_evaluation_counter", text="",)
+
+        col = layout.column(align=True)
+        op = col.operator("extranode.bake_customnode", text="Convert to Group",)
+        op.nodegroup_name = n.node_tree.name
+        op.node_name = n.name
+
+        return None
+
     @classmethod
     def update_all_instances(cls, from_autoexec=False,):
         """search for all nodes of this type and update them"""
