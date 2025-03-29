@@ -46,9 +46,11 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
             return None
 
         layout.label(text=active.bl_label, icon='NODE')
-        layout.separator(type='LINE')
+        # layout.separator(type='LINE')
 
-        active.draw_panel(layout, context)
+        if hasattr(active,'draw_panel'):
+              active.draw_panel(layout, context)
+        else: layout.label(text="No Interface Defined", icon='GHOST_DISABLED')
 
         return None
 
