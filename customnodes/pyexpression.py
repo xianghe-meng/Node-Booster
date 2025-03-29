@@ -27,10 +27,11 @@ from ..utils.node_utils import (
 
 class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate a python expression as a single value output.
-    • The evaluated values can be of type 'float', 'int', 'Vector', 'Color', 'Quaternion', 'Matrix', 'String', 'Object', 'Collection', 'Material' & 'list/tuple/set' up to len 16"""
+    • The evaluated values can be of type 'float', 'int', 'Vector', 'Color', 'Quaternion', 'Matrix', 'String', 'Object', 'Collection', 'Material' & 'list/tuple/set' up to len 16.
+    • For more advanced python expression, try out the 'Nex Script' node!"""
 
     #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
-    
+
     bl_idname = "GeometryNodeNodeBoosterPyExpression"
     bl_label = "Python Expression"
     auto_update = {'FRAME_PRE','DEPS_POST','AUTORIZATION_REQUIRED',}

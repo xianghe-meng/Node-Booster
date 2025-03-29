@@ -5,6 +5,8 @@
 
 import bpy 
 
+import math
+
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
@@ -14,68 +16,106 @@ from ..utils.node_utils import (
 )
 
 
-def evaluate_sequencer_volume(frame=None,):
-    """evaluate the sequencer volume source
-    this node was possible thanks to tintwotin https://github.com/snuq/VSEQF/blob/3ac717e1fa8c7371ec40503428bc2d0d004f0b35/vseqf.py#L142"""
+def evaluate_strip_volume(strip, frame, fps, depsgraph):
+    """evaluate a stip volume at given frame"""
 
-    #TODO ideally we need to also sample volume from few frame before or after, so user can create a smoothing falloff of some sort, 
-    #     that's what 'frame_delay' is for, but unfortunately this function is incomplete, frame can only be None in order to work
-    #     right now i do not have the strength to do it, you'll need to check for 'fades.get_fade_curve(bpy.context, sequence, create=False)' from the github link above
-
-    scene = bpy.context.scene
-    if (scene.sequence_editor is None):
+    #skip if the frame is outside of the strip range
+    if not (strip.frame_final_start < frame < strip.frame_final_end):
         return 0
 
-    totvolume = 0
-    sequences = scene.sequence_editor.sequences_all
+    time_from = (frame - 1 - strip.frame_start) / fps
+    time_to = (frame - strip.frame_start) / fps
+
+    sound = strip.sound
+    audio = sound.evaluated_get(depsgraph).factory
+    chunk = audio.limit(time_from, time_to).data()
+
+    #sometimes the chunks cannot be read properly, try to read 2 frames instead
+    if (len(chunk)==0):
+        time_from_temp = (frame - 2 - strip.frame_start) / fps
+        chunk = audio.limit(time_from_temp, time_to).data()
+
+    #chunk still couldnt be read...
+    if (len(chunk)==0):
+        return 0
+
+    cmax, cmin = abs(chunk.max()), abs(chunk.min())
+    value = cmax if (cmax > cmin) else cmin
+
+    return value
+
+def evaluate_smoothed_volume(strip, frame, fps, depsgraph, smoothing, smoothing_type):
+    """Smoothed volume using Gaussian weights or average of values."""
+
+    half_window = smoothing // 2
+    values = []
+
+    match smoothing_type:
+
+        case 'LINEAR':
+
+            for offset in range(-half_window, half_window + 1):
+                f = frame + offset
+                values.append(evaluate_strip_volume(strip, f, fps, depsgraph))
+
+            smoothed = sum(values) / len(values)
+
+        case 'GUASSIAN':
+
+            weights = []
+            sigma = smoothing / 3  # standard deviation controls falloff
+
+            for offset in range(-half_window, half_window + 1):
+                f = frame + offset
+                value = evaluate_strip_volume(strip, f, fps, depsgraph)
+                weight = math.exp(-0.5 * (offset / sigma) ** 2)
+                values.append(value * weight)
+                weights.append(weight)
+
+            smoothed = sum(values) / sum(weights) if weights else 0
+
+    return smoothed
+
+def evaluate_sequencer_volume(frame_offset=0, at_sound=None, smoothing=0,):
+    """evaluate the sequencer volume source
+    this fct was possible thanks to tintwotin https://github.com/snuq/VSEQF/blob/3ac717e1fa8c7371ec40503428bc2d0d004f0b35/vseqf.py#L142"""
+
+    scene = bpy.context.scene
+    vse = scene.sequence_editor
+    if (vse is None):
+        return 0
+
+    sequences = vse.sequences_all
     depsgraph = bpy.context.evaluated_depsgraph_get()
-    
-    if (frame is None):
-          frame = scene.frame_current
-          evaluate_volume = False
-    else: evaluate_volume = True
-
     fps = scene.render.fps / scene.render.fps_base
+    frame = scene.frame_current + frame_offset
 
-    for sequence in sequences:
+    #define sequences we are working with, either all sound, or a specific sound data
+    sound_sequences = [s for s in sequences if (s.type=='SOUND') and (not s.mute)]
+    if (at_sound):
+        sound_sequences = [s for s in sequences if (s.sound==at_sound)]
 
-        if ((sequence.type=='SOUND') and (sequence.frame_final_start<frame) 
-            and (sequence.frame_final_end>frame) and (not sequence.mute)):
-            
-            time_from = (frame - 1 - sequence.frame_start) / fps
-            time_to = (frame - sequence.frame_start) / fps
+    total = 0
 
-            audio = sequence.sound.evaluated_get(depsgraph).factory
-            chunk = audio.limit(time_from, time_to).data()
-            
-            #sometimes the chunks cannot be read properly, try to read 2 frames instead
-            if (len(chunk)==0):
-                time_from_temp = (frame - 2 - sequence.frame_start) / fps
-                chunk = audio.limit(time_from_temp, time_to).data()
-                
-            #chunk still couldnt be read...
-            if (len(chunk)==0):
-                average = 0
+    #for every strips..
+    for s in sound_sequences:
 
-            else:
-                cmax, cmin = abs(chunk.max()), abs(chunk.min())
-                average = cmax if (cmax > cmin) else cmin
+        #get our strip volume
+        if (smoothing > 1):
+              value = evaluate_smoothed_volume(s, frame, fps, depsgraph, smoothing, 'GUASSIAN')
+        else: value = evaluate_strip_volume(s, frame, fps, depsgraph)
 
-            if evaluate_volume:
-                # TODO: for later? get fade curve https://github.com/snuq/VSEQF/blob/8487c256db536eb2e9288a16248fe394d06dfb74/fades.py#L57
-                # fcurve = get_fade_curve(bpy.context, sequence, create=False)
-                # if (fcurve):
-                #       volume = fcurve.evaluate(frame)
-                # else: volume = sequence.volume
-                volume = 0
-            else:
-                volume = sequence.volume
+        # TODO: for later? get fade curve https://github.com/snuq/VSEQF/blob/8487c256db536eb2e9288a16248fe394d06dfb74/fades.py#L57
+        # fcurve = get_fade_curve(bpy.context, s, create=False)
+        # if (fcurve):
+        #       volume = fcurve.evaluate(frame)
+        # else: volume = s.volume
 
-            totvolume += (average * volume)
-        
+        volume = s.volume
+        total += (value * volume)
         continue 
 
-    return float(totvolume)
+    return float(total)
 
 # ooooo      ooo                 .o8            
 # `888b.     `8'                "888            
@@ -96,6 +136,47 @@ class Base():
 
     # frame_delay : bpy.props.IntProperty()
 
+    def sound_datablock_poll(self, sound):
+        """Poll function: only allow sounds that are used in the current scene’s VSE."""
+        vse = bpy.context.scene.sequence_editor
+        if (vse is None):
+            return False
+        for s in vse.sequences_all:
+            if (s.type=='SOUND' and s.sound==sound):
+                return True
+        return False
+
+    def update_signal(self,context):
+        self.update()
+        return None 
+
+    sample_context : bpy.props.EnumProperty(
+        name= "Sound Target",
+        description= "Specify how to sample",
+        default= 'ALL',
+        items= [('ALL',    "All",       "Sample all sound sequence",),
+                 ('SPECIFY', "Specific", "Sample a one only the sequences with the given sound data",),],
+        update= update_signal,
+        )
+    offset : bpy.props.IntProperty(
+        default= 0,
+        name= "Offset",
+        description= "Offset the sampled frame by a given number",
+        )
+    smoothing : bpy.props.IntProperty(
+        default= 0,
+        min= 0,
+        soft_max= 10,
+        name= "Smoothing",
+        description= "Smooth out the result",
+        )
+    sound : bpy.props.PointerProperty(
+        name= "Sound Datablock",
+        description= "Select a sound datablock used in the VSE (from sound sequences)",
+        type= bpy.types.Sound,
+        poll= sound_datablock_poll,
+        )
+    
     @classmethod
     def poll(cls, context):
         """mandatory poll"""
@@ -110,15 +191,12 @@ class Base():
         if (ng is None):
             ng = create_new_nodegroup(name,
                 tree_type=self.tree_type,
-                out_sockets={
-                    "Volume" : "NodeSocketFloat",
-                    },
-                )
+                out_sockets={"Volume" : "NodeSocketFloat",},)
 
         ng = ng.copy() #always using a copy of the original ng
 
         self.node_tree = ng
-        self.width = 150
+        self.width = 130
         self.label = self.bl_label
 
         return None 
@@ -133,14 +211,22 @@ class Base():
     def update(self):
         """generic update function"""
         
-        ng = self.node_tree
-        
-        # for later?
-        # frame = None 
-        # if (self.frame_delay):
-        #     frame = bpy.context.scene.frame_current + self.frame_delay
+        #deny update if output not used. Can be heavy to calculate.        
+        if (not self.outputs['Volume'].links):
+            return None
 
-        set_socket_defvalue(ng,0,value=evaluate_sequencer_volume(),)
+        ng = self.node_tree
+
+        if ((self.sample_context=='SPECIFIC') and (not self.sound)):
+            volume = 0
+        else:
+            volume = evaluate_sequencer_volume(
+                frame_offset=self.offset,
+                smoothing=self.smoothing,
+                at_sound=self.sound,
+                )
+
+        set_socket_defvalue(ng, 0, value=volume,)
 
         return None
     
@@ -151,9 +237,19 @@ class Base():
 
     def draw_buttons(self,context,layout,):
         """node interface drawing"""
+
+        layout.prop(self, "sample_context", expand=True,)
         
-        #for later?
-        #layout.prop(self,"frame_delay",text="Frame Delay")
+        row = layout.row(align=True)
+        prop = row.row(align=True)
+        prop.active = self.sample_context=='SPECIFY'
+        prop.prop(self, "sound", text="", icon="SOUND",)
+
+        col = layout.column()
+        # col.use_property_split = True
+        # col.use_property_decorate = False
+        col.prop(self, "offset",)
+        col.prop(self, "smoothing",)
 
         return None 
 
@@ -162,6 +258,24 @@ class Base():
     
         n = self
 
+        header, panel = layout.panel("params_panelid", default_closed=False,)
+        header.label(text="Parameters",)
+        if (panel):
+            
+            row = panel.row(align=True)
+            row.prop(self, "sample_context", expand=True,)
+            
+            row = panel.row(align=True)
+            prop = row.row(align=True)
+            prop.active = self.sample_context=='SPECIFY'
+            prop.prop(self, "sound", text="", icon="SOUND",)
+
+            col = panel.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+            col.prop(self, "offset",)
+            col.prop(self, "smoothing", text="Smooth",)
+
         header, panel = layout.panel("doc_panelid", default_closed=True,)
         header.label(text="Documentation",)
         if (panel):
@@ -169,12 +283,12 @@ class Base():
                 char_auto_sidepadding=0.9, context=context, string=n.bl_description,
                 )
             panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
-            
+
         header, panel = layout.panel("dev_panelid", default_closed=True,)
         header.label(text="Development",)
         if (panel):
             panel.active = False
-                            
+
             col = panel.column(align=True)
             col.label(text="NodeTree:")
             col.template_ID(n, "node_tree")
