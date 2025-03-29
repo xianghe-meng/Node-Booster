@@ -7,7 +7,11 @@ import bpy
 
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
-from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue, get_all_nodes
+from ..utils.node_utils import (
+    create_new_nodegroup,
+    set_socket_defvalue,
+    get_all_nodes,
+)
 
 
 # ooooo      ooo                 .o8            
@@ -20,10 +24,10 @@ from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue, get_al
 
 class Base():
 
+    bl_idname = "NodeBoosterRenderInfo"
     bl_label = "Render Info"
     bl_description  = """Custom Nodgroup: Gather informations about your active scene render info.
     • Expect updates on each depsgraph post and frame_pre update signals"""
-    bl_idname = "NodeBoosterRenderInfo"
     auto_update = {'FRAME_PRE','DEPS_POST',}
     tree_type = "*ChildrenDefined*"
 
@@ -123,7 +127,10 @@ class Base():
 
         #TODO we call update_all_instances for a lot of nodes from depsgraph & we need to optimize this, because func below may recur a LOT of nodes
         # could pass a from_nodes arg in this function
-        for n in get_all_nodes(geometry=True, compositing=True, shader=True, ignore_ng_name="NodeBooster", match_idnames={cls.bl_idname},): 
+        for n in get_all_nodes(
+            geometry=True, compositing=True, shader=True, 
+            ignore_ng_name="NodeBooster", match_idnames={cls.bl_idname},
+            ): 
             n.update()
 
         return None 

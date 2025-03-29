@@ -15,6 +15,12 @@ from .draw_utils import get_dpifac
 from .fct_utils import ColorRGBA
 
 
+SOCKTYPES_COMPAT_TABLE = {
+    'GEOMETRY':    ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketRotation', 'NodeSocketMatrix', 'NodeSocketString', 'NodeSocketMenu', 'NodeSocketObject', 'NodeSocketGeometry', 'NodeSocketCollection', 'NodeSocketTexture', 'NodeSocketImage', 'NodeSocketMaterial',),
+    'SHADER':      ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketShader', ),
+    'COMPOSITING': ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', ),
+}
+
 def get_all_nodes(geometry=True, compositing=True, shader=True, ignore_ng_name="", match_idnames=None,):
     """yield all nodes across many nodetree types"""
     r = set()
@@ -48,6 +54,7 @@ def get_all_nodes(geometry=True, compositing=True, shader=True, ignore_ng_name="
 
     return r
 
+
 def get_node_objusers(node):
     """Return a list of objects using the given Node."""
     
@@ -60,6 +67,7 @@ def get_node_objusers(node):
                     if (n==node):
                         users.add(o)
     return users
+
 
 def get_node_absolute_location(node):
     """find the location of the node in global space"""
@@ -90,6 +98,29 @@ def get_socket(ng, socket_name='Foo', in_out='OUTPUT',):
         return r[0]
     return r
 
+def crosseditor_sockettype_adjustment(socket_type:str, editor_type:str):
+    """ensure the socket types are correct depending on the nodes editor"""
+
+    compatibility_table = SOCKTYPES_COMPAT_TABLE[editor_type]
+
+    match editor_type:
+        
+        case 'GEOMETRY':
+            pass
+
+        case 'SHADER':
+            if (socket_type in {'NodeSocketRotation', 'NodeSocketMatrix'}):
+                #TODO convert somehow?
+                pass
+        
+        case 'COMPOSITING':
+            #No bool in compositor. We can support it easily tho.
+            if (socket_type=='NodeSocketBool'):
+                socket_type = 'NodeSocketInt'
+
+    if (socket_type not in compatibility_table):
+        return 'Invalid'
+    return socket_type
 
 def get_socketui_from_socket(ng, idx=None, in_out='OUTPUT', identifier=None,):
     """return a given socket index as an interface item, either find the socket by it's index, name or socketidentifier"""
@@ -144,7 +175,7 @@ def get_socket_defvalue(ng, idx, in_out='OUTPUT',):
 
 def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, node=None,):
     """set the value of the given nodegroups inputs or output sockets"""
-    
+
     assert in_out in {'INPUT','OUTPUT'}, "set_socket_defvalue(): in_out arg not valid"
     assert not (idx is None and socket is None), "Please pass either a socket or an index to a socket"
 
@@ -152,97 +183,103 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
     if type(value) is ColorRGBA:
         value = value[:]
 
+    #convert booleans to int if in compositor editor
+    if (ng.type=='COMPOSITING' and type(value) is bool):
+        value = int(value)
+
     # setting a default value of a input is very different from an output.
     #  - set a defaultval input can only be done by changing all node instances input of that nodegroup..
     #  - set a defaultval output can be done within the ng
 
-    if (in_out=='OUTPUT'):
+    match in_out:
 
-        outnod = ng.nodes["Group Output"]
-        sockets = outnod.inputs
+        case 'OUTPUT':
 
-        #fine our socket
-        if (socket is None):
-            socket = sockets[idx]
-        else:
-            assert socket in sockets[:], "Socket not found from input. Did you feed the right socket?"
-        if (idx is None):
-            for i,s in enumerate(sockets):
-                if (s==socket):
-                    idx = i
-                    break
+            outnod = ng.nodes["Group Output"]
+            sockets = outnod.inputs
 
-        # for some socket types, they don't have any default_values property.
-        # so we need to improvise and place a new node and link it!
-        match socket.type:
+            #fine our socket
+            if (socket is None):
+                socket = sockets[idx]
+            else:
+                assert socket in sockets[:], "Socket not found from input. Did you feed the right socket?"
+            if (idx is None):
+                for i,s in enumerate(sockets):
+                    if (s==socket):
+                        idx = i
+                        break
 
-            case 'ROTATION':
-                #NOTE if you want to pass a vec3 to a rotation socket, don't.
-                defnodname = f"D|Quat|outputs[{idx}]"
-                defnod = ng.nodes.get(defnodname)
-                #We cleanup nodetree and set up our input special.
-                if (defnod is None):
-                    defnod = ng.nodes.new('FunctionNodeQuaternionToRotation')
-                    defnod.name = defnod.label = defnodname
-                    defnod.location = (outnod.location.x, outnod.location.y + 350)
-                    #link it
-                    for l in socket.links:
-                        ng.links.remove(l)
-                    ng.links.new(defnod.outputs[0], socket)
-                #assign values
-                for sock,v in zip(defnod.inputs, value):
-                    if (sock.default_value!=v):
-                        sock.default_value = v
+            # for some socket types, they don't have any default_values property.
+            # so we need to improvise and place a new node and link it!
+            match socket.type:
 
-            case 'MATRIX':
-                defnodname = f"D|Matrix|outputs[{idx}]"
-                defnod = ng.nodes.get(defnodname)
-                #We cleanup nodetree and set up our input special.
-                if (defnod is None):
-                    defnod = ng.nodes.new('FunctionNodeCombineMatrix')
-                    defnod.name = defnod.label = defnodname
-                    defnod.location = (outnod.location.x + 150, outnod.location.y + 350)
-                    #link it
-                    for l in socket.links:
-                        ng.links.remove(l)
-                    ng.links.new(defnod.outputs[0], socket)
-                    #the node comes with tainted default values
-                    for inp in defnod.inputs:
-                        inp.default_value = 0
-                #assign flatten values
-                colflatten = [v for col in zip(*value) for v in col]
-                for sock,v in zip(defnod.inputs, colflatten):
-                    if (sock.default_value!=v):
-                        sock.default_value = v
+                case 'ROTATION':
+                    #NOTE if you want to pass a vec3 to a rotation socket, don't.
+                    defnodname = f"D|Quat|outputs[{idx}]"
+                    defnod = ng.nodes.get(defnodname)
+                    #We cleanup nodetree and set up our input special.
+                    if (defnod is None):
+                        defnod = ng.nodes.new('FunctionNodeQuaternionToRotation')
+                        defnod.name = defnod.label = defnodname
+                        defnod.location = (outnod.location.x, outnod.location.y + 350)
+                        #link it
+                        for l in socket.links:
+                            ng.links.remove(l)
+                        ng.links.new(defnod.outputs[0], socket)
+                    #assign values
+                    for sock,v in zip(defnod.inputs, value):
+                        if (sock.default_value!=v):
+                            sock.default_value = v
 
-            case _:
-                #we remove any unwanted links, if exists
-                if (socket.links):
-                    for l in socket.links:
-                        ng.links.remove(l)
-                #we set def value, simply..
-                if (socket.default_value!=value): #NOTE Vector/Color won't like that, will always be False.. need to use [:]!=[:] for two vec..
-                    socket.default_value = value
+                case 'MATRIX':
+                    defnodname = f"D|Matrix|outputs[{idx}]"
+                    defnod = ng.nodes.get(defnodname)
+                    #We cleanup nodetree and set up our input special.
+                    if (defnod is None):
+                        defnod = ng.nodes.new('FunctionNodeCombineMatrix')
+                        defnod.name = defnod.label = defnodname
+                        defnod.location = (outnod.location.x + 150, outnod.location.y + 350)
+                        #link it
+                        for l in socket.links:
+                            ng.links.remove(l)
+                        ng.links.new(defnod.outputs[0], socket)
+                        #the node comes with tainted default values
+                        for inp in defnod.inputs:
+                            inp.default_value = 0
+                    #assign flatten values
+                    colflatten = [v for col in zip(*value) for v in col]
+                    for sock,v in zip(defnod.inputs, colflatten):
+                        if (sock.default_value!=v):
+                            sock.default_value = v
 
-    elif (in_out=='INPUT'):
+                case _:
+                    #we remove any unwanted links, if exists
+                    if (socket.links):
+                        for l in socket.links:
+                            ng.links.remove(l)
+                    #we set def value, simply..
+                    if (socket.default_value!=value): #NOTE Vector/Color won't like that, will always be False.. need to use [:]!=[:] for two vec..
+                        socket.default_value = value
 
-        assert node is not None, "for inputs please pass a node instance to tweak the input values to"
+        case 'INPUT':
 
-        if (idx is None):
-            for i,s in enumerate(ng.nodes["Group Input"].outputs):
-                if (s==socket):
-                    idx = i
-                    break
-            assert idx is not None, "Error, couldn't find idx.."
+            assert node is not None, "for inputs please pass a node instance to tweak the input values to"
 
-        instancesocket = node.inputs[idx]
+            if (idx is None):
+                for i,s in enumerate(ng.nodes["Group Input"].outputs):
+                    if (s==socket):
+                        idx = i
+                        break
+                assert idx is not None, "Error, couldn't find idx.."
 
-        #rotation and matrixes don't have a default value
-        if (instancesocket.type in {'ROTATION','MATRIX'}):
-            return None
+            instancesocket = node.inputs[idx]
 
-        if (instancesocket.default_value!=value): #NOTE Vector/Color won't like that, will always be False.. need to use [:]!=[:] for two vec..
-            instancesocket.default_value = value
+            #rotation and matrixes don't have a default value
+            if (instancesocket.type in {'ROTATION','MATRIX'}):
+                return None
+
+            if (instancesocket.default_value!=value): #NOTE Vector/Color won't like that, will always be False.. need to use [:]!=[:] for two vec..
+                instancesocket.default_value = value
             
     return None
 
@@ -269,11 +306,13 @@ def get_socket_type(ng, idx=None, in_out='OUTPUT', identifier=None,):
 def set_socket_type(ng, idx=None, in_out='OUTPUT', socket_type="NodeSocketFloat", identifier=None,):
     """set socket type via bpy.ops.node.tree_socket_change_type() with manual override, context MUST be the geometry node editor"""
 
+    socket_type = crosseditor_sockettype_adjustment(socket_type, ng.type)
+
     itm = get_socketui_from_socket(ng,
         idx=idx, in_out=in_out, identifier=identifier,
         )
     itm.socket_type = socket_type
-    
+
     #blender bug: you might need to use this return value because the original socket before change will be dirty.
     return get_socket_from_socketui(ng, itm, in_out=in_out)
 
@@ -284,6 +323,8 @@ def create_socket(ng, in_out='OUTPUT', socket_type="NodeSocketFloat", socket_nam
     #naive support for strandard socket.type notation
     if (socket_type.isupper()):
         socket_type = f'NodeSocket{socket_type.title()}'
+    
+    socket_type = crosseditor_sockettype_adjustment(socket_type, ng.type)
 
     sockui = ng.interface.new_socket(socket_name, in_out=in_out, socket_type=socket_type,)
     sock = get_socket_from_socketui(ng, sockui, in_out=in_out)
