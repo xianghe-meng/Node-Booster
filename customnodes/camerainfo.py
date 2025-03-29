@@ -7,8 +7,11 @@ import bpy
 
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
-from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue
-
+from ..utils.node_utils import (
+    create_new_nodegroup,
+    set_socket_defvalue,
+    get_all_nodes,
+)
 
 # ooooo      ooo                 .o8            
 # `888b.     `8'                "888            
@@ -18,14 +21,15 @@ from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue
 #  8       `888  888   888 888   888  888    .o 
 # o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
 
-class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
-    """Custom Nodgroup: Gather informations about any camera.
+class Base():
+
+    bl_label = "Camera Info"
+    bl_idname = "NodeBoosterCameraInfoV2"
+    bl_description = """Custom Nodgroup: Gather informations about any camera.
     • By default the camera will always use the active camera.
     • Expect updates on each depsgraph post and frame_pre update signals"""
-
-    bl_idname = "GeometryNodeNodeBoosterCameraInfoV2"
-    bl_label = "Camera Info"
     auto_update = {'FRAME_PRE','DEPS_POST',}
+    tree_type = "*ChildrenDefined*"
 
     use_scene_cam: bpy.props.BoolProperty(
         default=True,
@@ -51,10 +55,9 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
 
         name = f".{self.bl_idname}"
 
-        ng = bpy.data.node_groups.get(name)
-        if (ng is None):
-            ng = create_new_nodegroup(name,
-                out_sockets={
+        match self.tree_type:
+            case "GeometryNodeTree":
+                sockets = {
                     "Camera Object" : "NodeSocketObject",
                     "Field of View" : "NodeSocketFloat",
                     "Shift X" : "NodeSocketFloat",
@@ -64,8 +67,28 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
                     "Sensor Type" : "NodeSocketString",
                     "Sensor Width" : "NodeSocketFloat",
                     "Sensor Height" : "NodeSocketFloat",
-                },
-            )
+                    }
+
+            case "ShaderNodeTree" | "CompositorNodeTree":
+                sockets = {
+                    "Camera Location" : "NodeSocketVector", #object transforms instead.
+                    "Camera Rotation" : "NodeSocketVector", #object transforms instead.
+                    "Field of View" : "NodeSocketFloat",
+                    "Shift X" : "NodeSocketFloat",
+                    "Shift Y" : "NodeSocketFloat",
+                    "Clip Start" : "NodeSocketFloat",
+                    "Clip End" : "NodeSocketFloat",
+                    "Sensor Type" : "NodeSocketInt", #int instead
+                    "Sensor Width" : "NodeSocketFloat",
+                    "Sensor Height" : "NodeSocketFloat",
+                    }
+
+        ng = bpy.data.node_groups.get(name)
+        if (ng is None):
+            ng = create_new_nodegroup(name,
+                tree_type=self.tree_type,
+                out_sockets=sockets,
+                )
 
         ng = ng.copy() #always using a copy of the original ng
         
@@ -83,30 +106,35 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
 
     def update(self):
         """generic update function"""
-
+        
         scene = bpy.context.scene
-        cam_obj = scene.camera if (self.use_scene_cam) else self.camera_obj
+        co = scene.camera if (self.use_scene_cam) else self.camera_obj
+        cd = co.data if co else None
+        valid = (co and cd)
 
-        if (cam_obj and cam_obj.data):
-            set_socket_defvalue(self.node_tree, 0, value=cam_obj)
-            set_socket_defvalue(self.node_tree, 1, value=cam_obj.data.angle)
-            set_socket_defvalue(self.node_tree, 2, value=cam_obj.data.shift_x)
-            set_socket_defvalue(self.node_tree, 3, value=cam_obj.data.shift_y)
-            set_socket_defvalue(self.node_tree, 4, value=cam_obj.data.clip_start)
-            set_socket_defvalue(self.node_tree, 5, value=cam_obj.data.clip_end)
-            set_socket_defvalue(self.node_tree, 6, value=cam_obj.data.sensor_fit)
-            set_socket_defvalue(self.node_tree, 7, value=cam_obj.data.sensor_width)
-            set_socket_defvalue(self.node_tree, 8, value=cam_obj.data.sensor_height)
-        else:
-            set_socket_defvalue(self.node_tree, 0, value=None)
-            set_socket_defvalue(self.node_tree, 1, value=0.0)
-            set_socket_defvalue(self.node_tree, 2, value=0.0)
-            set_socket_defvalue(self.node_tree, 3, value=0.0)
-            set_socket_defvalue(self.node_tree, 4, value=0.0)
-            set_socket_defvalue(self.node_tree, 5, value=0.0)
-            set_socket_defvalue(self.node_tree, 6, value="")
-            set_socket_defvalue(self.node_tree, 7, value=0.0)
-            set_socket_defvalue(self.node_tree, 8, value=0.0)
+        values = {
+            "Field of View": cd.angle if (valid) else 0.0,
+            "Shift X": cd.shift_x if (valid) else 0.0,
+            "Shift Y": cd.shift_y if (valid) else 0.0,
+            "Clip Start": cd.clip_start if (valid) else 0.0,
+            "Clip End": cd.clip_end if (valid) else 0.0,
+            "Sensor Width": cd.sensor_width if (valid) else 0.0,
+            "Sensor Height": cd.sensor_height if (valid) else 0.0,
+            }
+
+        #different behavior and sockets depending on editor type
+        match self.tree_type:
+            case "GeometryNodeTree":
+                values["Camera Object"] = co if (valid) else None
+                values["Sensor Type"] = cd.sensor_fit if (valid) else ""
+
+            case "ShaderNodeTree" | "CompositorNodeTree":
+                values["Camera Location"] = co.location if valid else (0,0,0)
+                values["Camera Rotation"] = co.rotation_euler if valid else (0,0,0)
+                values["Sensor Type"] = 0 if (cd.sensor_fit=='AUTO') else 2 if (cd.sensor_fit=='HORIZONTAL') else 3
+
+        for k,v in values.items():
+            set_socket_defvalue(self.node_tree, socket_name=k, value=v,)
 
         return None
 
@@ -172,8 +200,27 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
     def update_all_instances(cls, from_autoexec=False,):
         """search for all nodes of this type and update them"""
         
-        all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
-        for n in all_instances:
+        #TODO we call update_all_instances for a lot of nodes from depsgraph & we need to optimize this, because func below may recur a LOT of nodes
+        # could pass a from_nodes arg in this function
+        for n in get_all_nodes(
+            geometry=True, compositing=True, shader=True, 
+            ignore_ng_name="NodeBooster", match_idnames={cls.bl_idname},
+            ): 
             n.update()
             
         return None 
+
+#Per Node-Editor Children:
+#Respect _NG_ + _GN_/_SH_/_CP_ nomenclature
+
+class NODEBOOSTER_NG_GN_CameraInfo(Base, bpy.types.GeometryNodeCustomGroup):
+    tree_type = "GeometryNodeTree"
+    bl_idname = "GeometryNode" + Base.bl_idname
+
+class NODEBOOSTER_NG_SH_CameraInfo(Base, bpy.types.ShaderNodeCustomGroup):
+    tree_type = "ShaderNodeTree"
+    bl_idname = "ShaderNode" + Base.bl_idname
+
+class NODEBOOSTER_NG_CP_CameraInfo(Base, bpy.types.CompositorNodeCustomGroup):
+    tree_type = "CompositorNodeTree"
+    bl_idname = "CompositorNode" + Base.bl_idname
