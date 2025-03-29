@@ -19,24 +19,23 @@ def all_3d_viewports():
                     if (space.type == 'VIEW_3D'):
                         yield space
 
-
 def all_3d_viewports_shading_type():
     """return generator of all shading type str"""
     for space in all_3d_viewports():
         yield space.shading.type
-
 
 def is_rendered_view():
     """check if is rendered view in a 3d view somewhere"""
     return 'RENDERED' in all_3d_viewports_shading_type()
 
 
-class NODEBOOSTER_NG_isrenderedview(bpy.types.GeometryNodeCustomGroup):
+class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate if any 3Dviewport is in rendered view mode.
     • The value is evaluated from depsgraph post update signals"""
 
     bl_idname = "GeometryNodeNodeBoosterIsRenderedView"
     bl_label = "Is Rendered View"
+    auto_update = {'*CUSTOM_IMPLEMENTATION*',}
 
     @classmethod
     def poll(cls, context):
@@ -78,7 +77,7 @@ class NODEBOOSTER_NG_isrenderedview(bpy.types.GeometryNodeCustomGroup):
         return None 
     
     @classmethod
-    def update_all_instances(cls, from_depsgraph=False,):
+    def update_all_instances(cls, from_autoexec=False,):
         """search for all nodes of this type and update them"""
         
         #actually there's only one instance of this node nodetree

@@ -16,6 +16,7 @@ class NODEBOOSTER_NG_sequencervolume(bpy.types.GeometryNodeCustomGroup):
     
     bl_idname = "GeometryNodeNodeBoosterSequencerVolume"
     bl_label = "Sequencer Volume"
+    auto_update = {'FRAME_PRE','DEPS_POST',}
 
     # frame_delay : bpy.props.IntProperty()
 
@@ -145,7 +146,7 @@ class NODEBOOSTER_NG_sequencervolume(bpy.types.GeometryNodeCustomGroup):
         return None 
     
     @classmethod
-    def update_all_instances(cls, from_depsgraph=False,):
+    def update_all_instances(cls, from_autoexec=False,):
         """search for all nodes of this type and update them"""
 
         all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]

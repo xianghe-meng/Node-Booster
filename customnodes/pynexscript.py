@@ -250,6 +250,7 @@ class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
 
     bl_idname = "GeometryNodeNodeBoosterPyNexScript"
     bl_label = "Python Nex Script"
+    auto_update = {'FRAME_PRE','DEPS_POST','AUTORIZATION_REQUIRED',}
     # bl_icon = 'SCRIPT'
 
     error_message : bpy.props.StringProperty(
@@ -586,14 +587,14 @@ class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
         field.prop(self, "user_textdata", text="", icon="TEXT", placeholder="NexScript.py",)
 
         prop = row.row(align=True)
-        prop.enabled = sett_win.allow_auto_pyexec
+        prop.enabled = sett_win.authorize_automatic_execution
         prop.prop(self, "execute_at_depsgraph", text="", icon_value=cust_icon(animated_icon),)
 
         row.prop(self, "execute_script", text="", icon="PLAY", invert_checkbox=self.execute_script,)
 
-        if (not sett_win.allow_auto_pyexec):
+        if (not sett_win.authorize_automatic_execution):
             col.separator(factor=0.75)
-            col.prop(sett_win,"allow_auto_pyexec")
+            col.prop(sett_win,"authorize_automatic_execution")
 
         if (is_error):
             col = col.column(align=True)
@@ -605,13 +606,13 @@ class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
         return None
 
     @classmethod
-    def update_all_instances(cls, from_depsgraph=False,):
+    def update_all_instances(cls, from_autoexec=False,):
         """search for all nodes of this type and update them"""
 
 
         all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
         for n in all_instances:
-            if (from_depsgraph and not n.execute_at_depsgraph):
+            if (from_autoexec and not n.execute_at_depsgraph):
                 continue
             if (n.mute):
                 continue

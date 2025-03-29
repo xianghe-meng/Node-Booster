@@ -273,6 +273,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
 
     bl_idname = "GeometryNodeNodeBoosterMathExpression"
     bl_label = "Math Expression"
+    auto_update = {'NONE',}
 
     error_message : bpy.props.StringProperty(
         description="User interface error message"
@@ -672,7 +673,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         return None
 
     @classmethod
-    def update_all_instances(cls, from_depsgraph=False,):
+    def update_all_instances(cls, from_autoexec=False,):
         """search for all nodes of this type and update them"""
 
         return None

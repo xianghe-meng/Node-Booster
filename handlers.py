@@ -9,16 +9,34 @@ from collections.abc import Iterable
 
 from .__init__ import get_addon_prefs
 from .operators.palette import msgbus_palette_callback
-from .customnodes import (
-    NODEBOOSTER_NG_lightinfo,
-    NODEBOOSTER_NG_sceneinfo,
-    NODEBOOSTER_NG_renderinfo,
-    NODEBOOSTER_NG_camerainfo,
-    NODEBOOSTER_NG_pyexpression,
-    NODEBOOSTER_NG_sequencervolume,
-    NODEBOOSTER_NG_isrenderedview,
-    NODEBOOSTER_NG_pynexscript,
-)
+from .customnodes import classes as allcustomnodes
+from .customnodes import NODEBOOSTER_NG_GN_IsRenderedView
+
+
+def _customnodes(nodes:list):
+    """automatically run the update_all_instances() function of all custom nodes passed"""
+
+    if (not nodes):
+        return None
+
+    sett_win = bpy.context.window_manager.nodebooster
+    has_autorization = sett_win.authorize_automatic_execution
+
+    for cls in nodes:
+
+        if (not hasattr(cls,'update_all_instances')):
+            print(f"WARNING: update_all_instances() function is required in your customnode class for an automatic execution.")
+            continue
+
+        #automatic re-evaluation of the Python Expression and Python Nex Nodes.
+        #for security reasons, we update only if the user allows it expressively on each blender sess.
+        if ('AUTORIZATION_REQUIRED' in cls.auto_update) and (not has_autorization):
+            continue
+
+        cls.update_all_instances(from_autoexec=True)
+        continue
+
+    return None
 
 
 # We start with msgbusses
@@ -27,18 +45,14 @@ from .customnodes import (
 MSGBUSOWNER_VIEWPORT_SHADING = object()
 MSGBUSOWNER_PALETTE =  object()
 
-
 def msgbus_viewportshading_callback(*args):
-    
-    sett_plugin = get_addon_prefs()
-    
-    if (sett_plugin.debug_depsgraph):
+
+    if (get_addon_prefs().debug_depsgraph):
         print("msgbus_viewportshading_callback(): msgbus signal")
 
-    NODEBOOSTER_NG_isrenderedview.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_GN_IsRenderedView.update_all_instances(from_autoexec=True)
 
     return None 
-
 
 def register_msgbusses():
     
@@ -59,7 +73,6 @@ def register_msgbusses():
 
     return None
 
-
 def unregister_msgbusses():
 
     bpy.msgbus.clear_by_owner(MSGBUSOWNER_VIEWPORT_SHADING)
@@ -68,73 +81,49 @@ def unregister_msgbusses():
     return None
 
 
-# Then we register the handlers
+# Define the handlers functions
 
+
+DEPSPOST_UPD_NODES = [cls for cls in allcustomnodes if ('DEPS_POST' in cls.auto_update)]
 
 @bpy.app.handlers.persistent
 def nodebooster_handler_depspost(scene,desp):
     """update on depsgraph change"""
 
-    sett_plugin = get_addon_prefs()
-    sett_win = bpy.context.window_manager.nodebooster
-
-    if (sett_plugin.debug_depsgraph):
+    if (get_addon_prefs().debug_depsgraph):
         print("nodebooster_handler_depspost(): depsgraph signal")
 
-    #need to update custom nodes outputs
-    NODEBOOSTER_NG_lightinfo.update_all_instances(from_depsgraph=True)
-    NODEBOOSTER_NG_sceneinfo.update_all_instances(from_depsgraph=True)
-    NODEBOOSTER_NG_renderinfo.update_all_instances(from_depsgraph=True)
-    NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
-    NODEBOOSTER_NG_sequencervolume.update_all_instances(from_depsgraph=True)
-
-    #automatic re-evaluation of the Python Expression and Python Nex Nodes.
-    #for security reasons, only if the user allows it expressively on each program session.
-    if (sett_win.allow_auto_pyexec):
-        NODEBOOSTER_NG_pyexpression.update_all_instances(from_depsgraph=True)
-        NODEBOOSTER_NG_pynexscript.update_all_instances(from_depsgraph=True)
-
+    #updates for our custom nodes
+    _customnodes(DEPSPOST_UPD_NODES)
     return None
 
+FRAMEPRE_UPD_NODES = [cls for cls in allcustomnodes if ('FRAME_PRE' in cls.auto_update)]
 
 @bpy.app.handlers.persistent
 def nodebooster_handler_framepre(scene,desp):
     """update on frame change"""
 
-    sett_plugin = get_addon_prefs()
-    sett_win = bpy.context.window_manager.nodebooster
-
-    if (sett_plugin.debug_depsgraph):
+    if (get_addon_prefs().debug_depsgraph):
         print("nodebooster_handler_framepre(): frame_pre signal")
 
-    #need to update custom nodes outputs
-    NODEBOOSTER_NG_lightinfo.update_all_instances(from_depsgraph=True)
-    NODEBOOSTER_NG_sceneinfo.update_all_instances(from_depsgraph=True)
-    NODEBOOSTER_NG_renderinfo.update_all_instances(from_depsgraph=True)
-    NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
-    NODEBOOSTER_NG_sequencervolume.update_all_instances(from_depsgraph=True)
-
-    #automatic re-evaluation of the Python Expression and Python Nex Nodes.
-    #for security reasons, only if the user allows it expressively on each program session.
-    if (sett_win.allow_auto_pyexec):
-        NODEBOOSTER_NG_pyexpression.update_all_instances(from_depsgraph=True)
-        NODEBOOSTER_NG_pynexscript.update_all_instances(from_depsgraph=True)
-
+    #updates for our custom nodes
+    _customnodes(FRAMEPRE_UPD_NODES)
     return None
 
+LOADPOST_UPD_NODES = [cls for cls in allcustomnodes if ('LOAD_POST' in cls.auto_update)]
 
 @bpy.app.handlers.persistent
 def nodebooster_handler_loadpost(scene,desp):
     """Handler function when user is loading a file"""
     
-    sett_plugin = get_addon_prefs()
-
-    if (sett_plugin.debug_depsgraph):
+    if (get_addon_prefs().debug_depsgraph):
         print("nodebooster_handler_framepre(): frame_pre signal")
 
     #need to add message bus on each blender load
     register_msgbusses()
 
+    #updates for our custom nodes
+    _customnodes(LOADPOST_UPD_NODES)
     return None
 
 
@@ -148,7 +137,6 @@ def all_handlers(name=False):
         if isinstance(oh, Iterable):
             for h in oh:
                 yield h
-
 
 def load_handlers():
     
@@ -164,7 +152,6 @@ def load_handlers():
         bpy.app.handlers.load_post.append(nodebooster_handler_loadpost)
         
     return None 
-
 
 def unload_handlers():
 

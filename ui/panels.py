@@ -181,10 +181,10 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                         lbl.alert = is_error
                         lbl.label(text=n.error_message)
 
-                    panel.prop(sett_win,"allow_auto_pyexec")
+                    panel.prop(sett_win,"authorize_automatic_execution")
                     
                     prop = panel.column()
-                    prop.enabled = sett_win.allow_auto_pyexec
+                    prop.enabled = sett_win.authorize_automatic_execution
                     prop.prop(n,"execute_at_depsgraph")
                 
             
@@ -299,10 +299,10 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                         lbl.alert = is_error
                         lbl.label(text=n.error_message)
 
-                    panel.prop(sett_win,"allow_auto_pyexec")
+                    panel.prop(sett_win,"authorize_automatic_execution")
                     
                     prop = panel.column()
-                    prop.enabled = sett_win.allow_auto_pyexec
+                    prop.enabled = sett_win.authorize_automatic_execution
                     prop.prop(n,"execute_at_depsgraph")
 
                 header, panel = layout.panel("inputs_panelid", default_closed=True,)

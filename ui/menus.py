@@ -7,7 +7,11 @@ import bpy
 
 import os
 
-from ..customnodes import classes as NODECUSTOMCLS
+from ..customnodes import (
+    GN_CustomNodes,
+    SH_CustomNodes,
+    CP_CustomNodes,
+    )
 
 
 class NODEBOOSTER_MT_addmenu_general(bpy.types.Menu):
@@ -17,11 +21,17 @@ class NODEBOOSTER_MT_addmenu_general(bpy.types.Menu):
 
     @classmethod
     def poll(cls, context):
-        return (bpy.context.space_data.tree_type == 'GeometryNodeTree')
+        tree_type = context.space_data.tree_type
+        return (tree_type in {'GeometryNodeTree','ShaderNodeTree','CompositorNodeTree',})
 
     def draw(self, context):
 
-        for cls in NODECUSTOMCLS:
+        tree_type = context.space_data.tree_type
+        Menus = {'CompositorNodeTree': CP_CustomNodes,
+                 'GeometryNodeTree': GN_CustomNodes,
+                 'ShaderNodeTree': SH_CustomNodes,}
+
+        for cls in Menus.get(tree_type,list(),):
             if ('_NG_' in cls.__name__):
                 op = self.layout.operator("node.add_node", text=cls.bl_label,)
                 op.type = cls.bl_idname
@@ -31,17 +41,13 @@ class NODEBOOSTER_MT_addmenu_general(bpy.types.Menu):
 
 
 def nodebooster_addmenu_append(self, context,):
-
     self.layout.menu("NODEBOOSTER_MT_addmenu_general", text="Booster Nodes",)
-
     return None 
 
 def nodebooster_nodemenu_append(self, context):
-
     layout = self.layout 
     layout.separator()
     layout.operator("nodebooster.node_purge_unused", text="Purge Unused Nodes",)
-
     return None
 
 
@@ -55,7 +61,7 @@ class NODEBOOSTER_MT_textemplate(bpy.types.Menu):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         parent_dir = os.path.dirname(current_dir)
         external_dir = os.path.join(parent_dir, "resources")
-        
+
         file_path = os.path.join(external_dir, "NexDemo.py")
         layout = self.layout 
         layout.separator()
@@ -65,40 +71,32 @@ class NODEBOOSTER_MT_textemplate(bpy.types.Menu):
         return None
 
 def nodebooster_templatemenu_append(self, context):
-    
     layout = self.layout 
     layout.separator()
     layout.menu("NODEBOOSTER_MT_textemplate", text="Booster Scripts",)
-
     return None
 
 
-MENUS = [
+MENUS = (
     bpy.types.NODE_MT_add,
     bpy.types.NODE_MT_node,
     bpy.types.TEXT_MT_templates,
-    ]
+    )
 
-
-DRAWFUNCS = [
+DRAWFUNCS = (
     nodebooster_addmenu_append,
     nodebooster_nodemenu_append,
     nodebooster_templatemenu_append,
-    ]
-
+    )
 
 def append_menus():
-
     for menu, fct in zip(MENUS,DRAWFUNCS):
         menu.append(fct)
-
     return None
 
 def remove_menus():
-
     for menu in MENUS:
         for f in menu._dyn_ui_initialize().copy():
             if (f in DRAWFUNCS):
                 menu.remove(f)
-
     return None
