@@ -58,7 +58,7 @@ class Base():
         match self.tree_type:
             case "GeometryNodeTree":
                 sockets = {
-                    "Camera Object": "NodeSocketObject",
+                    "Object":        "NodeSocketObject",
                     "Field of View": "NodeSocketFloat",
                     "Shift X":       "NodeSocketFloat",
                     "Shift Y":       "NodeSocketFloat",
@@ -126,13 +126,19 @@ class Base():
         #different behavior and sockets depending on editor type
         match self.tree_type:
             case "GeometryNodeTree":
-                values["Camera Object"] = co            if (valid) else None
-                values["Sensor Type"]   = cd.sensor_fit if (valid) else ""
+                values["Sensor Type"] = cd.sensor_fit if (valid) else ""
+
+                #Support for old socket name, previous version of node.
+                camvalue = co if (valid) else None
+                if "Camera Object" in self.outputs:
+                    values["Camera Object"] = camvalue
+                elif "Object" in self.outputs:
+                    values["Object"] = camvalue
 
             case "ShaderNodeTree" | "CompositorNodeTree":
-                values["Location"] = co.location       if (valid) else (0,0,0)
-                values["Rotation"] = co.rotation_euler if (valid) else (0,0,0)
-                values["Scale"]    = co.scale          if (valid) else (0,0,0)
+                values["Location"] = co.location        if (valid) else (0,0,0)
+                values["Rotation"] = co.rotation_euler  if (valid) else (0,0,0)
+                values["Scale"]    = co.scale           if (valid) else (0,0,0)
                 values["Sensor Type"] = 0 if (cd.sensor_fit=='AUTO') else 2 if (cd.sensor_fit=='HORIZONTAL') else 3
 
         for k,v in values.items():
