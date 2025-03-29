@@ -9,7 +9,9 @@ from . camerainfo import (
         NODEBOOSTER_NG_CP_CameraInfo,
         )
 from . lightinfo import (
-        NODEBOOSTER_NG_lightinfo,
+        NODEBOOSTER_NG_GN_LightInfo,
+        NODEBOOSTER_NG_SH_LightInfo,
+        NODEBOOSTER_NG_CP_LightInfo,
         )
 from . sceneinfo import (
         NODEBOOSTER_NG_GN_SceneInfo,
@@ -42,11 +44,11 @@ from . pynexscript import (
 #For menus, in order of appearance
 
 GN_CustomNodes = (
-    NODEBOOSTER_NG_lightinfo,
+    NODEBOOSTER_NG_GN_LightInfo,
     NODEBOOSTER_NG_GN_SceneInfo,
     NODEBOOSTER_NG_GN_RenderInfo,
     NODEBOOSTER_NG_GN_CameraInfo,
-    NODEBOOSTER_NG_GN_IsRenderedView,
+    NODEBOOSTER_NG_GN_IsRenderedView, #this one doesn't make sense in other editors.
     NODEBOOSTER_NG_GN_SequencerVolume,
     NODEBOOSTER_NG_mathexpression,
     NODEBOOSTER_NG_pyexpression,
@@ -54,6 +56,7 @@ GN_CustomNodes = (
     )
 
 SH_CustomNodes = (
+    NODEBOOSTER_NG_SH_LightInfo,
     NODEBOOSTER_NG_SH_SceneInfo,
     NODEBOOSTER_NG_SH_RenderInfo,
     NODEBOOSTER_NG_SH_CameraInfo,
@@ -61,6 +64,7 @@ SH_CustomNodes = (
     )
 
 CP_CustomNodes = (
+    NODEBOOSTER_NG_CP_LightInfo,
     NODEBOOSTER_NG_CP_SceneInfo,
     NODEBOOSTER_NG_CP_RenderInfo,
     NODEBOOSTER_NG_CP_CameraInfo,
@@ -74,7 +78,9 @@ classes = (
     NODEBOOSTER_NG_SH_CameraInfo,
     NODEBOOSTER_NG_CP_CameraInfo,
 
-    NODEBOOSTER_NG_lightinfo,
+    NODEBOOSTER_NG_GN_LightInfo,
+    NODEBOOSTER_NG_SH_LightInfo,
+    NODEBOOSTER_NG_CP_LightInfo,
 
     NODEBOOSTER_NG_GN_SceneInfo,
     NODEBOOSTER_NG_SH_SceneInfo,

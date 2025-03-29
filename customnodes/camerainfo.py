@@ -23,8 +23,8 @@ from ..utils.node_utils import (
 
 class Base():
 
-    bl_label = "Camera Info"
     bl_idname = "NodeBoosterCameraInfoV2"
+    bl_label = "Camera Info"
     bl_description = """Custom Nodgroup: Gather informations about any camera.
     • By default the camera will always use the active camera.
     • Expect updates on each depsgraph post and frame_pre update signals"""
@@ -58,29 +58,30 @@ class Base():
         match self.tree_type:
             case "GeometryNodeTree":
                 sockets = {
-                    "Camera Object" : "NodeSocketObject",
-                    "Field of View" : "NodeSocketFloat",
-                    "Shift X" : "NodeSocketFloat",
-                    "Shift Y" : "NodeSocketFloat",
-                    "Clip Start" : "NodeSocketFloat",
-                    "Clip End" : "NodeSocketFloat",
-                    "Sensor Type" : "NodeSocketString",
-                    "Sensor Width" : "NodeSocketFloat",
-                    "Sensor Height" : "NodeSocketFloat",
+                    "Camera Object": "NodeSocketObject",
+                    "Field of View": "NodeSocketFloat",
+                    "Shift X":       "NodeSocketFloat",
+                    "Shift Y":       "NodeSocketFloat",
+                    "Clip Start":    "NodeSocketFloat",
+                    "Clip End":      "NodeSocketFloat",
+                    "Sensor Type":   "NodeSocketString",
+                    "Sensor Width":  "NodeSocketFloat",
+                    "Sensor Height": "NodeSocketFloat",
                     }
 
             case "ShaderNodeTree" | "CompositorNodeTree":
                 sockets = {
-                    "Camera Location" : "NodeSocketVector", #object transforms instead.
-                    "Camera Rotation" : "NodeSocketVector", #object transforms instead.
-                    "Field of View" : "NodeSocketFloat",
-                    "Shift X" : "NodeSocketFloat",
-                    "Shift Y" : "NodeSocketFloat",
-                    "Clip Start" : "NodeSocketFloat",
-                    "Clip End" : "NodeSocketFloat",
-                    "Sensor Type" : "NodeSocketInt", #int instead
-                    "Sensor Width" : "NodeSocketFloat",
-                    "Sensor Height" : "NodeSocketFloat",
+                    "Location":      "NodeSocketVector", #object transforms instead.
+                    "Rotation":      "NodeSocketVector", #object transforms instead.
+                    "Scale":         "NodeSocketVector", #object transforms instead.
+                    "Field of View": "NodeSocketFloat",
+                    "Shift X":       "NodeSocketFloat",
+                    "Shift Y":       "NodeSocketFloat",
+                    "Clip Start":    "NodeSocketFloat",
+                    "Clip End":      "NodeSocketFloat",
+                    "Sensor Type":   "NodeSocketInt", #int instead
+                    "Sensor Width":  "NodeSocketFloat",
+                    "Sensor Height": "NodeSocketFloat",
                     }
 
         ng = bpy.data.node_groups.get(name)
@@ -113,24 +114,25 @@ class Base():
         valid = (co and cd)
 
         values = {
-            "Field of View": cd.angle if (valid) else 0.0,
-            "Shift X": cd.shift_x if (valid) else 0.0,
-            "Shift Y": cd.shift_y if (valid) else 0.0,
-            "Clip Start": cd.clip_start if (valid) else 0.0,
-            "Clip End": cd.clip_end if (valid) else 0.0,
-            "Sensor Width": cd.sensor_width if (valid) else 0.0,
+            "Field of View": cd.angle         if (valid) else 0.0,
+            "Shift X":       cd.shift_x       if (valid) else 0.0,
+            "Shift Y":       cd.shift_y       if (valid) else 0.0,
+            "Clip Start":    cd.clip_start    if (valid) else 0.0,
+            "Clip End":      cd.clip_end      if (valid) else 0.0,
+            "Sensor Width":  cd.sensor_width  if (valid) else 0.0,
             "Sensor Height": cd.sensor_height if (valid) else 0.0,
             }
 
         #different behavior and sockets depending on editor type
         match self.tree_type:
             case "GeometryNodeTree":
-                values["Camera Object"] = co if (valid) else None
-                values["Sensor Type"] = cd.sensor_fit if (valid) else ""
+                values["Camera Object"] = co            if (valid) else None
+                values["Sensor Type"]   = cd.sensor_fit if (valid) else ""
 
             case "ShaderNodeTree" | "CompositorNodeTree":
-                values["Camera Location"] = co.location if valid else (0,0,0)
-                values["Camera Rotation"] = co.rotation_euler if valid else (0,0,0)
+                values["Location"] = co.location       if (valid) else (0,0,0)
+                values["Rotation"] = co.rotation_euler if (valid) else (0,0,0)
+                values["Scale"]    = co.scale          if (valid) else (0,0,0)
                 values["Sensor Type"] = 0 if (cd.sensor_fit=='AUTO') else 2 if (cd.sensor_fit=='HORIZONTAL') else 3
 
         for k,v in values.items():

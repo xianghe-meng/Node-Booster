@@ -7,7 +7,11 @@ import bpy
 
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
-from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue
+from ..utils.node_utils import (
+    create_new_nodegroup,
+    set_socket_defvalue,
+    get_all_nodes,
+)
 
 
 # ooooo      ooo                 .o8            
@@ -18,13 +22,14 @@ from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue
 #  8       `888  888   888 888   888  888    .o 
 # o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
 
-class NODEBOOSTER_NG_lightinfo(bpy.types.GeometryNodeCustomGroup):
-    """Custom Nodegroup: Gather informations about any lights.
-    • Expect updates on each depsgraph post and frame_pre update signals"""
+class Base():
 
-    bl_idname = "GeometryNodeNodeBoosterAreaLightInfo"
+    bl_idname = "NodeBoosterAreaLightInfo"
     bl_label = "Light Info"
+    bl_description = """Custom Nodegroup: Gather informations about any lights.
+    • Expect updates on each depsgraph post and frame_pre update signals"""
     auto_update = {'FRAME_PRE','DEPS_POST',}
+    tree_type = "*ChildrenDefined*"
 
     def update_signal(self,context):
         self.update()
@@ -34,7 +39,7 @@ class NODEBOOSTER_NG_lightinfo(bpy.types.GeometryNodeCustomGroup):
         name="Light Type",
         default='ANY',
         items=[
-            ('ANY',   "Any Lights"    ,"", 'LIGHT',       0,),
+            ('ANY',   "Any Lights"        ,"", 'LIGHT',       0,),
             ('POINT', "Point Types Only"  ,"", 'LIGHT_POINT', 1,),
             ('SUN',   "Sun Types Only"    ,"", 'LIGHT_SUN',   2,),
             ('SPOT',  "Spot Types Only"   ,"", 'LIGHT_SPOT',  3,),
@@ -64,26 +69,51 @@ class NODEBOOSTER_NG_lightinfo(bpy.types.GeometryNodeCustomGroup):
 
         name = f".{self.bl_idname}"
 
+        match self.tree_type:
+            case "GeometryNodeTree":
+                sockets = {
+                    "Object":       "NodeSocketObject", #{'POINT','SUN','SPOT','AREA',},
+                    "Type":         "NodeSocketString", #{'POINT','SUN','SPOT','AREA',},
+                    "Color":        "NodeSocketColor", #{'POINT','SUN','SPOT','AREA',},
+                    "Power":        "NodeSocketFloat", #{'POINT','SUN','SPOT','AREA',},
+                    "Shape":        "NodeSocketString", #{'AREA',},
+                    "Size X":       "NodeSocketFloat", #{'AREA',},
+                    "Size Y":       "NodeSocketFloat", #{'AREA',},
+                    "Spread":       "NodeSocketFloat", #{'AREA',},
+                    "Soft Falloff": "NodeSocketBool", #{'SPOT','POINT'},
+                    "Radius":       "NodeSocketFloat", #{'SPOT','POINT'},
+                    "Angle":        "NodeSocketFloat", #{'SUN',},
+                    "Size":         "NodeSocketFloat", #{'SPOT',},
+                    "Blend":        "NodeSocketFloat", #{'SPOT',},
+                    "Show Cone":    "NodeSocketBool", #{'SPOT',},
+                    }
+
+            case "ShaderNodeTree" | "CompositorNodeTree":
+                sockets = {
+                    "Location": "NodeSocketVector", #object transforms instead.
+                    "Rotation": "NodeSocketVector", #object transforms instead.
+                    "Scale":    "NodeSocketVector", #object transforms instead.
+                    "Type":           "NodeSocketInt", #int instead
+                    "Color":          "NodeSocketColor",
+                    "Power":          "NodeSocketFloat",
+                    "Shape":          "NodeSocketInt", #int instead
+                    "Size X":         "NodeSocketFloat",
+                    "Size Y":         "NodeSocketFloat",
+                    "Spread":         "NodeSocketFloat",
+                    "Soft Falloff":   "NodeSocketBool",
+                    "Radius":         "NodeSocketFloat",
+                    "Angle":          "NodeSocketFloat",
+                    "Size":           "NodeSocketFloat",
+                    "Blend":          "NodeSocketFloat",
+                    "Show Cone":      "NodeSocketBool",
+                    }
+
         ng = bpy.data.node_groups.get(name)
         if (ng is None):
             ng = create_new_nodegroup(name,
-                out_sockets={
-                    "Object" : "NodeSocketObject", #0:ANY
-                    "Type" : "NodeSocketString", #1:ANY
-                    "Color" : "NodeSocketColor", #2:ANY
-                    "Power" : "NodeSocketFloat", #3:ANY
-                    "Shape" : "NodeSocketString", #4:AREA only
-                    "Size X" : "NodeSocketFloat", #5:AREA only
-                    "Size Y" : "NodeSocketFloat", #6:AREA only
-                    "Spread" : "NodeSocketFloat", #7:AREA only
-                    "Soft Falloff" : "NodeSocketBool", #8:SPOT|POINT only
-                    "Radius" : "NodeSocketFloat", #9:SPOT|POINT only
-                    "Angle" : "NodeSocketFloat", #10:SUN only
-                    "Size" : "NodeSocketFloat",#11:SPOT only
-                    "Blend" : "NodeSocketFloat",#12:SPOT only
-                    "Show Cone" : "NodeSocketBool",#13:SPOT only
-                },
-            )
+                tree_type=self.tree_type,
+                out_sockets=sockets,
+                )
 
         ng = ng.copy() #always using a copy of the original ng
 
@@ -102,90 +132,101 @@ class NODEBOOSTER_NG_lightinfo(bpy.types.GeometryNodeCustomGroup):
     def update(self):
         """generic update function"""
 
+        ng = self.node_tree
         lo = self.light_obj
+        ld = lo.data if lo and (lo.type=='LIGHT') else None
+        is_geonode = (self.tree_type=='GeometryNodeTree')
+        valid = (lo and ld)
 
-        if ((lo is None) or (lo.type!='LIGHT') or (lo.data is None)):
-            set_socket_defvalue(self.node_tree, 0, value=None) #Object
-            set_socket_defvalue(self.node_tree, 1, value="") #Type
-            set_socket_defvalue(self.node_tree, 2, value=[0.0, 0.0, 0.0, 0.0]) #Color
-            set_socket_defvalue(self.node_tree, 3, value=0.0) #Power
-            self.outputs[4].enabled = False  #Shape
-            self.outputs[5].enabled = False #Size X
-            self.outputs[6].enabled = False #Size Y
-            self.outputs[7].enabled = False #Spread
-            self.outputs[8].enabled = False #Soft Falloff
-            self.outputs[9].enabled = False #Radius
-            self.outputs[10].enabled = False #Angle
-            self.outputs[11].enabled = False #Size
-            self.outputs[12].enabled = False #Blend
-            self.outputs[13].enabled = False #Show Cone
+        #different behavior and sockets depending on editor type and light type
+
+        if (not valid):
+            ltype = "" if is_geonode else 0
+            if (not is_geonode):
+                  set_socket_defvalue(ng, socket_name="Location", value=(0,0,0))
+                  set_socket_defvalue(ng, socket_name="Rotation", value=(0,0,0))
+                  set_socket_defvalue(ng, socket_name="Scale", value=(0,0,0))
+            else: set_socket_defvalue(ng, socket_name="Object", value=None)
+            set_socket_defvalue(ng, socket_name="Type", value=ltype)
+            set_socket_defvalue(ng, socket_name="Color", value=[0.0, 0.0, 0.0, 0.0])
+            set_socket_defvalue(ng, socket_name="Power", value=0.0)
+            self.outputs["Shape"].enabled = False
+            self.outputs["Size X"].enabled = False
+            self.outputs["Size Y"].enabled = False
+            self.outputs["Spread"].enabled = False
+            self.outputs["Soft Falloff"].enabled = False
+            self.outputs["Radius"].enabled = False
+            self.outputs["Angle"].enabled = False
+            self.outputs["Size"].enabled = False
+            self.outputs["Blend"].enabled = False
+            self.outputs["Show Cone"].enabled = False
             return None
 
-        ld = lo.data
+        if (ld.type not in {'POINT','SUN','SPOT','AREA',}):
+            raise Exception(f'Was not expecting a light of type "{ld.type}"')
 
+        #These are always on and shared across all
+        ltype = ld.type  if is_geonode else 0 if (ld.type=='POINT')   else 1 if (ld.type=='SUN')        else 2 if (ld.type=='SPOT')  else 3
+        if (not is_geonode):
+              set_socket_defvalue(ng, socket_name="Location", value=lo.location)
+              set_socket_defvalue(ng, socket_name="Rotation", value=lo.rotation_euler)
+              set_socket_defvalue(ng, socket_name="Scale", value=lo.scale)
+        else: set_socket_defvalue(ng, socket_name="Object", value=lo)
+        set_socket_defvalue(ng, socket_name="Type", value=ltype)
+        set_socket_defvalue(ng, socket_name="Color", value=[ld.color[0], ld.color[1], ld.color[2], 1.0])
+        set_socket_defvalue(ng, socket_name="Power", value=ld.energy)
+
+        #below depends on lught type
         match ld.type:
             case 'POINT':
-                set_socket_defvalue(self.node_tree, 0, value=lo) #Object
-                set_socket_defvalue(self.node_tree, 1, value=ld.type) #Type
-                set_socket_defvalue(self.node_tree, 2, value=[ld.color[0], ld.color[1], ld.color[2], 1.0]) #Color
-                set_socket_defvalue(self.node_tree, 3, value=ld.energy) #Power
-                self.outputs[4].enabled = False #Shape
-                self.outputs[5].enabled = False #Size X
-                self.outputs[6].enabled = False #Size Y
-                self.outputs[7].enabled = False #Spread
-                set_socket_defvalue(self.node_tree, 8, value=ld.use_soft_falloff) #Soft Falloff
-                set_socket_defvalue(self.node_tree, 9, value=ld.shadow_soft_size) #Radius
-                self.outputs[10].enabled = False #Angle
-                self.outputs[11].enabled = False #Size
-                self.outputs[12].enabled = False #Blend
-                self.outputs[13].enabled = False #Show Cone
+                self.outputs["Shape"].enabled = False
+                self.outputs["Size X"].enabled = False
+                self.outputs["Size Y"].enabled = False
+                self.outputs["Spread"].enabled = False
+                set_socket_defvalue(ng, socket_name="Soft Falloff", value=ld.use_soft_falloff)
+                set_socket_defvalue(ng, socket_name="Radius", value=ld.shadow_soft_size)
+                self.outputs["Angle"].enabled = False
+                self.outputs["Size"].enabled = False
+                self.outputs["Blend"].enabled = False
+                self.outputs["Show Cone"].enabled = False
+
             case 'SUN':
-                set_socket_defvalue(self.node_tree, 0, value=lo) #Object
-                set_socket_defvalue(self.node_tree, 1, value=ld.type) #Type
-                set_socket_defvalue(self.node_tree, 2, value=[ld.color[0], ld.color[1], ld.color[2], 1.0]) #Color
-                set_socket_defvalue(self.node_tree, 3, value=ld.energy) #Power
-                self.outputs[4].enabled = False #Shape
-                self.outputs[5].enabled = False #Size X
-                self.outputs[6].enabled = False #Size Y
-                self.outputs[7].enabled = False #Spread
-                self.outputs[8].enabled = False #Soft Falloff
-                self.outputs[9].enabled = False #Radius
-                set_socket_defvalue(self.node_tree, 10, value=ld.angle) #Angle
-                self.outputs[11].enabled = False #Size
-                self.outputs[12].enabled = False #Blend
-                self.outputs[13].enabled = False #Show Cone
+                self.outputs["Shape"].enabled = False
+                self.outputs["Size X"].enabled = False
+                self.outputs["Size Y"].enabled = False
+                self.outputs["Spread"].enabled = False
+                self.outputs["Soft Falloff"].enabled = False
+                self.outputs["Radius"].enabled = False
+                set_socket_defvalue(ng, socket_name="Angle", value=ld.angle)
+                self.outputs["Size"].enabled = False
+                self.outputs["Blend"].enabled = False
+                self.outputs["Show Cone"].enabled = False
+
             case 'SPOT':
-                set_socket_defvalue(self.node_tree, 0, value=lo) #Object
-                set_socket_defvalue(self.node_tree, 1, value=ld.type) #Type
-                set_socket_defvalue(self.node_tree, 2, value=[ld.color[0], ld.color[1], ld.color[2], 1.0]) #Color
-                set_socket_defvalue(self.node_tree, 3, value=ld.energy) #Power
-                self.outputs[4].enabled = False #Shape
-                self.outputs[5].enabled = False #Size X
-                self.outputs[6].enabled = False #Size Y
-                self.outputs[7].enabled = False #Spread
-                set_socket_defvalue(self.node_tree, 8, value=ld.use_soft_falloff) #Soft Falloff
-                set_socket_defvalue(self.node_tree, 9, value=ld.shadow_soft_size) #Radius
-                self.outputs[10].enabled = False #Angle
-                set_socket_defvalue(self.node_tree, 11, value=ld.spot_size) #Size
-                set_socket_defvalue(self.node_tree, 12, value=ld.spot_blend) #Blend
-                set_socket_defvalue(self.node_tree, 13, value=ld.show_cone) #Show Cone
+                self.outputs["Shape"].enabled = False
+                self.outputs["Size X"].enabled = False
+                self.outputs["Size Y"].enabled = False
+                self.outputs["Spread"].enabled = False
+                set_socket_defvalue(ng, socket_name="Soft Falloff", value=ld.use_soft_falloff)
+                set_socket_defvalue(ng, socket_name="Radius", value=ld.shadow_soft_size)
+                self.outputs["Angle"].enabled = False
+                self.outputs["Size"].enabled = False
+                self.outputs["Blend"].enabled = False
+                self.outputs["Show Cone"].enabled = False
+
             case 'AREA':
-                set_socket_defvalue(self.node_tree, 0, value=lo) #Object
-                set_socket_defvalue(self.node_tree, 1, value=ld.type) #Type
-                set_socket_defvalue(self.node_tree, 2, value=[ld.color[0], ld.color[1], ld.color[2], 1.0]) #Color
-                set_socket_defvalue(self.node_tree, 3, value=ld.energy) #Power
-                set_socket_defvalue(self.node_tree, 4, value=ld.shape) #Shape
-                set_socket_defvalue(self.node_tree, 5, value=ld.size) #Size X
-                set_socket_defvalue(self.node_tree, 6, value=ld.size_y) #Size Y
-                set_socket_defvalue(self.node_tree, 7, value=ld.spread) #Spread
-                self.outputs[8].enabled = False #Soft Falloff
-                self.outputs[9].enabled = False #Radius
-                self.outputs[10].enabled = False #Angle
-                self.outputs[11].enabled = False #Size
-                self.outputs[12].enabled = False #Blend
-                self.outputs[13].enabled = False #Show Cone
-            case _:
-                raise Exception(f'Was not expecting a light of type "{ld.type}"')
+                lshape = ld.shape if is_geonode else 0 if (ld.shape=='SQUARE') else 1 if (ld.shape=='RECTANGLE') else 2 if (ld.shape=='DISK') else 3
+                set_socket_defvalue(ng, socket_name="Shape", value=lshape)
+                set_socket_defvalue(ng, socket_name="Size X", value=ld.size)
+                set_socket_defvalue(ng, socket_name="Size Y", value=ld.size_y)
+                set_socket_defvalue(ng, socket_name="Spread", value=ld.spread)
+                self.outputs["Soft Falloff"].enabled = False
+                self.outputs["Radius"].enabled = False
+                self.outputs["Angle"].enabled = False
+                self.outputs["Size"].enabled = False
+                self.outputs["Blend"].enabled = False
+                self.outputs["Show Cone"].enabled = False
+
         return None
 
     def draw_label(self,):
@@ -246,8 +287,27 @@ class NODEBOOSTER_NG_lightinfo(bpy.types.GeometryNodeCustomGroup):
     def update_all_instances(cls, from_autoexec=False,):
         """search for all nodes of this type and update them"""
 
-        all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
-        for n in all_instances:
+        #TODO we call update_all_instances for a lot of nodes from depsgraph & we need to optimize this, because func below may recur a LOT of nodes
+        # could pass a from_nodes arg in this function
+        for n in get_all_nodes(
+            geometry=True, compositing=True, shader=True, 
+            ignore_ng_name="NodeBooster", match_idnames={cls.bl_idname},
+            ): 
             n.update()
 
         return None
+
+#Per Node-Editor Children:
+#Respect _NG_ + _GN_/_SH_/_CP_ nomenclature
+
+class NODEBOOSTER_NG_GN_LightInfo(Base, bpy.types.GeometryNodeCustomGroup):
+    tree_type = "GeometryNodeTree"
+    bl_idname = "GeometryNode" + Base.bl_idname
+
+class NODEBOOSTER_NG_SH_LightInfo(Base, bpy.types.ShaderNodeCustomGroup):
+    tree_type = "ShaderNodeTree"
+    bl_idname = "ShaderNode" + Base.bl_idname
+
+class NODEBOOSTER_NG_CP_LightInfo(Base, bpy.types.CompositorNodeCustomGroup):
+    tree_type = "CompositorNodeTree"
+    bl_idname = "CompositorNode" + Base.bl_idname
