@@ -196,7 +196,7 @@ class Base():
         ng = ng.copy() #always using a copy of the original ng
 
         self.node_tree = ng
-        self.width = 130
+        self.width = 140
         self.label = self.bl_label
 
         return None 
@@ -246,8 +246,6 @@ class Base():
         prop.prop(self, "sound", text="", icon="SOUND",)
 
         col = layout.column()
-        # col.use_property_split = True
-        # col.use_property_decorate = False
         col.prop(self, "offset",)
         col.prop(self, "smoothing",)
 
