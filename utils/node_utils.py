@@ -375,7 +375,7 @@ def create_constant_input(ng, nodetype, value, uniquetag, location='auto', width
 
     match nodetype:
 
-        case 'ShaderNodeValue':
+        case 'ShaderNodeValue'|'CompositorNodeValue':
             if (node.outputs[0].default_value!=value):
                 node.outputs[0].default_value = value
             return node.outputs[0]

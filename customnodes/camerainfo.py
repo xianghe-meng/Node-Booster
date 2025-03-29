@@ -56,7 +56,7 @@ class Base():
         name = f".{self.bl_idname}"
 
         match self.tree_type:
-            case "GeometryNodeTree":
+            case 'GeometryNodeTree':
                 sockets = {
                     "Object":        "NodeSocketObject",
                     "Field of View": "NodeSocketFloat",
@@ -69,7 +69,7 @@ class Base():
                     "Sensor Height": "NodeSocketFloat",
                     }
 
-            case "ShaderNodeTree" | "CompositorNodeTree":
+            case 'ShaderNodeTree' | 'CompositorNodeTree':
                 sockets = {
                     "Location":      "NodeSocketVector", #object transforms instead.
                     "Rotation":      "NodeSocketVector", #object transforms instead.
@@ -125,7 +125,7 @@ class Base():
 
         #different behavior and sockets depending on editor type
         match self.tree_type:
-            case "GeometryNodeTree":
+            case 'GeometryNodeTree':
                 values["Sensor Type"] = cd.sensor_fit if (valid) else ""
 
                 #Support for old socket name, previous version of node.
@@ -135,7 +135,7 @@ class Base():
                 elif "Object" in self.outputs:
                     values["Object"] = camvalue
 
-            case "ShaderNodeTree" | "CompositorNodeTree":
+            case 'ShaderNodeTree' | 'CompositorNodeTree':
                 values["Location"] = co.location        if (valid) else (0,0,0)
                 values["Rotation"] = co.rotation_euler  if (valid) else (0,0,0)
                 values["Scale"]    = co.scale           if (valid) else (0,0,0)

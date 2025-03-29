@@ -24,7 +24,7 @@ from ..utils.node_utils import (
 
 class Base():
 
-    bl_idname = "NodeBoosterAreaLightInfo"
+    bl_idname = "NodeBoosterLightInfo"
     bl_label = "Light Info"
     bl_description = """Custom Nodegroup: Gather informations about any lights.
     • Expect updates on each depsgraph post and frame_pre update signals"""
@@ -90,22 +90,22 @@ class Base():
 
             case "ShaderNodeTree" | "CompositorNodeTree":
                 sockets = {
-                    "Location": "NodeSocketVector", #object transforms instead.
-                    "Rotation": "NodeSocketVector", #object transforms instead.
-                    "Scale":    "NodeSocketVector", #object transforms instead.
-                    "Type":           "NodeSocketInt", #int instead
-                    "Color":          "NodeSocketColor",
-                    "Power":          "NodeSocketFloat",
-                    "Shape":          "NodeSocketInt", #int instead
-                    "Size X":         "NodeSocketFloat",
-                    "Size Y":         "NodeSocketFloat",
-                    "Spread":         "NodeSocketFloat",
-                    "Soft Falloff":   "NodeSocketBool",
-                    "Radius":         "NodeSocketFloat",
-                    "Angle":          "NodeSocketFloat",
-                    "Size":           "NodeSocketFloat",
-                    "Blend":          "NodeSocketFloat",
-                    "Show Cone":      "NodeSocketBool",
+                    "Location":     "NodeSocketVector", #object transforms instead.
+                    "Rotation":     "NodeSocketVector", #object transforms instead.
+                    "Scale":        "NodeSocketVector", #object transforms instead.
+                    "Type":         "NodeSocketInt", #int instead
+                    "Color":        "NodeSocketColor",
+                    "Power":        "NodeSocketFloat",
+                    "Shape":        "NodeSocketInt", #int instead
+                    "Size X":       "NodeSocketFloat",
+                    "Size Y":       "NodeSocketFloat",
+                    "Spread":       "NodeSocketFloat",
+                    "Soft Falloff": "NodeSocketBool",
+                    "Radius":       "NodeSocketFloat",
+                    "Angle":        "NodeSocketFloat",
+                    "Size":         "NodeSocketFloat",
+                    "Blend":        "NodeSocketFloat",
+                    "Show Cone":    "NodeSocketBool",
                     }
 
         ng = bpy.data.node_groups.get(name)

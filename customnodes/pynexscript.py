@@ -245,7 +245,7 @@ def transform_nex_script(original_text:str, nextypes:list) -> str:
 #  8       `888  888   888 888   888  888    .o 
 # o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
                                               
-class NODEBOOSTER_NG_pynexscript(bpy.types.GeometryNodeCustomGroup):
+class NODEBOOSTER_NG_GN_pynexscript(bpy.types.GeometryNodeCustomGroup):
     """Custom NodeGroup: Executes a Python script containing 'Nex' language. 'Nex' stands for nodal expression.\
     With Nex, you can efficiently and easily interpret python code into Geometry-Node nodal programming.
     • Create a new text-data and initiate Nex input and output using `a:infloat` or `z:outfloat = a` for example.

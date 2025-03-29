@@ -10,37 +10,38 @@
 # 4- call the function using 'ast_function_caller()' functions names will correspond to the nodesetter.py 
 #    functions and will set up new nodes and links.
 
+
 # TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
-
-#TODO add dynamic output type? see nodesetter.py todo at the end of the page
-#  - int(a) & all round, floor, ceil, trunc should return int then
-#  - bool(a)
-#  - sign(a) (to int)
-#  - isneg(a) (== boolcompar, will return bool)
-#  - ispair(a)
-#  - isimpair(a)
-#  - ismultiple(a,b)
-#  - comparison <>== to bool
-# NOTE if we do so, then how can we support other nodetree later on? Shader tree do not support bool and int sockets..
-#  so perhaps it is best to limit this to float for now. Rename it Float Math Expression?
-
+# TODO support >= == < ect comparison operand, using right nodes for cross compatibility!!
 
 import bpy
 
 import re, ast
 
-from ..utils.str_utils import word_wrap, match_exact_tokens, replace_exact_tokens, is_float_compatible
-from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, create_constant_input
-from ..nex.nodesetter import get_nodesetter_functions, generate_documentation
+from ..utils.str_utils import (
+    word_wrap,
+    match_exact_tokens,
+    replace_exact_tokens,
+    is_float_compatible,
+)
+from ..utils.node_utils import (
+    create_new_nodegroup,
+    create_socket,
+    remove_socket,
+    link_sockets,
+    create_constant_input,
+)
+from ..nex.nodesetter import (
+    get_nodesetter_functions, 
+    generate_documentation,
+)
 
 
 DIGITS = '0123456789'
 ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-
 IRRATIONALS = {'π':'3.1415927','𝑒':'2.7182818','φ':'1.6180339',}
 MACROS = {'Pi':'π','eNum':'𝑒','Gold':'φ',}
 SUPERSCRIPTS = {'⁰':'0', '¹':'1', '²':'2', '³':'3', '⁴':'4', '⁵':'5', '⁶':'6', '⁷':'7', '⁸':'8', '⁹':'9',}
-
 MATHEXFUNCDOC = generate_documentation(tag='mathex')
 MATHNOTATIONDOC = {
     '+':{
@@ -57,7 +58,7 @@ MATHNOTATIONDOC = {
         'desc':""},
     '²':{ #Supported during sanatization
         'name':"Power Notation.",
-        'desc':"Please note that 2ab² will either be transformed into (ab)**2 or a*((b)**2) depending if you use 'Algebric Notations'."},
+        'desc':"\nPlease note that 2ab² will either be transformed into (ab)**2 or a*((b)**2) depending if you use 'Algebric Notations'."},
     '/':{
         'name':"Division.",
         'desc':""},
@@ -271,16 +272,17 @@ class AstTranformer(ast.NodeTransformer):
 #  8       `888  888   888 888   888  888    .o 
 # o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
 
-class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
-    """Custom Nodgroup: Evaluate a float math equation and create sockets from given variables on the fly.\n
+class Base():
+
+    bl_idname = "NodeBoosterMathExpression"
+    bl_label = "Math Expression"
+    bl_description = """Custom Nodgroup: Evaluate a float math equation and create sockets from given variables on the fly.\n
     • The sockets are limited to Float types. Consider this node a 'Float Math Expression' node.\n
     • Please See the 'NodeBooster > Active Node > Glossary' panel to see all functions and notation available and their descriptions.\n
     • If you wish to bake this node into a nodegroup, a bake operator is available in the 'NodeBooster > Active Node' panel.\n
     • Under the hood, on each string field edit, the expression will be sanarized, then transformed into functions that will be called to create a nodetree, see the breakdown of the process in the 'NodeBooster > Active Node > Development' panel."""
-
-    bl_idname = "GeometryNodeNodeBoosterMathExpression"
-    bl_label = "Math Expression"
     auto_update = {'NONE',}
+    tree_type = "*ChildrenDefined*"
 
     error_message : bpy.props.StringProperty(
         description="User interface error message"
@@ -333,11 +335,10 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         ng = bpy.data.node_groups.get(name)
         if (ng is None):
             ng = create_new_nodegroup(name,
-                out_sockets={
-                    "Result" : "NodeSocketFloat",
-                },
-            )
-         
+                tree_type=self.tree_type,
+                out_sockets={"Result" : "NodeSocketFloat",},
+                )
+
         ng = ng.copy() #always using a copy of the original ng
 
         self.node_tree = ng
@@ -602,10 +603,8 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         if (elemConst):
             xloc, yloc = in_nod.location.x, in_nod.location.y-330
             for const in elemConst:
-                con_sck = create_constant_input(
-                    ng, 'ShaderNodeValue', float(const), f"C|{const}",
-                    location=(xloc, yloc),
-                    )
+                nodetype = 'CompositorNodeValue' if (self.tree_type=='CompositorNodeTree') else 'ShaderNodeValue'
+                con_sck = create_constant_input(ng, nodetype, float(const), f"C|{const}", location=(xloc,yloc),)
                 yloc -= 90
                 consteq[const] = con_sck
                 continue
@@ -797,4 +796,22 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     def update_all_instances(cls, from_autoexec=False,):
         """search for all nodes of this type and update them"""
 
+        # No need to update anything for this node. 
+        # The update is done when the user enter his text.
+        
         return None
+
+#Per Node-Editor Children:
+#Respect _NG_ + _GN_/_SH_/_CP_ nomenclature
+
+class NODEBOOSTER_NG_GN_MathExpression(Base, bpy.types.GeometryNodeCustomGroup):
+    tree_type = "GeometryNodeTree"
+    bl_idname = "GeometryNode" + Base.bl_idname
+
+class NODEBOOSTER_NG_SH_MathExpression(Base, bpy.types.ShaderNodeCustomGroup):
+    tree_type = "ShaderNodeTree"
+    bl_idname = "ShaderNode" + Base.bl_idname
+
+class NODEBOOSTER_NG_CP_MathExpression(Base, bpy.types.CompositorNodeCustomGroup):
+    tree_type = "CompositorNodeTree"
+    bl_idname = "CompositorNode" + Base.bl_idname

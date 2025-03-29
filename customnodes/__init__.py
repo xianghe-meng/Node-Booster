@@ -32,13 +32,15 @@ from . sequencervolume import (
         NODEBOOSTER_NG_CP_SequencerVolume,
         )
 from . mathexpression import (
-        NODEBOOSTER_NG_mathexpression,
+        NODEBOOSTER_NG_GN_MathExpression,
+        NODEBOOSTER_NG_SH_MathExpression,
+        NODEBOOSTER_NG_CP_MathExpression,
         )
 from . pyexpression import (
         NODEBOOSTER_NG_pyexpression,
         )
 from . pynexscript import (
-        NODEBOOSTER_NG_pynexscript,
+        NODEBOOSTER_NG_GN_pynexscript,
         )
 
 #For menus, in order of appearance
@@ -50,9 +52,9 @@ GN_CustomNodes = (
     NODEBOOSTER_NG_GN_CameraInfo,
     NODEBOOSTER_NG_GN_IsRenderedView, #this one doesn't make sense in other editors.
     NODEBOOSTER_NG_GN_SequencerVolume,
-    NODEBOOSTER_NG_mathexpression,
+    NODEBOOSTER_NG_GN_MathExpression,
     NODEBOOSTER_NG_pyexpression,
-    NODEBOOSTER_NG_pynexscript,
+    NODEBOOSTER_NG_GN_pynexscript,
     )
 
 SH_CustomNodes = (
@@ -61,6 +63,7 @@ SH_CustomNodes = (
     NODEBOOSTER_NG_SH_RenderInfo,
     NODEBOOSTER_NG_SH_CameraInfo,
     NODEBOOSTER_NG_SH_SequencerVolume,
+    NODEBOOSTER_NG_SH_MathExpression,
     )
 
 CP_CustomNodes = (
@@ -69,6 +72,7 @@ CP_CustomNodes = (
     NODEBOOSTER_NG_CP_RenderInfo,
     NODEBOOSTER_NG_CP_CameraInfo,
     NODEBOOSTER_NG_CP_SequencerVolume,
+    NODEBOOSTER_NG_CP_MathExpression,
     )
 
 #for register, handlers will also use this list for automatic updates.
@@ -96,7 +100,11 @@ classes = (
     NODEBOOSTER_NG_SH_SequencerVolume,
     NODEBOOSTER_NG_CP_SequencerVolume,
 
-    NODEBOOSTER_NG_mathexpression,
+    NODEBOOSTER_NG_GN_MathExpression,
+    NODEBOOSTER_NG_SH_MathExpression,
+    NODEBOOSTER_NG_CP_MathExpression,
+
     NODEBOOSTER_NG_pyexpression,
-    NODEBOOSTER_NG_pynexscript,
+
+    NODEBOOSTER_NG_GN_pynexscript,
     )

@@ -5,6 +5,9 @@
 # NOTE this module gather all kind of math function between sockets and/or between sockets and python types.
 #  When executing these functions, it will create and link new nodes automatically, from sockets to sockets and return another socket.
 
+# NOTE WARNING, be carreful with 'mathex' user domain. 
+# These functions, and inner functions need to be carreful with node editor context.
+
 # NOTE perhaps we should move this module, from accepting NodeSocket types, to accepting NexTypes only?
 # the problem with NodeSocket type is that there are many sub-type that are annoying to deal with.
 # All our function are strict typed. So when an user pass a SocketFloatAngle to a function designed for SocketFloat, will raise a type error..
@@ -253,6 +256,14 @@ def generalfloatmath(ng, callhistory,
     ) -> sFlo:
     """generic operation for adding a float math node and linking. (also support clamp node)."""
 
+    match ng.type:
+        case 'GEOMETRY'|'SHADER':
+            MathNodeType = 'ShaderNodeMath'
+            ClampNodeType = 'ShaderNodeClamp'
+        case 'COMPOSITING':
+            MathNodeType = 'CompositorNodeMath'
+            ClampNodeType = 'NotAvailable'
+
     uniquename = get_unique_name('FloatMath',callhistory)
     node = None
     args = (val1, val2, val3,)
@@ -269,11 +280,11 @@ def generalfloatmath(ng, callhistory,
 
         #floatmath also support clamp method. These two nodes are highly similar.
         if operation_type.startswith('CLAMP.'):
-            node = ng.nodes.new('ShaderNodeClamp')
+            node = ng.nodes.new(ClampNodeType)
             clamp_type = operation_type.replace('CLAMP.','')
             node.clamp_type = clamp_type
         else:
-            node = ng.nodes.new('ShaderNodeMath')
+            node = ng.nodes.new(MathNodeType)
             node.operation = operation_type
             node.use_clamp = False
 
@@ -365,7 +376,7 @@ def generalvecmath(ng, callhistory,
     return node.outputs[outidx]
 
 @user_domain('nexclassmethod')
-def generalcolormath(ng, callhistory,
+def generalcolormath(ng, callhistory, #TODO do generalcolormix instead, later for color functions..
     blend_type:str,
     colA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|ColorRGBA|Vector,
     colB:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|ColorRGBA|Vector,
@@ -511,10 +522,20 @@ def generalmix(ng, callhistory,
         if (last):
               location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
         else: location = (0,200,)
-        node = ng.nodes.new('ShaderNodeMix')
-        node.data_type = data_type
-        node.clamp_factor = False
-        node.factor_mode = 'NON_UNIFORM' #For vector, we always mix non uniformly. float will be converted to vector anyway
+
+        match ng.type:
+            case 'GEOMETRY'|'SHADER':
+                node = ng.nodes.new('ShaderNodeMix')
+                node.data_type = data_type
+                node.clamp_factor = False
+                #always mix non-uniform. floats will be converted to vec anyway..
+                if (data_type=='VECTOR'):
+                    node.factor_mode = 'NON_UNIFORM'
+            case 'COMPOSITING':
+                node = ng.nodes.new('CompositorNodeMixRGB')
+                node.use_clamp = False
+                data_type = '*COMPOSITORSPECIAL*'
+
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
 
@@ -536,6 +557,10 @@ def generalmix(ng, callhistory,
             outidx = 2
             indexes = (0,6,7)
             args = (factor, *convert_pyargs(val1, val2, toRGBA=True,),)
+        case '*COMPOSITORSPECIAL*':
+            outidx = 0
+            indexes = (0,1,2)
+            args = (factor, val1, val2,)
         case _:
             raise Exception("Integration Needed")
 
@@ -655,10 +680,17 @@ def generalmaprange(ng, callhistory,
         if (last):
               location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
         else: location = (0,200,)
-        node = ng.nodes.new('ShaderNodeMapRange')
-        node.data_type = data_type
-        node.interpolation_type = interpolation_type
-        node.clamp = False
+
+        match ng.type:
+            case 'GEOMETRY'|'SHADER':
+                node = ng.nodes.new('ShaderNodeMapRange')
+                node.data_type = data_type
+                node.interpolation_type = interpolation_type
+                node.clamp = False
+            case 'COMPOSITING':
+                node = ng.nodes.new('CompositorNodeMapRange')
+                node.use_clamp = False
+
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
         
@@ -1302,19 +1334,37 @@ def generalrandom(ng, callhistory,
 
     return node.outputs[outidx]
 
-# ooooo     ooo                                  oooooooooooo                                       .            
-# `888'     `8'                                  `888'     `8                                     .o8            
-#  888       8   .oooo.o  .ooooo.  oooo d8b       888         oooo  oooo  ooo. .oo.    .ooooo.  .o888oo  .oooo.o 
-#  888       8  d88(  "8 d88' `88b `888""8P       888oooo8    `888  `888  `888P"Y88b  d88' `"Y8   888   d88(  "8 
-#  888       8  `"Y88b.  888ooo888  888           888    "     888   888   888   888  888         888   `"Y88b.  
-#  `88.    .8'  o.  )88b 888    .o  888           888          888   888   888   888  888   .o8   888 . o.  )88b 
-#    `YbodP'    8""888P' `Y8bod8P' d888b         o888o         `V88V"V8P' o888o o888o `Y8bod8P'   "888" 8""888P' 
+# ooooo     ooo                                  oooooooooooo             .            
+# `888'     `8'                                  `888'     `8           .o8            
+#  888       8   .oooo.o  .ooooo.  oooo d8b       888        .ooooo.  .o888oo  .oooo.o 
+#  888       8  d88(  "8 d88' `88b `888""8P       888oooo8  d88' `"Y8   888   d88(  "8 
+#  888       8  `"Y88b.  888ooo888  888           888    "  888         888   `"Y88b.  
+#  `88.    .8'  o.  )88b 888    .o  888           888       888   .o8   888 . o.  )88b 
+#    `YbodP'    8""888P' `Y8bod8P' d888b         o888o      `Y8bod8P'   "888" 8""888P' 
 
 
 class UserParamError(Exception):
     """Raise this error if the user didn't used the function parameter types properly"""
     def __init__(self, message):
         super().__init__(message)
+
+class UserEditorContextError(Exception):
+    """Raise this error if the user is using functions not available for his context"""
+    def __init__(self, message):
+        super().__init__(message)
+
+def assert_editor_context(current_type:str, msg:str, allowed:set=None, forbidden:set=None,):
+    """Verify if the user function is executing in the correct context."""
+    if (forbidden and (current_type in forbidden)):
+        raise UserEditorContextError(msg)
+    if (allowed and (current_type not in allowed)):
+        raise UserEditorContextError(msg)
+    return None
+
+# 88""Yb 888888  dP""b8 88   88 88        db    88""Yb     8b    d8    db    888888 88  88 
+# 88__dP 88__   dP   `" 88   88 88       dPYb   88__dP     88b  d88   dPYb     88   88  88 
+# 88"Yb  88""   Yb  "88 Y8   8P 88  .o  dP__Yb  88"Yb      88YbdP88  dP__Yb    88   888888 
+# 88  Yb 888888  YboodP `YbodP' 88ood8 dP""""Yb 88  Yb     88 YY 88 dP""""Yb   88   88  88 
 
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
@@ -1456,7 +1506,7 @@ def neg(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
     _r = sub(ng,callhistory,0,a)
-    frame_nodes(ng, _r.node,label='Negate',)
+    frame_nodes(ng, _r.node, label='Negate',)
     return _r
 
 #covered internally in nexscript via python dunder overload
@@ -1591,6 +1641,11 @@ def floordiv(ng, callhistory,
     frame_nodes(ng, _x.node, _r.node, label='FloorDiv',)
     return _r
 
+# 888888 88""Yb 88  dP""b8  dP"Yb  
+#   88   88__dP 88 dP   `" dP   Yb 
+#   88   88"Yb  88 Yb  "88 Yb   dP 
+#   88   88  Yb 88  YboodP  YbodP  
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Sine of A.")
 @user_doc(nexscript="The Sine of A.\nSupports SocketFloat and entry-wise SocketVector.")
@@ -1602,6 +1657,7 @@ def sin(ng, callhistory,
     if containsVecs(a):
         return generalvecmath(ng,callhistory,'SINE',a)
     return generalfloatmath(ng,callhistory,'SINE',a)
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Cosine of A.")
 @user_doc(nexscript="The Cosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
@@ -1613,6 +1669,7 @@ def cos(ng, callhistory,
     if containsVecs(a):
         return generalvecmath(ng,callhistory,'COSINE',a)
     return generalfloatmath(ng,callhistory,'COSINE',a)
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Tangent of A.")
 @user_doc(nexscript="The Tangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
@@ -1624,6 +1681,7 @@ def tan(ng, callhistory,
     if containsVecs(a):
         return generalvecmath(ng,callhistory,'TANGENT',a)
     return generalfloatmath(ng,callhistory,'TANGENT',a)
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Arcsine of A.")
 @user_doc(nexscript="The Arcsine of A.\nSupports SocketFloat and entry-wise SocketVector.")
@@ -1635,6 +1693,7 @@ def asin(ng, callhistory,
     if containsVecs(a):
         return generalentryfloatmath(ng,callhistory,'VECTORXYZ','ARCSINE',a)
     return generalfloatmath(ng,callhistory,'ARCSINE',a)
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Arccosine of A.")
 @user_doc(nexscript="The Arccosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
@@ -1646,6 +1705,7 @@ def acos(ng, callhistory,
     if containsVecs(a):
         return generalentryfloatmath(ng,callhistory,'VECTORXYZ','ARCCOSINE',a)
     return generalfloatmath(ng,callhistory,'ARCCOSINE',a)
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Arctangent of A.")
 @user_doc(nexscript="The Arctangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
@@ -1657,6 +1717,7 @@ def atan(ng, callhistory,
     if containsVecs(a):
         return generalentryfloatmath(ng,callhistory,'VECTORXYZ','ARCTANGENT',a)
     return generalfloatmath(ng,callhistory,'ARCTANGENT',a)
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Sine of A.")
 @user_doc(nexscript="The Hyperbolic Sine of A.\nSupports SocketFloat and entry-wise SocketVector.")
@@ -1668,6 +1729,7 @@ def sinh(ng, callhistory,
     if containsVecs(a):
         return generalentryfloatmath(ng,callhistory,'VECTORXYZ','SINH',a)
     return generalfloatmath(ng,callhistory,'SINH',a)
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Cosine of A.")
 @user_doc(nexscript="The Hyperbolic Cosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
@@ -1679,6 +1741,7 @@ def cosh(ng, callhistory,
     if containsVecs(a):
         return generalentryfloatmath(ng,callhistory,'VECTORXYZ','COSH',a)
     return generalfloatmath(ng,callhistory,'COSH',a)
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Tangent of A.")
 @user_doc(nexscript="The Hyperbolic Tangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
@@ -1691,8 +1754,13 @@ def tanh(ng, callhistory,
         return generalentryfloatmath(ng,callhistory,'VECTORXYZ','TANH',a)
     return generalfloatmath(ng,callhistory,'TANH',a)
 
+#    db    88b 88  dP""b8 88     888888 .dP"Y8 
+#   dPYb   88Yb88 dP   `" 88     88__   `Ybo." 
+#  dP__Yb  88 Y88 Yb  "88 88  .o 88""   o.`Y8b 
+# dP""""Yb 88  Y8  YboodP 88ood8 888888 8bodP' 
+
 @user_domain('mathex')
-@user_doc(mathex="Convert a value from Degrees to Radians.")
+@user_doc(mathex="To Radians.\nConvert a value from Degrees to Radians.")
 @user_paramError(UserParamError)
 def rad(ng, callhistory,
     a:sFlo|sInt|sBoo,
@@ -1701,7 +1769,7 @@ def rad(ng, callhistory,
 
 #same as above, just different user fct name.
 @user_domain('nexscript')
-@user_doc(nexscript="Convert a value from Degrees to Radians.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="To Radians.\nConvert a value from Degrees to Radians.\nSupports SocketFloat and entry-wise SocketVector.")
 @user_paramError(UserParamError)
 def radians(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
@@ -1712,7 +1780,7 @@ def radians(ng, callhistory,
     return generalfloatmath(ng,callhistory,'RADIANS',a)
 
 @user_domain('mathex')
-@user_doc(mathex="Convert a value from Radians to Degrees.")
+@user_doc(mathex="To Degrees.\nConvert a value from Radians to Degrees.")
 @user_paramError(UserParamError)
 def deg(ng, callhistory,
     a:sFlo|sInt|sBoo,
@@ -1721,7 +1789,7 @@ def deg(ng, callhistory,
 
 #same as above, just different user fct name.
 @user_domain('nexscript')
-@user_doc(nexscript="Convert a value from Radians to Degrees.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_doc(nexscript="To Degrees.\nConvert a value from Radians to Degrees.\nSupports SocketFloat and entry-wise SocketVector.")
 @user_paramError(UserParamError)
 def degrees(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
@@ -1730,6 +1798,11 @@ def degrees(ng, callhistory,
     if containsVecs(a):
         return generalentryfloatmath(ng,callhistory,'VECTORXYZ','DEGREES',a)
     return generalfloatmath(ng,callhistory,'DEGREES',a)
+
+# Yb    dP 888888  dP""b8 888888  dP"Yb  88""Yb 
+#  Yb  dP  88__   dP   `"   88   dP   Yb 88__dP 
+#   YbdP   88""   Yb        88   Yb   dP 88"Yb  
+#    YP    888888  YboodP   88    YbodP  88  Yb 
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Cross Product.\nThe cross product between vector A an B.")
@@ -1802,7 +1875,7 @@ def vectocolor(ng, callhistory,
     ) -> sCol:
     x,y,z = sepaxyz(ng,callhistory,vA)
     _r = combicolor(ng,callhistory,x,y,z,1.0)
-    frame_nodes(ng, x.node, _r.node, label=f"VecToCol",)
+    frame_nodes(ng, x.node, _r.node, label="VecToCol",)
     return _r
 
 #covered internally in nexscript via property or function
@@ -1830,6 +1903,7 @@ def sepaxyz(ng, callhistory,
     if (type(vA) in {float, int}): 
         vA = Vector((vA,vA,vA))
     return generalcombsepa(ng,callhistory,'SEPARATE','VECTORXYZ',vA)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Vector.\nCombine 3 XYZ SocketFloat, SocketInt or SocketBool into a SocketVector.")
 @user_paramError(UserParamError)
@@ -1849,8 +1923,9 @@ def roteuler(ng, callhistory,
     vC:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector|None=None,
     ) -> sVec:
     return generalverotate(ng, callhistory,'EULER_XYZ',False,vA,vC,None,None,vE)
+
 @user_domain('nexscript')
-@user_doc(nexscript="Vector Rotate (Euler).\nRotate a given Vector A from defined axis X & angle radians F, at optional center C.")
+@user_doc(nexscript="Vector Rotate (Axis).\nRotate a given Vector A from defined axis X & angle radians F, at optional center C.")
 @user_paramError(UserParamError)
 def rotaxis(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1860,6 +1935,11 @@ def rotaxis(ng, callhistory,
     ) -> sVec:
     return generalverotate(ng, callhistory,'AXIS_ANGLE',False,vA,vC,vX,fA,None)
 
+#  dP""b8  dP"Yb  88      dP"Yb  88""Yb 
+# dP   `" dP   Yb 88     dP   Yb 88__dP 
+# Yb      Yb   dP 88  .o Yb   dP 88"Yb  
+#  YboodP  YbodP  88ood8  YbodP  88  Yb 
+
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Color.\nSeparate a SocketColor into a tuple of 4 SocketFloat depending on the optionally passed mode in 'RGB','HSV','HSL'.\nThe fourth element of the tuple must be the alpha.\n\nTip: you can use python slicing notations instead.")
 @user_paramError(UserParamError)
@@ -1868,11 +1948,14 @@ def sepacolor(ng, callhistory,
     mode:str='RGB',
     ) -> tuple:
     assert mode in {'RGB','HSV','HSL'}, f"{mode} not in 'RGB','HSV','HSL'"
+
     if (type(colA) in {float, int}):
         colA = ColorRGBA(colA, colA, colA, 1.0)
     elif (type(colA) in {Vector,}):
         colA = ColorRGBA(colA[0], colA[1], colA[2], 1.0)
+
     return generalcombsepa(ng,callhistory,'SEPARATE',f'COLOR{mode}',colA)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Color.\nCombine 4 SocketFloat, SocketInt or SocketBool into a SocketColor depending on the optionally passed mode in 'RGB','HSV','HSL'.\nThe fourth element of the tuple must be the alpha.")
 @user_paramError(UserParamError)
@@ -1894,7 +1977,7 @@ def colortovec(ng, callhistory,
     ) -> sVec:
     r,g,b,_ = sepacolor(ng,callhistory,colA)
     _r = combixyz(ng,callhistory,r,g,b)
-    frame_nodes(ng, r.node, _r.node, label=f"ColToVec",)
+    frame_nodes(ng, r.node, _r.node, label="ColToVec",)
     return _r
 
 # @user_domain('nexclassmethod')
@@ -1904,6 +1987,11 @@ def colortovec(ng, callhistory,
 #         node_type:str,
 #         *inputs, #passed inputs should correspond to node.inputs in an orderly manner
 #         )
+
+# 8b    d8    db    888888 88""Yb 88 Yb  dP 
+# 88b  d88   dPYb     88   88__dP 88  YbdP  
+# 88YbdP88  dP__Yb    88   88"Yb  88  dPYb  
+# 88 YY 88 dP""""Yb   88   88  Yb 88 dP  Yb 
 
 #covered internally in nexscript via python prop or function
 @user_domain('nexclassmethod')
@@ -1954,6 +2042,7 @@ def transformloc(ng, callhistory,
     mB:sMtx|Matrix,
     ) -> sVec:
     return generalmatrixmath(ng,callhistory,'transformloc',vA,mB,None)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Projection.\nProject a location vector A by a given matrix B.\nWill return a VectorSocket.")
 @user_paramError(UserParamError)
@@ -1962,6 +2051,7 @@ def projectloc(ng, callhistory,
     mB:sMtx|Matrix,
     ) -> sVec:
     return generalmatrixmath(ng,callhistory,'projectloc',vA,mB,None)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Direction Transform.\nTransform direction vector A by a given matrix B.\nWill return a VectorSocket.")
 @user_paramError(UserParamError)
@@ -1970,6 +2060,11 @@ def transformdir(ng, callhistory,
     mB:sMtx|Matrix,
     ) -> sVec:
     return generalmatrixmath(ng,callhistory,'transformdir',vA,mB,None)
+
+# 88""Yb  dP"Yb  888888    db    888888 88  dP"Yb  88b 88 
+# 88__dP dP   Yb   88     dPYb     88   88 dP   Yb 88Yb88 
+# 88"Yb  Yb   dP   88    dP__Yb    88   88 Yb   dP 88 Y88 
+# 88  Yb  YbodP    88   dP""""Yb   88   88  YbodP  88  Y8 
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Quaternion.\nSeparate a SocketRotation into a tuple of 4 WXYZ SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ, myW = qA' instead.")
@@ -1980,6 +2075,7 @@ def sepaquat(ng, callhistory,
     #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
     if (type(qA)==ColorRGBA): qA = Quaternion(qA[:])
     return generalcombsepa(ng,callhistory,'SEPARATE','QUATWXYZ',qA)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Quaternion.\nCombine 4 WXYZ SocketFloat, SocketInt or SocketBool into a SocketRotation.")
 @user_paramError(UserParamError)
@@ -1997,13 +2093,17 @@ def combiquat(ng, callhistory,
 def separot(ng, callhistory,
     qA:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     ) -> tuple:
+    
     #NOTE Special Case: an itter or len4 passed to a Nex function may automatically be interpreted as a RGBA color. But, it's a quaternion..
     if (type(qA)==ColorRGBA): qA = Quaternion(qA[:])
     axis, angle = generalcombsepa(ng,callhistory,'SEPARATE','QUATAXEANG',qA)
+    
     #NOTE Annoying Socket Type.. : 'angle' will be of type NodeSocketFloatAngle. our functions were not designed for that type. We already support VecXYZ & VecT..
     # So instead of adding a new SocketFloatAngle support for every single function, we add a dummy +0 operation to convert it into a socket we like instead..
     angle = generalfloatmath(ng,callhistory,'ADD',angle,0)
+    
     return axis, angle
+
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Quaternion Rotation.\nCombine a Vector axis and a Float Angle into a SocketRotation.")
 @user_paramError(UserParamError)
@@ -2029,10 +2129,17 @@ def rottoeuler(ng, callhistory,
     qA:sRot,
     ) -> sVec:
     euler = generalnewnode(ng,callhistory,'RotToEuler','FunctionNoderottoeuler',qA)[0]
+    
     #NOTE Annoying Socket Type.. : 'euler' will be of type NodeSocketVectorEuler. our functions were not designed for that type. We already support VecXYZ & VecT..
     # So instead of adding a SocketType support for every single function, we add a dummy +0 operation to convert it into a socket we like instead..
     euler = generalvecmath(ng,callhistory,'ADD',euler,0)
+
     return euler
+
+#  dP""b8  dP"Yb  8b    d8 88""Yb 88 .dP"Y8 
+# dP   `" dP   Yb 88b  d88 88__dP 88 `Ybo." 
+# Yb      Yb   dP 88YbdP88 88""Yb 88 o.`Y8b 
+#  YboodP  YbodP  88 YY 88 88oodP 88 8bodP' 
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Flatten).\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")
@@ -2041,6 +2148,7 @@ def sepamatrix(ng, callhistory,
     mA:sMtx|Matrix,
     ) -> tuple:
     return generalcombsepa(ng,callhistory,'SEPARATE','MATRIXFLAT',mA)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Flatten).\nCombine an itterable containing  16 SocketFloat, SocketInt or SocketBool arranged by columns to a SocketMatrix.")
 @user_paramError(UserParamError)
@@ -2064,13 +2172,16 @@ def separows(ng, callhistory,
     q2 = combiquat(ng,callhistory, floats[1], floats[5], floats[9],  floats[13],)
     q3 = combiquat(ng,callhistory, floats[2], floats[6], floats[10], floats[14],)
     q4 = combiquat(ng,callhistory, floats[3], floats[7], floats[11], floats[15],)
+
     #arrange nodes
     if (not q4.node.parent):
         q2.node.location = q1.node.location.x, q1.node.location.y - 150
         q3.node.location = q1.node.location.x, q1.node.location.y - 300
         q4.node.location = q1.node.location.x, q1.node.location.y - 450
+
     frame_nodes(ng, floats[0].node, q4.node, label='Sep Mtx Rows',)
     return q1, q2, q3, q4
+
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Rows).\nCombine an itterable containing  4 Quaternion SocketRotation to a SocketMatrix, by rows.")
 @user_paramError(UserParamError)
@@ -2084,11 +2195,13 @@ def combirows(ng, callhistory,
     w2, x2, y2, z2 = sepaquat(ng,callhistory,q2)
     w3, x3, y3, z3 = sepaquat(ng,callhistory,q3)
     w4, x4, y4, z4 = sepaquat(ng,callhistory,q4)
+
     #arrange nodes
     if (not w1.node.parent):
         w2.node.location = w1.node.location.x, w1.node.location.y - 150
         w3.node.location = w1.node.location.x, w1.node.location.y - 300
         w4.node.location = w1.node.location.x, w1.node.location.y - 450
+
     floats = [w1, w2, w3, w4,
               x1, x2, x3, x4,
               y1, y2, y3, y4,
@@ -2108,13 +2221,16 @@ def separacols(ng, callhistory,
     q2 = combiquat(ng,callhistory, floats[4],  floats[5],  floats[6],  floats[7],)
     q3 = combiquat(ng,callhistory, floats[8],  floats[9],  floats[10], floats[11],)
     q4 = combiquat(ng,callhistory, floats[12], floats[13], floats[14], floats[15],)
+
     #arrange nodes
     if (not q4.node.parent):
         q2.node.location = q1.node.location.x, q1.node.location.y - 150
         q3.node.location = q1.node.location.x, q1.node.location.y - 300
         q4.node.location = q1.node.location.x, q1.node.location.y - 450
+
     frame_nodes(ng, floats[0].node, q4.node, label='Sep Mtx Cols',)
     return q1, q2, q3, q4
+
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Columns).\nCombine an itterable containing  4 Quaternion SocketRotation to a SocketMatrix, by columns.")
 @user_paramError(UserParamError)
@@ -2128,11 +2244,13 @@ def combicols(ng, callhistory,
     w2, x2, y2, z2 = sepaquat(ng,callhistory,q2)
     w3, x3, y3, z3 = sepaquat(ng,callhistory,q3)
     w4, x4, y4, z4 = sepaquat(ng,callhistory,q4)
+
     #arrange nodes
     if (not w1.node.parent):
         w2.node.location = w1.node.location.x, w1.node.location.y - 150
         w3.node.location = w1.node.location.x, w1.node.location.y - 300
         w4.node.location = w1.node.location.x, w1.node.location.y - 450
+
     floats = [w1, x1, y1, z1,
               w2, x2, y2, z2,
               w3, x3, y3, z3,
@@ -2148,6 +2266,7 @@ def sepatransforms(ng, callhistory,
     mA:sMtx|Matrix,
     ) -> tuple:
     return generalcombsepa(ng,callhistory,'SEPARATE','MATRIXTRANSFORM',mA)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Transform).\nCombine 3 SocketVector into a SocketMatrix.")
 @user_paramError(UserParamError)
@@ -2167,6 +2286,11 @@ def combitransforms(ng, callhistory,
         vS = Vector((vS,vS,vS))
     return generalcombsepa(ng,callhistory,'COMBINE','MATRIXTRANSFORM',(vL,qR,vS),)
 
+# 8b    d8 88 88b 88 8b    d8    db    Yb  dP 
+# 88b  d88 88 88Yb88 88b  d88   dPYb    YbdP  
+# 88YbdP88 88 88 Y88 88YbdP88  dP__Yb   dPYb  
+# 88 YY 88 88 88  Y8 88 YY 88 dP""""Yb dP  Yb 
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")
 @user_doc(nexscript="Minimum.\nGet the absolute minimal value across all passed arguments.\nArguments must be compatible with SocketFloat.")
@@ -2178,6 +2302,7 @@ def min(ng, callhistory,
     if (len(floats) in {0,1}):
         raise UserParamError(f"Function min() needs two Params or more.") 
     return generalminmax(ng,callhistory,'min',*floats)
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Smooth Minimum\nGet the minimal value between A & B considering a smoothing distance to avoid abrupt transition.")
 @user_doc(nexscript="Smooth Minimum\nGet the minimal value between A & B considering a smoothing distance to avoid abrupt transition.\nSupports SocketFloats only.")
@@ -2188,6 +2313,7 @@ def smin(ng, callhistory,
     dist:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
     return generalfloatmath(ng,callhistory,'SMOOTH_MIN',a,b,dist)
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Maximum.\nGet the absolute maximal value across all passed arguments.")
 @user_doc(nexscript="Maximum.\nGet the absolute maximal value across all passed arguments.\nArguments must be compatible with SocketFloat.")
@@ -2199,6 +2325,7 @@ def max(ng, callhistory,
     if (len(floats) in {0,1}):
         raise UserParamError(f"Function max() needs two Params or more.") 
     return generalminmax(ng,callhistory,'max',*floats)
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Smooth Maximum\nGet the maximal value between A & B considering a smoothing distance to avoid abrupt transition.")
 @user_doc(nexscript="Smooth Maximum\nGet the maximal value between A & B considering a smoothing distance to avoid abrupt transition.\nSupports SocketFloats only.")
@@ -2209,6 +2336,11 @@ def smax(ng, callhistory,
     dist:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
     return generalfloatmath(ng,callhistory,'SMOOTH_MAX',a,b,dist)
+
+#  dP""b8  dP"Yb  8b    d8 88""Yb    db    88""Yb 88 .dP"Y8  dP"Yb  88b 88 
+# dP   `" dP   Yb 88b  d88 88__dP   dPYb   88__dP 88 `Ybo." dP   Yb 88Yb88 
+# Yb      Yb   dP 88YbdP88 88"""   dP__Yb  88"Yb  88 o.`Y8b Yb   dP 88 Y88 
+#  YboodP  YbodP  88 YY 88 88     dP""""Yb 88  Yb 88 8bodP'  YbodP  88  Y8 
 
 #covered internally in nexscript via python dunder overload
 @user_domain('nexclassmethod')
@@ -2327,6 +2459,11 @@ def alleq(ng, callhistory,
 #def isbetween(value, min, max)
 #def allbetween(min, max, *betweens)
 
+# 8b    d8 88 Yb  dP 
+# 88b  d88 88  YbdP  
+# 88YbdP88 88  dPYb  
+# 88 YY 88 88 dP  Yb 
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Mix.\nLinear Interpolation between value A and B from given factor F.")
 @user_doc(nexscript="Mix.\nLinear Interpolation between value A and B from given factor F.\nSupports SocketFloat, SocketVector and SocketColor.")
@@ -2343,6 +2480,7 @@ def lerp(ng, callhistory,
     if containsVecs(a,b):
         return generalmix(ng,callhistory,'VECTOR',f,a,b)
     return generalmix(ng,callhistory,'FLOAT',f,a,b)
+
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Alternative notation to lerp() function.")
 @user_doc(nexscript="Alternative notation to lerp() function.")
@@ -2354,34 +2492,63 @@ def mix(ng, callhistory,
     ) -> sFlo|sVec:
     return lerp(ng,callhistory,f,a,b)
 
+#  dP""b8 88        db    8b    d8 88""Yb 
+# dP   `" 88       dPYb   88b  d88 88__dP 
+# Yb      88  .o  dP__Yb  88YbdP88 88"""  
+#  YboodP 88ood8 dP""""Yb 88 YY 88 88     
+
 @user_domain('mathex','nexscript')
-@user_doc(mathex="Clamping.\nClamp a value between min/max A & B default set on 0 & 1.")
-@user_doc(nexscript="Clamping.\nClamp a value between min/max A & B default set on 0 & 1.\nSupports SocketFloat and entry-wise SocketVector, SocketColor.")
+@user_doc(mathex="Clamping.\nClamp a value between min A & max B default set on 0,1.")
+@user_doc(nexscript="Clamping.\nClamp a value between min A & max B default set on 0,1.\nSupports SocketFloat and entry-wise SocketVector, SocketColor.")
 @user_paramError(UserParamError)
 def clamp(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     a:sFlo|sInt|sBoo|float|int=0,
     b:sFlo|sInt|sBoo|float|int=1,
     ) -> sFlo|sVec|sCol:
+
+    if (ng.type=='COMPOSITING'):
+        _m = generalfloatmath(ng,callhistory,'MINIMUM',v,b)
+        _r = generalfloatmath(ng,callhistory,'MAXIMUM',a,_m)
+        frame_nodes(ng, _m.node, _r.node, label='Clamp|CompositorSpecial',)
+        return _r
+
     if containsCols(v):
         return generalentryfloatmath(ng,callhistory,'COLORRGB','CLAMP.MINMAX',v,a,b)
     if containsVecs(v):
         return generalentryfloatmath(ng,callhistory,'VECTORXYZ','CLAMP.MINMAX',v,a,b)
+
     return generalfloatmath(ng,callhistory,'CLAMP.MINMAX',v,a,b)
+
 @user_domain('mathex','nexscript')
-@user_doc(mathex="AutoClamping.\nClamp a value between auto-defined min/max A & B default set on 0 & 1.")
-@user_doc(nexscript="AutoClamping.\nClamp a value between auto-defined min/max A & B default set on 0 & 1.\nSupports SocketFloat and entry-wise SocketVector, SocketColor.")
+@user_doc(mathex="AutoClamping.\nClamp a value between auto-defined min/max A and B.")
+@user_doc(nexscript="AutoClamping.\nClamp a value between auto-defined min/max A and B.\nSupports SocketFloat and entry-wise SocketVector, SocketColor.")
 @user_paramError(UserParamError)
 def clampauto(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
-    a:sFlo|sInt|sBoo|float|int=0,
-    b:sFlo|sInt|sBoo|float|int=1,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec|sCol:
+
+    if (ng.type=='COMPOSITING'):
+        _mi = generalfloatmath(ng,callhistory,'MINIMUM',v,b)
+        _ma = generalfloatmath(ng,callhistory,'MAXIMUM',v,b)
+        _m = generalfloatmath(ng,callhistory,'MINIMUM',v,_ma)
+        _r = generalfloatmath(ng,callhistory,'MAXIMUM',_mi,_m)
+        frame_nodes(ng, _mi.node, _r.node, label='ClampAuto|CompositorSpecial',)
+        return _r
+
     if containsCols(v):
         return generalentryfloatmath(ng,callhistory,'COLORRGB','CLAMP.RANGE',v,a,b)
     if containsVecs(v):
         return generalentryfloatmath(ng,callhistory,'VECTORXYZ','CLAMP.RANGE',v,a,b)
+
     return generalfloatmath(ng,callhistory,'CLAMP.RANGE',v,a,b)
+
+# 8b    d8    db    88""Yb 
+# 88b  d88   dPYb   88__dP 
+# 88YbdP88  dP__Yb  88"""  
+# 88 YY 88 dP""""Yb 88     
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range.\nRemap a value V from a given range A,B to another range X,Y.")
@@ -2397,8 +2564,9 @@ def mapl(ng, callhistory,
     if containsVecs(v,a,b,x,y):
         return generalmaprange(ng,callhistory,'FLOAT_VECTOR','LINEAR',v,a,b,x,y)
     return generalmaprange(ng,callhistory,'FLOAT','LINEAR',v,a,b,x,y)
+
 @user_domain('mathex','nexscript')
-@user_doc(mathex="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.")
+@user_doc(mathex="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\n\nNot Available for the Compositor.")
 @user_doc(nexscript="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\nSupports SocketFloat and SocketVector.")
 @user_paramError(UserParamError)
 def mapst(ng, callhistory,
@@ -2409,11 +2577,13 @@ def mapst(ng, callhistory,
     y:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     step:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo|sVec:
+    assert_editor_context(ng.type, forbidden={'COMPOSITING',}, msg=f"Function mapst() is not available in the Compositor.")
     if containsVecs(v,a,b,x,y,step):
         return generalmaprange(ng,callhistory,'FLOAT_VECTOR','STEPPED',v,a,b,x,y,step)
     return generalmaprange(ng,callhistory,'FLOAT','STEPPED',v,a,b,x,y,step)
+
 @user_domain('mathex','nexscript')
-@user_doc(mathex="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.")
+@user_doc(mathex="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\n\nNot Available for the Compositor.")
 @user_doc(nexscript="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
 @user_paramError(UserParamError)
 def mapsmo(ng, callhistory,
@@ -2423,11 +2593,13 @@ def mapsmo(ng, callhistory,
     x:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     y:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo|sVec:
+    assert_editor_context(ng.type, forbidden={'COMPOSITING',}, msg=f"Function mapsmo() is not available in the Compositor.")
     if containsVecs(v,a,b,x,y):
         return generalmaprange(ng,callhistory,'FLOAT_VECTOR','SMOOTHSTEP',v,a,b,x,y)
     return generalmaprange(ng,callhistory,'FLOAT','SMOOTHSTEP',v,a,b,x,y)
+
 @user_domain('mathex','nexscript')
-@user_doc(mathex="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.")
+@user_doc(mathex="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\n\nNot Available for the Compositor.")
 @user_doc(nexscript="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
 @user_paramError(UserParamError)
 def mapsmoo(ng, callhistory,
@@ -2437,9 +2609,15 @@ def mapsmoo(ng, callhistory,
     x:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     y:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo|sVec:
+    assert_editor_context(ng.type, forbidden={'COMPOSITING',}, msg=f"Function mapsmoo() is not available in the Compositor.")
     if containsVecs(v,a,b,x,y):
         return generalmaprange(ng,callhistory,'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y)
     return generalmaprange(ng,callhistory,'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
+
+# .dP"Y8 Yb        dP 88 888888  dP""b8 88  88 
+# `Ybo."  Yb  db  dP  88   88   dP   `" 88  88 
+# o.`Y8b   YbdPYbdP   88   88   Yb      888888 
+# 8bodP'    YP  YP    88   88    YboodP 88  88 
 
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Boolean).\nSwap between the different bool parameters depending on the index.")
@@ -2450,6 +2628,7 @@ def switchbool(ng, callhistory,
     ) -> sBoo:
     if (len(values) in {0,1}): raise UserParamError(f"Function switchbool() needs at least three Params.")
     return generalswitch(ng,callhistory,'bool',idx,*values)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Int).\nSwap between the different integer parameters depending on the index.")
 @user_paramError(UserParamError)
@@ -2459,6 +2638,7 @@ def switchint(ng, callhistory,
     ) -> sInt:
     if (len(values) in {0,1}): raise UserParamError(f"Function switchint() needs at least three Params.")
     return generalswitch(ng,callhistory,'int',idx,*values)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Float).\nSwap between the different float parameters depending on the index.")
 @user_paramError(UserParamError)
@@ -2468,6 +2648,7 @@ def switchfloat(ng, callhistory,
     ) -> sFlo:
     if (len(values) in {0,1}): raise UserParamError(f"Function switchfloat() needs at least three Params.")
     return generalswitch(ng,callhistory,'float',idx,*values)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Vector).\nSwap between the different Vector parameters depending on the index.")
 @user_paramError(UserParamError)
@@ -2477,6 +2658,7 @@ def switchvec(ng, callhistory,
     ) -> sVec:
     if (len(values) in {0,1}): raise UserParamError(f"Function switchvec() needs at least three Params.")
     return generalswitch(ng,callhistory,'vec',idx,*values)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Color).\nSwap between the different Color parameters depending on the index.")
 @user_paramError(UserParamError)
@@ -2486,6 +2668,7 @@ def switchcol(ng, callhistory,
     ) -> sCol:
     if (len(values) in {0,1}): raise UserParamError(f"Function switchcol() needs at least three Params.")
     return generalswitch(ng,callhistory,'col',idx,*values)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Matrix).\nSwap between the different Matrix parameters depending on the index.")
 @user_paramError(UserParamError)
@@ -2496,6 +2679,10 @@ def switchmat(ng, callhistory,
     if (len(values) in {0,1}): raise UserParamError(f"Function switchmat() needs at least three Params.")
     return generalswitch(ng,callhistory,'mat',idx,*values)
 
+# 88""Yb    db    88b 88 8888b.   dP"Yb  8b    d8 
+# 88__dP   dPYb   88Yb88  8I  Yb dP   Yb 88b  d88 
+# 88"Yb   dP__Yb  88 Y88  8I  dY Yb   dP 88YbdP88 
+# 88  Yb dP""""Yb 88  Y8 8888Y"   YbodP  88 YY 88 
 
 @user_domain('nexscript')
 @user_doc(nexscript="Random (Boolean).\nGet a random boolean.\nOptionally: pass a probability default set on 0.5, a seed number, and an ID SocketInt.")
@@ -2506,6 +2693,7 @@ def randbool(ng, callhistory,
     ID:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|None=None,
     ) -> sBoo:
     return generalrandom(ng,callhistory,'BOOLEAN', None,None,prob,seed,ID)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Random (Int).\nGet a random integer number.\nOptionally: define a min/max range by default set on -10k & 10k, a seed number, and an ID SocketInt.")
 @user_paramError(UserParamError)
@@ -2517,6 +2705,7 @@ def randint(ng, callhistory,
     ) -> sInt:
     # for nexcript, shall we call  random.randint if all args are py? Hmm. users might not want that.
     return generalrandom(ng,callhistory,'INT',min,max,None,seed,ID)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Random (Float).\nGet a random float number.\nOptionally: define a min/max range by default set on -10k & 10k, a seed number, and an ID SocketInt.")
 @user_paramError(UserParamError)
@@ -2527,6 +2716,7 @@ def randfloat(ng, callhistory,
     ID:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|None=None,
     ) -> sFlo:
     return generalrandom(ng,callhistory,'FLOAT',min,max,None,seed,ID)
+
 @user_domain('nexscript')
 @user_doc(nexscript="Random (Vector).\nGet a random Vector.\nOptionally: define a min/max range by default set on (0,0,0) & (1,1,1), a seed number, and an ID SocketInt.")
 @user_paramError(UserParamError)
@@ -2538,6 +2728,10 @@ def randvec(ng, callhistory,
     ) -> sVec:
     return generalrandom(ng,callhistory,'FLOAT_VECTOR',min,max,None,seed,ID)
 
+#    db    888888 888888 88""Yb 
+#   dPYb     88     88   88__dP 
+#  dP__Yb    88     88   88"Yb  
+# dP""""Yb   88     88   88  Yb 
 
 @user_domain('nexscript')
 @user_doc(nexscript="Position Attribute.\nGet the GeometryNode 'Position' SocketVector input attribute.")
@@ -2551,6 +2745,7 @@ def getp(ng, callhistory,
         node.location = ng.nodes["Group Input"].location
         node.location.y += 65*1
     return node.outputs[0]
+
 @user_domain('nexscript')
 @user_doc(nexscript="Normal Attribute.\nGet the GeometryNode 'Normal' SocketVector input attribute.")
 def getn(ng, callhistory,
