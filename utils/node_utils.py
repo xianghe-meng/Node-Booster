@@ -48,6 +48,18 @@ def get_all_nodes(geometry=True, compositing=True, shader=True, ignore_ng_name="
 
     return r
 
+def get_node_objusers(node):
+    """Return a list of objects using the given Node."""
+    
+    #NOTE What if the node is in a nodegroup used by many?
+    users = set()
+    for o in bpy.data.objects:
+        for m in o.modifiers:
+            if (m.type=='NODES' and m.node_group):
+                for n in m.node_group.nodes:
+                    if (n==node):
+                        users.add(o)
+    return users
 
 def get_node_absolute_location(node):
     """find the location of the node in global space"""

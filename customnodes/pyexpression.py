@@ -14,7 +14,16 @@ from ..utils.node_utils import (
     set_socket_defvalue,
     set_socket_type,
     set_socket_label,
+    get_node_objusers,
 )
+
+# ooooo      ooo                 .o8            
+# `888b.     `8'                "888            
+#  8 `88b.    8   .ooooo.   .oooo888   .ooooo.  
+#  8   `88b.  8  d88' `88b d88' `888  d88' `88b 
+#  8     `88b.8  888   888 888   888  888ooo888 
+#  8       `888  888   888 888   888  888    .o 
+# o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
 
 class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate a python expression as a single value output.
@@ -119,7 +128,7 @@ class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
         namespace.update(vars(__import__('math')))
 
         #'self' as object using this node? only if valid and not ambiguous
-        node_obj_users = self.get_objects_from_node_instance()
+        node_obj_users = get_node_objusers(self)
         if (len(node_obj_users)==1):
             namespace["self"] = list(node_obj_users)[0]
 
@@ -194,19 +203,6 @@ class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
             lbl.label(text=self.error_message)
 
         return None
-
-    def get_objects_from_node_instance(self,):
-        """Return a list of objects using the given GeometryNodeTree."""
-        
-        #NOTE could support recur nodegroups perhaps? altho it will cause ambiguity..
-        users = set()
-        for o in bpy.data.objects:
-            for m in o.modifiers:
-                if (m.type=='NODES' and m.node_group):
-                    for n in m.node_group.nodes:
-                        if (n==self):
-                            users.add(o)
-        return users
 
     def draw_panel(self, layout, context):
         """draw in the nodebooster N panel 'Active Node'"""
