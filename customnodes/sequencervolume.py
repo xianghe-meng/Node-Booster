@@ -22,20 +22,10 @@ from ..utils.node_utils import (
 # These functions below were generated thanks to GPT 03-mini-high. I am no sound engineer...
 # If you know more about sound than i do, don't hesitate to correct potential mistakes in the code below.
 
-# NOTE work in decibel? unsure if it makes sense in a digital space.
-# def amplitude_to_db(amplitude):
-#     """Convert a linear amplitude (0–1) to decibels (dBFS).
-#     In our digital domain, 1.0 is 0 dBFS. If the amplitude is very small (i.e. silence), we return 0."""
-#     if (amplitude < 1e-10):
-#         return 0
-#     return 20 * math.log10(amplitude)
-
 # TODO
-# - Implement strip fade consideration
 # - bug if sound.use_mono
 #   - when fixed need to support for mono pan as well..
 # - Fix sum of sound, the we we add sounds together right now is false.
-
 
 def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
     volume=False, pitch=False, bass=False, treble=False, channel='CENTER', fade=1.0, frequencies=None,):
@@ -56,7 +46,7 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
       treble    : (bool) if True, compute treble level (RMS linear amplitude).
       channel   : 'LEFT', 'RIGHT', or 'CENTER' (averaged) channel selection.
       fade      : precomputed fade multiplier (from animated volume or fade-in/out).
-      
+
     Returns:
       dict with keys for each requested feature.
       If no data is available or frame is out of range, all features default to 0.
@@ -114,6 +104,7 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
                 signal = (left + right) / 2.0
 
     # Apply the fade multiplier (precomputed externally)
+    volumeboost = strip.volume
     signal = signal * fade
     
     #TODO support sound.pan if use_mono
@@ -122,6 +113,7 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
     # Volume: compute peak absolute amplitude (store in linear domain)
     if (volume):
         amp = np.max(np.abs(signal))
+        amp *= volumeboost
         ret['volume'] = amp
 
     # For frequency-based features, perform FFT analysis only if needed.
@@ -140,6 +132,7 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
             freqrange = (freqs > minmax[0]) & (freqs < minmax[1])
             if np.any(freqrange):
                   value_rms = np.sqrt(np.mean(magnitudes[freqrange]**2))
+                  value_rms *= volumeboost
                   ret['bass'] = value_rms * 5
             else: ret['bass'] = 0
 
@@ -151,6 +144,7 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
                   idx = np.argmax(magnitudes[freqrange])
                   value_hz = freqs[freqrange][idx]
                   value_hz = map_range(value_hz, minmax[0], minmax[1], 0,1,) #normalize
+                  value_hz *= min(volumeboost,1)
                   ret['pitch'] = value_hz
             else: ret['pitch'] = 0
 
@@ -160,6 +154,7 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
             freqrange = (freqs > minmax[0]) & (freqs < minmax[1])
             if np.any(freqrange):
                   value_rms = np.sqrt(np.mean(magnitudes[freqrange]**2))
+                  value_rms *= min(volumeboost,1)
                   ret['treble'] = value_rms * 500
             else: ret['treble'] = 0
 
@@ -219,28 +214,13 @@ def evaluate_smoothed_audio_features(strip, frame, fps, depsgraph, smoothing, sm
 
     return smoothed
 
-def local_get_fade(strip, frame):
-    """
-    Compute fade multiplier based on animated volume (F-Curve) or audio fade properties.
-    If an F-Curve for 'volume' exists, return its value;
-    otherwise, if audio_fadein/audio_fadeout are available, compute linear fade;
-    else, return the strip's base volume.
-    """
-
-    if (strip.animation_data and strip.animation_data.action):
-        for fc in strip.animation_data.action.fcurves:
-            if (fc.data_path=='volume'):
-                return fc.evaluate(frame)
-
-    if (hasattr(strip,'audio_fadein') and hasattr(strip,'audio_fadeout')):
-        fade = 1.0
-        if (strip.audio_fadein > 0 and frame < (strip.frame_start + strip.audio_fadein)):
-            fade = (frame - strip.frame_start) / strip.audio_fadein
-        elif (strip.audio_fadeout > 0 and frame > (strip.frame_final_end - strip.audio_fadeout)):
-            fade = (strip.frame_final_end - frame) / strip.audio_fadeout
-        return fade * strip.volume
-
-    return strip.volume
+# NOTE work in decibel? unsure if it makes sense in a digital space.
+# def amplitude_to_db(amplitude):
+#     """Convert a linear amplitude (0–1) to decibels (dBFS).
+#     In our digital domain, 1.0 is 0 dBFS. If the amplitude is very small (i.e. silence), we return 0."""
+#     if (amplitude < 1e-10):
+#         return 0
+#     return 20 * math.log10(amplitude)
 
 def evaluate_sequencer_audio_data(frame_offset=0, at_sound=None, smoothing=0, 
     smoothing_type='GAUSSIAN', volume=False, pitch=False, bass=False, treble=False, channel='CENTER', frequencies=None,):
@@ -293,7 +273,7 @@ def evaluate_sequencer_audio_data(frame_offset=0, at_sound=None, smoothing=0,
     # Loop through each sound strip.
     for s in sound_sequences:
 
-        # Compute effective fade for this strip at the target frame.
+        # TODO Compute effective fade for this strip at the target frame.
         # effective_fade = local_get_fade(s, frame)
         effective_fade = 1
 
