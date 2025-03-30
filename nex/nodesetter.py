@@ -24,13 +24,15 @@
 
 import bpy 
 
-from functools import partial
+import re
+import inspect
+import functools
+import typing
 from mathutils import Vector, Matrix, Quaternion, Color
 
 from ..nex.pytonode import py_to_Vec3, py_to_Mtx16, py_to_RGBA
 from ..utils.node_utils import link_sockets, frame_nodes, create_constant_input
-from ..utils.fct_utils import alltypes, anytype, ColorRGBA
-from ..utils.fct_utils import strongtyping as user_paramError
+from ..utils.fct_utils import is_annotation_compliant, alltypes, anytype, ColorRGBA
 
 sAny = bpy.types.NodeSocket
 sBoo = bpy.types.NodeSocketBool
@@ -102,7 +104,7 @@ def get_nodesetter_functions(tag='', get_names=False, partialdefaults:tuple=None
 
     # If a default node group argument is provided, use functools.partial to bind it
     if (partialdefaults is not None):
-        funcs = [partial(f, *partialdefaults,) for f in funcs]
+        funcs = [functools.partial(f, *partialdefaults,) for f in funcs]
 
     return funcs
 
@@ -1353,13 +1355,89 @@ class UserEditorContextError(Exception):
     def __init__(self, message):
         super().__init__(message)
 
-def assert_editor_context(current_type:str, msg:str, allowed:set=None, forbidden:set=None,):
-    """Verify if the user function is executing in the correct context."""
-    if (forbidden and (current_type in forbidden)):
-        raise UserEditorContextError(msg)
-    if (allowed and (current_type not in allowed)):
-        raise UserEditorContextError(msg)
-    return None
+def user_overseer(assert_editortype:set=None):
+    """A decorator factory that takes a given error class and enforces type hints on the decorated function’s parameters.
+    Handle error if user passed wrong parameter types. Or too much or too little params.
+    - use 'assert_editortype' arg to ensure that the user is using a function in the correct editor type (ng.type). 
+      If None, function is considered to be available for all editors"""
+
+    def decorator(func):
+
+        sig = inspect.signature(func)
+        hints = typing.get_type_hints(func)
+
+        #all functions below are designed with these two arguments as default. User shouldn't interact with these.
+        internalparams = {'ng','callhistory'}
+
+        def pretty(annot,istype=False):
+            """better annotation for user error message"""
+            if (istype):
+                annot = type(annot).__name__
+                annot = annot.replace('NodeSocket','Socket')
+                return annot
+            annot = str(annot)
+            annot = annot.replace('bpy.types.','').replace('NodeSocket','Socket')
+            annot = re.sub(r'\| bl_ext.*?\.nodebooster\.utils\.fct_utils\.ColorRGBA', '| ColorRGBA', annot) #internal type. User don't have access to ColorRGBA
+            annot = annot.replace('SocketVectorXYZ | ','').replace('SocketVectorTranslation | ','') #internal dumb distinctions..
+            annot = annot.replace(' |',',')
+            annot = annot.replace("<class '",'').replace("'>",'')
+            return annot
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+
+            #collect args of this function & remove strictly internal args from documentation
+            allparamnames = list(func.__code__.co_varnames[:func.__code__.co_argcount])
+            allparamnames = [n for n in allparamnames if (n not in internalparams)]
+            parameternames = ', '.join(allparamnames)
+            funcparamcount = len(allparamnames)
+
+            #default arguments, always present. Hidden from user.
+            if (assert_editortype):
+                ngtype = args[0].type
+                if (ngtype not in assert_editortype):
+                    raise UserEditorContextError(f"Function {func.__name__}() is not available in the {ngtype.title()} editor.")
+
+            #calling the bind function will raise an error if the user inputed wrong params. We are taking advantage of this to wrap the error to the user
+            try:
+                bound = sig.bind(*args, **kwargs)
+                bound.apply_defaults()
+            except TypeError as e:
+                if ('too many positional arguments' in str(e)):
+                    raise UserParamError(f"Function {func.__name__}({parameternames}) recieved extra Param(s). Expected {funcparamcount}. Recieved {len(args)-2}.")
+                elif ('missing a required argument') in str(e):
+                    raise UserParamError(f"Function {func.__name__}({parameternames}) needs more Param(s). Expected {funcparamcount}. Recieved {len(args)-2}.")
+                raise
+
+            # For each parameter, check annotation
+            for param_name, param_value in bound.arguments.items():
+
+                # Check if user gave a hint
+                annotated_type = hints.get(param_name)
+                if (annotated_type is None):
+                    continue  # No hint == no checking
+
+                # See if this param was defined as *args
+                param = sig.parameters[param_name]
+                if (param.kind == inspect.Parameter.VAR_POSITIONAL):
+
+                    # param_value is a tuple of items
+                    for item in param_value:
+                        if (not is_annotation_compliant(item, annotated_type)):
+                            raise UserParamError(f"Function {func.__name__}({parameternames}{', ' if parameternames else ''}{param_name}..) accepts Params of type {pretty(annotated_type)}. Recieved {pretty(item,istype=True)}.")
+                else:
+                    # Normal parameter check a single value
+                    if (not is_annotation_compliant(param_value, annotated_type)):
+                        if (funcparamcount>1):
+                            raise UserParamError(f"Function {func.__name__}({parameternames}) accepts Param '{param_name}' of type {pretty(annotated_type)}. Recieved {pretty(param_value,istype=True)}.")
+                        raise UserParamError(f"Function {func.__name__}({parameternames}) accepts Param of type {pretty(annotated_type)}. Recieved {pretty(param_value,istype=True)}.")
+
+            return func(*bound.args, **bound.kwargs)
+
+        wrapper.originalfunc = func
+        return wrapper
+
+    return decorator
 
 # 88""Yb 888888  dP""b8 88   88 88        db    88""Yb     8b    d8    db    888888 88  88 
 # 88__dP 88__   dP   `" 88   88 88       dPYb   88__dP     88b  d88   dPYb     88   88  88 
@@ -1369,7 +1447,7 @@ def assert_editor_context(current_type:str, msg:str, allowed:set=None, forbidden
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Addition.\nEquivalent to the '+' symbol.")
-@user_paramError(UserParamError)
+@user_overseer()
 def add(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
@@ -1383,7 +1461,7 @@ def add(ng, callhistory,
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Subtraction.\nEquivalent to the '-' symbol.")
-@user_paramError(UserParamError)
+@user_overseer()
 def sub(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
@@ -1397,7 +1475,7 @@ def sub(ng, callhistory,
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Multiplications.\nEquivalent to the '*' symbol.")
-@user_paramError(UserParamError)
+@user_overseer()
 def mult(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
@@ -1411,7 +1489,7 @@ def mult(ng, callhistory,
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Division.\nEquivalent to the '/' symbol.")
-@user_paramError(UserParamError)
+@user_overseer()
 def div(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
@@ -1425,7 +1503,7 @@ def div(ng, callhistory,
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
 @user_doc(mathex="A Power N.\nEquivalent to the 'A**N' or '²' symbol.")
-@user_paramError(UserParamError)
+@user_overseer()
 def pow(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     n:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1439,7 +1517,7 @@ def pow(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Logarithm A base N.")
 @user_doc(nexscript="Logarithm A base N.\nSupports SocketFloat and entry-wise SocketVector if N is float compatible.")
-@user_paramError(UserParamError)
+@user_overseer()
 def log(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     n:sFlo|sInt|sBoo|float|int,
@@ -1452,7 +1530,7 @@ def log(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Square Root of A.")
 @user_doc(nexscript="Square Root of A.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def sqrt(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1464,7 +1542,7 @@ def sqrt(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Inverse Square Root of A.")
 @user_doc(nexscript="Inverse Square Root of A.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def invsqrt(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo|sVec:
@@ -1475,7 +1553,7 @@ def invsqrt(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="A Root N.\nEquivalent to doing 'A**(1/N)'.")
 @user_doc(nexscript="A Root N.\nEquivalent to doing 'A**(1/N)'.\nSupports SocketFloat and entry-wise SocketVector if N is float compatible.")
-@user_paramError(UserParamError)
+@user_overseer()
 def nroot(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     n:sFlo|sInt|sBoo|float|int,
@@ -1488,7 +1566,7 @@ def nroot(ng, callhistory,
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Absolute of A.")
-@user_paramError(UserParamError)
+@user_overseer()
 def abs(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|Vector|ColorRGBA,
     ) -> sFlo|sVec:
@@ -1501,7 +1579,7 @@ def abs(ng, callhistory,
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Negate the value of A.\nEquivalent to the symbol '-x.'")
-@user_paramError(UserParamError)
+@user_overseer()
 def neg(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1512,7 +1590,7 @@ def neg(ng, callhistory,
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Round a Float value.\nex: 1.49 will become 1\n1.51 will become 2.")
-@user_paramError(UserParamError)
+@user_overseer()
 def round(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|Vector|ColorRGBA,
     ) -> sFlo|sVec:
@@ -1525,7 +1603,7 @@ def round(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Floor a Float value.\nex: 1.51 will become 1\n-1.51 will become -2.")
 @user_doc(nexscript="Floor a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.51 will become 1\n-1.51 will become 2.")
-@user_paramError(UserParamError)
+@user_overseer()
 def floor(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1537,7 +1615,7 @@ def floor(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Ceil a Float value.\nex: 1.01 will become 2\n-1.99 will become -1.")
 @user_doc(nexscript="Ceil a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.01 will become 2\n-1.99 will become 1.")
-@user_paramError(UserParamError)
+@user_overseer()
 def ceil(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1549,7 +1627,7 @@ def ceil(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Trunc a Float value.\nex: 1.99 will become 1\n-1.99 will become -1.")
 @user_doc(nexscript="Trunc a Float value.\nSupports SocketFloat and entry-wise SocketVector.\n\nex: 1.99 will become 1\n-1.99 will become -1.")
-@user_paramError(UserParamError)
+@user_overseer()
 def trunc(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1561,7 +1639,7 @@ def trunc(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Fraction.\nThe fraction part of A.")
 @user_doc(nexscript="Fraction.\nThe fraction part of A.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def frac(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo|sVec:
@@ -1572,7 +1650,7 @@ def frac(ng, callhistory,
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Modulo.\nEquivalent to the '%' symbol.")
-@user_paramError(UserParamError)
+@user_overseer()
 def mod(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1584,7 +1662,7 @@ def mod(ng, callhistory,
 #not covered in Nex.. user can do floor(A%B)
 @user_domain('mathex')
 @user_doc(mathex="Floored Modulo.")
-@user_paramError(UserParamError)
+@user_overseer()
 def floormod(ng, callhistory,
     a:sFlo|sInt|sBoo,
     b:sFlo|sInt|sBoo,
@@ -1594,7 +1672,7 @@ def floormod(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Wrapping.\nWrap a value V to Range A B.")
 @user_doc(nexscript="Wrapping.\nWrap a value V to Range A B.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def wrap(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1607,7 +1685,7 @@ def wrap(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Snapping.\nSnap a value V to the nearest increament I.")
 @user_doc(nexscript="Snapping.\nSnap a value V to the nearest increament I.\nSupports SocketFloat and SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def snap(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     i:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1619,7 +1697,7 @@ def snap(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="PingPong.\nWrap a value and every other cycles at cycle Scale.")
 @user_doc(nexscript="PingPong.\nWrap a value and every other cycles at cycle Scale.\nSupports SocketFloat and entry-wise SocketVector if scale is float compatible.")
-@user_paramError(UserParamError)
+@user_overseer()
 def pingpong(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     scale:sFlo|sInt|sBoo|float|int,
@@ -1631,7 +1709,7 @@ def pingpong(ng, callhistory,
 #covered internally in nexscript via python dunder overload
 @user_domain('mathex','nexclassmethod')
 @user_doc(mathex="Floor Division.\nEquivalent to the '//' symbol.")
-@user_paramError(UserParamError)
+@user_overseer()
 def floordiv(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1649,7 +1727,7 @@ def floordiv(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Sine of A.")
 @user_doc(nexscript="The Sine of A.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def sin(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec|float:
@@ -1661,7 +1739,7 @@ def sin(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Cosine of A.")
 @user_doc(nexscript="The Cosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def cos(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec|float:
@@ -1673,7 +1751,7 @@ def cos(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Tangent of A.")
 @user_doc(nexscript="The Tangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def tan(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec|float:
@@ -1685,7 +1763,7 @@ def tan(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Arcsine of A.")
 @user_doc(nexscript="The Arcsine of A.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def asin(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1697,7 +1775,7 @@ def asin(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Arccosine of A.")
 @user_doc(nexscript="The Arccosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def acos(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1709,7 +1787,7 @@ def acos(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Arctangent of A.")
 @user_doc(nexscript="The Arctangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def atan(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1721,7 +1799,7 @@ def atan(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Sine of A.")
 @user_doc(nexscript="The Hyperbolic Sine of A.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def sinh(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1733,7 +1811,7 @@ def sinh(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Cosine of A.")
 @user_doc(nexscript="The Hyperbolic Cosine of A.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def cosh(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1745,7 +1823,7 @@ def cosh(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="The Hyperbolic Tangent of A.")
 @user_doc(nexscript="The Hyperbolic Tangent of A.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def tanh(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1761,7 +1839,7 @@ def tanh(ng, callhistory,
 
 @user_domain('mathex')
 @user_doc(mathex="To Radians.\nConvert a value from Degrees to Radians.")
-@user_paramError(UserParamError)
+@user_overseer()
 def rad(ng, callhistory,
     a:sFlo|sInt|sBoo,
     ) -> sFlo:
@@ -1770,7 +1848,7 @@ def rad(ng, callhistory,
 #same as above, just different user fct name.
 @user_domain('nexscript')
 @user_doc(nexscript="To Radians.\nConvert a value from Degrees to Radians.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def radians(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1781,7 +1859,7 @@ def radians(ng, callhistory,
 
 @user_domain('mathex')
 @user_doc(mathex="To Degrees.\nConvert a value from Radians to Degrees.")
-@user_paramError(UserParamError)
+@user_overseer()
 def deg(ng, callhistory,
     a:sFlo|sInt|sBoo,
     ) -> sFlo:
@@ -1790,7 +1868,7 @@ def deg(ng, callhistory,
 #same as above, just different user fct name.
 @user_domain('nexscript')
 @user_doc(nexscript="To Degrees.\nConvert a value from Radians to Degrees.\nSupports SocketFloat and entry-wise SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def degrees(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
     ) -> sFlo|sVec:
@@ -1806,7 +1884,7 @@ def degrees(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Cross Product.\nThe cross product between vector A an B.")
-@user_paramError(UserParamError)
+@user_overseer()
 def cross(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1815,7 +1893,7 @@ def cross(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Dot Product.\nA dot B.")
-@user_paramError(UserParamError)
+@user_overseer()
 def dot(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1824,7 +1902,7 @@ def dot(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Projection.\nProject A onto B.")
-@user_paramError(UserParamError)
+@user_overseer()
 def project(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1833,7 +1911,7 @@ def project(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Faceforward.\nFaceforward operation between a given vector, an incident and a reference.")
-@user_paramError(UserParamError)
+@user_overseer()
 def faceforward(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     vI:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1843,7 +1921,7 @@ def faceforward(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Reflection.\nReflect A onto B.")
-@user_paramError(UserParamError)
+@user_overseer()
 def reflect(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1852,7 +1930,7 @@ def reflect(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Distance.\nThe distance between location A & B.")
-@user_paramError(UserParamError)
+@user_overseer()
 def distance(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1861,7 +1939,7 @@ def distance(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Normalization.\nNormalize the values of a vector A to fit a 0-1 range.")
-@user_paramError(UserParamError)
+@user_overseer()
 def normalize(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector,
     ) -> sVec:
@@ -1869,7 +1947,7 @@ def normalize(ng, callhistory,
 
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def vectocolor(ng, callhistory,
     vA:sVec|sVecXYZ|sVecT,
     ) -> sCol:
@@ -1880,7 +1958,7 @@ def vectocolor(ng, callhistory,
 
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def vectorot(ng, callhistory,
     vA:sVec|sVecXYZ|sVecT,
     ) -> sRot:
@@ -1888,7 +1966,7 @@ def vectorot(ng, callhistory,
 
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def length(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo:
@@ -1896,7 +1974,7 @@ def length(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Vector.\nSeparate a SocketVector into a tuple of 3 XYZ SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ = vA' instead.")
-@user_paramError(UserParamError)
+@user_overseer()
 def sepaxyz(ng, callhistory,
     vA:sVec|sVecXYZ|sVecT|sCol|float|int|Vector,
     ) -> tuple:
@@ -1906,7 +1984,7 @@ def sepaxyz(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Vector.\nCombine 3 XYZ SocketFloat, SocketInt or SocketBool into a SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def combixyz(ng, callhistory,
     fX:sFlo|sInt|sBoo|float|int,
     fY:sFlo|sInt|sBoo|float|int,
@@ -1916,7 +1994,7 @@ def combixyz(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Rotate (Euler).\nRotate a given Vector A with euler angle radians E, at optional center C.")
-@user_paramError(UserParamError)
+@user_overseer()
 def roteuler(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     vE:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1926,7 +2004,7 @@ def roteuler(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Rotate (Axis).\nRotate a given Vector A from defined axis X & angle radians F, at optional center C.")
-@user_paramError(UserParamError)
+@user_overseer()
 def rotaxis(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     vX:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -1942,7 +2020,7 @@ def rotaxis(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Color.\nSeparate a SocketColor into a tuple of 4 SocketFloat depending on the optionally passed mode in 'RGB','HSV','HSL'.\nThe fourth element of the tuple must be the alpha.\n\nTip: you can use python slicing notations instead.")
-@user_paramError(UserParamError)
+@user_overseer()
 def sepacolor(ng, callhistory,
     colA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     mode:str='RGB',
@@ -1958,7 +2036,7 @@ def sepacolor(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Color.\nCombine 4 SocketFloat, SocketInt or SocketBool into a SocketColor depending on the optionally passed mode in 'RGB','HSV','HSL'.\nThe fourth element of the tuple must be the alpha.")
-@user_paramError(UserParamError)
+@user_overseer()
 def combicolor(ng, callhistory,
     f1:sFlo|sInt|sBoo|float|int,
     f2:sFlo|sInt|sBoo|float|int,
@@ -1971,7 +2049,7 @@ def combicolor(ng, callhistory,
 
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def colortovec(ng, callhistory,
     colA:sCol,
     ) -> sVec:
@@ -1995,7 +2073,7 @@ def colortovec(ng, callhistory,
 
 #covered internally in nexscript via python prop or function
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def matrixdeterminant(ng, callhistory,
     mA:sMtx,
     ) -> sFlo:
@@ -2003,7 +2081,7 @@ def matrixdeterminant(ng, callhistory,
     
 #covered internally in nexscript via python prop or function
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def matrixinvert(ng, callhistory,
     mA:sMtx,
     ) -> sMtx:
@@ -2011,7 +2089,7 @@ def matrixinvert(ng, callhistory,
 
 #covered internally in nexscript via python prop or function
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def matrixisinvertible(ng, callhistory,
     mA:sMtx,
     ) -> sBoo:
@@ -2019,7 +2097,7 @@ def matrixisinvertible(ng, callhistory,
 
 #covered internally in nexscript via python prop or function
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def matrixtranspose(ng, callhistory,
     mA:sMtx,
     ) -> sMtx:
@@ -2027,7 +2105,7 @@ def matrixtranspose(ng, callhistory,
 
 #covered internally in nexscript via python dunder overload
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def matrixmult(ng, callhistory,
     mA:sMtx|Matrix,
     mB:sMtx|Matrix,
@@ -2036,7 +2114,7 @@ def matrixmult(ng, callhistory,
         
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Transform.\nTransform a location vector A by a given matrix B.\nWill return a VectorSocket.\n\nCould use notation 'mB @ vA' instead.")
-@user_paramError(UserParamError)
+@user_overseer()
 def transformloc(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|Vector,
     mB:sMtx|Matrix,
@@ -2045,7 +2123,7 @@ def transformloc(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Projection.\nProject a location vector A by a given matrix B.\nWill return a VectorSocket.")
-@user_paramError(UserParamError)
+@user_overseer()
 def projectloc(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|Vector,
     mB:sMtx|Matrix,
@@ -2054,7 +2132,7 @@ def projectloc(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Vector Direction Transform.\nTransform direction vector A by a given matrix B.\nWill return a VectorSocket.")
-@user_paramError(UserParamError)
+@user_overseer()
 def transformdir(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|Vector,
     mB:sMtx|Matrix,
@@ -2068,7 +2146,7 @@ def transformdir(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Quaternion.\nSeparate a SocketRotation into a tuple of 4 WXYZ SocketFloat.\n\nTip: you can use python slicing notations 'myX, myY, myZ, myW = qA' instead.")
-@user_paramError(UserParamError)
+@user_overseer()
 def sepaquat(ng, callhistory,
     qA:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     ) -> tuple:
@@ -2078,7 +2156,7 @@ def sepaquat(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Quaternion.\nCombine 4 WXYZ SocketFloat, SocketInt or SocketBool into a SocketRotation.")
-@user_paramError(UserParamError)
+@user_overseer()
 def combiquat(ng, callhistory,
     fW:sFlo|sInt|sBoo|float|int,
     fX:sFlo|sInt|sBoo|float|int,
@@ -2089,7 +2167,7 @@ def combiquat(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Quaternion Rotation.\nSeparate a SocketRotation into a SocketVector Axis and a SocketFloat angle.")
-@user_paramError(UserParamError)
+@user_overseer()
 def separot(ng, callhistory,
     qA:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     ) -> tuple:
@@ -2106,7 +2184,7 @@ def separot(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Quaternion Rotation.\nCombine a Vector axis and a Float Angle into a SocketRotation.")
-@user_paramError(UserParamError)
+@user_overseer()
 def combirot(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector,
     fA:sFlo|sInt|sBoo|float|int,
@@ -2116,7 +2194,7 @@ def combirot(ng, callhistory,
 
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def rotinvert(ng, callhistory,
     qA:sRot,
     ) -> sRot:
@@ -2124,7 +2202,7 @@ def rotinvert(ng, callhistory,
 
 #covered internally in nexscript via property or function
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def rottoeuler(ng, callhistory,
     qA:sRot,
     ) -> sVec:
@@ -2143,7 +2221,7 @@ def rottoeuler(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Flatten).\nSeparate a SocketMatrix into a tuple of 16 SocketFloat arranged by columns.")
-@user_paramError(UserParamError)
+@user_overseer()
 def sepamatrix(ng, callhistory,
     mA:sMtx|Matrix,
     ) -> tuple:
@@ -2151,7 +2229,7 @@ def sepamatrix(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Flatten).\nCombine an itterable containing  16 SocketFloat, SocketInt or SocketBool arranged by columns to a SocketMatrix.")
-@user_paramError(UserParamError)
+@user_overseer()
 def combimatrix(ng, callhistory,
     *floats:sFlo|sInt|sBoo|float|int,
     ) -> sMtx:
@@ -2163,7 +2241,7 @@ def combimatrix(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Rows).\nSeparate a SocketMatrix into a tuple of 4 Quaternion SocketRotation, by rows.")
-@user_paramError(UserParamError)
+@user_overseer()
 def separows(ng, callhistory,
     mA:sMtx|Matrix,
     ) -> tuple:
@@ -2184,7 +2262,7 @@ def separows(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Rows).\nCombine an itterable containing  4 Quaternion SocketRotation to a SocketMatrix, by rows.")
-@user_paramError(UserParamError)
+@user_overseer()
 def combirows(ng, callhistory,
     q1:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     q2:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
@@ -2212,7 +2290,7 @@ def combirows(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Columns).\nSeparate a SocketMatrix into a tuple of 4 Quaternion SocketRotation, by columns.")
-@user_paramError(UserParamError)
+@user_overseer()
 def separacols(ng, callhistory,
     mA:sMtx|Matrix,
     ) -> tuple:
@@ -2233,7 +2311,7 @@ def separacols(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Columns).\nCombine an itterable containing  4 Quaternion SocketRotation to a SocketMatrix, by columns.")
-@user_paramError(UserParamError)
+@user_overseer()
 def combicols(ng, callhistory,
     q1:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
     q2:sVec|sVecXYZ|sVecT|sRot|Quaternion|ColorRGBA,
@@ -2261,7 +2339,7 @@ def combicols(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Separate Matrix (Transform).\nSeparate a SocketMatrix into a tuple SocketVector, SocketRotation, SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def sepatransforms(ng, callhistory,
     mA:sMtx|Matrix,
     ) -> tuple:
@@ -2269,7 +2347,7 @@ def sepatransforms(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Combine Matrix (Transform).\nCombine 3 SocketVector into a SocketMatrix.")
-@user_paramError(UserParamError)
+@user_overseer()
 def combitransforms(ng, callhistory,
     vL:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     qR:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sRot|float|int|Vector|Quaternion|ColorRGBA,
@@ -2294,7 +2372,7 @@ def combitransforms(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Minimum.\nGet the absolute minimal value across all passed arguments.")
 @user_doc(nexscript="Minimum.\nGet the absolute minimal value across all passed arguments.\nArguments must be compatible with SocketFloat.")
-@user_paramError(UserParamError)
+@user_overseer()
 def min(ng, callhistory,
     *floats:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
@@ -2306,7 +2384,7 @@ def min(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Smooth Minimum\nGet the minimal value between A & B considering a smoothing distance to avoid abrupt transition.")
 @user_doc(nexscript="Smooth Minimum\nGet the minimal value between A & B considering a smoothing distance to avoid abrupt transition.\nSupports SocketFloats only.")
-@user_paramError(UserParamError)
+@user_overseer()
 def smin(ng, callhistory,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -2317,7 +2395,7 @@ def smin(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Maximum.\nGet the absolute maximal value across all passed arguments.")
 @user_doc(nexscript="Maximum.\nGet the absolute maximal value across all passed arguments.\nArguments must be compatible with SocketFloat.")
-@user_paramError(UserParamError)
+@user_overseer()
 def max(ng, callhistory,
     *floats:sFlo|sInt|sBoo|float|int,
     ) -> sFlo:
@@ -2329,7 +2407,7 @@ def max(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Smooth Maximum\nGet the maximal value between A & B considering a smoothing distance to avoid abrupt transition.")
 @user_doc(nexscript="Smooth Maximum\nGet the maximal value between A & B considering a smoothing distance to avoid abrupt transition.\nSupports SocketFloats only.")
-@user_paramError(UserParamError)
+@user_overseer()
 def smax(ng, callhistory,
     a:sFlo|sInt|sBoo|float|int,
     b:sFlo|sInt|sBoo|float|int,
@@ -2344,7 +2422,7 @@ def smax(ng, callhistory,
 
 #covered internally in nexscript via python dunder overload
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def iseq(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
@@ -2361,7 +2439,7 @@ def iseq(ng, callhistory,
 
 #covered internally in nexscript via python dunder overload
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def isuneq(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
@@ -2376,7 +2454,7 @@ def isuneq(ng, callhistory,
 
 #covered internally in nexscript via python dunder overload
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def isless(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
@@ -2387,7 +2465,7 @@ def isless(ng, callhistory,
 
 #covered internally in nexscript via python dunder overload
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def islesseq(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
@@ -2398,7 +2476,7 @@ def islesseq(ng, callhistory,
 
 #covered internally in nexscript via python dunder overload
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def isgreater(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
@@ -2409,7 +2487,7 @@ def isgreater(ng, callhistory,
 
 #covered internally in nexscript via python dunder overload
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def isgreatereq(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
@@ -2420,7 +2498,7 @@ def isgreatereq(ng, callhistory,
 
 #covered internally in nexscript via python dunder overload
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def booland(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|bool,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|bool,
@@ -2429,7 +2507,7 @@ def booland(ng, callhistory,
 
 #covered internally in nexscript via python dunder overload
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def boolor(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|bool,
     b:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|bool,
@@ -2437,7 +2515,7 @@ def boolor(ng, callhistory,
     return generalboolmath(ng,callhistory,'OR',a,b)
 
 @user_domain('nexclassmethod')
-@user_paramError(UserParamError)
+@user_overseer()
 def boolnot(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|bool,
     )->sBoo:
@@ -2445,7 +2523,7 @@ def boolnot(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="All Equals.\nCheck if all passed arguments have equal values.\n\nCompatible with SocketFloats, SocketBools, SocketInts, SocketVectors, SocketColors. Will return a SocketBool.")
-@user_paramError(UserParamError)
+@user_overseer()
 def alleq(ng, callhistory,
     *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
     )->sBoo:
@@ -2467,7 +2545,7 @@ def alleq(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Mix.\nLinear Interpolation between value A and B from given factor F.")
 @user_doc(nexscript="Mix.\nLinear Interpolation between value A and B from given factor F.\nSupports SocketFloat, SocketVector and SocketColor.")
-@user_paramError(UserParamError)
+@user_overseer()
 def lerp(ng, callhistory,
     f:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
@@ -2484,7 +2562,7 @@ def lerp(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Alternative notation to lerp() function.")
 @user_doc(nexscript="Alternative notation to lerp() function.")
-@user_paramError(UserParamError)
+@user_overseer()
 def mix(ng, callhistory,
     f:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
@@ -2500,7 +2578,7 @@ def mix(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Clamping.\nClamp a value between min A & max B default set on 0,1.")
 @user_doc(nexscript="Clamping.\nClamp a value between min A & max B default set on 0,1.\nSupports SocketFloat and entry-wise SocketVector, SocketColor.")
-@user_paramError(UserParamError)
+@user_overseer()
 def clamp(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     a:sFlo|sInt|sBoo|float|int=0,
@@ -2523,7 +2601,7 @@ def clamp(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="AutoClamping.\nClamp a value between auto-defined min/max A and B.")
 @user_doc(nexscript="AutoClamping.\nClamp a value between auto-defined min/max A and B.\nSupports SocketFloat and entry-wise SocketVector, SocketColor.")
-@user_paramError(UserParamError)
+@user_overseer()
 def clampauto(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|Vector|ColorRGBA,
     a:sFlo|sInt|sBoo|float|int,
@@ -2553,7 +2631,7 @@ def clampauto(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range.\nRemap a value V from a given range A,B to another range X,Y.")
 @user_doc(nexscript="Map Range.\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer()
 def mapl(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -2568,7 +2646,7 @@ def mapl(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\n\nNot Available for the Compositor.")
 @user_doc(nexscript="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\nSupports SocketFloat and SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer(assert_editortype={'GEOMETRY','SHADER'},)
 def mapst(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -2577,7 +2655,6 @@ def mapst(ng, callhistory,
     y:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     step:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo|sVec:
-    assert_editor_context(ng.type, forbidden={'COMPOSITING',}, msg=f"Function mapst() is not available in the Compositor.")
     if containsVecs(v,a,b,x,y,step):
         return generalmaprange(ng,callhistory,'FLOAT_VECTOR','STEPPED',v,a,b,x,y,step)
     return generalmaprange(ng,callhistory,'FLOAT','STEPPED',v,a,b,x,y,step)
@@ -2585,7 +2662,7 @@ def mapst(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\n\nNot Available for the Compositor.")
 @user_doc(nexscript="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer(assert_editortype={'GEOMETRY','SHADER'},)
 def mapsmo(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -2593,7 +2670,6 @@ def mapsmo(ng, callhistory,
     x:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     y:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo|sVec:
-    assert_editor_context(ng.type, forbidden={'COMPOSITING',}, msg=f"Function mapsmo() is not available in the Compositor.")
     if containsVecs(v,a,b,x,y):
         return generalmaprange(ng,callhistory,'FLOAT_VECTOR','SMOOTHSTEP',v,a,b,x,y)
     return generalmaprange(ng,callhistory,'FLOAT','SMOOTHSTEP',v,a,b,x,y)
@@ -2601,7 +2677,7 @@ def mapsmo(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\n\nNot Available for the Compositor.")
 @user_doc(nexscript="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
-@user_paramError(UserParamError)
+@user_overseer(assert_editortype={'GEOMETRY','SHADER'},)
 def mapsmoo(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -2609,7 +2685,6 @@ def mapsmoo(ng, callhistory,
     x:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     y:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sFlo|sVec:
-    assert_editor_context(ng.type, forbidden={'COMPOSITING',}, msg=f"Function mapsmoo() is not available in the Compositor.")
     if containsVecs(v,a,b,x,y):
         return generalmaprange(ng,callhistory,'FLOAT_VECTOR','SMOOTHERSTEP',v,a,b,x,y)
     return generalmaprange(ng,callhistory,'FLOAT','SMOOTHERSTEP',v,a,b,x,y)
@@ -2621,7 +2696,7 @@ def mapsmoo(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Boolean).\nSwap between the different bool parameters depending on the index.")
-@user_paramError(UserParamError)
+@user_overseer()
 def switchbool(ng, callhistory,
     idx:sFlo|sInt|sBoo|float|int|bool,
     *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool,
@@ -2631,7 +2706,7 @@ def switchbool(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Int).\nSwap between the different integer parameters depending on the index.")
-@user_paramError(UserParamError)
+@user_overseer()
 def switchint(ng, callhistory,
     idx:sFlo|sInt|sBoo|float|int|bool,
     *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool,
@@ -2641,7 +2716,7 @@ def switchint(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Float).\nSwap between the different float parameters depending on the index.")
-@user_paramError(UserParamError)
+@user_overseer()
 def switchfloat(ng, callhistory,
     idx:sFlo|sInt|sBoo|float|int|bool,
     *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool,
@@ -2651,7 +2726,7 @@ def switchfloat(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Vector).\nSwap between the different Vector parameters depending on the index.")
-@user_paramError(UserParamError)
+@user_overseer()
 def switchvec(ng, callhistory,
     idx:sFlo|sInt|sBoo|float|int|bool,
     *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
@@ -2661,7 +2736,7 @@ def switchvec(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Color).\nSwap between the different Color parameters depending on the index.")
-@user_paramError(UserParamError)
+@user_overseer()
 def switchcol(ng, callhistory,
     idx:sFlo|sInt|sBoo|float|int|bool,
     *values:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|sCol|float|int|bool|Vector|ColorRGBA,
@@ -2671,7 +2746,7 @@ def switchcol(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Switch (Matrix).\nSwap between the different Matrix parameters depending on the index.")
-@user_paramError(UserParamError)
+@user_overseer()
 def switchmat(ng, callhistory,
     idx:sFlo|sInt|sBoo|float|int|bool,
     *values:sMtx|Matrix,
@@ -2686,7 +2761,7 @@ def switchmat(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Random (Boolean).\nGet a random boolean.\nOptionally: pass a probability default set on 0.5, a seed number, and an ID SocketInt.")
-@user_paramError(UserParamError)
+@user_overseer()
 def randbool(ng, callhistory,
     prob:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool=0.5,
     seed:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|None=None,
@@ -2696,7 +2771,7 @@ def randbool(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Random (Int).\nGet a random integer number.\nOptionally: define a min/max range by default set on -10k & 10k, a seed number, and an ID SocketInt.")
-@user_paramError(UserParamError)
+@user_overseer()
 def randint(ng, callhistory, 
     min:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool=-10_000,
     max:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool=10_000,
@@ -2708,7 +2783,7 @@ def randint(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Random (Float).\nGet a random float number.\nOptionally: define a min/max range by default set on -10k & 10k, a seed number, and an ID SocketInt.")
-@user_paramError(UserParamError)
+@user_overseer()
 def randfloat(ng, callhistory,
     min:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool=-10_000,
     max:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool=10_000,
@@ -2719,7 +2794,7 @@ def randfloat(ng, callhistory,
 
 @user_domain('nexscript')
 @user_doc(nexscript="Random (Vector).\nGet a random Vector.\nOptionally: define a min/max range by default set on (0,0,0) & (1,1,1), a seed number, and an ID SocketInt.")
-@user_paramError(UserParamError)
+@user_overseer()
 def randvec(ng, callhistory,
     min:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|Vector=Vector((0,0,0)),
     max:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|bool|Vector=Vector((1,1,1)),
