@@ -130,9 +130,9 @@ class Base():
 
                 #Support for old socket name, previous version of node.
                 camvalue = co if (valid) else None
-                if "Camera Object" in self.outputs:
+                if ("Camera Object" in self.outputs):
                     values["Camera Object"] = camvalue
-                elif "Object" in self.outputs:
+                elif ("Object" in self.outputs):
                     values["Object"] = camvalue
 
             case 'ShaderNodeTree' | 'CompositorNodeTree':

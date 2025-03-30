@@ -45,7 +45,7 @@ class Base():
         name="Execution Counter",
         default=0,
         )
-    user_pyapiexp : bpy.props.StringProperty(
+    user_pyexpression : bpy.props.StringProperty(
         update=lambda self, context: self.evaluate_python_expression(assign_socketype=True),
         description="type the expression you wish to evaluate right here",
         )
@@ -107,13 +107,13 @@ class Base():
         self.error_message = ''
 
         #check if string is empty first, perhaps user didn't input anything yet 
-        if (self.user_pyapiexp==""):
+        if (self.user_pyexpression==""):
             set_socket_label(ng,0, label="Waiting for Input" ,)
             set_socket_label(ng,1, label="EmptyFieldError",)
             set_socket_defvalue(ng,1, value=True,)
             return None
 
-        to_evaluate = self.user_pyapiexp
+        to_evaluate = self.user_pyexpression
 
         #define user namespace
         namespace = {}
@@ -199,7 +199,7 @@ class Base():
 
         field = row.row(align=True)
         field.alert = is_error
-        field.prop(self, "user_pyapiexp", placeholder="C.object.name", text="",)
+        field.prop(self, "user_pyexpression", placeholder="C.object.location", text="",)
 
         prop = row.row(align=True)
         prop.enabled = sett_win.authorize_automatic_execution
@@ -210,9 +210,9 @@ class Base():
             col.prop(sett_win,"authorize_automatic_execution")
         
         if (is_error):
-            lbl = col.row()
-            lbl.alert = is_error
-            lbl.label(text=self.error_message)
+            col = col.column(align=True)
+            col.separator(factor=2)
+            word_wrap(layout=col, alert=True, active=True, max_char=self.width/5.65, string=self.error_message,)
 
         return None
 
@@ -230,7 +230,7 @@ class Base():
             col = panel.column(align=True)
             row = col.row(align=True)
             row.alert = is_error
-            row.prop(n, "user_pyapiexp", placeholder="C.object.name", text="",)
+            row.prop(n, "user_pyexpression", placeholder="C.object.location", text="",)
 
             if (is_error):
                 lbl = col.row()
