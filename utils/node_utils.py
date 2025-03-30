@@ -15,39 +15,48 @@ from .draw_utils import get_dpifac
 from .fct_utils import ColorRGBA
 
 
-SOCKTYPES_COMPAT_TABLE = {
+#Strict editor type availability
+SOCK_COMPATIBILITY_TABLE = {
     'GEOMETRY':    ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketRotation', 'NodeSocketMatrix', 'NodeSocketString', 'NodeSocketMenu', 'NodeSocketObject', 'NodeSocketGeometry', 'NodeSocketCollection', 'NodeSocketTexture', 'NodeSocketImage', 'NodeSocketMaterial',),
     'SHADER':      ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketShader', ),
     'COMPOSITING': ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', ),
 }
 
-def get_all_nodes(geometry=True, compositing=True, shader=True, ignore_ng_name="", match_idnames=None,):
-    """yield all nodes across many nodetree types"""
+#Current system availability
+SOCK_CONVERTIBILITY_TABLE = {
+    'GEOMETRY':    ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketRotation', 'NodeSocketMatrix', 'NodeSocketString', 'NodeSocketMenu', 'NodeSocketObject', 'NodeSocketGeometry', 'NodeSocketCollection', 'NodeSocketTexture', 'NodeSocketImage', 'NodeSocketMaterial',),
+    'SHADER':      ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketShader', ),
+    'COMPOSITING': ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool',),
+}
+
+
+def get_all_nodes(ignore_ng_name:str="", match_idnames:set=None, ngtypes:set=None,) -> set:
+    """get nodes across many nodetree editor types"""
+
+    if (ngtypes is None):
+        ngtypes = {'GEOMETRY','SHADER','COMPOSITING',}
     r = set()
 
-    if (shader):
+    if ('SHADER' in ngtypes):
         for mat in bpy.data.materials:
             if mat.use_nodes and mat.node_tree:
                 for n in mat.node_tree.nodes:
                     r.add(n)
 
-    if (compositing):
+    if ('COMPOSITING' in ngtypes):
         for scn in bpy.data.scenes:
             if scn.use_nodes and scn.node_tree:
                 for n in scn.node_tree.nodes:
                     r.add(n)
 
     for ng in bpy.data.node_groups:
-        if (ng.type=='GEOMETRY' and not geometry):
-            continue
-        if (ng.type=='COMPOSITING' and not compositing):
-            continue
-        if (ng.type=='SHADER' and not shader):
+        if (ng.type not in ngtypes):
             continue
         if (ignore_ng_name!="" and ignore_ng_name in ng.name):
             continue
         for n in ng.nodes:
             r.add(n)
+        continue
 
     if (ignore_ng_name):
         return [n for n in r if (n.bl_idname in match_idnames)]
@@ -99,12 +108,12 @@ def get_socket(ng, socket_name='Foo', in_out='OUTPUT',):
     return r
 
 
-def crosseditor_sockettype_adjustment(socket_type:str, editor_type:str):
+def crosseditor_socktype_adjust(socket_type:str, ngtype:str):
     """ensure the socket types are correct depending on the nodes editor"""
 
-    compatibility_table = SOCKTYPES_COMPAT_TABLE[editor_type]
+    compat = SOCK_COMPATIBILITY_TABLE[ngtype]
 
-    match editor_type:
+    match ngtype:
         
         case 'GEOMETRY':
             pass
@@ -119,8 +128,8 @@ def crosseditor_sockettype_adjustment(socket_type:str, editor_type:str):
             if (socket_type=='NodeSocketBool'):
                 socket_type = 'NodeSocketInt'
 
-    if (socket_type not in compatibility_table):
-        return 'Invalid'
+    if (socket_type not in compat):
+        return f"Unavailable{socket_type}"
     return socket_type
 
 
@@ -314,7 +323,7 @@ def get_socket_type(ng, idx=None, in_out='OUTPUT', identifier=None,):
 def set_socket_type(ng, idx=None, in_out='OUTPUT', socket_type="NodeSocketFloat", identifier=None,):
     """set socket type via bpy.ops.node.tree_socket_change_type() with manual override, context MUST be the geometry node editor"""
 
-    socket_type = crosseditor_sockettype_adjustment(socket_type, ng.type)
+    socket_type = crosseditor_socktype_adjust(socket_type, ng.type)
 
     itm = get_socketui_from_socket(ng,
         idx=idx, in_out=in_out, identifier=identifier,
@@ -332,7 +341,7 @@ def create_socket(ng, in_out='OUTPUT', socket_type="NodeSocketFloat", socket_nam
     if (socket_type.isupper()):
         socket_type = f'NodeSocket{socket_type.title()}'
     
-    socket_type = crosseditor_sockettype_adjustment(socket_type, ng.type)
+    socket_type = crosseditor_socktype_adjust(socket_type, ng.type)
 
     sockui = ng.interface.new_socket(socket_name, in_out=in_out, socket_type=socket_type,)
     sock = get_socket_from_socketui(ng, sockui, in_out=in_out)

@@ -15,6 +15,8 @@ from ..utils.node_utils import (
     set_socket_type,
     set_socket_label,
     get_node_objusers,
+    get_all_nodes,
+    crosseditor_socktype_adjust,
 )
 
 # ooooo      ooo                 .o8            
@@ -25,16 +27,15 @@ from ..utils.node_utils import (
 #  8       `888  888   888 888   888  888    .o 
 # o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
 
-class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
-    """Custom Nodgroup: Evaluate a python expression as a single value output.
+class Base():
+
+    bl_idname = "NodeBoosterPyExpression"
+    bl_label = "Python Expression"
+    bl_description = """Custom Nodgroup: Evaluate a python expression as a single value output.
     • The evaluated values can be of type 'float', 'int', 'Vector', 'Color', 'Quaternion', 'Matrix', 'String', 'Object', 'Collection', 'Material' & 'list/tuple/set' up to len 16.
     • For more advanced python expression, try out the 'Nex Script' node!"""
-
-    #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
-
-    bl_idname = "GeometryNodeNodeBoosterPyExpression"
-    bl_label = "Python Expression"
     auto_update = {'FRAME_PRE','DEPS_POST','AUTORIZATION_REQUIRED',}
+    tree_type = "*ChildrenDefined*"
     # bl_icon = 'SCRIPT'
 
     error_message : bpy.props.StringProperty(
@@ -67,11 +68,12 @@ class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
         ng = bpy.data.node_groups.get(name)
         if (ng is None):
             ng = create_new_nodegroup(name,
+                tree_type=self.tree_type,
                 out_sockets={
                     "Waiting for Input" : "NodeSocketFloat",
                     "Error" : "NodeSocketBool",
-                },
-            )
+                    },
+                )
 
         ng = ng.copy() #always using a copy of the original ng
 
@@ -113,10 +115,6 @@ class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
 
         to_evaluate = self.user_pyapiexp
 
-        #support for macros
-        if ('#frame' in to_evaluate):
-            to_evaluate = to_evaluate.replace('#frame','scene.frame_current')
-
         #define user namespace
         namespace = {}
         namespace["bpy"] = bpy
@@ -127,6 +125,10 @@ class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
         namespace.update(vars(__import__('random')))
         namespace.update(vars(__import__('mathutils')))
         namespace.update(vars(__import__('math')))
+
+        #support for macros
+        if ('#frame' in to_evaluate):
+            to_evaluate = to_evaluate.replace('#frame','scene.frame_current')
 
         #'self' as object using this node? only if valid and not ambiguous
         node_obj_users = get_node_objusers(self)
@@ -162,7 +164,16 @@ class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
             set_socket_label(ng,1, label="ParsingError",)
             set_socket_defvalue(ng,1, value=True,)
             return None
-    
+
+        #cross editor compatibility
+        if crosseditor_socktype_adjust(socktype,ng.type).startswith('Unavailable'):
+            #display error to user
+            self.error_message = f"{socktype.replace('NodeSocket','')} sockets are not available in {ng.type.title()}."
+            set_socket_label(ng,0, label=set_label,)
+            set_socket_label(ng,1, label="TypeAvailabilityError",)
+            set_socket_defvalue(ng,1, value=True,)
+            return None
+
         #set values
         if (assign_socketype):
             set_socket_type(ng,0, socket_type=socktype,)
@@ -285,8 +296,9 @@ class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
     def update_all_instances(cls, from_autoexec=False,):
         """search for all nodes of this type and update them"""
 
-        all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
-        for n in all_instances:
+        #TODO we call update_all_instances for a lot of nodes from depsgraph & we need to optimize this, because func below may recur a LOT of nodes
+        # could pass a from_nodes arg in this function
+        for n in get_all_nodes(ignore_ng_name="NodeBooster", match_idnames={cls.bl_idname},):
             if (from_autoexec and not n.execute_at_depsgraph):
                 continue
             if (n.mute):
@@ -295,3 +307,18 @@ class NODEBOOSTER_NG_pyexpression(bpy.types.GeometryNodeCustomGroup):
             continue
 
         return None
+
+#Per Node-Editor Children:
+#Respect _NG_ + _GN_/_SH_/_CP_ nomenclature
+
+class NODEBOOSTER_NG_GN_PyExpression(Base, bpy.types.GeometryNodeCustomGroup):
+    tree_type = "GeometryNodeTree"
+    bl_idname = "GeometryNode" + Base.bl_idname
+
+class NODEBOOSTER_NG_SH_PyExpression(Base, bpy.types.ShaderNodeCustomGroup):
+    tree_type = "ShaderNodeTree"
+    bl_idname = "ShaderNode" + Base.bl_idname
+
+class NODEBOOSTER_NG_CP_PyExpression(Base, bpy.types.CompositorNodeCustomGroup):
+    tree_type = "CompositorNodeTree"
+    bl_idname = "CompositorNode" + Base.bl_idname

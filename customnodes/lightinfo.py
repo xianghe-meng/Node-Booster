@@ -289,10 +289,7 @@ class Base():
 
         #TODO we call update_all_instances for a lot of nodes from depsgraph & we need to optimize this, because func below may recur a LOT of nodes
         # could pass a from_nodes arg in this function
-        for n in get_all_nodes(
-            geometry=True, compositing=True, shader=True, 
-            ignore_ng_name="NodeBooster", match_idnames={cls.bl_idname},
-            ): 
+        for n in get_all_nodes(ignore_ng_name="NodeBooster", match_idnames={cls.bl_idname},): 
             n.update()
 
         return None

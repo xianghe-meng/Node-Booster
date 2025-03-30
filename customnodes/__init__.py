@@ -37,7 +37,9 @@ from . mathexpression import (
         NODEBOOSTER_NG_CP_MathExpression,
         )
 from . pyexpression import (
-        NODEBOOSTER_NG_pyexpression,
+        NODEBOOSTER_NG_GN_PyExpression,
+        NODEBOOSTER_NG_SH_PyExpression,
+        NODEBOOSTER_NG_CP_PyExpression,
         )
 from . pynexscript import (
         NODEBOOSTER_NG_GN_pynexscript,
@@ -53,7 +55,7 @@ GN_CustomNodes = (
     NODEBOOSTER_NG_GN_IsRenderedView, #this one doesn't make sense in other editors.
     NODEBOOSTER_NG_GN_SequencerSound,
     NODEBOOSTER_NG_GN_MathExpression,
-    NODEBOOSTER_NG_pyexpression,
+    NODEBOOSTER_NG_GN_PyExpression,
     NODEBOOSTER_NG_GN_pynexscript,
     )
 
@@ -64,6 +66,7 @@ SH_CustomNodes = (
     NODEBOOSTER_NG_SH_CameraInfo,
     NODEBOOSTER_NG_SH_SequencerSound,
     NODEBOOSTER_NG_SH_MathExpression,
+    NODEBOOSTER_NG_SH_PyExpression,
     )
 
 CP_CustomNodes = (
@@ -73,6 +76,7 @@ CP_CustomNodes = (
     NODEBOOSTER_NG_CP_CameraInfo,
     NODEBOOSTER_NG_CP_SequencerSound,
     NODEBOOSTER_NG_CP_MathExpression,
+    NODEBOOSTER_NG_CP_PyExpression,
     )
 
 #for register, handlers will also use this list for automatic updates.
@@ -104,7 +108,9 @@ classes = (
     NODEBOOSTER_NG_SH_MathExpression,
     NODEBOOSTER_NG_CP_MathExpression,
 
-    NODEBOOSTER_NG_pyexpression,
+    NODEBOOSTER_NG_GN_PyExpression,
+    NODEBOOSTER_NG_SH_PyExpression,
+    NODEBOOSTER_NG_CP_PyExpression,
 
     NODEBOOSTER_NG_GN_pynexscript,
     )

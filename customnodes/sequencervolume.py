@@ -322,8 +322,6 @@ class Base():
     auto_update = {'FRAME_PRE','DEPS_POST',}
     tree_type = "*ChildrenDefined*"
 
-    # frame_delay : bpy.props.IntProperty()
-
     def sound_datablock_poll(self, sound):
         """Poll function: only allow sounds that are used in the current scene’s VSE."""
         vse = bpy.context.scene.sequence_editor
@@ -604,10 +602,9 @@ class Base():
 
         #TODO we call update_all_instances for a lot of nodes from depsgraph & we need to optimize this, because func below may recur a LOT of nodes
         # could pass a from_nodes arg in this function
-        for n in get_all_nodes(
-            geometry=True, compositing=True, shader=True, 
-            ignore_ng_name="NodeBooster", match_idnames={cls.bl_idname},
-            ): 
+        for n in get_all_nodes(ignore_ng_name="NodeBooster", match_idnames={cls.bl_idname},):
+            if (n.mute):
+                continue
             n.update()
 
         return None
