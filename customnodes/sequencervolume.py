@@ -9,6 +9,7 @@ import math
 import numpy as np
 
 from ..__init__ import get_addon_prefs
+from ..utils.nbr_utils import map_range
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     create_new_nodegroup,
@@ -28,6 +29,12 @@ from ..utils.node_utils import (
 #     if (amplitude < 1e-10):
 #         return 0
 #     return 20 * math.log10(amplitude)
+
+# TODO
+# - Implement strip fade consideration
+# - bug if sound.use_mono
+#   - when fixed need to support for mono pan as well..
+# - Fix sum of sound, the we we add sounds together right now is false.
 
 
 def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
@@ -120,10 +127,6 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
     # For frequency-based features, perform FFT analysis only if needed.
     if (pitch or bass or treble):
 
-        #use default freq?
-        if (frequencies is None):
-            frequencies={'bass':(20, 250),'pitch':(200, 5_000),'treble':(4_000, 25_000)}
-
         # Compute FFT and normalize by number of samples
         fft_result = np.fft.rfft(signal)
         N = len(signal)
@@ -136,8 +139,8 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
             minmax = frequencies['bass']
             freqrange = (freqs > minmax[0]) & (freqs < minmax[1])
             if np.any(freqrange):
-                  bass_rms = np.sqrt(np.mean(magnitudes[freqrange]**2))
-                  ret['bass'] = bass_rms
+                  value_rms = np.sqrt(np.mean(magnitudes[freqrange]**2))
+                  ret['bass'] = value_rms * 5
             else: ret['bass'] = 0
 
         # Pitch estimation: find the frequency peak between 50–5000 Hz.
@@ -146,7 +149,9 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
             freqrange = (freqs > minmax[0]) & (freqs < minmax[1])
             if np.any(freqrange):
                   idx = np.argmax(magnitudes[freqrange])
-                  ret['pitch'] = freqs[freqrange][idx]
+                  value_hz = freqs[freqrange][idx]
+                  value_hz = map_range(value_hz, minmax[0], minmax[1], 0,1,) #normalize
+                  ret['pitch'] = value_hz
             else: ret['pitch'] = 0
 
         # Treble: compute RMS of magnitudes above 4000 Hz (linear value)
@@ -154,8 +159,8 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
             minmax = frequencies['treble']
             freqrange = (freqs > minmax[0]) & (freqs < minmax[1])
             if np.any(freqrange):
-                  treble_rms = np.sqrt(np.mean(magnitudes[freqrange]**2))
-                  ret['treble'] = treble_rms
+                  value_rms = np.sqrt(np.mean(magnitudes[freqrange]**2))
+                  ret['treble'] = value_rms * 500
             else: ret['treble'] = 0
 
     return ret
@@ -237,36 +242,6 @@ def local_get_fade(strip, frame):
 
     return strip.volume
 
-def aggregate_sounds(feature_list, feature_type):
-    """
-    Aggregate a list of (value, weight) pairs for a feature.
-    For 'pitch', we compute a weighted linear average.
-    For amplitude-based features (denoted by 'db'), we assume values are linear
-
-    Parameters:
-      feature_list : list of tuples (value, weight)
-      feature_type : either 'pitch' or 'db'
-
-    Returns the aggregated value. If total weight is 0, returns 0.
-    """
-
-    #TODO perhaps we do a bad job at aggregation. Adding sound together 
-    # is not linear... Someone specialized need to understand that a bit better.
-    
-    total_weight = sum(w for (_, w) in feature_list)
-    if (total_weight==0):
-        return 0
-
-    match feature_type:
-        case 'pitch':
-            return sum(val * w for (val, w) in feature_list) / total_weight
-        case 'db':
-            # Values are in linear domain; compute weighted average and convert to dB.
-            linear_avg = sum(val * w for (val, w) in feature_list) / total_weight
-            return linear_avg
-        case _:
-            raise Exception('Wront feature type')
-
 def evaluate_sequencer_audio_data(frame_offset=0, at_sound=None, smoothing=0, 
     smoothing_type='GAUSSIAN', volume=False, pitch=False, bass=False, treble=False, channel='CENTER', frequencies=None,):
     """
@@ -313,7 +288,7 @@ def evaluate_sequencer_audio_data(frame_offset=0, at_sound=None, smoothing=0,
     if treble: keys.append('treble')
     
     # Dictionary to hold aggregated (value, weight) pairs.
-    total = {key:[] for key in keys}
+    total = {k:[] for k in keys}
 
     # Loop through each sound strip.
     for s in sound_sequences:
@@ -330,23 +305,22 @@ def evaluate_sequencer_audio_data(frame_offset=0, at_sound=None, smoothing=0,
 
         # Use effective_fade as the weight (can be adjusted if needed).
         effective_weight = effective_fade
-        for key in keys:
-            total[key].append((feats.get(key, 0), effective_weight))
+        for k in keys:
+            total[k].append((feats.get(k,0), effective_weight))
 
-    # Aggregate values for each feature using the helper.
-    aggdata = {}
-    for key in keys:
-        mode = 'pitch' if (key=='pitch') else 'db'
-        aggdata[key] = aggregate_sounds(total[key], mode)
-    
-    # Normalize the values (tweak manually, arbitral numbers)
-    normdata = {}
-    normdata['volume'] = aggdata.get('volume',0)  
-    normdata['pitch']  = aggdata.get('pitch', 0) / 1000
-    normdata['bass']   = aggdata.get('bass',  0) / 0.2
-    normdata['treble'] = aggdata.get('treble',0) / 0.002
- 
-    return normdata
+    # Make value total. 
+    # TODO i'm almost sure that's not how we add up sounds together.. Need a specialist.
+    sumtotal = {}
+    for k in keys:
+        total_weight = sum(w for (_, w) in total[k])
+        if (total_weight==0):
+            sumtotal[k] = 0
+            continue
+        tot = sum(val * w for (val, w) in total[k]) / total_weight
+        sumtotal[k] = tot
+        continue
+
+    return sumtotal
 
 # ooooo      ooo                 .o8            
 # `888b.     `8'                "888            
@@ -362,8 +336,8 @@ class Base():
     bl_label = "Sequencer Sound"
     bl_description = """Custom Nodgroup: Analyze the active sound of the VideoSequencer editor.
     • Get the Generic Sound volume, the Bass/Pitch/Treble tones as well.
-    • Tones components fall within the following frequency ranges: Bass 20-250 Hz | Pitch 200-5000 Hz | Treble 4000-25000 Hz.
-    • If you wish to customize that these, go in 'N panel > Node Booster > Active node > Parameters' to define custom frequencies values.
+    • Bass/Pitch/Treble Tones components fall within define frequencies in Hz units.
+    • If you wish to view or customize these Bass/Pitch/Treble frequencies go in 'N panel > Node Booster > Active node > Parameters'.
     • Expect the value to be automatically updated on each on depsgraph post signals"""
     auto_update = {'FRAME_PRE','DEPS_POST',}
     tree_type = "*ChildrenDefined*"
@@ -455,20 +429,20 @@ class Base():
         soft_max=25_000,
         update=update_signal,
         )
-    #fake to show user defaults
-    fakefreqbass : bpy.props.IntVectorProperty(
+    #default.. to show user defaults
+    defafreqbass : bpy.props.IntVectorProperty(
         name="Bass",
         description="Bass Frequencies min/max range.",
         default=(20, 250),
         size=2,
         )
-    fakefreqpitch : bpy.props.IntVectorProperty(
+    defafreqpitch : bpy.props.IntVectorProperty(
         name="Pitch",
         description="Pitch Frequencies min/max range.",
         default=(200, 5_000),
         size=2,
         )
-    fakefreqtreble : bpy.props.IntVectorProperty(
+    defafreqtreble : bpy.props.IntVectorProperty(
         name="Treble",
         description="Treble Frequencies min/max range.",
         default=(4_000, 25_000),
@@ -535,7 +509,7 @@ class Base():
         #update frequencies range?
         if (self.deffreq):
               frequencies = {'bass':self.freqbass[:],'pitch':self.freqpitch[:],'treble':self.freqtreble[:],}
-        else: frequencies = None
+        else: frequencies = {'bass':self.defafreqbass[:],'pitch':self.defafreqpitch[:],'treble':self.defafreqtreble[:],}
 
         data = evaluate_sequencer_audio_data(
             frame_offset=self.offset,
@@ -621,9 +595,9 @@ class Base():
             col.use_property_split = True
             col.use_property_decorate = False
             col.enabled = self.deffreq
-            col.prop(self, f"{'fake' if self.deffreq else ''}freqbass",)
-            col.prop(self, f"{'fake' if self.deffreq else ''}freqpitch",)
-            col.prop(self, f"{'fake' if self.deffreq else ''}freqtreble",)
+            col.prop(self, f"{'' if self.deffreq else 'defa'}freqbass",)
+            col.prop(self, f"{'' if self.deffreq else 'defa'}freqpitch",)
+            col.prop(self, f"{'' if self.deffreq else 'defa'}freqtreble",)
 
         header, panel = layout.panel("doc_panelid", default_closed=True,)
         header.label(text="Documentation",)
