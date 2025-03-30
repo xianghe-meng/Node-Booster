@@ -284,12 +284,14 @@ class Base():
         return None
 
     @classmethod
-    def update_all_instances(cls, from_autoexec=False,):
+    def update_all_instances(cls, using_nodes=None, signal_from_handlers=False,):
         """search for all nodes of this type and update them"""
 
-        #TODO we call update_all_instances for a lot of nodes from depsgraph & we need to optimize this, because func below may recur a LOT of nodes
-        # could pass a from_nodes arg in this function
-        for n in get_all_nodes(ignore_ng_name="NodeBooster", match_idnames={cls.bl_idname},): 
+        if (using_nodes is None):
+              nodes = get_all_nodes(exactmatch_idnames={cls.bl_idname},)
+        else: nodes = [n for n in using_nodes if (n.bl_idname==cls.bl_idname)]
+
+        for n in nodes: 
             n.update()
 
         return None

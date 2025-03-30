@@ -109,10 +109,13 @@ class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
         return None
 
     @classmethod
-    def update_all_instances(cls, from_autoexec=False,):
+    def update_all_instances(cls, using_nodes=None, signal_from_handlers=False,):
         """search for all nodes of this type and update them"""
         
-        #actually there's only one instance of this node nodetree
+        # actually we don't need to update all instances. 
+        # for this special node who always use the same node_tree for all nodes, 
+        # we simply have to update one nodetree.
+        
         name = f".{cls.bl_idname}"
         ng = bpy.data.node_groups.get(name)
         if (ng):

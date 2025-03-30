@@ -22,38 +22,56 @@ SOCK_AVAILABILITY_TABLE = {
     'COMPOSITING': ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', ),
 }
 
-def get_all_nodes(ignore_ng_name:str="", match_idnames:set=None, ngtypes:set=None,) -> set:
-    """get nodes across many nodetree editor types"""
-
+def get_all_nodes(ignore_ng_name:str="NodeBooster", approxmatch_idnames:str="", 
+    exactmatch_idnames:set=None, ngtypes:set=None,) -> set|list:
+    """get nodes instances across many nodetree editor types.
+    - ngtypes: the editor types to be supported in {'GEOMETRY','SHADER','COMPOSITING',}. will use all if None
+    - ignore_ng_name: ignore getting nodes from a nodetree containing a specific name.
+    - approxmatch_idnames: only get nodes whose include the given token.
+    - exactmatch_idnames: only get nodes included in the set of given id names.
+    """
+ 
     if (ngtypes is None):
         ngtypes = {'GEOMETRY','SHADER','COMPOSITING',}
-    r = set()
+
+    nodes = set()
 
     if ('SHADER' in ngtypes):
+        #get all nodes of all materials
         for mat in bpy.data.materials:
             if mat.use_nodes and mat.node_tree:
                 for n in mat.node_tree.nodes:
-                    r.add(n)
+                    nodes.add(n)
 
     if ('COMPOSITING' in ngtypes):
+        #get all nodes of the compositor base tree
         for scn in bpy.data.scenes:
             if scn.use_nodes and scn.node_tree:
                 for n in scn.node_tree.nodes:
-                    r.add(n)
+                    nodes.add(n)
 
     for ng in bpy.data.node_groups:
+        
+        #does the type of the nodegroup correspond to what we need?
         if (ng.type not in ngtypes):
             continue
-        if (ignore_ng_name!="" and ignore_ng_name in ng.name):
+        
+        #we ignore specific ng names?
+        if (ignore_ng_name and (ignore_ng_name in ng.name)):
             continue
-        for n in ng.nodes:
-            r.add(n)
+
+        nodes.update(ng.nodes)
         continue
 
-    if (ignore_ng_name):
-        return [n for n in r if (n.bl_idname in match_idnames)]
+    #only node with matching exact id?
+    if (exactmatch_idnames):
+        return [n for n in nodes if (n.bl_idname in exactmatch_idnames)]
 
-    return r
+    #only with node with 
+    if (approxmatch_idnames):
+        return [n for n in nodes if (approxmatch_idnames in n.bl_idname)]
+    
+    return nodes
 
 
 def get_node_objusers(node):

@@ -9,21 +9,26 @@ from collections.abc import Iterable
 
 from .__init__ import get_addon_prefs
 from .operators.palette import msgbus_palette_callback
+from .utils.node_utils import get_all_nodes
 from .customnodes import classes as allcustomnodes
 from .customnodes import NODEBOOSTER_NG_GN_IsRenderedView
 
-
-def _customnodes(nodes:list):
+def upd_customnodes(nodes:list):
     """automatically run the update_all_instances() function of all custom nodes passed"""
 
     if (not nodes):
         return None
 
+    # NOTE function below will simply collect all instances of 'NodeBooster' nodes.
+    # NOTE there's a lot of classes, and this functions might loop over a lot of data.
+    # for optimization purpose, instead of each cls using the function, we create it once
+    # here, then pass the list to the update functions with the 'using_nodes' param.
+    nodes = get_all_nodes(approxmatch_idnames="NodeBooster",)
+    
     sett_win = bpy.context.window_manager.nodebooster
     has_autorization = sett_win.authorize_automatic_execution
 
     for cls in nodes:
-
         if (not hasattr(cls,'update_all_instances')):
             print(f"WARNING: update_all_instances() function is required in your customnode class for an automatic execution.")
             continue
@@ -32,8 +37,8 @@ def _customnodes(nodes:list):
         #for security reasons, we update only if the user allows it expressively on each blender sess.
         if ('AUTORIZATION_REQUIRED' in cls.auto_update) and (not has_autorization):
             continue
-
-        cls.update_all_instances(from_autoexec=True)
+        
+        cls.update_all_instances(signal_from_handlers=True, using_nodes=nodes)
         continue
 
     return None
@@ -50,7 +55,7 @@ def msgbus_viewportshading_callback(*args):
     if (get_addon_prefs().debug_depsgraph):
         print("msgbus_viewportshading_callback(): msgbus signal")
 
-    NODEBOOSTER_NG_GN_IsRenderedView.update_all_instances(from_autoexec=True)
+    NODEBOOSTER_NG_GN_IsRenderedView.update_all_instances(signal_from_handlers=True)
 
     return None 
 
@@ -94,7 +99,7 @@ def nodebooster_handler_depspost(scene,desp):
         print("nodebooster_handler_depspost(): depsgraph signal")
 
     #updates for our custom nodes
-    _customnodes(DEPSPOST_UPD_NODES)
+    upd_customnodes(DEPSPOST_UPD_NODES)
     return None
 
 FRAMEPRE_UPD_NODES = [cls for cls in allcustomnodes if ('FRAME_PRE' in cls.auto_update)]
@@ -107,7 +112,7 @@ def nodebooster_handler_framepre(scene,desp):
         print("nodebooster_handler_framepre(): frame_pre signal")
 
     #updates for our custom nodes
-    _customnodes(FRAMEPRE_UPD_NODES)
+    upd_customnodes(FRAMEPRE_UPD_NODES)
     return None
 
 LOADPOST_UPD_NODES = [cls for cls in allcustomnodes if ('LOAD_POST' in cls.auto_update)]
@@ -123,7 +128,7 @@ def nodebooster_handler_loadpost(scene,desp):
     register_msgbusses()
 
     #updates for our custom nodes
-    _customnodes(LOADPOST_UPD_NODES)
+    upd_customnodes(LOADPOST_UPD_NODES)
     return None
 
 

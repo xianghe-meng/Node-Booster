@@ -793,7 +793,7 @@ class Base():
         return None
 
     @classmethod
-    def update_all_instances(cls, from_autoexec=False,):
+    def update_all_instances(cls, using_nodes=None, signal_from_handlers=False,):
         """search for all nodes of this type and update them"""
 
         # No need to update anything for this node. 
