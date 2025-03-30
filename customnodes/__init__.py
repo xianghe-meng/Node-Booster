@@ -27,9 +27,9 @@ from . isrenderedview import (
         NODEBOOSTER_NG_GN_IsRenderedView,
         )
 from . sequencervolume import (
-        NODEBOOSTER_NG_GN_SequencerVolume,
-        NODEBOOSTER_NG_SH_SequencerVolume,
-        NODEBOOSTER_NG_CP_SequencerVolume,
+        NODEBOOSTER_NG_GN_SequencerSound,
+        NODEBOOSTER_NG_SH_SequencerSound,
+        NODEBOOSTER_NG_CP_SequencerSound,
         )
 from . mathexpression import (
         NODEBOOSTER_NG_GN_MathExpression,
@@ -51,7 +51,7 @@ GN_CustomNodes = (
     NODEBOOSTER_NG_GN_RenderInfo,
     NODEBOOSTER_NG_GN_CameraInfo,
     NODEBOOSTER_NG_GN_IsRenderedView, #this one doesn't make sense in other editors.
-    NODEBOOSTER_NG_GN_SequencerVolume,
+    NODEBOOSTER_NG_GN_SequencerSound,
     NODEBOOSTER_NG_GN_MathExpression,
     NODEBOOSTER_NG_pyexpression,
     NODEBOOSTER_NG_GN_pynexscript,
@@ -62,7 +62,7 @@ SH_CustomNodes = (
     NODEBOOSTER_NG_SH_SceneInfo,
     NODEBOOSTER_NG_SH_RenderInfo,
     NODEBOOSTER_NG_SH_CameraInfo,
-    NODEBOOSTER_NG_SH_SequencerVolume,
+    NODEBOOSTER_NG_SH_SequencerSound,
     NODEBOOSTER_NG_SH_MathExpression,
     )
 
@@ -71,7 +71,7 @@ CP_CustomNodes = (
     NODEBOOSTER_NG_CP_SceneInfo,
     NODEBOOSTER_NG_CP_RenderInfo,
     NODEBOOSTER_NG_CP_CameraInfo,
-    NODEBOOSTER_NG_CP_SequencerVolume,
+    NODEBOOSTER_NG_CP_SequencerSound,
     NODEBOOSTER_NG_CP_MathExpression,
     )
 
@@ -96,9 +96,9 @@ classes = (
 
     NODEBOOSTER_NG_GN_IsRenderedView,
 
-    NODEBOOSTER_NG_GN_SequencerVolume,
-    NODEBOOSTER_NG_SH_SequencerVolume,
-    NODEBOOSTER_NG_CP_SequencerVolume,
+    NODEBOOSTER_NG_GN_SequencerSound,
+    NODEBOOSTER_NG_SH_SequencerSound,
+    NODEBOOSTER_NG_CP_SequencerSound,
 
     NODEBOOSTER_NG_GN_MathExpression,
     NODEBOOSTER_NG_SH_MathExpression,
