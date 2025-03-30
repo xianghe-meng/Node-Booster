@@ -10,13 +10,13 @@ from ..resources import cust_icon
 from ..nex.pytonode import py_to_Sockdata
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
+    crosseditor_socktype_adjust,
     create_new_nodegroup,
     set_socket_defvalue,
     set_socket_type,
     set_socket_label,
     get_node_objusers,
     get_all_nodes,
-    crosseditor_socktype_adjust,
 )
 
 # ooooo      ooo                 .o8            

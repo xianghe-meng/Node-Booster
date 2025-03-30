@@ -15,15 +15,14 @@ from ..nex.nextypes import NexFactory, NexError
 from ..nex.nodesetter import generate_documentation
 from ..utils.str_utils import word_wrap, prettyError
 from ..utils.node_utils import (
-    get_socket,
-    create_socket,
+    crosseditor_socktype_adjust,
     create_new_nodegroup,
     set_socket_defvalue,
     remove_socket,
     set_socket_label,
-    get_socket_type,
-    set_socket_type,
     get_farest_node,
+    get_all_nodes,
+    
 )
 
 NEXFUNCDOC = generate_documentation(tag='nexscript')
@@ -245,19 +244,17 @@ def transform_nex_script(original_text:str, nextypes:list) -> str:
 #  8       `888  888   888 888   888  888    .o 
 # o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
                                               
-class NODEBOOSTER_NG_GN_pynexscript(bpy.types.GeometryNodeCustomGroup):
-    """Custom NodeGroup: Executes a Python script containing 'Nex' language. 'Nex' stands for nodal expression.\
+class Base():
+
+    bl_idname = "NodeBoosterPyNexScript"
+    bl_label = "Python Nex Script"
+    bl_description = """Custom NodeGroup: Executes a Python script containing 'Nex' language. 'Nex' stands for nodal expression.\
     With Nex, you can efficiently and easily interpret python code into Geometry-Node nodal programming.
     • Create a new text-data and initiate Nex input and output using `a:infloat` or `z:outfloat = a` for example.
     • These created input variables are SocketTypes, do math, write code with them, then assign their values to an output.
     • An example of NexCode is available in your text editor template panel."""
-
-    #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
-    #TODO maybe should add a nodebooster panel in text editor for quick execution?
-
-    bl_idname = "GeometryNodeNodeBoosterPyNexScript"
-    bl_label = "Python Nex Script"
     auto_update = {'FRAME_PRE','DEPS_POST','AUTORIZATION_REQUIRED',}
+    tree_type = "*ChildrenDefined*"
     # bl_icon = 'SCRIPT'
 
     error_message : bpy.props.StringProperty(
@@ -297,10 +294,9 @@ class NODEBOOSTER_NG_GN_pynexscript(bpy.types.GeometryNodeCustomGroup):
         ng = bpy.data.node_groups.get(name)
         if (ng is None):
             ng = create_new_nodegroup(name,
-                out_sockets={
-                    "Error" : "NodeSocketBool",
-                },
-            )
+                tree_type=self.tree_type,
+                out_sockets={"Error" : "NodeSocketBool",},
+                )
 
         ng = ng.copy() #always using a copy of the original ng
 
@@ -399,6 +395,23 @@ class NODEBOOSTER_NG_GN_pynexscript(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
+    def cross_compatibility_checks(self, user_script):
+        """check for types"""
+
+        ng = self.node_tree
+
+        KEYWORD_UNAVAILABILITY_MAP = {
+            'GEOMETRY':    (),
+            'SHADER':      ('inquat', 'inmat',),
+            'COMPOSITING': ('inquat', 'inmat',),
+            }
+
+        for kw in KEYWORD_UNAVAILABILITY_MAP[ng.type]:
+            if (kw in user_script):
+                return f"Keyword '{kw}' not available for the {ng.type.title()} editor."
+
+        return None
+
     def interpret_nex_script(self, rebuild=False):
         """Execute the Python script from a Blender Text datablock, capture local variables whose names start with "out_",
         and update the node group's output sockets accordingly."""
@@ -427,7 +440,20 @@ class NODEBOOSTER_NG_GN_pynexscript(bpy.types.GeometryNodeCustomGroup):
             return None
 
         user_script = self.user_textdata.as_string()
-        
+
+        #check if the user script is correct for his editor type. perhaps his using some unavailable keywords..
+        err = self.cross_compatibility_checks(user_script)
+        if (err):
+            #cleanse all sockets and nodes then
+            self.cleanse_sockets()
+            self.cleanse_nodes()
+            # Display error
+            self.error_message = err
+            # set error to True
+            set_socket_label(ng,0, label="AvailabilityError",)
+            set_socket_defvalue(ng,0, value=True,)
+            return None
+
         #capture the inputs/outputs later on execution.
 
         #define all possible Nex types & functions the user can toy with
@@ -448,7 +474,7 @@ class NODEBOOSTER_NG_GN_pynexscript(bpy.types.GeometryNodeCustomGroup):
         if (cache_text is not None):
               cached_script = cache_text.as_string()
         is_dirty = (final_script!=cached_script)
-        
+
         # If user modified the script, the script will need a rebuild.
         if (is_dirty or rebuild):
             #Clean up nodes.. we'll rebuild the nodetree
@@ -456,13 +482,13 @@ class NODEBOOSTER_NG_GN_pynexscript(bpy.types.GeometryNodeCustomGroup):
             # We set the first node active (node arrangement in nodesetter.py module is based on active)
             ng.nodes.active = in_nod
             #when initalizing the NexTypes, the inputs/outputs sockets will be created.
-        
+
         # Namespace, we inject Nex types in user namespace
         exec_namespace = {}
         exec_namespace.update(nextoys['nexusertypes'])
         exec_namespace.update(nextoys['nexuserfunctions'])
         script_vars = {} #catch variables from exec?
-        
+
         #Don't want all the pretty user error wrapping for user? set it to True
         if False:
             compiled_script = compile(
@@ -585,10 +611,10 @@ class NODEBOOSTER_NG_GN_pynexscript(bpy.types.GeometryNodeCustomGroup):
         animated_icon = f"W_TIME_{self.debug_evaluation_counter%8}"
 
         layout.separator(factor=0.25)
-
+            
         col = layout.column(align=True)
         row = col.row(align=True)
-
+        
         field = row.row(align=True)
         field.alert = is_error
         field.prop(self, "user_textdata", text="", icon="TEXT", placeholder="NexScript.py",)
@@ -607,6 +633,12 @@ class NODEBOOSTER_NG_GN_pynexscript(bpy.types.GeometryNodeCustomGroup):
             col = col.column(align=True)
             col.separator(factor=2)
             word_wrap(layout=col, alert=True, active=True, max_char=self.width/5.75, string=self.error_message,)
+
+            #TODO remove when all nex domain functions are verified and covered
+            if (self.tree_type in {'ShaderNodeTree','CompositorNodeTree'}):
+                col = layout.column(align=True).box()
+                word_wrap(layout=col, alert=False, active=True, max_char=self.width/6.5,
+                    string=f"Warning NexScript does not fully support the {self.tree_type.replace('NodeTree','')} editor yet.",)
 
         layout.separator(factor=0.5)
 
@@ -733,9 +765,9 @@ class NODEBOOSTER_NG_GN_pynexscript(bpy.types.GeometryNodeCustomGroup):
     def update_all_instances(cls, from_autoexec=False,):
         """search for all nodes of this type and update them"""
 
-
-        all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
-        for n in all_instances:
+        #TODO we call update_all_instances for a lot of nodes from depsgraph & we need to optimize this, because func below may recur a LOT of nodes
+        # could pass a from_nodes arg in this function
+        for n in get_all_nodes(ignore_ng_name="NodeBooster", match_idnames={cls.bl_idname},):
             if (from_autoexec and not n.execute_at_depsgraph):
                 continue
             if (n.mute):
@@ -744,4 +776,19 @@ class NODEBOOSTER_NG_GN_pynexscript(bpy.types.GeometryNodeCustomGroup):
             continue
 
         return None
+
+#Per Node-Editor Children:
+#Respect _NG_ + _GN_/_SH_/_CP_ nomenclature
+
+class NODEBOOSTER_NG_GN_PyNexScript(Base, bpy.types.GeometryNodeCustomGroup):
+    tree_type = "GeometryNodeTree"
+    bl_idname = "GeometryNode" + Base.bl_idname
+
+class NODEBOOSTER_NG_SH_PyNexScript(Base, bpy.types.ShaderNodeCustomGroup):
+    tree_type = "ShaderNodeTree"
+    bl_idname = "ShaderNode" + Base.bl_idname
+
+class NODEBOOSTER_NG_CP_PyNexScript(Base, bpy.types.CompositorNodeCustomGroup):
+    tree_type = "CompositorNodeTree"
+    bl_idname = "CompositorNode" + Base.bl_idname
 

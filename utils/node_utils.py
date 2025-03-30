@@ -16,19 +16,11 @@ from .fct_utils import ColorRGBA
 
 
 #Strict editor type availability
-SOCK_COMPATIBILITY_TABLE = {
+SOCK_AVAILABILITY_TABLE = {
     'GEOMETRY':    ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketRotation', 'NodeSocketMatrix', 'NodeSocketString', 'NodeSocketMenu', 'NodeSocketObject', 'NodeSocketGeometry', 'NodeSocketCollection', 'NodeSocketTexture', 'NodeSocketImage', 'NodeSocketMaterial',),
     'SHADER':      ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketShader', ),
     'COMPOSITING': ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', ),
 }
-
-#Current system availability
-SOCK_CONVERTIBILITY_TABLE = {
-    'GEOMETRY':    ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketRotation', 'NodeSocketMatrix', 'NodeSocketString', 'NodeSocketMenu', 'NodeSocketObject', 'NodeSocketGeometry', 'NodeSocketCollection', 'NodeSocketTexture', 'NodeSocketImage', 'NodeSocketMaterial',),
-    'SHADER':      ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketShader', ),
-    'COMPOSITING': ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool',),
-}
-
 
 def get_all_nodes(ignore_ng_name:str="", match_idnames:set=None, ngtypes:set=None,) -> set:
     """get nodes across many nodetree editor types"""
@@ -111,7 +103,7 @@ def get_socket(ng, socket_name='Foo', in_out='OUTPUT',):
 def crosseditor_socktype_adjust(socket_type:str, ngtype:str):
     """ensure the socket types are correct depending on the nodes editor"""
 
-    compat = SOCK_COMPATIBILITY_TABLE[ngtype]
+    compat = SOCK_AVAILABILITY_TABLE[ngtype]
 
     match ngtype:
         

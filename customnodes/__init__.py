@@ -42,7 +42,9 @@ from . pyexpression import (
         NODEBOOSTER_NG_CP_PyExpression,
         )
 from . pynexscript import (
-        NODEBOOSTER_NG_GN_pynexscript,
+        NODEBOOSTER_NG_GN_PyNexScript,
+        NODEBOOSTER_NG_SH_PyNexScript,
+        NODEBOOSTER_NG_CP_PyNexScript,
         )
 
 #For menus, in order of appearance
@@ -56,7 +58,7 @@ GN_CustomNodes = (
     NODEBOOSTER_NG_GN_SequencerSound,
     NODEBOOSTER_NG_GN_MathExpression,
     NODEBOOSTER_NG_GN_PyExpression,
-    NODEBOOSTER_NG_GN_pynexscript,
+    NODEBOOSTER_NG_GN_PyNexScript,
     )
 
 SH_CustomNodes = (
@@ -67,6 +69,7 @@ SH_CustomNodes = (
     NODEBOOSTER_NG_SH_SequencerSound,
     NODEBOOSTER_NG_SH_MathExpression,
     NODEBOOSTER_NG_SH_PyExpression,
+    NODEBOOSTER_NG_SH_PyNexScript,
     )
 
 CP_CustomNodes = (
@@ -77,6 +80,7 @@ CP_CustomNodes = (
     NODEBOOSTER_NG_CP_SequencerSound,
     NODEBOOSTER_NG_CP_MathExpression,
     NODEBOOSTER_NG_CP_PyExpression,
+    NODEBOOSTER_NG_CP_PyNexScript,
     )
 
 #for register, handlers will also use this list for automatic updates.
@@ -112,5 +116,7 @@ classes = (
     NODEBOOSTER_NG_SH_PyExpression,
     NODEBOOSTER_NG_CP_PyExpression,
 
-    NODEBOOSTER_NG_GN_pynexscript,
+    NODEBOOSTER_NG_GN_PyNexScript,
+    NODEBOOSTER_NG_SH_PyNexScript,
+    NODEBOOSTER_NG_CP_PyNexScript,
     )
