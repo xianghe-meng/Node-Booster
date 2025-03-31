@@ -123,7 +123,7 @@ class Base():
 
     @classmethod
     def update_all_instances(cls, using_nodes=None, signal_from_handlers=False,):
-        """search for all nodes of this type and update them"""
+        """search for all nodes of this type and update them. Will be called if .auto_update's are defined"""
 
         if (using_nodes is None):
               nodes = get_all_nodes(exactmatch_idnames={cls.bl_idname},)

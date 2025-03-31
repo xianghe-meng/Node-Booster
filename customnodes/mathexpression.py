@@ -794,7 +794,7 @@ class Base():
 
     @classmethod
     def update_all_instances(cls, using_nodes=None, signal_from_handlers=False,):
-        """search for all nodes of this type and update them"""
+        """search for all nodes of this type and update them. Will be called if .auto_update's are defined"""
 
         # No need to update anything for this node. 
         # The update is done when the user enter his text.
