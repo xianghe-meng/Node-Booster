@@ -13,32 +13,33 @@ from .utils.node_utils import get_all_nodes
 from .customnodes import classes as allcustomnodes
 from .customnodes import NODEBOOSTER_NG_GN_IsRenderedView
 
-def upd_customnodes(nodes:list):
+def upd_customnodes(classes:list):
     """automatically run the update_all_instances() function of all custom nodes passed"""
-
-    if (not nodes):
-        return None
 
     # NOTE function below will simply collect all instances of 'NodeBooster' nodes.
     # NOTE there's a lot of classes, and this functions might loop over a lot of data.
     # for optimization purpose, instead of each cls using the function, we create it once
     # here, then pass the list to the update functions with the 'using_nodes' param.
-    nodes = get_all_nodes(approxmatch_idnames="NodeBooster",)
-    
+
     sett_win = bpy.context.window_manager.nodebooster
     has_autorization = sett_win.authorize_automatic_execution
 
-    for cls in nodes:
-        if (not hasattr(cls,'update_all_instances')):
+    matching_blid = [cls.bl_idname for cls in classes]
+    
+    nodes = get_all_nodes(exactmatch_idnames=matching_blid,)
+    # print("upd_customnodes().nodes:", nodes)
+
+    for n in nodes:
+        if (not hasattr(n,'update_all_instances')):
             print(f"WARNING: update_all_instances() function is required in your customnode class for an automatic execution.")
             continue
 
         #automatic re-evaluation of the Python Expression and Python Nex Nodes.
         #for security reasons, we update only if the user allows it expressively on each blender sess.
-        if ('AUTORIZATION_REQUIRED' in cls.auto_update) and (not has_autorization):
+        if ('AUTORIZATION_REQUIRED' in n.auto_update) and (not has_autorization):
             continue
         
-        cls.update_all_instances(signal_from_handlers=True, using_nodes=nodes)
+        n.update_all_instances(signal_from_handlers=True, using_nodes=nodes)
         continue
 
     return None

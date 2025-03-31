@@ -286,8 +286,15 @@ class Base():
         header, panel = layout.panel("params_panelid", default_closed=False,)
         header.label(text="Parameters",)
         if (panel):
-            pass
-            #TODO later
+
+            split = panel.split(factor=0.2, align=True)
+            split.prop(self, "id_type", text="", icon_only=True)
+            ptrname = self.id_type.title()
+            split.prop(self, ptrname, text="")
+
+            row = panel.row(align=True)
+            row.alert = self.is_error
+            row.prop(self, "data_path", text="", icon='RNA')
 
         header, panel = layout.panel("doc_panelid", default_closed=True,)
         header.label(text="Documentation",)

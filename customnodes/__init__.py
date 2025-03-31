@@ -12,6 +12,9 @@
 # Color Palette Node? easily swap between color palettes?
 # File IO:
 #   - For geometry node, could create a mesh on the fly from a file and set up as field attributes.
+# View3D Info node:
+#   - Like camera info, but for the 3d view (location/rotation/fov/clip/)
+#   - Problem: what if there are many? Perhaps should use context.
 
 from . camerainfo import (
         NODEBOOSTER_NG_GN_CameraInfo,
@@ -61,6 +64,11 @@ from . pynexscript import (
         NODEBOOSTER_NG_SH_PyNexScript,
         NODEBOOSTER_NG_CP_PyNexScript,
         )
+from . deviceinput import (
+        NODEBOOSTER_NG_GN_DeviceInput,
+        NODEBOOSTER_NG_SH_DeviceInput,
+        NODEBOOSTER_NG_CP_DeviceInput,
+        )
 
 #For menus, in order of appearance
 
@@ -68,6 +76,7 @@ GN_CustomNodes = (
     NODEBOOSTER_NG_GN_RNAInfo,
     NODEBOOSTER_NG_GN_LightInfo,
     NODEBOOSTER_NG_GN_SceneInfo,
+    NODEBOOSTER_NG_GN_DeviceInput,
     NODEBOOSTER_NG_GN_RenderInfo,
     NODEBOOSTER_NG_GN_CameraInfo,
     NODEBOOSTER_NG_GN_IsRenderedView, #this one doesn't make sense in other editors.
@@ -81,6 +90,7 @@ SH_CustomNodes = (
     NODEBOOSTER_NG_SH_RNAInfo,
     NODEBOOSTER_NG_SH_LightInfo,
     NODEBOOSTER_NG_SH_SceneInfo,
+    NODEBOOSTER_NG_SH_DeviceInput,
     NODEBOOSTER_NG_SH_RenderInfo,
     NODEBOOSTER_NG_SH_CameraInfo,
     NODEBOOSTER_NG_SH_SequencerSound,
@@ -93,6 +103,7 @@ CP_CustomNodes = (
     NODEBOOSTER_NG_CP_RNAInfo,
     NODEBOOSTER_NG_CP_LightInfo,
     NODEBOOSTER_NG_CP_SceneInfo,
+    NODEBOOSTER_NG_CP_DeviceInput,
     NODEBOOSTER_NG_CP_RenderInfo,
     NODEBOOSTER_NG_CP_CameraInfo,
     NODEBOOSTER_NG_CP_SequencerSound,
@@ -141,4 +152,8 @@ classes = (
     NODEBOOSTER_NG_GN_PyNexScript,
     NODEBOOSTER_NG_SH_PyNexScript,
     NODEBOOSTER_NG_CP_PyNexScript,
+
+    NODEBOOSTER_NG_GN_DeviceInput,
+    NODEBOOSTER_NG_SH_DeviceInput,
+    NODEBOOSTER_NG_CP_DeviceInput,
     )

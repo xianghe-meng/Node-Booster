@@ -77,6 +77,9 @@ def register():
     from .properties import load_properties
     load_properties()
 
+    from .customnodes.deviceinput import register_listener
+    register_listener()
+
     from .handlers import load_handlers    
     load_handlers()
 
@@ -108,7 +111,10 @@ def unregister():
     #unregister every single addon classes here
     for cls in get_addon_classes(revert=True):
         bpy.utils.unregister_class(cls)
-
+        
+    from .customnodes.deviceinput import unregister_listener
+    unregister_listener()
+    
     from .resources import unload_icons
     unload_icons() 
 
