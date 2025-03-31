@@ -11,11 +11,12 @@
 # example with A, B, RET, SPACE or whatever
 # we'll need to implement that at a node level. we pass all the info we need anyway.
 
+# BUG
+# when an animation is running, the modal operator and timer is junky. why?
+
 import bpy
 import time
 import math
-from bpy.types import Node, Operator
-from bpy.props import BoolProperty
 
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
@@ -84,21 +85,57 @@ class GlobalBridge:
         }
 
 # Modal operator that listens for input events
-class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
+class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
     """Modal operator that listens for input events and updates DeviceInput nodes"""
 
     bl_idname = "nodebooster.device_input_listener"
     bl_label = "Listen for Input Events"
     bl_options = {'INTERNAL'}
-
+    
+    _timer = None  # Store the timer reference
+    
     def modal(self, context, event):
-
         # Check if we should stop the operator
         if (not GlobalBridge.is_listening):
+            self.cancel(context)
             return {'FINISHED'}
         
         # GLobal dict of passed events
         PassedE = GlobalBridge.event_data
+
+        # Process timer events to update velocity calculations
+        if event.type == 'TIMER':
+            # If we have mouse history but no recent movement, calculate a decreasing velocity
+            if GlobalBridge.mouse_history and len(GlobalBridge.mouse_history) >= 2:
+                # Get the most recent entry and check its timestamp
+                last_entry = GlobalBridge.mouse_history[-1]
+                current_time = time.time()
+                
+                # If it's been more than a short time since the last movement, calculate decaying velocity
+                if current_time - last_entry[2] > 0.1:  # 100ms threshold
+                    # Simulate a decreasing velocity if mouse isn't moving
+                    current_velocity = PassedE['mouse_velocity']
+                    if current_velocity > 0:
+                        # Apply a damping factor (reduce by ~30% per update)
+                        damped_velocity = current_velocity * 0.7
+                        if damped_velocity < 1.0:  # Threshold below which we consider velocity zero
+                            damped_velocity = 0
+                            
+                        PassedE['mouse_velocity'] = damped_velocity
+                        
+                        # Update nodes with the new velocity value
+                        for node in get_all_nodes(exactmatch_idnames={
+                            NODEBOOSTER_NG_GN_DeviceInput.bl_idname,
+                            NODEBOOSTER_NG_SH_DeviceInput.bl_idname,
+                            NODEBOOSTER_NG_CP_DeviceInput.bl_idname,
+                        }): node.pass_event_info(PassedE)
+            
+            # Only redraw UI if there are changes to display
+            if PassedE['mouse_velocity'] != 0:
+                for area in context.screen.areas:
+                    area.tag_redraw()
+                
+            return {'PASS_THROUGH'}
 
         # Check if the active area is a 3D View
         is_in_viewport3d = False
@@ -160,7 +197,7 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
                 'mouse_direction_y': direction[1],
             })
 
-            # Debug print
+            # Debug print (can be commented out for production)
             print(f"DeviceInput Event: {PassedE}")
 
             # Update all nodes
@@ -176,7 +213,7 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
         #     return {'FINISHED'}
 
         return {'PASS_THROUGH'}
-
+    
     def execute(self, context):
         """execute the operator"""
 
@@ -187,6 +224,8 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
             # Update UI
             for area in context.screen.areas:
                 area.tag_redraw()
+            # Will call cancel() automatically and remove the timer
+            return {'FINISHED'}
         else:
             # Start listening
             GlobalBridge.is_listening = True
@@ -194,12 +233,20 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
             GlobalBridge.mouse_history = []
             # Start the modal operator
             context.window_manager.modal_handler_add(self)
+            # Add timer for consistent updates - 30fps (0.033s interval)
+            self._timer = context.window_manager.event_timer_add(0.033, window=context.window)
             # Update UI
             for area in context.screen.areas:
                 area.tag_redraw()
             return {'RUNNING_MODAL'}
 
-        return {'FINISHED'}
+    def cancel(self, context):
+        """Called when the modal operator is stopped"""
+        # Remove the timer
+        if self._timer:
+            context.window_manager.event_timer_remove(self._timer)
+            self._timer = None
+        return None
 
 
 # Base class for DeviceInput node
@@ -235,7 +282,7 @@ class Base():
             "Ctrl": "NodeSocketBool",
             "Shift": "NodeSocketBool",
             "Alt": "NodeSocketBool",
-        }
+            }
 
         ng = bpy.data.node_groups.get(name)
         if ng is None:
@@ -314,17 +361,7 @@ class Base():
             row = panel.row()
             text = "Stop Listening" if GlobalBridge.is_listening else "Start Listening"
             row.operator("nodebooster.device_input_listener", text=text, icon='PLAY' if not GlobalBridge.is_listening else 'PAUSE')
-
-            if GlobalBridge.is_listening and len(GlobalBridge.mouse_history) > 0:
-                box = panel.box()
-                box.label(text="Mouse Metrics:")
-                row = box.row()
-                row.label(text=f"Velocity: {GlobalBridge.event_data['mouse_velocity']:.1f} px/s")
-                row = box.row()
-                dir_x = GlobalBridge.event_data['mouse_direction_x']
-                dir_y = GlobalBridge.event_data['mouse_direction_y']
-                row.label(text=f"Direction: ({dir_x:.2f}, {dir_y:.2f}, 0.00)")
-
+                
         header, panel = layout.panel("doc_panelid", default_closed=True)
         header.label(text="Documentation")
         if panel:
@@ -341,8 +378,22 @@ class Base():
             col.label(text="NodeTree:")
             col.template_ID(n, "node_tree")
             
-            row = panel.row()
-            row.label(text=f"History points: {len(GlobalBridge.mouse_history)}")
+            #debug event content
+            PassedE = GlobalBridge.event_data
+            dir_x = PassedE['mouse_direction_x']
+            dir_y = PassedE['mouse_direction_y']
+
+            col = panel.column(align=True)
+            col.label(text="Inputs Debug:")
+
+            box = col.box().column(align=True)
+            box.label(text=f"Value: {PassedE['value']}")
+            box.label(text=f"Type: {PassedE['type']}")
+            box.separator(type='LINE')
+            box.label(text="Mouse Metrics:")
+            box.label(text=f"Velocity: {PassedE['mouse_velocity']:.1f} px/s")
+            box.label(text=f"Direction: ({dir_x:.2f}, {dir_y:.2f}, 0.00)")
+            box.label(text=f"History: {len(GlobalBridge.mouse_history)}")
 
         return None
 
