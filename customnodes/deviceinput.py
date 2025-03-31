@@ -2,6 +2,11 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# NOTE this node has a lot of potential to be copy and transformed into a
+# game controller input node. I have no idea how to do that. 
+# Maybe someone will implement that one day.
+
+
 import bpy
 from bpy.types import Node, Operator
 from bpy.props import BoolProperty
@@ -17,7 +22,6 @@ from ..utils.node_utils import (
 # Global storage for event listener state and nodes
 class GlobalBridge:
     is_listening = False
-    nodes = []  # List of nodes to update
     event_data = {
         'type': '',
         'value': '',
@@ -29,7 +33,7 @@ class GlobalBridge:
         'shift': False,
         'ctrl': False,
         'alt': False,
-    }
+        }
 
 # Modal operator that listens for input events
 class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
@@ -37,21 +41,27 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
 
     bl_idname = "nodebooster.device_input_listener"
     bl_label = "Listen for Input Events"
-    
+    bl_options = {'INTERNAL'}
+
     def modal(self, context, event):
+
         # Check if we should stop the operator
-        if not GlobalBridge.is_listening:
+        if (not GlobalBridge.is_listening):
             return {'FINISHED'}
 
         # Check if the active area is a 3D View
         is_in_viewport3d = False
         for area in context.screen.areas:
-            if area.type == 'VIEW_3D' and area.x <= event.mouse_x <= area.x + area.width and area.y <= event.mouse_y <= area.y + area.height:
+            if ((area.type == 'VIEW_3D') and 
+                (area.x <= event.mouse_x <= area.x + area.width) and
+                (area.y <= event.mouse_y <= area.y + area.height)):
+
                 is_in_viewport3d = True
                 break
 
         # Only process events when in the 3D viewport
-        if is_in_viewport3d:
+        if (is_in_viewport3d):
+
             # Process event data
             GlobalBridge.event_data = {
                 'type': event.type,
@@ -70,13 +80,16 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
             print(f"DeviceInput Event: {GlobalBridge.event_data}")
 
             # Update all nodes
-            for node in GlobalBridge.nodes:
-                node.pass_event_info(GlobalBridge.event_data)
+            for node in get_all_nodes(exactmatch_idnames={
+                NODEBOOSTER_NG_GN_DeviceInput.bl_idname,
+                NODEBOOSTER_NG_SH_DeviceInput.bl_idname,
+                NODEBOOSTER_NG_CP_DeviceInput.bl_idname,
+                },): node.pass_event_info(GlobalBridge.event_data)
 
-        # Check for ESC to cancel
-        if (event.type == 'ESC' and event.value == 'PRESS'):
-            self.execute(context)
-            return {'FINISHED'}
+        # NOTE We don't escape User can use the node interface to ecape.
+        # if (event.type== 'ESC' and event.value == 'PRESS'):
+        #     self.execute(context)
+        #     return {'FINISHED'}
 
         return {'PASS_THROUGH'}
 
@@ -142,10 +155,7 @@ class Base():
         
         self.node_tree = ng
         self.label = self.bl_label
-        
-        # Register this node to receive updates
-        if self not in GlobalBridge.nodes:
-            GlobalBridge.nodes.append(self)
+        self.bl_description = self.bl_description
         
         return None
     
@@ -153,10 +163,6 @@ class Base():
         """fct run when duplicating the node"""
 
         self.node_tree = node.node_tree.copy()
-
-        # Register this node to receive updates
-        if self not in GlobalBridge.nodes:
-            GlobalBridge.nodes.append(self)
 
         return None
 
@@ -167,8 +173,8 @@ class Base():
 
     def free(self):
         """Remove node from update list when deleted"""
-        if self in GlobalBridge.nodes:
-            GlobalBridge.nodes.remove(self)
+        
+        return None
 
     def pass_event_info(self, event_data):
         """Update node outputs based on event data - we'll expand this later"""
@@ -228,7 +234,9 @@ class Base():
             row.label(text=f"Active Nodes: {len(GlobalBridge.nodes)}")
 
         return None
-    def update_all_instances():
+
+    @classmethod
+    def update_all_instances(cls, using_nodes=None, signal_from_handlers=False,):
         """update all instances of this node in all node trees"""
 
         # Nothing to execute for DeviceInput nodes

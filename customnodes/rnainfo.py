@@ -287,10 +287,9 @@ class Base():
         header.label(text="Parameters",)
         if (panel):
 
-            split = panel.split(factor=0.2, align=True)
-            split.prop(self, "id_type", text="", icon_only=True)
+            panel.prop(self, "id_type", text="",)
             ptrname = self.id_type.title()
-            split.prop(self, ptrname, text="")
+            panel.prop(self, ptrname, text="")
 
             row = panel.row(align=True)
             row.alert = self.is_error
