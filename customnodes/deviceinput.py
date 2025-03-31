@@ -94,8 +94,8 @@ def calculate_mouse_metrics(history, current_pos):
     dy = newest_entry[1] - oldest_entry[1]
     distance = math.sqrt(dx*dx + dy*dy)
 
-    # Calculate velocity (pixels per second)
-    velocity = distance / time_diff
+    # Calculate velocity (1k pixels per second)
+    velocity = (distance / time_diff) / 1000
 
     # Calculate direction (normalized vector)
     if (distance > 0):
