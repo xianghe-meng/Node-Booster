@@ -11,7 +11,7 @@
 
 # TODO bonus: blender has a system for keys, we could add up to 25 or so 
 # bpy.props.string with that special property to catch event perhaps? see prop(full_event=True)
-
+# TODO bonus: the Mouse direction and Velocity could benefit from some sort of smoothing? as option in the N panel?
 
 import bpy
 import time
