@@ -55,11 +55,11 @@ from . pynexscript import (
 #For menus, in order of appearance
 
 GN_CustomNodes = (
+    NODEBOOSTER_NG_GN_RNAInfo,
     NODEBOOSTER_NG_GN_LightInfo,
     NODEBOOSTER_NG_GN_SceneInfo,
     NODEBOOSTER_NG_GN_RenderInfo,
     NODEBOOSTER_NG_GN_CameraInfo,
-    NODEBOOSTER_NG_GN_RNAInfo,
     NODEBOOSTER_NG_GN_IsRenderedView, #this one doesn't make sense in other editors.
     NODEBOOSTER_NG_GN_SequencerSound,
     NODEBOOSTER_NG_GN_MathExpression,
@@ -68,11 +68,11 @@ GN_CustomNodes = (
     )
 
 SH_CustomNodes = (
+    NODEBOOSTER_NG_SH_RNAInfo,
     NODEBOOSTER_NG_SH_LightInfo,
     NODEBOOSTER_NG_SH_SceneInfo,
     NODEBOOSTER_NG_SH_RenderInfo,
     NODEBOOSTER_NG_SH_CameraInfo,
-    NODEBOOSTER_NG_SH_RNAInfo,
     NODEBOOSTER_NG_SH_SequencerSound,
     NODEBOOSTER_NG_SH_MathExpression,
     NODEBOOSTER_NG_SH_PyExpression,
@@ -80,11 +80,11 @@ SH_CustomNodes = (
     )
 
 CP_CustomNodes = (
+    NODEBOOSTER_NG_CP_RNAInfo,
     NODEBOOSTER_NG_CP_LightInfo,
     NODEBOOSTER_NG_CP_SceneInfo,
     NODEBOOSTER_NG_CP_RenderInfo,
     NODEBOOSTER_NG_CP_CameraInfo,
-    NODEBOOSTER_NG_CP_RNAInfo,
     NODEBOOSTER_NG_CP_SequencerSound,
     NODEBOOSTER_NG_CP_MathExpression,
     NODEBOOSTER_NG_CP_PyExpression,
