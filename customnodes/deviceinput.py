@@ -2,16 +2,21 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# NOTE this node has a lot of potential to be copy and transformed into a
-# game controller input node. I have no idea how to do that. 
-# Maybe someone will implement that one day.
+# NOTE this node has a lot of potential to be copied, and transformed into a
+# game controller input node, or MIDI controllers.
+# I have no idea how to do that. Maybe someone will implement that one day.
 
 # BUG When an animation is running, the modal operator and timer is junky. why?
 # See velocity calculation.while active animation. it jumps everywhere.
 
-# TODO bonus: blender has a system for keys, we could add up to 25 or so 
-# bpy.props.string with that special property to catch event perhaps? see prop(full_event=True)
-# TODO bonus: the Mouse direction and Velocity could benefit from some sort of smoothing? as option in the N panel?
+# TODO 
+# bonus:
+# - blender has a system for keys, we could add up to 25 or so 
+#   bpy.props.string with that special property to catch event perhaps? see prop(full_event=True)
+# - the Mouse direction and Velocity could benefit from some sort of smoothing? as option in the N panel?
+# - we could record the user activity, and store the data somewhere in blender. 
+#   Perhaps as a GraphEditor curve? that way users could record in real time and save it for later.
+#   if we do that, would be nice that the user is able to swap between various recordings.
 
 import bpy
 import time
