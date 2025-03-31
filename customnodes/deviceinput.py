@@ -9,14 +9,17 @@
 # BUG When an animation is running, the modal operator and timer is junky. why?
 # See velocity calculation.while active animation. it jumps everywhere.
 
+# TODO bonus: blender has a system for keys, we could add up to 25 or so 
+# bpy.props.string with that special property to catch event perhaps? see prop(full_event=True)
+
+
 import bpy
 import time
 import math
-from bpy.types import Node, Operator
-from bpy.props import BoolProperty, StringProperty
 
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
+from ..resources import cust_icon
 from ..utils.node_utils import (
     create_new_nodegroup,
     set_socket_defvalue,
@@ -44,6 +47,33 @@ POSSIBLE_EVENTS = {
     "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20",
     "F21", "F22", "F23", "F24", "PAUSE", "INSERT", "HOME", "PAGE_UP", "PAGE_DOWN", "END",
     }
+
+class EVENTLIB:
+    is_listening = False
+    mouse_history = [] # Store mouse position history: [(x, y, timestamp), ...]
+    history_max_length = 10 # Maximum number of history entries to keep
+    custom_event_types = set() # Store custom event types that user has added, we need to update event_data with their values.
+    execution_counter = 0 # Counter for tracking execution cycles (for UI animation)
+    event_data = {
+        'type': '',
+        'value': '',
+        'mouse_x': 0.0,
+        'mouse_y': 0.0,
+        'mouse_region_x': 0.0,
+        'mouse_region_y': 0.0,
+        'pressure': 0.0,
+        'shift': False,
+        'ctrl': False,
+        'alt': False,
+        'LEFTMOUSE': False,
+        'RIGHTMOUSE': False,
+        'MIDDLEMOUSE': False,
+        'WHEELUPMOUSE': False,
+        'WHEELDOWNMOUSE': False,
+        'mouse_velocity': 0.0,
+        'mouse_direction_x': 0.0,
+        'mouse_direction_y': 0.0,
+        }
 
 def calculate_mouse_metrics(history, current_pos):
     """Calculate mouse velocity and direction"""
@@ -74,42 +104,6 @@ def calculate_mouse_metrics(history, current_pos):
 
     return velocity, direction
 
-class GlobalBridge:
-    """ Global storage for event listener state"""
-
-    is_listening = False
-
-    # Store mouse position history: [(x, y, timestamp), ...]
-    mouse_history = []
-
-    # Maximum number of history entries to keep
-    history_max_length = 10
-
-    # Store custom event types that user has added
-    custom_event_types = set()
-
-    # Where we store event data
-    event_data = {
-        'type': '',
-        'value': '',
-        'mouse_x': 0.0,
-        'mouse_y': 0.0,
-        'mouse_region_x': 0.0,
-        'mouse_region_y': 0.0,
-        'pressure': 0.0,
-        'shift': False,
-        'ctrl': False,
-        'alt': False,
-        'LEFTMOUSE': False,
-        'RIGHTMOUSE': False,
-        'MIDDLEMOUSE': False,
-        'WHEELUPMOUSE': False,
-        'WHEELDOWNMOUSE': False,
-        'mouse_velocity': 0.0,
-        'mouse_direction_x': 0.0,
-        'mouse_direction_y': 0.0,
-        }
-
 # Modal operator that listens for input events
 class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
     """Modal operator that listens for input events and updates DeviceInput nodes"""
@@ -124,12 +118,12 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
         """Process timer events to update velocity calculations"""
 
         # GLobal dict of passed events
-        PassedE = GlobalBridge.event_data
+        PassedE = EVENTLIB.event_data
 
         # If we have mouse history but no recent movement, calculate a decreasing velocity
-        if GlobalBridge.mouse_history and len(GlobalBridge.mouse_history) >= 2:
+        if EVENTLIB.mouse_history and len(EVENTLIB.mouse_history) >= 2:
             # Get the most recent entry and check its timestamp
-            last_entry = GlobalBridge.mouse_history[-1]
+            last_entry = EVENTLIB.mouse_history[-1]
             current_time = time.time()
 
             # If it's been more than a short time since the last movement, calculate decaying velocity
@@ -163,10 +157,13 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
     def modal(self, context, event):
 
         # Check if we should stop the operator
-        if (not GlobalBridge.is_listening):
+        if (not EVENTLIB.is_listening):
             self.cancel(context)
             return {'FINISHED'}
 
+        # Increment execution counter for UI animation
+        EVENTLIB.execution_counter += 1
+        
         # Process timer events to update velocity calculations
         if (event.type == 'TIMER'):
             self.process_timer_event(context)
@@ -184,16 +181,25 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
         # Only process events when in the 3D viewport
         if (not is_in_viewport3d):
             return {'PASS_THROUGH'}
-        # We don't want to catch mousemove events.
-        if (event.type in {'MOUSEMOVE','INBETWEEN_MOUSEMOVE'}):
-            return {'PASS_THROUGH'}
 
         # GLobal dict of passed events
-        PassedE = GlobalBridge.event_data
+        PassedE = EVENTLIB.event_data
+
+        region = (event.mouse_region_x, event.mouse_region_y)
+        velocity, direction = calculate_mouse_metrics(EVENTLIB.mouse_history, region)
+
+        # We don't want to catch mousemove events.
+        # except for passing the velocity and direction.
+        if not (event.type in {'MOUSEMOVE','INBETWEEN_MOUSEMOVE'}):
+            PassedE.update({
+                'mouse_velocity': velocity,
+                'mouse_direction_x': direction[0],
+                'mouse_direction_y': direction[1],})
+            return {'PASS_THROUGH'}
 
         # catch mouse and user defined events.
         events_to_catch = {'LEFTMOUSE','RIGHTMOUSE','MIDDLEMOUSE'}
-        events_to_catch.update(GlobalBridge.custom_event_types)
+        events_to_catch.update(EVENTLIB.custom_event_types)
         for et in events_to_catch:
             if (et == event.type):
                 PassedE[et] = event.value in {'PRESS','CLICK_DRAG'}
@@ -207,17 +213,11 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
         mouse_pos = (event.mouse_region_x, event.mouse_region_y, current_time)
         
         # Only add new position if it's different from the last one
-        if not GlobalBridge.mouse_history or mouse_pos[:2] != GlobalBridge.mouse_history[-1][:2]:
-            GlobalBridge.mouse_history.append(mouse_pos)
+        if not EVENTLIB.mouse_history or mouse_pos[:2] != EVENTLIB.mouse_history[-1][:2]:
+            EVENTLIB.mouse_history.append(mouse_pos)
             # Keep history to the maximum length
-            if len(GlobalBridge.mouse_history) > GlobalBridge.history_max_length:
-                GlobalBridge.mouse_history.pop(0)
-        
-        # Calculate mouse velocity and direction
-        velocity, direction = calculate_mouse_metrics(
-            GlobalBridge.mouse_history, 
-            (event.mouse_region_x, event.mouse_region_y)
-        )
+            if len(EVENTLIB.mouse_history) > EVENTLIB.history_max_length:
+                EVENTLIB.mouse_history.pop(0)
 
         # Pass the data
         PassedE.update({
@@ -234,7 +234,7 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
             'mouse_velocity': velocity,
             'mouse_direction_x': direction[0],
             'mouse_direction_y': direction[1],
-        })
+            })
 
         # Debug print (can be commented out for production)
         # print(f"DeviceInput Event: {PassedE}")
@@ -260,9 +260,9 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
         """execute the operator"""
 
         # Toggle listening state
-        if (GlobalBridge.is_listening):
+        if (EVENTLIB.is_listening):
             # Stop listening
-            GlobalBridge.is_listening = False
+            EVENTLIB.is_listening = False
             # Update UI
             for area in context.screen.areas:
                 area.tag_redraw()
@@ -270,9 +270,9 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
             return {'FINISHED'}
         else:
             # Start listening
-            GlobalBridge.is_listening = True
+            EVENTLIB.is_listening = True
             # Clear mouse history
-            GlobalBridge.mouse_history = []
+            EVENTLIB.mouse_history = []
             # Start the modal operator
             context.window_manager.modal_handler_add(self)
             # Add timer for consistent updates - 30fps (0.033s interval)
@@ -298,7 +298,6 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
 #  8     `88b.8  888   888 888   888  888ooo888 
 #  8       `888  888   888 888   888  888    .o 
 # o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
-
 
 class Base():
 
@@ -329,17 +328,17 @@ class Base():
         
         # Compose error message if there are invalid event types
         if (invalids):
-              self.error_message = f"Invalid event type(s): {', '.join(invalids)}"
+              self.error_message = f"Invalid Key: {', '.join(invalids)}"
         else: self.error_message = ""
         
-        # Update the GlobalBridge custom event types
-        for event in valids: 
-            GlobalBridge.custom_event_types.add(event)
+        # Update the EVENTLIB custom event types
         
         # Add new event types to the event_data dictionary if they don't exist
         for et in valids:
-            if (et not in GlobalBridge.event_data):
-                GlobalBridge.event_data[et] = False
+            if (et not in EVENTLIB.event_data):
+                EVENTLIB.custom_event_types.add(et)
+            if (et not in EVENTLIB.event_data):
+                EVENTLIB.event_data[et] = False
 
         # Update sockets in the node tree
         ng = self.node_tree
@@ -371,7 +370,7 @@ class Base():
         return None
     
     # Property for custom event types
-    user_event_types: StringProperty(
+    user_event_types: bpy.props.StringProperty(
         name="Custom Event Types",
         description="List of custom event types to track, separated by commas (e.g., 'A, B, SPACE,RET').\nSee blender 'Event Type Items' documentation to know which kewords are supported.",
         default="",
@@ -407,11 +406,10 @@ class Base():
         if ng is None:
             ng = create_new_nodegroup(name,
                 tree_type=self.tree_type,
-                out_sockets=sockets,
-                )
-            
+                out_sockets=sockets,)
+
         ng = ng.copy()  # always using a copy of the original ng
-        
+
         self.node_tree = ng
         self.width = 156
         self.label = self.bl_label
@@ -454,11 +452,13 @@ class Base():
         set_socket_defvalue(ng, socket_name="Wheel Down", value=event_data['WHEELDOWNMOUSE'])
 
         # Update custom event outputs
-        for et in GlobalBridge.custom_event_types:
-            if (et in event_data):
-                sockname = f"{et} Key"
-                if (sockname in self.outputs):
-                    set_socket_defvalue(ng, socket_name=sockname, value=event_data[et])
+        user_keys = [k.name for k in self.outputs if k.name.endswith(" Key")]
+        for k in user_keys:
+            data = k.replace(" Key", "")
+            value = event_data.get(data, False)
+            set_socket_defvalue(ng, socket_name=k, value=value)
+            if (not value):
+                EVENTLIB.custom_event_types.add(data)
 
         return None
 
@@ -466,20 +466,25 @@ class Base():
         """node label"""
 
         return self.bl_label
+
     def draw_buttons(self, context, layout):
         """node interface drawing"""
         
         col = layout.column(align=True)
-        col.label(text="Keys:") 
+        col.label(text="Keys:")
         col.prop(self, "user_event_types", text="", placeholder="A, B, SPACE")
+        if (self.error_message):
+            box = col.box()
+            word_wrap(layout=box, alert=True, active=True, max_char=self.width/6, string=self.error_message)
+            col.separator(factor=0.5)
 
         col = layout.column(align=True)
         row = col.row(align=True)
-        text = "Stop Listening" if GlobalBridge.is_listening else "Start Listening"
-        row.operator("nodebooster.device_input_listener", text=text, icon='PLAY' if not GlobalBridge.is_listening else 'PAUSE')
 
-        if (self.error_message):
-            word_wrap(layout=col, alert=True, active=True, max_char=self.width/5.65, string=self.error_message)
+        if (EVENTLIB.is_listening):
+              animated_icon = f"W_TIME_{(EVENTLIB.execution_counter//4)%8}"
+              row.operator("nodebooster.device_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(animated_icon),)
+        else: row.operator("nodebooster.device_input_listener", text="Start Listening", icon='PLAY')
 
         return None
 
@@ -493,9 +498,12 @@ class Base():
         if panel:
 
             row = panel.row()
-            text = "Stop Listening" if GlobalBridge.is_listening else "Start Listening"
-            row.operator("nodebooster.device_input_listener", text=text, icon='PLAY' if not GlobalBridge.is_listening else 'PAUSE')
-            
+
+            if (EVENTLIB.is_listening):
+                animated_icon = f"W_TIME_{(EVENTLIB.execution_counter//4)%8}"
+                row.operator("nodebooster.device_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(animated_icon),)
+            else: row.operator("nodebooster.device_input_listener", text="Start Listening", icon='PLAY')
+
             col = panel.column(align=True)
             col.label(text="Custom Keys")
             col.prop(self, "user_event_types", text="", placeholder="A, B, SPACE")
@@ -517,7 +525,7 @@ class Base():
             col.template_ID(n, "node_tree")
             
             #debug event content
-            PassedE = GlobalBridge.event_data
+            PassedE = EVENTLIB.event_data
             dir_x = PassedE['mouse_direction_x']
             dir_y = PassedE['mouse_direction_y']
 
@@ -531,7 +539,7 @@ class Base():
             box.label(text="Mouse Metrics:")
             box.label(text=f"Velocity: {PassedE['mouse_velocity']:.1f} px/s")
             box.label(text=f"Direction: ({dir_x:.2f}, {dir_y:.2f}, 0.00)")
-            box.label(text=f"History: {len(GlobalBridge.mouse_history)}")
+            box.label(text=f"History: {len(EVENTLIB.mouse_history)}")
 
         return None
 
@@ -572,7 +580,7 @@ def unregister_listener():
     """unregister the modal operator"""
 
     # Make sure the modal operator is stopped when unregistering
-    GlobalBridge.is_listening = False
+    EVENTLIB.is_listening = False
     
     bpy.utils.unregister_class(NODEBOOSTER_OT_DeviceInputEventListener) 
     return None
