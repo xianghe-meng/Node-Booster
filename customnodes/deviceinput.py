@@ -6,11 +6,8 @@
 # game controller input node. I have no idea how to do that. 
 # Maybe someone will implement that one day.
 
-# TODO should we block any other even than navigation in 3Dview while listener Operator is active?
-# Perhaps it's better for users
-
-# BUG
-# when an animation is running, the modal operator and timer is junky. why?
+# BUG When an animation is running, the modal operator and timer is junky. why?
+# See velocity calculation.while active animation. it jumps everywhere.
 
 import bpy
 import time
@@ -28,45 +25,70 @@ from ..utils.node_utils import (
     remove_socket,
 )
 
-# Function to calculate mouse velocity and direction
+
+POSSIBLE_EVENTS = {
+    "NONE", "LEFTMOUSE", "MIDDLEMOUSE", "RIGHTMOUSE", "BUTTON4MOUSE", "BUTTON5MOUSE",
+    "BUTTON6MOUSE", "BUTTON7MOUSE", "PEN", "ERASER", "MOUSEMOVE", "INBETWEEN_MOUSEMOVE",
+    "TRACKPADPAN", "TRACKPADZOOM", "MOUSEROTATE", "MOUSESMARTZOOM", "WHEELUPMOUSE",
+    "WHEELDOWNMOUSE", "WHEELINMOUSE", "WHEELOUTMOUSE", "A", "B", "C", "D", "E", "F",
+    "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
+    "W", "X", "Y", "Z", "ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN",
+    "EIGHT", "NINE", "LEFT_CTRL", "LEFT_ALT", "LEFT_SHIFT", "RIGHT_ALT", "RIGHT_CTRL",
+    "RIGHT_SHIFT", "OSKEY", "APP", "GRLESS", "ESC", "TAB", "RET", "SPACE", "LINE_FEED",
+    "BACK_SPACE", "DEL", "SEMI_COLON", "PERIOD", "COMMA", "QUOTE", "ACCENT_GRAVE",
+    "MINUS", "PLUS", "SLASH", "BACK_SLASH", "EQUAL", "LEFT_BRACKET", "RIGHT_BRACKET",
+    "LEFT_ARROW", "DOWN_ARROW", "RIGHT_ARROW", "UP_ARROW", "NUMPAD_2", "NUMPAD_4",
+    "NUMPAD_6", "NUMPAD_8", "NUMPAD_1", "NUMPAD_3", "NUMPAD_5", "NUMPAD_7", "NUMPAD_9",
+    "NUMPAD_PERIOD", "NUMPAD_SLASH", "NUMPAD_ASTERIX", "NUMPAD_0", "NUMPAD_MINUS",
+    "NUMPAD_ENTER", "NUMPAD_PLUS", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
+    "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20",
+    "F21", "F22", "F23", "F24", "PAUSE", "INSERT", "HOME", "PAGE_UP", "PAGE_DOWN", "END",
+    }
+
 def calculate_mouse_metrics(history, current_pos):
-    if not history or len(history) < 2:
+    """Calculate mouse velocity and direction"""
+
+    if (not history or len(history) < 2):
         return 0.0, (0.0, 0.0)
-    
+
     # Get the oldest and newest positions
-    oldest_entry = history[0]
-    newest_entry = history[-1]
-    
+    oldest_entry, newest_entry = history[0], history[-1]
+
     # Calculate time difference in seconds
     time_diff = newest_entry[2] - oldest_entry[2]
-    if time_diff <= 0:
+    if (time_diff <= 0):
         return 0.0, (0.0, 0.0)
-    
+
     # Calculate distance moved
     dx = newest_entry[0] - oldest_entry[0]
     dy = newest_entry[1] - oldest_entry[1]
     distance = math.sqrt(dx*dx + dy*dy)
-    
+
     # Calculate velocity (pixels per second)
     velocity = distance / time_diff
-    
+
     # Calculate direction (normalized vector)
-    if distance > 0:
-        direction = (dx/distance, dy/distance)
-    else:
-        direction = (0.0, 0.0)
-    
+    if (distance > 0):
+          direction = (dx/distance, dy/distance)
+    else: direction = (0.0, 0.0)
+
     return velocity, direction
 
-# Global storage for event listener state
 class GlobalBridge:
+    """ Global storage for event listener state"""
+
     is_listening = False
+
     # Store mouse position history: [(x, y, timestamp), ...]
     mouse_history = []
+
     # Maximum number of history entries to keep
     history_max_length = 10
+
     # Store custom event types that user has added
-    custom_event_types = []
+    custom_event_types = set()
+
+    # Where we store event data
     event_data = {
         'type': '',
         'value': '',
@@ -98,47 +120,56 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
     
     _timer = None  # Store the timer reference
     
+    def process_timer_event(self, context):
+        """Process timer events to update velocity calculations"""
+
+        # GLobal dict of passed events
+        PassedE = GlobalBridge.event_data
+
+        # If we have mouse history but no recent movement, calculate a decreasing velocity
+        if GlobalBridge.mouse_history and len(GlobalBridge.mouse_history) >= 2:
+            # Get the most recent entry and check its timestamp
+            last_entry = GlobalBridge.mouse_history[-1]
+            current_time = time.time()
+
+            # If it's been more than a short time since the last movement, calculate decaying velocity
+            if current_time - last_entry[2] > 0.1:  # 100ms threshold
+
+                # Simulate a decreasing velocity if mouse isn't moving
+                current_velocity = PassedE['mouse_velocity']
+                if (current_velocity > 0):
+
+                    # Apply a damping factor (reduce by ~30% per update)
+                    damped_velocity = current_velocity * 0.7
+                    if damped_velocity < 1.0:  # Threshold below which we consider velocity zero
+                        damped_velocity = 0
+
+                    PassedE['mouse_velocity'] = damped_velocity
+
+                    # Update nodes with the new velocity value
+                    for node in get_all_nodes(exactmatch_idnames={
+                        NODEBOOSTER_NG_GN_DeviceInput.bl_idname,
+                        NODEBOOSTER_NG_SH_DeviceInput.bl_idname,
+                        NODEBOOSTER_NG_CP_DeviceInput.bl_idname,
+                    }): node.pass_event(PassedE)
+
+        # Only redraw UI if there are changes to display
+        if PassedE['mouse_velocity'] != 0:
+            for area in context.screen.areas:
+                area.tag_redraw()
+        
+        return None
+
     def modal(self, context, event):
+
         # Check if we should stop the operator
         if (not GlobalBridge.is_listening):
             self.cancel(context)
             return {'FINISHED'}
-        
-        # GLobal dict of passed events
-        PassedE = GlobalBridge.event_data
 
         # Process timer events to update velocity calculations
-        if event.type == 'TIMER':
-            # If we have mouse history but no recent movement, calculate a decreasing velocity
-            if GlobalBridge.mouse_history and len(GlobalBridge.mouse_history) >= 2:
-                # Get the most recent entry and check its timestamp
-                last_entry = GlobalBridge.mouse_history[-1]
-                current_time = time.time()
-                
-                # If it's been more than a short time since the last movement, calculate decaying velocity
-                if current_time - last_entry[2] > 0.1:  # 100ms threshold
-                    # Simulate a decreasing velocity if mouse isn't moving
-                    current_velocity = PassedE['mouse_velocity']
-                    if current_velocity > 0:
-                        # Apply a damping factor (reduce by ~30% per update)
-                        damped_velocity = current_velocity * 0.7
-                        if damped_velocity < 1.0:  # Threshold below which we consider velocity zero
-                            damped_velocity = 0
-                            
-                        PassedE['mouse_velocity'] = damped_velocity
-                        
-                        # Update nodes with the new velocity value
-                        for node in get_all_nodes(exactmatch_idnames={
-                            NODEBOOSTER_NG_GN_DeviceInput.bl_idname,
-                            NODEBOOSTER_NG_SH_DeviceInput.bl_idname,
-                            NODEBOOSTER_NG_CP_DeviceInput.bl_idname,
-                        }): node.pass_event_info(PassedE)
-            
-            # Only redraw UI if there are changes to display
-            if PassedE['mouse_velocity'] != 0:
-                for area in context.screen.areas:
-                    area.tag_redraw()
-                
+        if (event.type == 'TIMER'):
+            self.process_timer_event(context)
             return {'PASS_THROUGH'}
 
         # Check if the active area is a 3D View
@@ -147,84 +178,83 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
             if ((area.type == 'VIEW_3D') and 
                 (area.x <= event.mouse_x <= area.x + area.width) and
                 (area.y <= event.mouse_y <= area.y + area.height)):
-
                 is_in_viewport3d = True
                 break
 
         # Only process events when in the 3D viewport
-        if (is_in_viewport3d):
+        if (not is_in_viewport3d):
+            return {'PASS_THROUGH'}
+        # We don't want to catch mousemove events.
+        if (event.type in {'MOUSEMOVE','INBETWEEN_MOUSEMOVE'}):
+            return {'PASS_THROUGH'}
 
-            # catch mouse click events.
-            for et in {'LEFTMOUSE','RIGHTMOUSE','MIDDLEMOUSE'}:
-                ispush = PassedE[et]
-                if (et == event.type):
-                    PassedE[et] = event.value in {'PRESS','CLICK_DRAG'}
-                if (ispush and event.type != et):
-                    PassedE[et] = False
+        # GLobal dict of passed events
+        PassedE = GlobalBridge.event_data
 
-            # catch mouse wheel events.
-            if (event.type != 'MOUSEMOVE'):
-                PassedE['WHEELUPMOUSE'] = (event.type == 'WHEELUPMOUSE' and event.value == 'PRESS')
-                PassedE['WHEELDOWNMOUSE'] = (event.type == 'WHEELDOWNMOUSE' and event.value == 'PRESS')
+        # catch mouse and user defined events.
+        events_to_catch = {'LEFTMOUSE','RIGHTMOUSE','MIDDLEMOUSE'}
+        events_to_catch.update(GlobalBridge.custom_event_types)
+        for et in events_to_catch:
+            if (et == event.type):
+                PassedE[et] = event.value in {'PRESS','CLICK_DRAG'}
                 
-            # catch custom event types
-            for custom_event in GlobalBridge.custom_event_types:
-                ispush = PassedE[custom_event]
-                if (custom_event == event.type):
-                    PassedE[custom_event] = event.value in {'PRESS','CLICK_DRAG'}
-                if (ispush and event.type != custom_event):
-                    PassedE[custom_event] = False
+        # catch mouse wheel events.
+        PassedE['WHEELUPMOUSE'] = (event.type == 'WHEELUPMOUSE')
+        PassedE['WHEELDOWNMOUSE'] = (event.type == 'WHEELDOWNMOUSE')
 
-            # Update mouse history
-            current_time = time.time()
-            mouse_pos = (event.mouse_region_x, event.mouse_region_y, current_time)
-            
-            # Only add new position if it's different from the last one
-            if not GlobalBridge.mouse_history or mouse_pos[:2] != GlobalBridge.mouse_history[-1][:2]:
-                GlobalBridge.mouse_history.append(mouse_pos)
-                # Keep history to the maximum length
-                if len(GlobalBridge.mouse_history) > GlobalBridge.history_max_length:
-                    GlobalBridge.mouse_history.pop(0)
-            
-            # Calculate mouse velocity and direction
-            velocity, direction = calculate_mouse_metrics(
-                GlobalBridge.mouse_history, 
-                (event.mouse_region_x, event.mouse_region_y)
-            )
+        # Update mouse history
+        current_time = time.time()
+        mouse_pos = (event.mouse_region_x, event.mouse_region_y, current_time)
+        
+        # Only add new position if it's different from the last one
+        if not GlobalBridge.mouse_history or mouse_pos[:2] != GlobalBridge.mouse_history[-1][:2]:
+            GlobalBridge.mouse_history.append(mouse_pos)
+            # Keep history to the maximum length
+            if len(GlobalBridge.mouse_history) > GlobalBridge.history_max_length:
+                GlobalBridge.mouse_history.pop(0)
+        
+        # Calculate mouse velocity and direction
+        velocity, direction = calculate_mouse_metrics(
+            GlobalBridge.mouse_history, 
+            (event.mouse_region_x, event.mouse_region_y)
+        )
 
-            # Pass the data
-            PassedE.update({
-                'type': event.type,
-                'value': event.value,
-                'mouse_x': event.mouse_x,
-                'mouse_y': event.mouse_y,
-                'mouse_region_x': event.mouse_region_x,
-                'mouse_region_y': event.mouse_region_y,
-                'pressure': getattr(event, 'pressure', 0.0),
-                'shift': event.shift,
-                'ctrl': event.ctrl,
-                'alt': event.alt,
-                'mouse_velocity': velocity,
-                'mouse_direction_x': direction[0],
-                'mouse_direction_y': direction[1],
-            })
+        # Pass the data
+        PassedE.update({
+            'type': event.type,
+            'value': event.value,
+            'mouse_x': event.mouse_x,
+            'mouse_y': event.mouse_y,
+            'mouse_region_x': event.mouse_region_x,
+            'mouse_region_y': event.mouse_region_y,
+            'pressure': getattr(event, 'pressure', 0.0),
+            'shift': event.shift,
+            'ctrl': event.ctrl,
+            'alt': event.alt,
+            'mouse_velocity': velocity,
+            'mouse_direction_x': direction[0],
+            'mouse_direction_y': direction[1],
+        })
 
-            # Debug print (can be commented out for production)
-            print(f"DeviceInput Event: {PassedE}")
+        # Debug print (can be commented out for production)
+        # print(f"DeviceInput Event: {PassedE}")
 
-            # Update all nodes
-            for node in get_all_nodes(exactmatch_idnames={
-                NODEBOOSTER_NG_GN_DeviceInput.bl_idname,
-                NODEBOOSTER_NG_SH_DeviceInput.bl_idname,
-                NODEBOOSTER_NG_CP_DeviceInput.bl_idname,
-                },): node.pass_event_info(PassedE)
+        # Update all nodes
+        for node in get_all_nodes(exactmatch_idnames={
+            NODEBOOSTER_NG_GN_DeviceInput.bl_idname,
+            NODEBOOSTER_NG_SH_DeviceInput.bl_idname,
+            NODEBOOSTER_NG_CP_DeviceInput.bl_idname,
+            },): node.pass_event(PassedE)
 
         # NOTE We don't escape User can use the node interface to ecape.
         # if (event.type== 'ESC' and event.value == 'PRESS'):
         #     self.execute(context)
         #     return {'FINISHED'}
 
-        return {'PASS_THROUGH'}
+        # Block all shortcuts and clicks except for viewport navigation with MMB
+        if (event.type in {'MIDDLEMOUSE','WHEELUPMOUSE','WHEELDOWNMOUSE'}):
+            return {'PASS_THROUGH'}
+        return {'RUNNING_MODAL'}
     
     def execute(self, context):
         """execute the operator"""
@@ -261,10 +291,19 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
         return None
 
 
-# Base class for DeviceInput node
+# ooooo      ooo                 .o8            
+# `888b.     `8'                "888            
+#  8 `88b.    8   .ooooo.   .oooo888   .ooooo.  
+#  8   `88b.  8  d88' `88b d88' `888  d88' `88b 
+#  8     `88b.8  888   888 888   888  888ooo888 
+#  8       `888  888   888 888   888  888    .o 
+# o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
+
+
 class Base():
+
     bl_idname = "NodeBoosterDeviceInput"
-    bl_label = "Device Input"
+    bl_label = "Keyboard & Mouse Info"
     bl_description = """Custom Nodegroup: Listen for input device events and provide them as node outputs.
     • First, starts the modal operator that captures all input events of the 3D active Viewport.
     • Provides various data about input events (mouse, keyboard, etc.)
@@ -276,52 +315,32 @@ class Base():
 
     def update_custom_events(self, context):
         """Update the sockets based on custom event types"""
+
         # Process the custom event types string - split by commas and strip whitespace
-        event_types = [et.strip().upper() for et in self.custom_event_types.split(',') if et.strip()]
+        event_types = [et.strip().upper() for et in self.user_event_types.split(',') if et.strip()]
         
-        # Validate event types against Blender's supported event types
-        valid_event_types = []
-        invalid_event_types = []
-        valid_blender_events = {
-            "NONE", "LEFTMOUSE", "MIDDLEMOUSE", "RIGHTMOUSE", "BUTTON4MOUSE", "BUTTON5MOUSE",
-            "BUTTON6MOUSE", "BUTTON7MOUSE", "PEN", "ERASER", "MOUSEMOVE", "INBETWEEN_MOUSEMOVE",
-            "TRACKPADPAN", "TRACKPADZOOM", "MOUSEROTATE", "MOUSESMARTZOOM", "WHEELUPMOUSE",
-            "WHEELDOWNMOUSE", "WHEELINMOUSE", "WHEELOUTMOUSE", "A", "B", "C", "D", "E", "F",
-            "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
-            "W", "X", "Y", "Z", "ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN",
-            "EIGHT", "NINE", "LEFT_CTRL", "LEFT_ALT", "LEFT_SHIFT", "RIGHT_ALT", "RIGHT_CTRL",
-            "RIGHT_SHIFT", "OSKEY", "APP", "GRLESS", "ESC", "TAB", "RET", "SPACE", "LINE_FEED",
-            "BACK_SPACE", "DEL", "SEMI_COLON", "PERIOD", "COMMA", "QUOTE", "ACCENT_GRAVE",
-            "MINUS", "PLUS", "SLASH", "BACK_SLASH", "EQUAL", "LEFT_BRACKET", "RIGHT_BRACKET",
-            "LEFT_ARROW", "DOWN_ARROW", "RIGHT_ARROW", "UP_ARROW", "NUMPAD_2", "NUMPAD_4",
-            "NUMPAD_6", "NUMPAD_8", "NUMPAD_1", "NUMPAD_3", "NUMPAD_5", "NUMPAD_7", "NUMPAD_9",
-            "NUMPAD_PERIOD", "NUMPAD_SLASH", "NUMPAD_ASTERIX", "NUMPAD_0", "NUMPAD_MINUS",
-            "NUMPAD_ENTER", "NUMPAD_PLUS", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
-            "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20",
-            "F21", "F22", "F23", "F24", "PAUSE", "INSERT", "HOME", "PAGE_UP", "PAGE_DOWN", "END"
-        }
-        
+        valids = set()
+        invalids = set()
+
         for et in event_types:
-            if et in valid_blender_events:
-                valid_event_types.append(et)
-            else:
-                invalid_event_types.append(et)
+            if (et in POSSIBLE_EVENTS):
+                  valids.add(et)
+            else: invalids.add(et)
         
         # Compose error message if there are invalid event types
-        if invalid_event_types:
-            self.error_message = f"Invalid event type(s): {', '.join(invalid_event_types)}"
-        else:
-            self.error_message = ""
+        if (invalids):
+              self.error_message = f"Invalid event type(s): {', '.join(invalids)}"
+        else: self.error_message = ""
         
         # Update the GlobalBridge custom event types
-        old_event_types = GlobalBridge.custom_event_types
-        GlobalBridge.custom_event_types = valid_event_types
+        for event in valids: 
+            GlobalBridge.custom_event_types.add(event)
         
         # Add new event types to the event_data dictionary if they don't exist
-        for et in valid_event_types:
-            if et not in GlobalBridge.event_data:
+        for et in valids:
+            if (et not in GlobalBridge.event_data):
                 GlobalBridge.event_data[et] = False
-        
+
         # Update sockets in the node tree
         ng = self.node_tree
         
@@ -329,9 +348,9 @@ class Base():
         current_sockets = [s.name for s in ng.nodes["Group Output"].inputs]
         
         # Add sockets for new event types
-        for et in valid_event_types:
+        for et in valids:
             socket_name = f"{et} Key"
-            if socket_name not in current_sockets:
+            if (socket_name not in current_sockets):
                 create_socket(ng, in_out='OUTPUT', socket_type="NodeSocketBool", socket_name=socket_name)
         
         # Remove sockets for event types that are no longer in the list
@@ -339,25 +358,25 @@ class Base():
         sockets_to_remove = []
         for idx, socket in enumerate(ng.nodes["Group Output"].inputs):
             # Check if this is a custom event socket
-            if socket.name.endswith(" Key") and socket.name not in [f"{et} Key" for et in valid_event_types]:
+            if (socket.name.endswith(" Key") and socket.name not in [f"{et} Key" for et in valids]):
                 sockets_to_remove.append(idx)
-        
+
         # Remove sockets in reverse order to avoid index shifting issues
         for idx in reversed(sorted(sockets_to_remove)):
             remove_socket(ng, idx, in_out='OUTPUT')
-        
+
         # Refresh the node
         self.update()
-
+    
         return None
     
     # Property for custom event types
-    custom_event_types: StringProperty(
+    user_event_types: StringProperty(
         name="Custom Event Types",
         description="List of custom event types to track, separated by commas (e.g., 'A, B, SPACE,RET').\nSee blender 'Event Type Items' documentation to know which kewords are supported.",
         default="",
         update=update_custom_events
-    )
+        )
 
     @classmethod
     def poll(cls, context):
@@ -366,9 +385,9 @@ class Base():
     
     def init(self, context):
         """this fct run when appending the node for the first time"""
-        
+
         name = f".{self.bl_idname}"
-        
+
         # Define socket types - we'll handle this later, minimal setup for now
         sockets = {
             "Mouse Location": "NodeSocketVector",
@@ -389,21 +408,20 @@ class Base():
             ng = create_new_nodegroup(name,
                 tree_type=self.tree_type,
                 out_sockets=sockets,
-            )
+                )
             
         ng = ng.copy()  # always using a copy of the original ng
         
         self.node_tree = ng
+        self.width = 156
         self.label = self.bl_label
-        self.bl_description = self.bl_description
-        
+
         return None
-    
+
     def copy(self, node):
         """fct run when duplicating the node"""
 
         self.node_tree = node.node_tree.copy()
-        self.custom_event_types = node.custom_event_types
 
         return None
 
@@ -414,11 +432,11 @@ class Base():
 
     def free(self):
         """Remove node from update list when deleted"""
-        
+
         return None
 
-    def pass_event_info(self, event_data):
-        """Update node outputs based on event data - we'll expand this later"""
+    def pass_event(self, event_data):
+        """Update node outputs based on event data"""
 
         ng = self.node_tree
 
@@ -434,11 +452,13 @@ class Base():
         set_socket_defvalue(ng, socket_name="Middle Click", value=event_data['MIDDLEMOUSE'])
         set_socket_defvalue(ng, socket_name="Wheel Up", value=event_data['WHEELUPMOUSE'])
         set_socket_defvalue(ng, socket_name="Wheel Down", value=event_data['WHEELDOWNMOUSE'])
-        
+
         # Update custom event outputs
         for et in GlobalBridge.custom_event_types:
-            if et in event_data:
-                set_socket_defvalue(ng, socket_name=f"{et} Key", value=event_data[et])
+            if (et in event_data):
+                sockname = f"{et} Key"
+                if (sockname in self.outputs):
+                    set_socket_defvalue(ng, socket_name=sockname, value=event_data[et])
 
         return None
 
@@ -450,14 +470,14 @@ class Base():
         """node interface drawing"""
         
         col = layout.column(align=True)
-        col.label(text="Keys:")
-        col.prop(self, "custom_event_types", text="", placeholder="A, B, SPACE")
+        col.label(text="Keys:") 
+        col.prop(self, "user_event_types", text="", placeholder="A, B, SPACE")
 
         col = layout.column(align=True)
         row = col.row(align=True)
         text = "Stop Listening" if GlobalBridge.is_listening else "Start Listening"
         row.operator("nodebooster.device_input_listener", text=text, icon='PLAY' if not GlobalBridge.is_listening else 'PAUSE')
-        
+
         if (self.error_message):
             word_wrap(layout=col, alert=True, active=True, max_char=self.width/5.65, string=self.error_message)
 
@@ -471,20 +491,14 @@ class Base():
         header, panel = layout.panel("params_panelid", default_closed=False)
         header.label(text="Parameters")
         if panel:
+
             row = panel.row()
             text = "Stop Listening" if GlobalBridge.is_listening else "Start Listening"
             row.operator("nodebooster.device_input_listener", text=text, icon='PLAY' if not GlobalBridge.is_listening else 'PAUSE')
             
             col = panel.column(align=True)
             col.label(text="Custom Keys")
-            col.prop(self, "custom_event_types", text="")
-            
-            if GlobalBridge.custom_event_types:
-                box = panel.box()
-                box.label(text="Active Custom Events:")
-                for et in GlobalBridge.custom_event_types:
-                    row = box.row()
-                    row.label(text=f"{et} Key: {GlobalBridge.event_data.get(et, False)}")
+            col.prop(self, "user_event_types", text="", placeholder="A, B, SPACE")
 
         header, panel = layout.panel("doc_panelid", default_closed=True)
         header.label(text="Documentation")
