@@ -6,6 +6,10 @@
 # game controller input node. I have no idea how to do that. 
 # Maybe someone will implement that one day.
 
+# TODO support other events
+# user could have a string property where he can define his own event types separated by a comma.
+# example with A, B, RET, SPACE or whatever
+# we'll need to implement that at a node level. we pass all the info we need anyway.
 
 import bpy
 from bpy.types import Node, Operator
@@ -66,8 +70,7 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
 
         # Only process events when in the 3D viewport
         if (is_in_viewport3d):
-            
-            
+
             # catch mouse click events.
             # Update mouse button states
             match event.type:
@@ -147,7 +150,7 @@ class Base():
     bl_idname = "NodeBoosterDeviceInput"
     bl_label = "Device Input"
     bl_description = """Custom Nodegroup: Listen for input device events and provide them as node outputs.
-    • First, starts the modal operator that captures all input events of the 3D Viewport.
+    • First, starts the modal operator that captures all input events of the 3D active Viewport.
     • Provides various data about input events (mouse, keyboard, etc.)"""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
@@ -164,7 +167,8 @@ class Base():
         
         # Define socket types - we'll handle this later, minimal setup for now
         sockets = {
-            "Mouse": "NodeSocketVector",
+            "Mouse X": "NodeSocketInt",
+            "Mouse Y": "NodeSocketInt",
             "Left Click": "NodeSocketBool",
             "Right Click": "NodeSocketBool",
             "Middle Click": "NodeSocketBool",
@@ -213,7 +217,8 @@ class Base():
         ng = self.node_tree
 
         # Update node outputs based on event data
-        set_socket_defvalue(ng, socket_name="Mouse", value=(event_data['mouse_region_x'], event_data['mouse_region_y'], 0.0))
+        set_socket_defvalue(ng, socket_name="Mouse X", value=event_data['mouse_region_x'])
+        set_socket_defvalue(ng, socket_name="Mouse Y", value=event_data['mouse_region_y'])
         set_socket_defvalue(ng, socket_name="Ctrl", value=event_data['ctrl'])
         set_socket_defvalue(ng, socket_name="Shift", value=event_data['shift'])
         set_socket_defvalue(ng, socket_name="Alt", value=event_data['alt'])
