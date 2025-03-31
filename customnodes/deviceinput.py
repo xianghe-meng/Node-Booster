@@ -33,6 +33,11 @@ class GlobalBridge:
         'shift': False,
         'ctrl': False,
         'alt': False,
+        'LEFTMOUSE': False,
+        'RIGHTMOUSE': False,
+        'MIDDLEMOUSE': False,
+        'WHEELUPMOUSE': False,
+        'WHEELDOWNMOUSE': False,
         }
 
 # Modal operator that listens for input events
@@ -61,9 +66,30 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
 
         # Only process events when in the 3D viewport
         if (is_in_viewport3d):
+            
+            
+            # catch mouse click events.
+            # Update mouse button states
+            match event.type:
+                case 'LEFTMOUSE':
+                    GlobalBridge.event_data['LEFTMOUSE'] = event.value in {'PRESS','CLICK_DRAG'}
+                case 'RIGHTMOUSE':
+                    GlobalBridge.event_data['RIGHTMOUSE'] = event.value in {'PRESS','CLICK_DRAG'}
+                case 'MIDDLEMOUSE':
+                    GlobalBridge.event_data['MIDDLEMOUSE'] = event.value in {'PRESS','CLICK_DRAG'}
+            # Reset momentary events
+            for et in {'LEFTMOUSE','RIGHTMOUSE','MIDDLEMOUSE'}:
+                ispush = GlobalBridge.event_data[et]
+                if ispush and event.type != et:
+                    GlobalBridge.event_data[et] = False
 
-            # Process event data
-            GlobalBridge.event_data = {
+            # catch mouse wheel events.
+            if (event.type != 'MOUSEMOVE'):
+                GlobalBridge.event_data['WHEELUPMOUSE'] = (event.type == 'WHEELUPMOUSE' and event.value == 'PRESS')
+                GlobalBridge.event_data['WHEELDOWNMOUSE'] = (event.type == 'WHEELDOWNMOUSE' and event.value == 'PRESS')
+
+            # Pass the data
+            GlobalBridge.event_data.update({
                 'type': event.type,
                 'value': event.value,
                 'mouse_x': event.mouse_x,
@@ -74,7 +100,7 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
                 'shift': event.shift,
                 'ctrl': event.ctrl,
                 'alt': event.alt,
-            }
+            })
 
             # Debug print
             print(f"DeviceInput Event: {GlobalBridge.event_data}")
@@ -121,7 +147,7 @@ class Base():
     bl_idname = "NodeBoosterDeviceInput"
     bl_label = "Device Input"
     bl_description = """Custom Nodegroup: Listen for input device events and provide them as node outputs.
-    • First, starts the modal operator that captures all input events.
+    • First, starts the modal operator that captures all input events of the 3D Viewport.
     • Provides various data about input events (mouse, keyboard, etc.)"""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
@@ -139,6 +165,11 @@ class Base():
         # Define socket types - we'll handle this later, minimal setup for now
         sockets = {
             "Mouse": "NodeSocketVector",
+            "Left Click": "NodeSocketBool",
+            "Right Click": "NodeSocketBool",
+            "Middle Click": "NodeSocketBool",
+            "Wheel Up": "NodeSocketBool",
+            "Wheel Down": "NodeSocketBool",
             "Ctrl": "NodeSocketBool",
             "Shift": "NodeSocketBool",
             "Alt": "NodeSocketBool",
@@ -180,11 +211,17 @@ class Base():
         """Update node outputs based on event data - we'll expand this later"""
 
         ng = self.node_tree
+
         # Update node outputs based on event data
         set_socket_defvalue(ng, socket_name="Mouse", value=(event_data['mouse_region_x'], event_data['mouse_region_y'], 0.0))
         set_socket_defvalue(ng, socket_name="Ctrl", value=event_data['ctrl'])
         set_socket_defvalue(ng, socket_name="Shift", value=event_data['shift'])
         set_socket_defvalue(ng, socket_name="Alt", value=event_data['alt'])
+        set_socket_defvalue(ng, socket_name="Left Click", value=event_data['LEFTMOUSE'])
+        set_socket_defvalue(ng, socket_name="Right Click", value=event_data['RIGHTMOUSE'])
+        set_socket_defvalue(ng, socket_name="Middle Click", value=event_data['MIDDLEMOUSE'])
+        set_socket_defvalue(ng, socket_name="Wheel Up", value=event_data['WHEELUPMOUSE'])
+        set_socket_defvalue(ng, socket_name="Wheel Down", value=event_data['WHEELDOWNMOUSE'])
 
         return None
 
@@ -229,9 +266,6 @@ class Base():
             col = panel.column(align=True)
             col.label(text="NodeTree:")
             col.template_ID(n, "node_tree")
-            
-            row = panel.row()
-            row.label(text=f"Active Nodes: {len(GlobalBridge.nodes)}")
 
         return None
 
