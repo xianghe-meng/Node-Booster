@@ -21,17 +21,20 @@ def upd_customnodes(classes:list):
     # for optimization purpose, instead of each cls using the function, we create it once
     # here, then pass the list to the update functions with the 'using_nodes' param.
 
+    if (not classes):
+        return None
+
     sett_win = bpy.context.window_manager.nodebooster
     has_autorization = sett_win.authorize_automatic_execution
 
     matching_blid = [cls.bl_idname for cls in classes]
     
     nodes = get_all_nodes(exactmatch_idnames=matching_blid,)
-    # print("upd_customnodes().nodes:", nodes)
+    print("upd_customnodes().nodes:", matching_blid, nodes, )
 
     for n in nodes:
         if (not hasattr(n,'update_all_instances')):
-            print(f"WARNING: update_all_instances() function is required in your customnode class for an automatic execution.")
+            print(f"WARNING: update_all_instances() function is required in your customnode class for an automatic execution. For node {n.name}.")
             continue
 
         #automatic re-evaluation of the Python Expression and Python Nex Nodes.
