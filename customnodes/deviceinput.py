@@ -6,10 +6,8 @@
 # game controller input node. I have no idea how to do that. 
 # Maybe someone will implement that one day.
 
-# TODO support other events
-# user could have a string property where he can define his own event types separated by a comma.
-# example with A, B, RET, SPACE or whatever
-# we'll need to implement that at a node level. we pass all the info we need anyway.
+# TODO should we block any other even than navigation in 3Dview while listener Operator is active?
+# Perhaps it's better for users
 
 # BUG
 # when an animation is running, the modal operator and timer is junky. why?
@@ -17,6 +15,8 @@
 import bpy
 import time
 import math
+from bpy.types import Node, Operator
+from bpy.props import BoolProperty, StringProperty
 
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
@@ -24,6 +24,8 @@ from ..utils.node_utils import (
     create_new_nodegroup,
     set_socket_defvalue,
     get_all_nodes,
+    create_socket,
+    remove_socket,
 )
 
 # Function to calculate mouse velocity and direction
@@ -63,6 +65,8 @@ class GlobalBridge:
     mouse_history = []
     # Maximum number of history entries to keep
     history_max_length = 10
+    # Store custom event types that user has added
+    custom_event_types = []
     event_data = {
         'type': '',
         'value': '',
@@ -162,6 +166,14 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
             if (event.type != 'MOUSEMOVE'):
                 PassedE['WHEELUPMOUSE'] = (event.type == 'WHEELUPMOUSE' and event.value == 'PRESS')
                 PassedE['WHEELDOWNMOUSE'] = (event.type == 'WHEELDOWNMOUSE' and event.value == 'PRESS')
+                
+            # catch custom event types
+            for custom_event in GlobalBridge.custom_event_types:
+                ispush = PassedE[custom_event]
+                if (custom_event == event.type):
+                    PassedE[custom_event] = event.value in {'PRESS','CLICK_DRAG'}
+                if (ispush and event.type != custom_event):
+                    PassedE[custom_event] = False
 
             # Update mouse history
             current_time = time.time()
@@ -255,9 +267,97 @@ class Base():
     bl_label = "Device Input"
     bl_description = """Custom Nodegroup: Listen for input device events and provide them as node outputs.
     • First, starts the modal operator that captures all input events of the 3D active Viewport.
-    • Provides various data about input events (mouse, keyboard, etc.)"""
+    • Provides various data about input events (mouse, keyboard, etc.)
+    • You can add custom key event types by entering them in a comma-separated list (e.g., "A,B,SPACE,RET"). See blender 'Event Type Items' documentation to know which kewords are supported."""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
+    
+    error_message : bpy.props.StringProperty()
+
+    def update_custom_events(self, context):
+        """Update the sockets based on custom event types"""
+        # Process the custom event types string - split by commas and strip whitespace
+        event_types = [et.strip().upper() for et in self.custom_event_types.split(',') if et.strip()]
+        
+        # Validate event types against Blender's supported event types
+        valid_event_types = []
+        invalid_event_types = []
+        valid_blender_events = {
+            "NONE", "LEFTMOUSE", "MIDDLEMOUSE", "RIGHTMOUSE", "BUTTON4MOUSE", "BUTTON5MOUSE",
+            "BUTTON6MOUSE", "BUTTON7MOUSE", "PEN", "ERASER", "MOUSEMOVE", "INBETWEEN_MOUSEMOVE",
+            "TRACKPADPAN", "TRACKPADZOOM", "MOUSEROTATE", "MOUSESMARTZOOM", "WHEELUPMOUSE",
+            "WHEELDOWNMOUSE", "WHEELINMOUSE", "WHEELOUTMOUSE", "A", "B", "C", "D", "E", "F",
+            "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V",
+            "W", "X", "Y", "Z", "ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN",
+            "EIGHT", "NINE", "LEFT_CTRL", "LEFT_ALT", "LEFT_SHIFT", "RIGHT_ALT", "RIGHT_CTRL",
+            "RIGHT_SHIFT", "OSKEY", "APP", "GRLESS", "ESC", "TAB", "RET", "SPACE", "LINE_FEED",
+            "BACK_SPACE", "DEL", "SEMI_COLON", "PERIOD", "COMMA", "QUOTE", "ACCENT_GRAVE",
+            "MINUS", "PLUS", "SLASH", "BACK_SLASH", "EQUAL", "LEFT_BRACKET", "RIGHT_BRACKET",
+            "LEFT_ARROW", "DOWN_ARROW", "RIGHT_ARROW", "UP_ARROW", "NUMPAD_2", "NUMPAD_4",
+            "NUMPAD_6", "NUMPAD_8", "NUMPAD_1", "NUMPAD_3", "NUMPAD_5", "NUMPAD_7", "NUMPAD_9",
+            "NUMPAD_PERIOD", "NUMPAD_SLASH", "NUMPAD_ASTERIX", "NUMPAD_0", "NUMPAD_MINUS",
+            "NUMPAD_ENTER", "NUMPAD_PLUS", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
+            "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19", "F20",
+            "F21", "F22", "F23", "F24", "PAUSE", "INSERT", "HOME", "PAGE_UP", "PAGE_DOWN", "END"
+        }
+        
+        for et in event_types:
+            if et in valid_blender_events:
+                valid_event_types.append(et)
+            else:
+                invalid_event_types.append(et)
+        
+        # Compose error message if there are invalid event types
+        if invalid_event_types:
+            self.error_message = f"Invalid event type(s): {', '.join(invalid_event_types)}"
+        else:
+            self.error_message = ""
+        
+        # Update the GlobalBridge custom event types
+        old_event_types = GlobalBridge.custom_event_types
+        GlobalBridge.custom_event_types = valid_event_types
+        
+        # Add new event types to the event_data dictionary if they don't exist
+        for et in valid_event_types:
+            if et not in GlobalBridge.event_data:
+                GlobalBridge.event_data[et] = False
+        
+        # Update sockets in the node tree
+        ng = self.node_tree
+        
+        # First, get current sockets
+        current_sockets = [s.name for s in ng.nodes["Group Output"].inputs]
+        
+        # Add sockets for new event types
+        for et in valid_event_types:
+            socket_name = f"{et} Key"
+            if socket_name not in current_sockets:
+                create_socket(ng, in_out='OUTPUT', socket_type="NodeSocketBool", socket_name=socket_name)
+        
+        # Remove sockets for event types that are no longer in the list
+        # We need to identify custom event sockets (ones that end with " Key")
+        sockets_to_remove = []
+        for idx, socket in enumerate(ng.nodes["Group Output"].inputs):
+            # Check if this is a custom event socket
+            if socket.name.endswith(" Key") and socket.name not in [f"{et} Key" for et in valid_event_types]:
+                sockets_to_remove.append(idx)
+        
+        # Remove sockets in reverse order to avoid index shifting issues
+        for idx in reversed(sorted(sockets_to_remove)):
+            remove_socket(ng, idx, in_out='OUTPUT')
+        
+        # Refresh the node
+        self.update()
+
+        return None
+    
+    # Property for custom event types
+    custom_event_types: StringProperty(
+        name="Custom Event Types",
+        description="List of custom event types to track, separated by commas (e.g., 'A, B, SPACE,RET').\nSee blender 'Event Type Items' documentation to know which kewords are supported.",
+        default="",
+        update=update_custom_events
+    )
 
     @classmethod
     def poll(cls, context):
@@ -303,6 +403,7 @@ class Base():
         """fct run when duplicating the node"""
 
         self.node_tree = node.node_tree.copy()
+        self.custom_event_types = node.custom_event_types
 
         return None
 
@@ -333,6 +434,11 @@ class Base():
         set_socket_defvalue(ng, socket_name="Middle Click", value=event_data['MIDDLEMOUSE'])
         set_socket_defvalue(ng, socket_name="Wheel Up", value=event_data['WHEELUPMOUSE'])
         set_socket_defvalue(ng, socket_name="Wheel Down", value=event_data['WHEELDOWNMOUSE'])
+        
+        # Update custom event outputs
+        for et in GlobalBridge.custom_event_types:
+            if et in event_data:
+                set_socket_defvalue(ng, socket_name=f"{et} Key", value=event_data[et])
 
         return None
 
@@ -340,13 +446,20 @@ class Base():
         """node label"""
 
         return self.bl_label
-
     def draw_buttons(self, context, layout):
         """node interface drawing"""
+        
+        col = layout.column(align=True)
+        col.label(text="Keys:")
+        col.prop(self, "custom_event_types", text="", placeholder="A, B, SPACE")
 
-        row = layout.row()
+        col = layout.column(align=True)
+        row = col.row(align=True)
         text = "Stop Listening" if GlobalBridge.is_listening else "Start Listening"
         row.operator("nodebooster.device_input_listener", text=text, icon='PLAY' if not GlobalBridge.is_listening else 'PAUSE')
+        
+        if (self.error_message):
+            word_wrap(layout=col, alert=True, active=True, max_char=self.width/5.65, string=self.error_message)
 
         return None
 
@@ -361,7 +474,18 @@ class Base():
             row = panel.row()
             text = "Stop Listening" if GlobalBridge.is_listening else "Start Listening"
             row.operator("nodebooster.device_input_listener", text=text, icon='PLAY' if not GlobalBridge.is_listening else 'PAUSE')
-                
+            
+            col = panel.column(align=True)
+            col.label(text="Custom Keys")
+            col.prop(self, "custom_event_types", text="")
+            
+            if GlobalBridge.custom_event_types:
+                box = panel.box()
+                box.label(text="Active Custom Events:")
+                for et in GlobalBridge.custom_event_types:
+                    row = box.row()
+                    row.label(text=f"{et} Key: {GlobalBridge.event_data.get(et, False)}")
+
         header, panel = layout.panel("doc_panelid", default_closed=True)
         header.label(text="Documentation")
         if panel:
