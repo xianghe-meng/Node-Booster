@@ -65,12 +65,12 @@ def get_all_nodes(ignore_ng_name:str="NodeBooster", approxmatch_idnames:str="",
 
     #only node with matching exact id?
     if (exactmatch_idnames):
-        return [n for n in nodes if (n.bl_idname in exactmatch_idnames)]
+        nodes = [n for n in nodes if (n.bl_idname in exactmatch_idnames)]
 
     #only with node with 
     if (approxmatch_idnames):
-        return [n for n in nodes if (approxmatch_idnames in n.bl_idname)]
-    
+        nodes = [n for n in nodes if (approxmatch_idnames in n.bl_idname)]
+
     return nodes
 
 

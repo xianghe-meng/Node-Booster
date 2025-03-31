@@ -12,6 +12,8 @@
 # we'll need to implement that at a node level. we pass all the info we need anyway.
 
 import bpy
+import time
+import math
 from bpy.types import Node, Operator
 from bpy.props import BoolProperty
 
@@ -23,9 +25,43 @@ from ..utils.node_utils import (
     get_all_nodes,
 )
 
+# Function to calculate mouse velocity and direction
+def calculate_mouse_metrics(history, current_pos):
+    if not history or len(history) < 2:
+        return 0.0, (0.0, 0.0)
+    
+    # Get the oldest and newest positions
+    oldest_entry = history[0]
+    newest_entry = history[-1]
+    
+    # Calculate time difference in seconds
+    time_diff = newest_entry[2] - oldest_entry[2]
+    if time_diff <= 0:
+        return 0.0, (0.0, 0.0)
+    
+    # Calculate distance moved
+    dx = newest_entry[0] - oldest_entry[0]
+    dy = newest_entry[1] - oldest_entry[1]
+    distance = math.sqrt(dx*dx + dy*dy)
+    
+    # Calculate velocity (pixels per second)
+    velocity = distance / time_diff
+    
+    # Calculate direction (normalized vector)
+    if distance > 0:
+        direction = (dx/distance, dy/distance)
+    else:
+        direction = (0.0, 0.0)
+    
+    return velocity, direction
+
 # Global storage for event listener state
 class GlobalBridge:
     is_listening = False
+    # Store mouse position history: [(x, y, timestamp), ...]
+    mouse_history = []
+    # Maximum number of history entries to keep
+    history_max_length = 10
     event_data = {
         'type': '',
         'value': '',
@@ -42,6 +78,9 @@ class GlobalBridge:
         'MIDDLEMOUSE': False,
         'WHEELUPMOUSE': False,
         'WHEELDOWNMOUSE': False,
+        'mouse_velocity': 0.0,
+        'mouse_direction_x': 0.0,
+        'mouse_direction_y': 0.0,
         }
 
 # Modal operator that listens for input events
@@ -87,6 +126,23 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
                 PassedE['WHEELUPMOUSE'] = (event.type == 'WHEELUPMOUSE' and event.value == 'PRESS')
                 PassedE['WHEELDOWNMOUSE'] = (event.type == 'WHEELDOWNMOUSE' and event.value == 'PRESS')
 
+            # Update mouse history
+            current_time = time.time()
+            mouse_pos = (event.mouse_region_x, event.mouse_region_y, current_time)
+            
+            # Only add new position if it's different from the last one
+            if not GlobalBridge.mouse_history or mouse_pos[:2] != GlobalBridge.mouse_history[-1][:2]:
+                GlobalBridge.mouse_history.append(mouse_pos)
+                # Keep history to the maximum length
+                if len(GlobalBridge.mouse_history) > GlobalBridge.history_max_length:
+                    GlobalBridge.mouse_history.pop(0)
+            
+            # Calculate mouse velocity and direction
+            velocity, direction = calculate_mouse_metrics(
+                GlobalBridge.mouse_history, 
+                (event.mouse_region_x, event.mouse_region_y)
+            )
+
             # Pass the data
             PassedE.update({
                 'type': event.type,
@@ -99,7 +155,10 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
                 'shift': event.shift,
                 'ctrl': event.ctrl,
                 'alt': event.alt,
-                })
+                'mouse_velocity': velocity,
+                'mouse_direction_x': direction[0],
+                'mouse_direction_y': direction[1],
+            })
 
             # Debug print
             print(f"DeviceInput Event: {PassedE}")
@@ -131,6 +190,8 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
         else:
             # Start listening
             GlobalBridge.is_listening = True
+            # Clear mouse history
+            GlobalBridge.mouse_history = []
             # Start the modal operator
             context.window_manager.modal_handler_add(self)
             # Update UI
@@ -165,6 +226,8 @@ class Base():
         sockets = {
             "Mouse X": "NodeSocketInt",
             "Mouse Y": "NodeSocketInt",
+            "Mouse Velocity": "NodeSocketFloat",  # New velocity socket
+            "Mouse Direction": "NodeSocketVector",  # Changed to a single vector socket
             "Left Click": "NodeSocketBool",
             "Right Click": "NodeSocketBool",
             "Middle Click": "NodeSocketBool",
@@ -215,6 +278,8 @@ class Base():
         # Update node outputs based on event data
         set_socket_defvalue(ng, socket_name="Mouse X", value=event_data['mouse_region_x'])
         set_socket_defvalue(ng, socket_name="Mouse Y", value=event_data['mouse_region_y'])
+        set_socket_defvalue(ng, socket_name="Mouse Velocity", value=event_data['mouse_velocity'])
+        set_socket_defvalue(ng, socket_name="Mouse Direction", value=(event_data['mouse_direction_x'], event_data['mouse_direction_y'], 0.0))
         set_socket_defvalue(ng, socket_name="Ctrl", value=event_data['ctrl'])
         set_socket_defvalue(ng, socket_name="Shift", value=event_data['shift'])
         set_socket_defvalue(ng, socket_name="Alt", value=event_data['alt'])
@@ -252,6 +317,16 @@ class Base():
             text = "Stop Listening" if GlobalBridge.is_listening else "Start Listening"
             row.operator("nodebooster.device_input_listener", text=text, icon='PLAY' if not GlobalBridge.is_listening else 'PAUSE')
 
+            if GlobalBridge.is_listening and len(GlobalBridge.mouse_history) > 0:
+                box = panel.box()
+                box.label(text="Mouse Metrics:")
+                row = box.row()
+                row.label(text=f"Velocity: {GlobalBridge.event_data['mouse_velocity']:.1f} px/s")
+                row = box.row()
+                dir_x = GlobalBridge.event_data['mouse_direction_x']
+                dir_y = GlobalBridge.event_data['mouse_direction_y']
+                row.label(text=f"Direction: ({dir_x:.2f}, {dir_y:.2f}, 0.00)")
+
         header, panel = layout.panel("doc_panelid", default_closed=True)
         header.label(text="Documentation")
         if panel:
@@ -267,6 +342,9 @@ class Base():
             col = panel.column(align=True)
             col.label(text="NodeTree:")
             col.template_ID(n, "node_tree")
+            
+            row = panel.row()
+            row.label(text=f"History points: {len(GlobalBridge.mouse_history)}")
 
         return None
 

@@ -30,7 +30,7 @@ def upd_customnodes(classes:list):
     matching_blid = [cls.bl_idname for cls in classes]
     
     nodes = get_all_nodes(exactmatch_idnames=matching_blid,)
-    print("upd_customnodes().nodes:", matching_blid, nodes, )
+    # print("upd_customnodes().nodes:", matching_blid, nodes, )
 
     for n in nodes:
         if (not hasattr(n,'update_all_instances')):
