@@ -23,7 +23,7 @@ from ..utils.node_utils import (
     get_all_nodes,
 )
 
-# Global storage for event listener state and nodes
+# Global storage for event listener state
 class GlobalBridge:
     is_listening = False
     event_data = {
@@ -57,6 +57,9 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
         # Check if we should stop the operator
         if (not GlobalBridge.is_listening):
             return {'FINISHED'}
+        
+        # GLobal dict of passed events
+        PassedE = GlobalBridge.event_data
 
         # Check if the active area is a 3D View
         is_in_viewport3d = False
@@ -72,27 +75,20 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
         if (is_in_viewport3d):
 
             # catch mouse click events.
-            # Update mouse button states
-            match event.type:
-                case 'LEFTMOUSE':
-                    GlobalBridge.event_data['LEFTMOUSE'] = event.value in {'PRESS','CLICK_DRAG'}
-                case 'RIGHTMOUSE':
-                    GlobalBridge.event_data['RIGHTMOUSE'] = event.value in {'PRESS','CLICK_DRAG'}
-                case 'MIDDLEMOUSE':
-                    GlobalBridge.event_data['MIDDLEMOUSE'] = event.value in {'PRESS','CLICK_DRAG'}
-            # Reset momentary events
             for et in {'LEFTMOUSE','RIGHTMOUSE','MIDDLEMOUSE'}:
-                ispush = GlobalBridge.event_data[et]
-                if ispush and event.type != et:
-                    GlobalBridge.event_data[et] = False
+                ispush = PassedE[et]
+                if (et == event.type):
+                    PassedE[et] = event.value in {'PRESS','CLICK_DRAG'}
+                if (ispush and event.type != et):
+                    PassedE[et] = False
 
             # catch mouse wheel events.
             if (event.type != 'MOUSEMOVE'):
-                GlobalBridge.event_data['WHEELUPMOUSE'] = (event.type == 'WHEELUPMOUSE' and event.value == 'PRESS')
-                GlobalBridge.event_data['WHEELDOWNMOUSE'] = (event.type == 'WHEELDOWNMOUSE' and event.value == 'PRESS')
+                PassedE['WHEELUPMOUSE'] = (event.type == 'WHEELUPMOUSE' and event.value == 'PRESS')
+                PassedE['WHEELDOWNMOUSE'] = (event.type == 'WHEELDOWNMOUSE' and event.value == 'PRESS')
 
             # Pass the data
-            GlobalBridge.event_data.update({
+            PassedE.update({
                 'type': event.type,
                 'value': event.value,
                 'mouse_x': event.mouse_x,
@@ -103,17 +99,17 @@ class NODEBOOSTER_OT_DeviceInputEventListener(Operator):
                 'shift': event.shift,
                 'ctrl': event.ctrl,
                 'alt': event.alt,
-            })
+                })
 
             # Debug print
-            print(f"DeviceInput Event: {GlobalBridge.event_data}")
+            print(f"DeviceInput Event: {PassedE}")
 
             # Update all nodes
             for node in get_all_nodes(exactmatch_idnames={
                 NODEBOOSTER_NG_GN_DeviceInput.bl_idname,
                 NODEBOOSTER_NG_SH_DeviceInput.bl_idname,
                 NODEBOOSTER_NG_CP_DeviceInput.bl_idname,
-                },): node.pass_event_info(GlobalBridge.event_data)
+                },): node.pass_event_info(PassedE)
 
         # NOTE We don't escape User can use the node interface to ecape.
         # if (event.type== 'ESC' and event.value == 'PRESS'):
@@ -178,7 +174,7 @@ class Base():
             "Shift": "NodeSocketBool",
             "Alt": "NodeSocketBool",
         }
-        
+
         ng = bpy.data.node_groups.get(name)
         if ng is None:
             ng = create_new_nodegroup(name,
