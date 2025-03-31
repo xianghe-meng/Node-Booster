@@ -224,10 +224,9 @@ class Base():
         
         # Define socket types - we'll handle this later, minimal setup for now
         sockets = {
-            "Mouse X": "NodeSocketInt",
-            "Mouse Y": "NodeSocketInt",
-            "Mouse Velocity": "NodeSocketFloat",  # New velocity socket
-            "Mouse Direction": "NodeSocketVector",  # Changed to a single vector socket
+            "Mouse Location": "NodeSocketVector",
+            "Mouse Direction": "NodeSocketVector",
+            "Mouse Velocity": "NodeSocketFloat",
             "Left Click": "NodeSocketBool",
             "Right Click": "NodeSocketBool",
             "Middle Click": "NodeSocketBool",
@@ -276,10 +275,9 @@ class Base():
         ng = self.node_tree
 
         # Update node outputs based on event data
-        set_socket_defvalue(ng, socket_name="Mouse X", value=event_data['mouse_region_x'])
-        set_socket_defvalue(ng, socket_name="Mouse Y", value=event_data['mouse_region_y'])
-        set_socket_defvalue(ng, socket_name="Mouse Velocity", value=event_data['mouse_velocity'])
+        set_socket_defvalue(ng, socket_name="Mouse Location", value=(event_data['mouse_region_x'], event_data['mouse_region_y'], 0.0))
         set_socket_defvalue(ng, socket_name="Mouse Direction", value=(event_data['mouse_direction_x'], event_data['mouse_direction_y'], 0.0))
+        set_socket_defvalue(ng, socket_name="Mouse Velocity", value=event_data['mouse_velocity'])
         set_socket_defvalue(ng, socket_name="Ctrl", value=event_data['ctrl'])
         set_socket_defvalue(ng, socket_name="Shift", value=event_data['shift'])
         set_socket_defvalue(ng, socket_name="Alt", value=event_data['alt'])
