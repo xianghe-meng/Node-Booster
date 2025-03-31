@@ -3,6 +3,16 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
+#TODO nodes ideas:
+# InputListener node: 
+#   - listen to user keyboard or mouse inputs. launch a modal operator that listen and pass the infor to the node.
+#   - the listener might work on global space
+# Material Info node? 
+#   - gather informations about the material? what?
+# Color Palette Node? easily swap between color palettes?
+# File IO:
+#   - For geometry node, could create a mesh on the fly from a file and set up as field attributes.
+
 from . camerainfo import (
         NODEBOOSTER_NG_GN_CameraInfo,
         NODEBOOSTER_NG_SH_CameraInfo,
