@@ -69,6 +69,11 @@ from . deviceinput import (
         NODEBOOSTER_NG_SH_DeviceInput,
         NODEBOOSTER_NG_CP_DeviceInput,
         )
+from . objectvelocity import (
+        NODEBOOSTER_NG_GN_ObjectVelocity,
+        NODEBOOSTER_NG_SH_ObjectVelocity,
+        NODEBOOSTER_NG_CP_ObjectVelocity,
+        )
 
 #For menus, in order of appearance
 
@@ -78,6 +83,7 @@ GN_CustomNodes = (
     NODEBOOSTER_NG_GN_SceneInfo,
     NODEBOOSTER_NG_GN_RenderInfo,
     NODEBOOSTER_NG_GN_CameraInfo,
+    NODEBOOSTER_NG_GN_ObjectVelocity,
     NODEBOOSTER_NG_GN_DeviceInput,
     NODEBOOSTER_NG_GN_IsRenderedView, #this one doesn't make sense in other editors.
     NODEBOOSTER_NG_GN_SequencerSound,
@@ -92,6 +98,7 @@ SH_CustomNodes = (
     NODEBOOSTER_NG_SH_SceneInfo,
     NODEBOOSTER_NG_SH_RenderInfo,
     NODEBOOSTER_NG_SH_CameraInfo,
+    NODEBOOSTER_NG_SH_ObjectVelocity,
     NODEBOOSTER_NG_SH_DeviceInput,
     NODEBOOSTER_NG_SH_SequencerSound,
     NODEBOOSTER_NG_SH_MathExpression,
@@ -105,6 +112,7 @@ CP_CustomNodes = (
     NODEBOOSTER_NG_CP_SceneInfo,
     NODEBOOSTER_NG_CP_RenderInfo,
     NODEBOOSTER_NG_CP_CameraInfo,
+    NODEBOOSTER_NG_CP_ObjectVelocity,
     NODEBOOSTER_NG_CP_DeviceInput,
     NODEBOOSTER_NG_CP_SequencerSound,
     NODEBOOSTER_NG_CP_MathExpression,
@@ -156,4 +164,8 @@ classes = (
     NODEBOOSTER_NG_GN_DeviceInput,
     NODEBOOSTER_NG_SH_DeviceInput,
     NODEBOOSTER_NG_CP_DeviceInput,
+
+    NODEBOOSTER_NG_GN_ObjectVelocity,
+    NODEBOOSTER_NG_SH_ObjectVelocity,
+    NODEBOOSTER_NG_CP_ObjectVelocity,
     )
