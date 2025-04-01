@@ -3,6 +3,12 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
+# TODO Bonus ideas:
+# - could propose shift a menu when done just like link operation
+# - what if user want to link right to left direction?
+# - need to support new panel functionality for nodes, only for latest blender version tho, don't think it was there for 4.2
+# - could use shift+ctrl to replace existing link maybe?
+
 import bpy
 
 from ..utils.node_utils import get_nearest_node_at_position, create_socket, get_socket_from_socketui
@@ -42,11 +48,6 @@ def get_linkchain_finalsocket_type(link):
     return link.to_socket.type
 
 class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
-
-    #TODO could propose shift a menu when done just like link operation
-    #TODO what if user want to link right to left direction?
-    #TODO need to support new panel functionality for nodes, only for latest blender version tho, don't think it was there for 4.2
-    #TODO could use shift+ctrl to replace existing link maybe?
 
     bl_idname = "nodebooster.draw_route"
     bl_label = "Draw Reroute Pathways"
@@ -441,13 +442,6 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def confirm(self, context):
-    
-        # we might created links from the CUSTOM GROUP_INPUT or GROUP_OUTPUT socket type,
-        # Let's check this and actually create the new sockets
-        # NOTE what's the difference between CUSTOM and VALUE??
-
-        # TODO: there's a few bugs to fix when dealing with custom socket linking on 
-        # very special use case. Linked with links.remove(l)
 
         # TODO: The lines below seems to make blender debug build. 
         # Unsure why? perhaps debug mode is too picky.
@@ -458,7 +452,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                 if (l.to_socket.type=='CUSTOM'):
 
                     newtype = l.from_socket.type
-                    if (newtype in {'CUSTOM','VALUE'}):
+                    if (newtype in {'CUSTOM','VALUE'}): # NOTE what's the difference between CUSTOM and VALUE?
                         newtype = 'FLOAT'
 
                     s_old = l.from_socket

@@ -2,25 +2,61 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# TODO v2.0 release
+#  - Custom operator shortcuts are not saved, they reset on each blender sessions.
+#  - Functions should always check if a value or type isn't already set before setting it. 
+#    I believe the tool is currently sending a lot of useless update signals by setting the same values 
+#    (see compositor refresh, perhaps it's because of node.update()?? need to investigate)
+#  - Finalize NexScript for Shader/compositor. Need to overview functions..
+#  - Codebase review for extension.. Ask AI to do a big check.
 
-#TODO ideas for later
-#  - Share nodes between ShaderEditor/Compositor as well? Would be nice to introduce BaseClass then..
-#  - MathExpression node could have a big brother supporting plenty of other datatype, not only floats.. 
-#    Vectors, Rotation, Comparison, Matrix ect.. Auto socket type swap as well
-#  - Sequencer volume could use some options for sampling a specific time. Perhaps sampling other elements of the sound?
-#  - Other node ideas from user feedback?
-#  - Maybe copy some nodewrangler functionality such as quick mix so user don't rely on both plugins and swap to Booster ;-)
-#  - for custom nodes could use blender new message system to display an error message on header perhaps?
+# NOTE Change to C blender code:
+#  - Would be great to display error messages for context nodes who use them like the native node. 
+#    API is not exposed th
+#  - Color of some nodes should'nt be red. sometimes blue for converter (math expression) or script color..
+#    Unfortunately the API si not Exposed
+#  - Sample socket value API?
+#    So far in this plugin we can only pass information to a socket, or arrange nodes.
+#    What would be an extremely useful functionality, woould be to sample a socket value from a socket.evaluate_value()
+#    integrated directly in blender. Unfortunately there are no plans to implement such API.
+#  - CustomSocketTypes API?
+#    If we could create custom SocketTypes, we could create nodes that process specific data before sending it 
+#    to the native blender SocketTypes. A lot of new CustomNodes could be implemented that way for each editors.
+#    It would greatly improve how extensible existing editors are. A lot of nodes from Animation nodes for example
+#    could be implemented on for all editors types, and be directly use within these native editors without the need
+#    of a separate nodetree interface.
+#  - Nodes Consistencies: Generally speaking, nodes are not consistent from one editor to another.
+#    For example ShaderNodeValue becomes CompositorNodeValue. Ect.. a lot of Native socket types could be ported to 
+#    all editors as well. For example, SocketBool can be in the compositor.
 
-#TODO
-#  - copy/pasting a node with ctrlc/v is not working 
+# TODO Ideas:
+#
+# Generic Functionalities Ideas:
+#  - Maybe copy some nodewrangler functionality such as quick mix so user stick to our extrusion style workflow?
+#
+# Nodes Ideas:
+# - Material Info node? gather informations about the material? if so, what?
+# - Color Palette Node? easily swap between color palettes?
+# - Armature/Bone nodes? Will need to learn about rigging to do that tho..
+# - File IO: For geometry node, could create a mesh on the fly from a file and set up as field attributes.
+# - View3D Info node: Like camera info, but for the 3d view (location/rotation/fov/clip/)
+#   Problem: what if there are many? Perhaps should use context.
+# - Animation Nodes/ Svershock inspiration: See wich nodes can be ported.
+# - MetaBall Info node?
+# - Evaluate sequencer images? Possible to feed the sequencer render to the nodes?
+# - Sound Info Node: sound sampling? Sound curve? Evaluate Sound at time? If we work based on sound, perhaps it's for the best isn't it?
 
-#NOTE You might stumble into this crash when hot-reloading (enable/disable) the plugin on blender 4.2/4.2
-#     https://projects.blender.org/blender/blender/issues/134669 Has been fixed in 4.4. Only impacts developers hotreloading.
+# TODO Bugs:
+# To Fix:
+#  - copy/pasting a node with ctrlc/v is not working, even crashing. Unsure it's us tho. Maybe it's blender bug.
+# Known:
+#  - You might stumble into this crash when hot-reloading (enable/disable) the plugin on blender 4.2/4.2
+#    https://projects.blender.org/blender/blender/issues/134669 Has been fixed in 4.4. 
+#    Only impacts developers hotreloading.
 
 import bpy
 
-#This is here for supporting blender 4.1
+#This is only here for supporting blender 4.1
 bl_info = {
     "name": "Node Booster (Experimental 4.1+)",
     "author": "BD3D DIGITAL DESIGN (Dorian B.)",
@@ -32,7 +68,6 @@ bl_info = {
     "doc_url": "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free",
     "category": "Node",
 }
-
 
 def get_addon_prefs():
     """get preferences path from base_package, __package__ path change from submodules"""

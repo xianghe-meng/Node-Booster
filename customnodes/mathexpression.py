@@ -10,9 +10,9 @@
 # 4- call the function using 'ast_function_caller()' functions names will correspond to the nodesetter.py 
 #    functions and will set up new nodes and links.
 
-
-# TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
-# TODO support >= == < ect comparison operand, using right nodes for cross compatibility!!
+# TODO 
+# - color of the node header should be blue for converter.. how to do that without hacking in the memory??
+# - support >= == < ect comparison operand, using right nodes for cross compatibility!!
 
 import bpy
 

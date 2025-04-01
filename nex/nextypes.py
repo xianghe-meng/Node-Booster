@@ -2,22 +2,19 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# NOTE all these types are meant for the pynexscripy.py node.
-#  The node is a python script evaluator that is meant to toy with these sockets.
+# NOTE types meant for the pynexscript.py node.
 
-# TODO later
-#  Optimization:
-#  - NexFactory exec is bad for performance? This factory are initialized in the main node class once per execution. Can be frequent.
+# TODO 
+#  - Optimization: NexFactory exec is bad for performance? This factory are initialized in the main node class once per execution. Can be frequent.
 #    Perhaps we can initiate the factory at node.init()? If we do that, let's first check if it's safe. Maybe, storing pyobjects in there is not supported. 
 #    AS a Reminder: we are storing nodetree objects in there, we'll probably need to only store the nodetree name? what about node_inst?
-#  Code Redundency:
-#  - A lot of operation overloads are very simimar. Some math and comparison operation are repeated across many NexTypes.
-#    perhaps could centralize some operations via class inheritence 'NexMath' 'NexCompare' to not repeat function def?
-#  - Complex task: Maybe find a smart way to centralized ALL AND ANY type conversion and type error handling? 
-#    We do type conversion and checks in dunder overloads, we do conversions in nodesetter function wrapper, and in the nodesetter module as well.
-#    Blender type conversion is complex and sometimes do not make sense. It depends on the nodes we are using and the default arguments types as well.
-#    Implicit Conversion is wild. Sometimes a color can be evaluated as a float and a float as Color, and sometimes we might want to apply stricter rules in NexScript.
-
+#  - NexVec.length support setter. need to find formula and apply it
+#  - NexCol .c .m .y .k .cmyk would be really nice!
+#  - NexCol need to get and set blackbody! find formula!
+#  - NexMtx.normalized()
+#  - Comparison support for matrix and quaternion and all other types.. will need to find a custom solution tho. 
+#  - Bitwise for SocketMatrix and SocketRotation? socketmatrix too. == 0,0,0,0,0,0,0,00,0, will be false
+#  - NexGeo type? with interesting functions like nearpoint(vector,Geo) raycast(vector,Geo) ect..
 
 import bpy
 
@@ -981,8 +978,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
     #  8     `88b.8  888ooo888    Y888'     888   888   888    888   
     #  8       `888  888    .o  .o8"'88b    888   888   888    888 . 
     # o8o        `8  `Y8bod8P' o88'   888o o888o o888o o888o   "888" 
-                                            
-    #TODO this one could have optimized node. Nodesetter functions could check like we are already doing with NexVec & containsVecs()
 
     class NexInt(NexMath, NexCompare, NexBitwise, Nex):
 
@@ -1246,7 +1241,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             return NexWrappedFcts['length'](self,)
         @length.setter
         def length(self, value):
-            #TODO looks like mathutils.length support setter. need to find formula and apply it
             raise NexError("AssignationError. 'SocketVector.length' is read-only.")
 
         def normalized(self):
@@ -1559,9 +1553,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             to_frame.append(new.nxsock.node)
             frame_nodes(self.node_tree, *to_frame, label=f"Col.setitem.hsl",)
 
-        # TODO .c .m .y .k .cmyk would be really nice!
-        
-        # TODO need to get and set blackbody! find formula!
         # complete nodesetter.get_blackbody
         # @property
         # def blackbody(self):
@@ -2046,10 +2037,6 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
         def transposed(self):
             return NexWrappedFcts['matrixtranspose'](self,)
-
-        #TODO .decompose() #Same as sepatransforms
-        #TODO .normalized() #Return a column normalized matrix
-        #TODO .row & .col return tuple of 4Quat setter & getter.
 
         @property
         def translation(self):

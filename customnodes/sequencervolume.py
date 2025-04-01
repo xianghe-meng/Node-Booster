@@ -107,8 +107,6 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
     volumeboost = strip.volume
     signal = signal * fade
     
-    #TODO support sound.pan if use_mono
-
     # Compute requested features
     # Volume: compute peak absolute amplitude (store in linear domain)
     if (volume):
@@ -273,7 +271,7 @@ def evaluate_sequencer_audio_data(frame_offset=0, at_sound=None, smoothing=0,
     # Loop through each sound strip.
     for s in sound_sequences:
 
-        # TODO Compute effective fade for this strip at the target frame.
+        # Compute effective fade for this strip at the target frame?
         # effective_fade = local_get_fade(s, frame)
         effective_fade = 1
 

@@ -2,25 +2,49 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# NOTE this module gather all kind of math function between sockets and/or between sockets and python types.
+# NOTE ABOUT: this module gather all kind of math function between sockets and/or between sockets and python types.
 #  When executing these functions, it will create and link new nodes automatically, from sockets to sockets and return another socket.
 
-# NOTE WARNING, be carreful with 'mathex' user domain. 
-# These functions, and inner functions need to be carreful with node editor context.
+#N OTE CODE INFO: 
+# Cross Compatibility:
+# - be carreful with 'mathex' user domain. These functions are cross compatible for all editors.
+# Move Module:
+# - perhaps we should move this module, from accepting NodeSocket types, to accepting NexTypes only?
+# - the problem with NodeSocket type is that there are many sub-type that are annoying to deal with.. sVecT, sVecXYZ ect..
+#   All our function are strict typed. So when an user pass a SocketFloatAngle to a function designed for SocketFloat, will raise a type error..
+#   And there's many useless subtype going on in the api..
+# Internal Params:
+# - ng, and callhistory are internal parameters, user is not exposed to them.
+# - The 'callhistory' internal parameter is an important functonality! Thanks to it, we can define a stable tag id for nodes generation,
+#    this functionality let us re-execute the functions to update potential .default_value without rebuilding the entire nodetree nodes and links again.
+# - The problem with this technique, is that calling functions often ex Vec.x Col.r ect.. will create a new node on each getter operation. 
+#   To resolved superflus creation of node, the 'callhistory' functionality could perhaps create tags not based on function call, but based on function AND their arguments.
+#   The tag could look like F|funcname(ArgUniqueID1,ArgUniqueID2,ArgUniqueID3). This was implemented previously but we quickly reached limit of function name char[64]...
+#   this unique_tag would also need to support python types that may change on each execution (if the user is passing #frame or a obj.location to the function, we
+#   need to find a way to recognize this value cross execution which is no easy task).. so there's a lot of challenge. Perhaps not worth just fixing redudant nodes.
 
-# NOTE perhaps we should move this module, from accepting NodeSocket types, to accepting NexTypes only?
-# the problem with NodeSocket type is that there are many sub-type that are annoying to deal with.
-# All our function are strict typed. So when an user pass a SocketFloatAngle to a function designed for SocketFloat, will raise a type error..
-# And there's many useless subtype going on in the api..
-
-# NOTE The 'callhistory' internal parameter is an important functonality! Thanks to it, we can define a stable tag id for nodes generation,
-#  this functionality let us re-execute the functions to update potential .default_value without rebuilding the entire nodetree nodes and links again.
-# NOTE problem, calling functions often ex Vec.x Col.r ect.. will create a new node on each getter operation. 
-# To resolved superfuls creation of node the 'callhistory' functionality could perhaps create tags not based on function call, but based on function and their arguments.
-# The tag could look like F|funcname(ArgUniqueID1,ArgUniqueID2,ArgUniqueID3). This was implemented previously but we quickly reached limit of function name char[64]
-# this unique_tag would also need to support python types that may change on each execution (if the user is passing #frame or a obj.location to the function, we
-# need to find a way to recognize this value cross execution which is no easy task)
-
+# TODO 
+# - see todos for functions ideas and improvements below.
+# Ideas:
+# - sign( function )
+# - genetic data.inverted() for all types.
+# - More color functions
+#   - gamma(col, gammavalue) Adjusts the gamma of a color. Internally, each channel is raised to the power of 1/gamma_value.
+#   - Col.inverted() hueshift(col, angle)
+#   - contrast(col, fac) =((c−0.5)×f+0.5)
+#   - blend(mode,colA,colB) overlay/screen/ ect with optional factor??
+# - More vector functions
+#   - anglebetween(vA, vB) refract()
+# - bitwise all(**values) any(**values)
+# - improve generalbatchcompare: give system to alleq.. isbetween etc.. almosteq isbetween allbetween
+# - check interesting houdnini Vex functions
+# - sum(...), avg(...), min(...), max(...) over arrays sort( accumulate(
+# - support min() max() on single SocketMatrix, SocketRotation, SocketVector, SocketColor? dunder class method for it __min__ __max__ ??
+# - if the switch() value is not a NodeSocket but a python value, perhaps we could simply do noodle linking manipulations, 
+#   and support switch between any types! (contrary to switch only for same type)
+# - integer math optimization
+# - noise2d(x, y) noise3d(x, y, z) randgauss(mean, stddev, seed, ID) Returns a random float from a Gaussian distribution with mean, stddev
+# - fit fit01 fit10 for clampl alternative similar to Houdini Vex
 
 import bpy 
 
@@ -42,9 +66,10 @@ sFlo = bpy.types.NodeSocketFloat
 sCol = bpy.types.NodeSocketColor
 sRot = bpy.types.NodeSocketRotation
 sVec = bpy.types.NodeSocketVector
+
+#experimental support for matrix socket
 try:    sMtx = bpy.types.NodeSocketMatrix
 except: sMtx = bpy.types.NodeSocketFloat ; print("WARNING: Experimental Support for 4.1")
-
 
 #tell me why these type exist? what's the reason? Very annoying to support..
 sVecXYZ = bpy.types.NodeSocketVectorXYZ
@@ -2535,6 +2560,8 @@ def alleq(ng, callhistory,
     return generalbatchcompare(ng,callhistory,'alleq',None,None,None,*values)
 
 #TODO what about epsilon??? problem is that epsilon is not supported for all operaiton type
+# would require a fix in blender source code.
+
 #def almosteq(a,b,epsilon)
 #TODO 
 #def isbetween(value, min, max)
@@ -2837,7 +2864,7 @@ def getn(ng, callhistory,
         node.location.y += 65*2
     return node.outputs[0]
 
-#TODO later, need NexInt
+# TODO 
 # @user_domain('nexscript')
 # @user_doc(nexscript="ID Attribute.\nGet the GeometryNode 'ID' SocketInt input attribute.")
 # def getid(ng, callhistory,
@@ -2865,7 +2892,7 @@ def getn(ng, callhistory,
 
 #     return node.outputs[0]  # 'ID' output (Int)
 
-
+# TODO 
 # @user_domain('nexscript')
 # @user_doc(nexscript="Index Attribute.\nGet the GeometryNode 'Index' SocketInt input attribute.")
 # def getindex(ng, callhistory,
@@ -2892,7 +2919,7 @@ def getn(ng, callhistory,
 
 #     return node.outputs[0]  # 'Index' output (Int)
 
-
+# TODO 
 # @user_domain('nexscript')
 # @user_doc(nexscript="Named Attribute.\nGet the GeometryNode 'Named Attribute' with a chosen type.\nNote: This node was removed in newer Blender versions (3.5+).")
 # def getnamedattr(ng, callhistory,

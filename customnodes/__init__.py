@@ -2,22 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-
-#TODO nodes ideas:
-# Material Info node? 
-#   - gather informations about the material? what?
-# Color Palette Node? easily swap between color palettes?
-# File IO:
-#   - For geometry node, could create a mesh on the fly from a file and set up as field attributes.
-# View3D Info node:
-#   - Like camera info, but for the 3d view (location/rotation/fov/clip/)
-#   - Problem: what if there are many? Perhaps should use context.
-# Object Velocity:
-#   - Would be nice for the user to recieve velocity data from an object location for example?
-#   - location/rotation/scale velocity?
-# Animation Nodes/ Svershock
-#   - see wich nodes can be ported.
-
 from . camerainfo import (
         NODEBOOSTER_NG_GN_CameraInfo,
         NODEBOOSTER_NG_SH_CameraInfo,

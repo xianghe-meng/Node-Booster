@@ -138,7 +138,7 @@ def crosseditor_socktype_adjust(socket_type:str, ngtype:str) -> str:
 
         case 'SHADER':
             if (socket_type in {'NodeSocketRotation', 'NodeSocketMatrix'}):
-                #TODO convert somehow?
+                # TODO cross editor support for these types? Pff. Better: Blender code base should support it.
                 pass
 
         case 'COMPOSITING':

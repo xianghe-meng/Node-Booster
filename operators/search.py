@@ -8,15 +8,15 @@ import bpy
 
 #NOTE this functinality is implemented on an property update level
 
-#TODO this functionality could be improved
-#   TODO would be nice to add a recursive search feature in there
-#   TODO perhaps better to use a search operator instead of using a prop update
-#   TODO perhaps it would be nicer to confirm if user want to select (or enter a subgroup)
-#      right now we directly select everything after search, perhaps 1) search, then display 
-#      the found match on the ui, then 2) propose operators to select, recenter view, and enter nodetrees?
-#   TODO instead of simple boolean for types, we should have enum with type match..
-#   TODO add a case for matching nodetree names
-#   TODO add a recursive toggle option
+#TODO Requires rework
+# - would be nice to add a recursive search feature in there
+# - perhaps better to use a search operator instead of using a prop update
+# - perhaps it would be nicer to confirm if user want to select (or enter a subgroup)
+#    right now we directly select everything after search, perhaps 1) search, then display 
+#    the found match on the ui, then 2) propose operators to select, recenter view, and enter nodetrees?
+# - instead of simple boolean for types, we should have enum with type match..
+# - add a case for matching nodetree names
+# - add a recursive toggle option
 
 
 def search_upd(self, context):

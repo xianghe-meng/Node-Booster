@@ -2,8 +2,12 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-#TODO bake operator in panel as well, like math
-#TODO if auto depsgraph enabled, and user press exec button, execution occurs twice. due to deps trigger..
+#TODO 
+# - IMPORTANT: Support Nex for Shader/Compositor
+# - Please See TODO in nextypes.py and nodesetter.py as well! ALl are related to this node!
+# - BUG? If auto depsgraph enabled, and user press exec button, execution occurs twice. due to deps trigger..
+# Bonus; 
+# -';' python notation?
 
 import bpy
 

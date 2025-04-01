@@ -21,11 +21,11 @@
 # - Storing velocity damping global settings like this will lead to a a reset of user values on each blender session.
 #   we should use plugin preferences instead.
 # - user feedback:
-#      This is so cool! Please make ID registration unique. Right now, if you connect a USB numpad to the PC and 
+#      Please make ID registration unique. Right now, if you connect a USB numpad to the PC and 
 #      you have a regular keyboard, If you press "5" blender doesn't know if it came from the USB numpad or the keyboard numpad. 
 #      ID devices HID registration is required, please"""
-#      Unfortunately this implementation is using bpy.types.Event so i'm not sure we can achieve that. Perhaps a more generic 'Devince Input'
-#      note that cover any kind of device connected to the PC like could manage the job?
+#     Unfortunately this implementation is using bpy.types.Event so i'm not sure we can achieve that. Perhaps a more generic 'Devince Input'
+#     note that cover any kind of device connected to the PC like gamepad, MIDI controllers, etc.
 
 
 import bpy

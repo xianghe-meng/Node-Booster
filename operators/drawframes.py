@@ -2,6 +2,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# TODO Improvements:
+# - would be nice to also support add frames to another frames
+# - would be nice so the frame don't wrap around the selection as an option. 'fixed frames' option
+
 
 import bpy
 
@@ -13,8 +17,6 @@ from ..utils.draw_utils import ensure_mouse_cursor
 
 def get_nodes_in_frame_box(frame, nodes, frame_support=True,):
     """search node that can potentially be inside this frame created box"""
-
-    #TODO 'frame_support', should support frames within frame
 
     bounds_left = frame.location.x
     bounds_right = frame.location.x + frame.dimensions.x
@@ -35,9 +37,6 @@ def get_nodes_in_frame_box(frame, nodes, frame_support=True,):
 
 class NODEBOOSTER_OT_draw_frame(bpy.types.Operator):
     """modal operator to easily draw frames by keep pressing the J key"""
-    
-    #TODO would be nice to also support add frames to frames
-    #TODO would be nice so the frame don't wrap around the selection as an option
 
     bl_idname = "nodebooster.draw_frame"
     bl_label = "Draw Frames"
@@ -96,7 +95,6 @@ class NODEBOOSTER_OT_draw_frame(bpy.types.Operator):
     def modal(self, context, event):     
 
         try:
-                
             # context.area.tag_redraw()
 
             #if user confirm:
