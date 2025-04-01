@@ -4,9 +4,13 @@
 
 # TODO
 # - BUG timeline reset is behaving weirdly. I have no idea why. Spend 1h on this, i give up.
-# - deluxe:
-#   - enable object damping, make it work.
+# - Verify accuracy. 
+#      Is the math correct? There's a little bit of a delay. Pehraps the node could be 
+#      ameliorated to be more reactive? Need an expert to verify, i don't actually know of these things 
+#      are properly calculated.
+# - bonus:
 #   - add option for smoothing the data? == control over how many history steps perhaps? don't know..
+#   - enable object damping, make it work.
 #   - support option to analyze rotation/scale. Use an EnumProperty. Algo should be simpler for checking scale change
 #     unsure what kind of unit standard should apply tho.. There's no distance.
 
@@ -184,7 +188,7 @@ class Base():
             }
 
         ng = bpy.data.node_groups.get(name)
-        if ng is None:
+        if (ng is None):
             ng = create_new_nodegroup(name, tree_type=self.tree_type,
                 out_sockets=sockets, sockets_description=descriptions)
 
