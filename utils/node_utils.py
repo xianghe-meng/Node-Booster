@@ -447,8 +447,9 @@ def create_constant_input(ng, nodetype:str, value, uniquetag:str, location:str='
     return None
 
 
-def create_new_nodegroup(name:str, tree_type:str='GeometryNodeTree', in_sockets:dict={}, out_sockets:dict={},):
-    """create new nodegroup with outputs from given dict {"name":"type",}"""
+def create_new_nodegroup(name:str, tree_type:str='GeometryNodeTree', in_sockets:dict={}, out_sockets:dict={}, sockets_description:dict={}):
+    """create new nodegroup with outputs from given dict {"name":"type",},
+    optionally pass a sockets_description dict to set the description of the sockets, format: {socket_name:description}"""
 
     ng = bpy.data.node_groups.new(name=name, type=tree_type,)
 
@@ -457,10 +458,14 @@ def create_new_nodegroup(name:str, tree_type:str='GeometryNodeTree', in_sockets:
     in_nod.location.x -= 200 ; out_nod.location.x += 200
 
     #create the sockets
-    for socket_name, socket_type in in_sockets.items():
-        create_socket(ng, in_out='INPUT', socket_type=socket_type, socket_name=socket_name,)
-    for socket_name, socket_type in out_sockets.items():
-        create_socket(ng, in_out='OUTPUT', socket_type=socket_type, socket_name=socket_name,)
+    #inputs
+    for sname, stype in in_sockets.items():
+        create_socket(ng, in_out='INPUT', socket_type=stype,
+            socket_name=sname, socket_description=sockets_description.get(sname,''))
+    #outputs
+    for sname, stype in out_sockets.items():
+        create_socket(ng, in_out='OUTPUT', socket_type=stype,
+            socket_name=sname, socket_description=sockets_description.get(sname,''))
 
     return ng
 

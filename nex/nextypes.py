@@ -32,7 +32,7 @@ from ..utils.fct_utils import alltypes, anytype, ColorRGBA
 from ..utils.node_utils import (
     create_new_nodegroup,
     set_socket_defvalue,
-    get_socket,
+    get_socket_by_name,
     get_socket_type,
     set_socket_type,
     create_socket,

@@ -10,13 +10,14 @@
 # See velocity calculation.while active animation. it jumps everywhere.
 
 # TODO 
-# bonus:
-# - blender has a system for keys, we could add up to 25 or so 
-#   bpy.props.string with that special property to catch event perhaps? see prop(full_event=True)
-# - the Mouse direction and Velocity could benefit from some sort of smoothing? as option in the N panel?
-# - we could record the user activity, and store the data somewhere in blender. 
+# - we need to record the user activity, and store the data somewhere in blender. 
 #   Perhaps as a GraphEditor curve? that way users could record in real time and save it for later.
 #   if we do that, would be nice that the user is able to swap between various recordings.
+# bonus:
+# - instead of using a string reprenting the user keys, blender has a system for keys properties, we could add up to 25 or so 
+#   bpy.props.string with that special property to catch event perhaps? see prop(full_event=True)
+# - the Mouse direction and Velocity could benefit from some sort of smoothing? as option in the N panel?
+# - Could add a mouse projected location in the XY plane?
 
 import bpy
 import time
@@ -28,6 +29,7 @@ from ..resources import cust_icon
 from ..utils.node_utils import (
     create_new_nodegroup,
     set_socket_defvalue,
+    set_socket_description,
     get_all_nodes,
     create_socket,
     remove_socket,
@@ -53,12 +55,14 @@ POSSIBLE_EVENTS = {
     "F21", "F22", "F23", "F24", "PAUSE", "INSERT", "HOME", "PAGE_UP", "PAGE_DOWN", "END",
     }
 
-class EVENTLIB:
+class STORAGE:
     is_listening = False
     mouse_history = [] # Store mouse position history: [(x, y, timestamp), ...]
     history_max_length = 10 # Maximum number of history entries to keep
     custom_event_types = set() # Store custom event types that user has added, we need to update event_data with their values.
     execution_counter = 0 # Counter for tracking execution cycles (for UI animation)
+    damping_factor = 0.7  # Global damping factor for mouse velocity
+    damping_speed = 0.1  # Global threshold in seconds before velocity damping is applied
     event_data = {
         'type': '',
         'value': '',
@@ -80,13 +84,15 @@ class EVENTLIB:
         'mouse_direction_y': 0.0,
         }
 
-def calculate_mouse_metrics(history, current_pos):
-    """Calculate mouse velocity and direction"""
+def calculate_mouse_metrics(history:list) -> tuple:
+    """Calculate mouse velocity and direction. pass a location history with time indication (x, y, timestamp)
+    returns a tuple with velocity and direction"""
 
     if (not history or len(history) < 2):
         return 0.0, (0.0, 0.0)
 
     # Get the oldest and newest positions
+    # NOTE should'nt we smooth out and take the whole of the history into consideration?
     oldest_entry, newest_entry = history[0], history[-1]
 
     # Calculate time difference in seconds
@@ -109,71 +115,130 @@ def calculate_mouse_metrics(history, current_pos):
 
     return velocity, direction
 
-# Modal operator that listens for input events
 class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
-    """Modal operator that listens for input events and updates DeviceInput nodes"""
 
     bl_idname = "nodebooster.device_input_listener"
+    bl_description = "Listen for input events and update DeviceInput nodes. The viewport shortcuts will not be accessible while this operator is running."
     bl_label = "Listen for Input Events"
     bl_options = {'INTERNAL'}
-    
+
     _timer = None  # Store the timer reference
-    
-    def process_timer_event(self, context):
+
+    def process_mouse_event(self, context, event):
+        """Process mouse events to update velocity calculations"""
+
+        # Update mouse history
+        current_time = time.time()
+        mouse_pos = (event.mouse_region_x, event.mouse_region_y, current_time)
+
+        # Only add new position if it's different from the last one
+        if not STORAGE.mouse_history or mouse_pos[:2] != STORAGE.mouse_history[-1][:2]:
+            STORAGE.mouse_history.append(mouse_pos)
+            
+            # Keep history to the maximum length
+            if len(STORAGE.mouse_history) > STORAGE.history_max_length:
+                STORAGE.mouse_history.pop(0)
+
+        # calculate velocity and direction
+        velocity, direction = calculate_mouse_metrics(STORAGE.mouse_history)
+
+        STORAGE.event_data.update({
+            'mouse_x': event.mouse_x,
+            'mouse_y': event.mouse_y,
+            'mouse_region_x': event.mouse_region_x,
+            'mouse_region_y': event.mouse_region_y,
+            'mouse_velocity': velocity,
+            'mouse_direction_x': direction[0],
+            'mouse_direction_y': direction[1],
+            })
+
+        return None
+    def process_mouse_tamping(self, context):
         """Process timer events to update velocity calculations"""
 
-        # GLobal dict of passed events
-        PassedE = EVENTLIB.event_data
+        # Global dict of passed events
+        STOREVENT = STORAGE.event_data
 
-        # If we have mouse history but no recent movement, calculate a decreasing velocity
-        if EVENTLIB.mouse_history and len(EVENTLIB.mouse_history) >= 2:
+        # If we have mouse history, check if we need to apply damping
+        if STORAGE.mouse_history and len(STORAGE.mouse_history) >= 2:
             # Get the most recent entry and check its timestamp
-            last_entry = EVENTLIB.mouse_history[-1]
+            last_entry = STORAGE.mouse_history[-1]
             current_time = time.time()
+            time_since_last_movement = current_time - last_entry[2]
 
-            # If it's been more than a short time since the last movement, calculate decaying velocity
-            if current_time - last_entry[2] > 0.1:  # 100ms threshold
+            # Current velocity
+            current_velocity = STOREVENT['mouse_velocity']
 
-                # Simulate a decreasing velocity if mouse isn't moving
-                current_velocity = PassedE['mouse_velocity']
-                if (current_velocity > 0):
+            # If mouse hasn't moved recently and velocity is still > 0, apply damping
+            if time_since_last_movement > 0.01:  # Small threshold to ensure we're not moving
+                # Apply a damping factor based on time passed
+                damping_multiplier = STORAGE.damping_factor ** (time_since_last_movement / STORAGE.damping_speed)
+                damped_velocity = current_velocity * damping_multiplier
+                
+                # Set to zero if below threshold
+                if damped_velocity < 0.1:  # Threshold below which we consider velocity zero
+                    damped_velocity = 0.0
+                
+                # Update the velocity in storage
+                STOREVENT['mouse_velocity'] = damped_velocity
+                
+                # Update the node outputs with the new damped velocity
+                self.pass_event_to_nodes(context)
 
-                    # Apply a damping factor (reduce by ~30% per update)
-                    damped_velocity = current_velocity * 0.7
-                    if damped_velocity < 1.0:  # Threshold below which we consider velocity zero
-                        damped_velocity = 0
+        return None
 
-                    PassedE['mouse_velocity'] = damped_velocity
+    def pass_event_to_nodes(self, context,):
+        """Pass the event data to the nodes"""
 
-                    # Update nodes with the new velocity value
-                    for node in get_all_nodes(exactmatch_idnames={
-                        NODEBOOSTER_NG_GN_DeviceInput.bl_idname,
-                        NODEBOOSTER_NG_SH_DeviceInput.bl_idname,
-                        NODEBOOSTER_NG_CP_DeviceInput.bl_idname,
-                    }): node.pass_event(PassedE)
+        for node in get_all_nodes(exactmatch_idnames={
+            NODEBOOSTER_NG_GN_DeviceInput.bl_idname,
+            NODEBOOSTER_NG_SH_DeviceInput.bl_idname,
+            NODEBOOSTER_NG_CP_DeviceInput.bl_idname,
+            }):
+            node.pass_event(STORAGE.event_data)
+            continue
 
-        # Only redraw UI if there are changes to display
-        if PassedE['mouse_velocity'] != 0:
-            for area in context.screen.areas:
-                area.tag_redraw()
-        
+        return None
+
+    def process_keyboard_event(self, context, event):
+        """Process keyboard events"""
+
+        STOREVENT = STORAGE.event_data
+
+        # catch mouse and user defined events.
+        keys_to_catch = {'LEFTMOUSE','RIGHTMOUSE','MIDDLEMOUSE'}
+        keys_to_catch.update(STORAGE.custom_event_types)
+        for et in keys_to_catch:
+            if (et == event.type):
+                STOREVENT[et] = event.value in {'PRESS','CLICK_DRAG'}
+
+        # catch mouse wheel events.
+        STOREVENT['WHEELUPMOUSE'] = (event.type == 'WHEELUPMOUSE')
+        STOREVENT['WHEELDOWNMOUSE'] = (event.type == 'WHEELDOWNMOUSE')
+
+        # Pass the data
+        STOREVENT.update({
+            'type': event.type,
+            'value': event.value,
+            'pressure': getattr(event, 'pressure', 0.0),
+            'shift': event.shift,
+            'ctrl': event.ctrl,
+            'alt': event.alt,
+            })
+
+        # Update all nodes
+        self.pass_event_to_nodes(context)
+
         return None
 
     def modal(self, context, event):
 
         # Check if we should stop the operator
-        if (not EVENTLIB.is_listening):
+        if (not STORAGE.is_listening):
             self.cancel(context)
             return {'FINISHED'}
 
-        # Increment execution counter for UI animation
-        EVENTLIB.execution_counter += 1
-        
-        # Process timer events to update velocity calculations
-        if (event.type == 'TIMER'):
-            self.process_timer_event(context)
-            return {'PASS_THROUGH'}
-
+        # Only process events when in the 3D viewport
         # Check if the active area is a 3D View
         is_in_viewport3d = False
         for area in context.screen.areas:
@@ -182,74 +247,29 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
                 (area.y <= event.mouse_y <= area.y + area.height)):
                 is_in_viewport3d = True
                 break
-
-        # Only process events when in the 3D viewport
         if (not is_in_viewport3d):
             return {'PASS_THROUGH'}
 
-        # GLobal dict of passed events
-        PassedE = EVENTLIB.event_data
+        # Increment execution counter for UI animation
+        STORAGE.execution_counter += 1
 
-        region = (event.mouse_region_x, event.mouse_region_y)
-        velocity, direction = calculate_mouse_metrics(EVENTLIB.mouse_history, region)
+        #### Process mouse events:
 
-        # We don't want to catch mousemove events.
-        # except for passing the velocity and direction.
-        if not (event.type in {'MOUSEMOVE','INBETWEEN_MOUSEMOVE'}):
-            PassedE.update({
-                'mouse_velocity': velocity,
-                'mouse_direction_x': direction[0],
-                'mouse_direction_y': direction[1],})
+        # process velocity and direction from mouse
+        self.process_mouse_event(context, event)
+
+        # Process timer events to update velocity calculations
+        if (event.type == 'TIMER'):
+            self.process_mouse_tamping(context)
+            self.pass_event_to_nodes(context)
             return {'PASS_THROUGH'}
 
-        # catch mouse and user defined events.
-        events_to_catch = {'LEFTMOUSE','RIGHTMOUSE','MIDDLEMOUSE'}
-        events_to_catch.update(EVENTLIB.custom_event_types)
-        for et in events_to_catch:
-            if (et == event.type):
-                PassedE[et] = event.value in {'PRESS','CLICK_DRAG'}
-                
-        # catch mouse wheel events.
-        PassedE['WHEELUPMOUSE'] = (event.type == 'WHEELUPMOUSE')
-        PassedE['WHEELDOWNMOUSE'] = (event.type == 'WHEELDOWNMOUSE')
+        # except for passing the velocity and direction.
+        if (event.type in {'MOUSEMOVE','INBETWEEN_MOUSEMOVE'}):
+            return {'PASS_THROUGH'}
 
-        # Update mouse history
-        current_time = time.time()
-        mouse_pos = (event.mouse_region_x, event.mouse_region_y, current_time)
-        
-        # Only add new position if it's different from the last one
-        if not EVENTLIB.mouse_history or mouse_pos[:2] != EVENTLIB.mouse_history[-1][:2]:
-            EVENTLIB.mouse_history.append(mouse_pos)
-            # Keep history to the maximum length
-            if len(EVENTLIB.mouse_history) > EVENTLIB.history_max_length:
-                EVENTLIB.mouse_history.pop(0)
-
-        # Pass the data
-        PassedE.update({
-            'type': event.type,
-            'value': event.value,
-            'mouse_x': event.mouse_x,
-            'mouse_y': event.mouse_y,
-            'mouse_region_x': event.mouse_region_x,
-            'mouse_region_y': event.mouse_region_y,
-            'pressure': getattr(event, 'pressure', 0.0),
-            'shift': event.shift,
-            'ctrl': event.ctrl,
-            'alt': event.alt,
-            'mouse_velocity': velocity,
-            'mouse_direction_x': direction[0],
-            'mouse_direction_y': direction[1],
-            })
-
-        # Debug print (can be commented out for production)
-        # print(f"DeviceInput Event: {PassedE}")
-
-        # Update all nodes
-        for node in get_all_nodes(exactmatch_idnames={
-            NODEBOOSTER_NG_GN_DeviceInput.bl_idname,
-            NODEBOOSTER_NG_SH_DeviceInput.bl_idname,
-            NODEBOOSTER_NG_CP_DeviceInput.bl_idname,
-            },): node.pass_event(PassedE)
+        # Process keyboard events
+        self.process_keyboard_event(context, event)
 
         # NOTE We don't escape User can use the node interface to ecape.
         # if (event.type== 'ESC' and event.value == 'PRESS'):
@@ -265,9 +285,9 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
         """execute the operator"""
 
         # Toggle listening state
-        if (EVENTLIB.is_listening):
+        if (STORAGE.is_listening):
             # Stop listening
-            EVENTLIB.is_listening = False
+            STORAGE.is_listening = False
             # Update UI
             for area in context.screen.areas:
                 area.tag_redraw()
@@ -275,9 +295,9 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
             return {'FINISHED'}
         else:
             # Start listening
-            EVENTLIB.is_listening = True
+            STORAGE.is_listening = True
             # Clear mouse history
-            EVENTLIB.mouse_history = []
+            STORAGE.mouse_history = []
             # Start the modal operator
             context.window_manager.modal_handler_add(self)
             # Add timer for consistent updates - 30fps (0.033s interval)
@@ -314,8 +334,47 @@ class Base():
     • You can add custom key event types by entering them in a comma-separated list (e.g., "A,B,SPACE,RET"). See blender 'Event Type Items' documentation to know which kewords are supported."""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
-    
-    error_message : bpy.props.StringProperty()
+
+    def get_damping_factor(self):
+        return STORAGE.damping_factor
+
+    def set_damping_factor(self, value):
+        STORAGE.damping_factor = value
+        return None
+
+    damping_factor: bpy.props.FloatProperty(
+        name="Damping Factor",
+        description="Factor to dampen mouse velocity (0.0 to 1.0). Global value, applies to all instances of this node.",
+        min=0.0,
+        max=1.0,
+        default=0.7,
+        get=get_damping_factor,
+        set=set_damping_factor
+        )
+
+    def get_damping_speed(self):
+        return STORAGE.damping_speed
+
+    def set_damping_speed(self, value):
+        STORAGE.damping_speed = value
+        return None
+
+    damping_speed: bpy.props.FloatProperty(
+        name="Damping Speed",
+        description="Time in seconds before velocity damping is applied. Global value, applies to all instances of this node.",
+        min=0.01,
+        soft_max=3.0,
+        default=0.1,
+        precision=2,
+        subtype='TIME',
+        unit='TIME',
+        get=get_damping_speed,
+        set=set_damping_speed
+        )
+
+    error_message : bpy.props.StringProperty(
+        default=""
+        )
 
     def update_custom_events(self, context):
         """Update the sockets based on custom event types"""
@@ -336,14 +395,14 @@ class Base():
               self.error_message = f"Invalid Key: {', '.join(invalids)}"
         else: self.error_message = ""
         
-        # Update the EVENTLIB custom event types
+        # Update the STORAGE custom event types
         
         # Add new event types to the event_data dictionary if they don't exist
         for et in valids:
-            if (et not in EVENTLIB.event_data):
-                EVENTLIB.custom_event_types.add(et)
-            if (et not in EVENTLIB.event_data):
-                EVENTLIB.event_data[et] = False
+            if (et not in STORAGE.event_data):
+                STORAGE.custom_event_types.add(et)
+            if (et not in STORAGE.event_data):
+                STORAGE.event_data[et] = False
 
         # Update sockets in the node tree
         ng = self.node_tree
@@ -394,7 +453,7 @@ class Base():
 
         # Define socket types - we'll handle this later, minimal setup for now
         sockets = {
-            "Mouse Location": "NodeSocketVector",
+            "Mouse Position": "NodeSocketVector",
             "Mouse Direction": "NodeSocketVector",
             "Mouse Velocity": "NodeSocketFloat",
             "Left Click": "NodeSocketBool",
@@ -406,12 +465,16 @@ class Base():
             "Shift": "NodeSocketBool",
             "Alt": "NodeSocketBool",
             }
+        descriptions = {
+            "Mouse Position": "ScreenSpace Mouse position in pixels.",
+            "Mouse Direction": "ScreenSpace Mouse direction normalized vector.",
+            "Mouse Velocity": "Speed Unit is calculated in 1k pixels / second.",
+            }
 
         ng = bpy.data.node_groups.get(name)
-        if ng is None:
-            ng = create_new_nodegroup(name,
-                tree_type=self.tree_type,
-                out_sockets=sockets,)
+        if (ng is None):
+            ng = create_new_nodegroup(name, tree_type=self.tree_type,
+                out_sockets=sockets, sockets_description=descriptions,)
 
         ng = ng.copy()  # always using a copy of the original ng
 
@@ -444,7 +507,7 @@ class Base():
         ng = self.node_tree
 
         # Update node outputs based on event data
-        set_socket_defvalue(ng, socket_name="Mouse Location", value=(event_data['mouse_region_x'], event_data['mouse_region_y'], 0.0))
+        set_socket_defvalue(ng, socket_name="Mouse Position", value=(event_data['mouse_region_x'], event_data['mouse_region_y'], 0.0))
         set_socket_defvalue(ng, socket_name="Mouse Direction", value=(event_data['mouse_direction_x'], event_data['mouse_direction_y'], 0.0))
         set_socket_defvalue(ng, socket_name="Mouse Velocity", value=event_data['mouse_velocity'])
         set_socket_defvalue(ng, socket_name="Ctrl", value=event_data['ctrl'])
@@ -463,7 +526,7 @@ class Base():
             value = event_data.get(data, False)
             set_socket_defvalue(ng, socket_name=k, value=value)
             if (not value):
-                EVENTLIB.custom_event_types.add(data)
+                STORAGE.custom_event_types.add(data)
 
         return None
 
@@ -486,8 +549,8 @@ class Base():
         col = layout.column(align=True)
         row = col.row(align=True)
 
-        if (EVENTLIB.is_listening):
-              animated_icon = f"W_TIME_{(EVENTLIB.execution_counter//4)%8}"
+        if (STORAGE.is_listening):
+              animated_icon = f"W_TIME_{(STORAGE.execution_counter//4)%8}"
               row.operator("nodebooster.device_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(animated_icon),)
         else: row.operator("nodebooster.device_input_listener", text="Start Listening", icon='PLAY')
 
@@ -504,14 +567,25 @@ class Base():
 
             row = panel.row()
 
-            if (EVENTLIB.is_listening):
-                animated_icon = f"W_TIME_{(EVENTLIB.execution_counter//4)%8}"
+            if (STORAGE.is_listening):
+                animated_icon = f"W_TIME_{(STORAGE.execution_counter//4)%8}"
                 row.operator("nodebooster.device_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(animated_icon),)
             else: row.operator("nodebooster.device_input_listener", text="Start Listening", icon='PLAY')
 
             col = panel.column(align=True)
-            col.label(text="Custom Keys")
+            col.label(text="Custom Keys:")
             col.prop(self, "user_event_types", text="", placeholder="A, B, SPACE")
+            
+            header, damping_panel = panel.panel("damping_panelid", default_closed=False)
+            header.label(text="Velocity Damping")
+            if (damping_panel):
+                col = damping_panel.column()
+                col.use_property_split = True
+                col.use_property_decorate = False
+                col.prop(self, "damping_factor", text="Factor", slider=True,)
+                col.prop(self, "damping_speed", text="Speed (sec)",)
+            
+            col.separator(factor=0.5)
 
         header, panel = layout.panel("doc_panelid", default_closed=True)
         header.label(text="Documentation")
@@ -530,21 +604,22 @@ class Base():
             col.template_ID(n, "node_tree")
             
             #debug event content
-            PassedE = EVENTLIB.event_data
-            dir_x = PassedE['mouse_direction_x']
-            dir_y = PassedE['mouse_direction_y']
+            STOREVENT = STORAGE.event_data
+            dir_x = STOREVENT['mouse_direction_x']
+            dir_y = STOREVENT['mouse_direction_y']
 
             col = panel.column(align=True)
             col.label(text="Inputs Debug:")
 
             box = col.box().column(align=True)
-            box.label(text=f"Value: {PassedE['value']}")
-            box.label(text=f"Type: {PassedE['type']}")
+            box.label(text=f"Executions: {STORAGE.execution_counter}")
+            box.label(text=f"Value: {STOREVENT['value']}")
+            box.label(text=f"Type: {STOREVENT['type']}")
             box.separator(type='LINE')
             box.label(text="Mouse Metrics:")
-            box.label(text=f"Velocity: {PassedE['mouse_velocity']:.1f} px/s")
+            box.label(text=f"Velocity: {STOREVENT['mouse_velocity']:.1f} 1000px/s")
             box.label(text=f"Direction: ({dir_x:.2f}, {dir_y:.2f}, 0.00)")
-            box.label(text=f"History: {len(EVENTLIB.mouse_history)}")
+            box.label(text=f"History: {len(STORAGE.mouse_history)}")
 
         return None
 
@@ -585,7 +660,7 @@ def unregister_listener():
     """unregister the modal operator"""
 
     # Make sure the modal operator is stopped when unregistering
-    EVENTLIB.is_listening = False
+    STORAGE.is_listening = False
     
     bpy.utils.unregister_class(NODEBOOSTER_OT_DeviceInputEventListener) 
     return None
