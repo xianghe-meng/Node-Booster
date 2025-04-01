@@ -20,6 +20,19 @@
 
 import bpy
 
+#This is here for supporting blender 4.1
+bl_info = {
+    "name": "Node Booster (Experimental 4.1+)",
+    "author": "BD3D DIGITAL DESIGN (Dorian B.)",
+    "version": (0, 0, 0),
+    "blender": (4, 1, 0),
+    "location": "Node Editor",
+    "description": "Please install this addon as a blender extension instead of a legacy addon!",
+    "warning": "",
+    "doc_url": "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free",
+    "category": "Node",
+}
+
 
 def get_addon_prefs():
     """get preferences path from base_package, __package__ path change from submodules"""

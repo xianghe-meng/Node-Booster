@@ -15,6 +15,8 @@
 # Object Velocity:
 #   - Would be nice for the user to recieve velocity data from an object location for example?
 #   - location/rotation/scale velocity?
+# Animation Nodes/ Svershock
+#   - see wich nodes can be ported.
 
 from . camerainfo import (
         NODEBOOSTER_NG_GN_CameraInfo,

@@ -34,14 +34,17 @@ from ..nex.pytonode import py_to_Vec3, py_to_Mtx16, py_to_RGBA
 from ..utils.node_utils import link_sockets, frame_nodes, create_constant_input
 from ..utils.fct_utils import is_annotation_compliant, alltypes, anytype, ColorRGBA
 
+#shortcuts for socket types
 sAny = bpy.types.NodeSocket
 sBoo = bpy.types.NodeSocketBool
 sInt = bpy.types.NodeSocketInt
 sFlo = bpy.types.NodeSocketFloat
 sCol = bpy.types.NodeSocketColor
-sMtx = bpy.types.NodeSocketMatrix
 sRot = bpy.types.NodeSocketRotation
 sVec = bpy.types.NodeSocketVector
+try:    sMtx = bpy.types.NodeSocketMatrix
+except: sMtx = bpy.types.NodeSocketFloat ; print("WARNING: Experimental Support for 4.1")
+
 
 #tell me why these type exist? what's the reason? Very annoying to support..
 sVecXYZ = bpy.types.NodeSocketVectorXYZ

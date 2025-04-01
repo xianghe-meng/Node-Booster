@@ -9,7 +9,7 @@
 # BUG When an animation is running, the modal operator and timer is junky. why?
 # See velocity calculation.while active animation. it jumps everywhere.
 
-# TODO 
+# TODO
 # - we need to record the user activity, and store the data somewhere in blender. 
 #   Perhaps as a GraphEditor curve? that way users could record in real time and save it for later.
 #   if we do that, would be nice that the user is able to swap between various recordings.
@@ -20,6 +20,13 @@
 # - Could add a mouse projected location in the XY plane?
 # - Storing velocity damping global settings like this will lead to a a reset of user values on each blender session.
 #   we should use plugin preferences instead.
+# - user feedback:
+#      This is so cool! Please make ID registration unique. Right now, if you connect a USB numpad to the PC and 
+#      you have a regular keyboard, If you press "5" blender doesn't know if it came from the USB numpad or the keyboard numpad. 
+#      ID devices HID registration is required, please"""
+#      Unfortunately this implementation is using bpy.types.Event so i'm not sure we can achieve that. Perhaps a more generic 'Devince Input'
+#      note that cover any kind of device connected to the PC like could manage the job?
+
 
 import bpy
 import time
