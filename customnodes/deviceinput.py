@@ -18,6 +18,8 @@
 #   bpy.props.string with that special property to catch event perhaps? see prop(full_event=True)
 # - the Mouse direction and Velocity could benefit from some sort of smoothing? as option in the N panel?
 # - Could add a mouse projected location in the XY plane?
+# - Storing velocity damping global settings like this will lead to a a reset of user values on each blender session.
+#   we should use plugin preferences instead.
 
 import bpy
 import time
@@ -61,6 +63,7 @@ class STORAGE:
     history_max_length = 10 # Maximum number of history entries to keep
     custom_event_types = set() # Store custom event types that user has added, we need to update event_data with their values.
     execution_counter = 0 # Counter for tracking execution cycles (for UI animation)
+    use_velocity_damping = True  # Global toggle for velocity damping
     damping_factor = 0.7  # Global damping factor for mouse velocity
     damping_speed = 0.1  # Global threshold in seconds before velocity damping is applied
     event_data = {
@@ -153,6 +156,7 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
             })
 
         return None
+
     def process_mouse_tamping(self, context):
         """Process timer events to update velocity calculations"""
 
@@ -171,8 +175,12 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
 
             # If mouse hasn't moved recently and velocity is still > 0, apply damping
             if time_since_last_movement > 0.01:  # Small threshold to ensure we're not moving
+
                 # Apply a damping factor based on time passed
-                damping_multiplier = STORAGE.damping_factor ** (time_since_last_movement / STORAGE.damping_speed)
+                dampfac = STORAGE.damping_factor if (STORAGE.use_velocity_damping) else 0.0
+                dampspeed = STORAGE.damping_speed if (STORAGE.use_velocity_damping) else 0.01
+            
+                damping_multiplier = dampfac ** (time_since_last_movement / dampspeed)
                 damped_velocity = current_velocity * damping_multiplier
                 
                 # Set to zero if below threshold
@@ -331,9 +339,25 @@ class Base():
     bl_description = """Custom Nodegroup: Listen for input device events and provide them as node outputs.
     • First, starts the modal operator that captures all input events of the 3D active Viewport.
     • Provides various data about input events (mouse, keyboard, etc.)
-    • You can add custom key event types by entering them in a comma-separated list (e.g., "A,B,SPACE,RET"). See blender 'Event Type Items' documentation to know which kewords are supported."""
+    • You can add custom key event types by entering them in a comma-separated list (e.g., "A,B,SPACE,RET"). See blender 'Event Type Items' documentation to know which kewords are supported.
+    • Control the global velocity damping behavior to smooth out the mouse movement in 'N Panle > NodeBooster > Active Node > Parameters'."""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
+
+    def get_velocity_damping(self):
+        return STORAGE.use_velocity_damping
+
+    def set_velocity_damping(self, value):
+        STORAGE.use_velocity_damping = value
+        return None
+
+    use_velocity_damping: bpy.props.BoolProperty(
+        name="Velocity Damping",
+        description="Enable or disable velocity damping. When disabled, velocity will stop immediately.",
+        default=True,
+        get=get_velocity_damping,
+        set=set_velocity_damping
+    )
 
     def get_damping_factor(self):
         return STORAGE.damping_factor
@@ -565,27 +589,21 @@ class Base():
         header.label(text="Parameters")
         if panel:
 
-            row = panel.row()
-
-            if (STORAGE.is_listening):
-                animated_icon = f"W_TIME_{(STORAGE.execution_counter//4)%8}"
-                row.operator("nodebooster.device_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(animated_icon),)
-            else: row.operator("nodebooster.device_input_listener", text="Start Listening", icon='PLAY')
-
             col = panel.column(align=True)
             col.label(text="Custom Keys:")
             col.prop(self, "user_event_types", text="", placeholder="A, B, SPACE")
-            
-            header, damping_panel = panel.panel("damping_panelid", default_closed=False)
-            header.label(text="Velocity Damping")
-            if (damping_panel):
-                col = damping_panel.column()
-                col.use_property_split = True
-                col.use_property_decorate = False
-                col.prop(self, "damping_factor", text="Factor", slider=True,)
-                col.prop(self, "damping_speed", text="Speed (sec)",)
-            
             col.separator(factor=0.5)
+
+        header, panel = layout.panel("damping_panelid", default_closed=False)
+        header.prop(self, "use_velocity_damping", text="Velocity Damping",)
+        if (panel):
+            
+            col = panel.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+            col.enabled = STORAGE.use_velocity_damping
+            col.prop(self, "damping_factor", text="Factor", slider=True,)
+            col.prop(self, "damping_speed", text="Speed (sec)",)
 
         header, panel = layout.panel("doc_panelid", default_closed=True)
         header.label(text="Documentation")
@@ -620,6 +638,15 @@ class Base():
             box.label(text=f"Velocity: {STOREVENT['mouse_velocity']:.1f} 1000px/s")
             box.label(text=f"Direction: ({dir_x:.2f}, {dir_y:.2f}, 0.00)")
             box.label(text=f"History: {len(STORAGE.mouse_history)}")
+
+        layout.separator(factor=0.5)
+        
+        if (STORAGE.is_listening):
+              animated_icon = f"W_TIME_{(STORAGE.execution_counter//4)%8}"
+              layout.operator("nodebooster.device_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(animated_icon),)
+        else: layout.operator("nodebooster.device_input_listener", text="Start Listening", icon='PLAY')
+        
+        layout.separator(factor=0.5)
 
         return None
 
