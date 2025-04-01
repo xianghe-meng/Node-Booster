@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# ---------------------------------------------------------------------------------------------
+
 # TODO v2.0 release
 #  - Custom operator shortcuts are not saved, they reset on each blender sessions.
 #  - Functions should always check if a value or type isn't already set before setting it. 
@@ -9,17 +11,112 @@
 #    (see compositor refresh, perhaps it's because of node.update()?? need to investigate)
 #  - Finalize NexScript for Shader/compositor. Need to overview functions..
 #  - Codebase review for extension.. Ask AI to do a big check.
+#  - Sound Sequencer Node: Text property with custom poll. That's it. No sound data.
+#  - Velocity Node: Better history calculations just doing last middle first is not precise enough. 
 
-# NOTE Change to C blender code:
+# ---------------------------------------------------------------------------------------------
+
+# TODO v3.0 release
+#  - Wait a minute.. we can add custom NodeSocketTypes, with custom Node types? What the heck..???
+#    - Check how it behaves when passing default value output????
+#    - Check if we can process data from CustomSocketInput to CustomSocketOutput??
+#    - Check if cross compatible 4.2 / 4.3 / 4.4
+#    - How does it behave in a nodegroup??
+#    - Can it creates/remove sockets on the fly? what about label? what about changing socket type on the fly?
+#    - Re-Implement most nodes as CustomNodes then.. Start with an easy one.. 
+#       node_utils will have some rework to do. need to precise type of operation, if CustomNodeGroup or CustoNode.
+#    - How can we process NativeNodes mixed with CustomSockets? 
+#       - What if we wrap a CustomNodeSocket in a CustomNodeGroup? how can we do that via an API? it works manually.
+#       -  still, will need to find a solution to convert our CustomNodeSocket to a NativeSocket. Python could just update a Value node default_value..
+#    - if possible, then we can cross the todo in  'Change to C blender code' for custom socket types.
+
+# See demo below:
+
+# import bpy
+# from bpy.types import Node, NodeSocket
+
+# # Define a custom socket with a custom color property
+# class CustomColorSocket(NodeSocket):
+#     bl_idname = 'CustomColorSocketType'
+#     bl_label = "Custom Color Socket"
+
+#     # Custom property (an RGB color)
+#     value: bpy.props.FloatVectorProperty(
+#         name="Color Value",
+#         subtype='COLOR',
+#         default=(0.8, 0.2, 0.2),
+#         min=0.0, max=1.0,
+#         size=3
+#     )
+
+#     def draw(self, context, layout, node, text):
+#         # Display the socket property in the node UI
+#         layout.prop(self, "value", text=text)
+    
+#     def draw_color(self, context, node):
+#         r, g, b = self.value
+#         return (r, g, b, 1.0)
+
+# # Define a custom Geometry Node that uses our custom socket type
+# class CustomGeometryNode(Node):
+#     bl_idname = 'CustomGeometryNodeType'
+#     bl_label = 'Custom Geometry Node'
+#     bl_icon = 'NODE'
+    
+#     def init(self, context):
+#         # Create an input and an output using our custom socket type.
+#         self.inputs.new('CustomColorSocketType', "Custom Data")
+#         self.outputs.new('CustomColorSocketType', "Custom Data")
+        
+#         # Create a standard Float socket with an initial value.
+#         float_socket = self.outputs.new('NodeSocketFloat', "Normal Data")
+#         float_socket.default_value = 0.0
+
+#     def update(self):
+#         print('update signal')
+#         # Find the Float socket and increment its value by 1 on each update.
+#         for socket in self.outputs:
+#             if socket.bl_idname == 'NodeSocketFloat':
+#                 socket.default_value += 1
+#                 print(f"Updated {socket.name} to {socket.default_value}")
+
+#     def draw_buttons(self, context, layout):
+#         # You can add custom buttons here if desired.
+#         pass
+    
+#     def draw_label(self):
+#         return "Custom Geometry Node"
+
+# # Append the custom node to the Geometry Node Editor's "Add" menu.
+# def custom_nodes_menu_draw(self, context):
+#     if context.space_data.tree_type == 'GeometryNodeTree':
+#         self.layout.operator("node.add_node", text="Custom Geometry Node", icon="NODE").type = "CustomGeometryNodeType"
+
+# def register():
+#     bpy.utils.register_class(CustomColorSocket)
+#     bpy.utils.register_class(CustomGeometryNode)
+#     bpy.types.NODE_MT_add.append(custom_nodes_menu_draw)
+
+# def unregister():
+#     bpy.types.NODE_MT_add.remove(custom_nodes_menu_draw)
+#     bpy.utils.unregister_class(CustomGeometryNode)
+#     bpy.utils.unregister_class(CustomColorSocket)
+
+# if __name__ == "__main__":
+#     register()
+
+# ---------------------------------------------------------------------------------------------
+
+# NOTE Ideas for changes of blender C source code:
 #  - Would be great to display error messages for context nodes who use them like the native node. 
 #    API is not exposed th
 #  - Color of some nodes should'nt be red. sometimes blue for converter (math expression) or script color..
-#    Unfortunately the API si not Exposed
-#  - Sample socket value API?
+#    Unfortunately the API si not Exposed. It would be nice to have custom colors for our nodes.. Or at least choose in existing colortype list.
+#  - Eval socket_value API??? ex `my_node.inputs[0].eval_value()` would return a single value, or a numpy array (if possible?)
 #    So far in this plugin we can only pass information to a socket, or arrange nodes.
 #    What would be an extremely useful functionality, woould be to sample a socket value from a socket.evaluate_value()
 #    integrated directly in blender. Unfortunately there are no plans to implement such API.
-#  - CustomSocketTypes API?
+#  - CustomSocketTypes API? (NOTE it seems that this one is possible).
 #    If we could create custom SocketTypes, we could create nodes that process specific data before sending it 
 #    to the native blender SocketTypes. A lot of new CustomNodes could be implemented that way for each editors.
 #    It would greatly improve how extensible existing editors are. A lot of nodes from Animation nodes for example
@@ -28,6 +125,8 @@
 #  - Nodes Consistencies: Generally speaking, nodes are not consistent from one editor to another.
 #    For example ShaderNodeValue becomes CompositorNodeValue. Ect.. a lot of Native socket types could be ported to 
 #    all editors as well. For example, SocketBool can be in the compositor.
+
+# ---------------------------------------------------------------------------------------------
 
 # TODO Ideas:
 #
@@ -41,10 +140,12 @@
 # - File IO: For geometry node, could create a mesh on the fly from a file and set up as field attributes.
 # - View3D Info node: Like camera info, but for the 3d view (location/rotation/fov/clip/)
 #   Problem: what if there are many? Perhaps should use context.
-# - Animation Nodes/ Svershock inspiration: See wich nodes can be ported.
+# - Animation Nodes/ Svershock inspiration: See which nodes can be ported.
 # - MetaBall Info node?
-# - Evaluate sequencer images? Possible to feed the sequencer render to the nodes?
-# - Sound Info Node: sound sampling? Sound curve? Evaluate Sound at time? If we work based on sound, perhaps it's for the best isn't it?
+# - Evaluate sequencer images? Possible to feed the sequencer render to the nodes? Hmm
+# - SoundData Info Node: Sample the sound? Generate a sound geometry curve? Evaluate Sound at time? If we work based on sound, perhaps it's for the best isn't it?
+
+# ---------------------------------------------------------------------------------------------
 
 # TODO Bugs:
 # To Fix:
@@ -53,6 +154,8 @@
 #  - You might stumble into this crash when hot-reloading (enable/disable) the plugin on blender 4.2/4.2
 #    https://projects.blender.org/blender/blender/issues/134669 Has been fixed in 4.4. 
 #    Only impacts developers hotreloading.
+
+# ---------------------------------------------------------------------------------------------
 
 import bpy
 
