@@ -9,3 +9,8 @@ See the documentation, or engage with other users on this [blender artist topic]
 
 # Issues
 Report only bugs on the issues, no support or general questions are allowed.
+
+# Versions
+Current production version is V1. V2 coming soon.
+https://github.com/DB3D/NodeBooster/releases
+You can test out the WIP, being the last commit.
