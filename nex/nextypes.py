@@ -875,7 +875,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
                         outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
@@ -949,7 +949,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
                         outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
@@ -1020,7 +1020,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
                         outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
@@ -1089,7 +1089,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
                         outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
@@ -1303,7 +1303,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
                         outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
@@ -1621,7 +1621,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
                         outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
@@ -1849,7 +1849,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
                         outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
@@ -2202,7 +2202,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         out_type = value.nxstype
 
                     #get socket, create if non existent
-                    outsock = get_socket(self.node_tree, in_out='OUTPUT', socket_name=socket_name,)
+                    outsock = get_socket_by_name(self.node_tree, in_out='OUTPUT', socket_name=socket_name,)
                     if (outsock is None):
                         outsock = create_socket(self.node_tree, in_out='OUTPUT', socket_type=out_type, socket_name=socket_name,)
                     elif (type(outsock) is list):
@@ -2233,7 +2233,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         out_type = socktype
 
                     #get socket, create if non existent
-                    outsock = get_socket(self.node_tree, in_out='OUTPUT', socket_name=socket_name,)
+                    outsock = get_socket_by_name(self.node_tree, in_out='OUTPUT', socket_name=socket_name,)
                     if (outsock is None):
                         outsock = create_socket(self.node_tree, in_out='OUTPUT', socket_type=out_type, socket_name=socket_name,)
                     elif (type(outsock) is list):

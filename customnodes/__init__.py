@@ -4,9 +4,6 @@
 
 
 #TODO nodes ideas:
-# InputListener node: 
-#   - listen to user keyboard or mouse inputs. launch a modal operator that listen and pass the infor to the node.
-#   - the listener might work on global space
 # Material Info node? 
 #   - gather informations about the material? what?
 # Color Palette Node? easily swap between color palettes?
@@ -15,6 +12,9 @@
 # View3D Info node:
 #   - Like camera info, but for the 3d view (location/rotation/fov/clip/)
 #   - Problem: what if there are many? Perhaps should use context.
+# Object Velocity:
+#   - Would be nice for the user to recieve velocity data from an object location for example?
+#   - location/rotation/scale velocity?
 
 from . camerainfo import (
         NODEBOOSTER_NG_GN_CameraInfo,

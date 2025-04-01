@@ -3,7 +3,12 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
-#TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
+# NOTE this module has a lot of functions for nodegroup manipulation. 
+# It's assuming a CustomNodeGroup node, whihc has a node componemnt attached to a nodetree.
+
+# TODO Optimization: 
+# functions should always check if a value or type isn't already set before setting it.
+# i don't think i was regular with this.
 
 
 import bpy 
@@ -15,15 +20,18 @@ from .draw_utils import get_dpifac
 from .fct_utils import ColorRGBA
 
 
-#Strict editor type availability
 SOCK_AVAILABILITY_TABLE = {
     'GEOMETRY':    ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketRotation', 'NodeSocketMatrix', 'NodeSocketString', 'NodeSocketMenu', 'NodeSocketObject', 'NodeSocketGeometry', 'NodeSocketCollection', 'NodeSocketTexture', 'NodeSocketImage', 'NodeSocketMaterial',),
     'SHADER':      ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketShader', ),
     'COMPOSITING': ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', ),
-}
+    }
+TREE_TO_GROUP_EQUIV = {
+    'ShaderNodeTree': 'ShaderNodeGroup',
+    'CompositorNodeTree': 'CompositorNodeGroup',
+    'GeometryNodeTree': 'GeometryNodeGroup',
+    }
 
-def get_all_nodes(ignore_ng_name:str="NodeBooster", approxmatch_idnames:str="", 
-    exactmatch_idnames:set=None, ngtypes:set=None,) -> set|list:
+def get_all_nodes(ignore_ng_name:str="NodeBooster", approxmatch_idnames:str="", exactmatch_idnames:set=None, ngtypes:set=None,) -> set|list:
     """get nodes instances across many nodetree editor types.
     - ngtypes: the editor types to be supported in {'GEOMETRY','SHADER','COMPOSITING',}. will use all if None
     - ignore_ng_name: ignore getting nodes from a nodetree containing a specific name.
@@ -74,7 +82,7 @@ def get_all_nodes(ignore_ng_name:str="NodeBooster", approxmatch_idnames:str="",
     return nodes
 
 
-def get_node_objusers(node):
+def get_node_objusers(node) -> set:
     """Return a list of objects using the given Node."""
     
     #NOTE What if the node is in a nodegroup used by many?
@@ -88,7 +96,7 @@ def get_node_objusers(node):
     return users
 
 
-def get_node_absolute_location(node):
+def get_node_absolute_location(node) -> Vector:
     """find the location of the node in global space"""
 
     if (node.parent is None):
@@ -106,7 +114,7 @@ def get_node_absolute_location(node):
     return Vector((x,y))
 
 
-def get_socket(ng, socket_name='Foo', in_out='OUTPUT',):
+def get_socket_by_name(ng, socket_name:str='Foo', in_out:str='OUTPUT',) -> list|None:
     """get a socket object from a nodetree input/output by name"""
 
     sockets = ng.nodes["Group Output"].inputs if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs
@@ -118,7 +126,7 @@ def get_socket(ng, socket_name='Foo', in_out='OUTPUT',):
     return r
 
 
-def crosseditor_socktype_adjust(socket_type:str, ngtype:str):
+def crosseditor_socktype_adjust(socket_type:str, ngtype:str) -> str:
     """ensure the socket types are correct depending on the nodes editor"""
 
     compat = SOCK_AVAILABILITY_TABLE[ngtype]
@@ -132,9 +140,9 @@ def crosseditor_socktype_adjust(socket_type:str, ngtype:str):
             if (socket_type in {'NodeSocketRotation', 'NodeSocketMatrix'}):
                 #TODO convert somehow?
                 pass
-        
+
         case 'COMPOSITING':
-            #No bool in compositor. Use int instead
+            #No bool in compositor. We use int instead
             if (socket_type=='NodeSocketBool'):
                 socket_type = 'NodeSocketInt'
 
@@ -143,7 +151,7 @@ def crosseditor_socktype_adjust(socket_type:str, ngtype:str):
     return socket_type
 
 
-def get_socketui_from_socket(ng, idx=None, in_out='OUTPUT', identifier=None,):
+def get_socketui_from_socket(ng, idx:int=None, in_out:str='OUTPUT', identifier:str=None,):
     """return a given socket index as an interface item, either find the socket by it's index, name or socketidentifier"""
     
     if (identifier is None):
@@ -152,7 +160,7 @@ def get_socketui_from_socket(ng, idx=None, in_out='OUTPUT', identifier=None,):
             if (i==idx):
                 identifier = s.identifier
                 break
-    
+
     if (identifier is None):
         raise Exception("ERROR: get_socketui_from_socket(): couldn't retrieve socket identifier..")
     
@@ -171,7 +179,7 @@ def get_socketui_from_socket(ng, idx=None, in_out='OUTPUT', identifier=None,):
     return sockui
 
 
-def get_socket_from_socketui(ng, sockui, in_out='OUTPUT'):
+def get_socket_from_socketui(ng, sockui, in_out:str='OUTPUT'):
     """retrieve NodeSocket from a NodeTreeInterfaceSocket type"""
     
     sockets = ng.nodes["Group Output"].inputs if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs
@@ -181,7 +189,7 @@ def get_socket_from_socketui(ng, sockui, in_out='OUTPUT'):
     raise Exception('NodeSocket from nodetree.interface.items_tree does not exist?')
 
 
-def get_socket_defvalue(ng, idx, in_out='OUTPUT',):
+def get_socket_defvalue(ng, idx:int, in_out:str='OUTPUT',):
     """return the value of the given nodegroups output at given socket idx"""
 
     match in_out:
@@ -194,7 +202,7 @@ def get_socket_defvalue(ng, idx, in_out='OUTPUT',):
             raise Exception("get_socket_defvalue(): in_out arg not valid")
 
 
-def set_socket_defvalue(ng, idx=None, socket=None, socket_name='', in_out='OUTPUT', value=None, node=None,):
+def set_socket_defvalue(ng, idx:int=None, socket=None, socket_name:str='', in_out:str='OUTPUT', value=None, node=None,):
     """set the value of the given nodegroups inputs or output sockets"""
 
     assert in_out in {'INPUT','OUTPUT'}, "set_socket_defvalue(): in_out arg not valid"
@@ -285,7 +293,8 @@ def set_socket_defvalue(ng, idx=None, socket=None, socket_name='', in_out='OUTPU
                         for l in socket.links:
                             ng.links.remove(l)
                     #we set def value, simply..
-                    if (socket.default_value!=value): #NOTE Vector/Color won't like that, will always be False.. need to use [:]!=[:] for two vec..
+                    #NOTE Vector/Color won't like that, will always be False.. need to use [:]!=[:] for two vec..
+                    if (socket.default_value!=value):
                         socket.default_value = value
 
         case 'INPUT':
@@ -304,47 +313,58 @@ def set_socket_defvalue(ng, idx=None, socket=None, socket_name='', in_out='OUTPU
             #rotation and matrixes don't have a default value
             if (instancesocket.type in {'ROTATION','MATRIX'}):
                 return None
-
-            if (instancesocket.default_value!=value): #NOTE Vector/Color won't like that, will always be False.. need to use [:]!=[:] for two vec..
-                instancesocket.default_value = value
             
+            #NOTE Vector/Color won't like that, will always be False.. need to use [:]!=[:] for two vec..
+            if (instancesocket.default_value!=value):
+                instancesocket.default_value = value
+
     return None
 
-
-def set_socket_label(ng, idx=None, in_out='OUTPUT', label=None, identifier=None,):
+def set_socket_label(ng, idx:int=None, in_out:str='OUTPUT', label:str='', identifier:str=None,) -> None:
     """return the label of the given nodegroups output at given socket idx"""
-
-    itm = get_socketui_from_socket(ng,
-        idx=idx, in_out=in_out, identifier=identifier,
-        )
-    itm.name = str(label)
+    if (not label):
+        return None
+    sockui = get_socketui_from_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
+    if (sockui.name!=label):
+        sockui.name = label
     return None  
 
 
-def get_socket_type(ng, idx=None, in_out='OUTPUT', identifier=None,):
+def get_socket_type(ng, idx:int=None, in_out:str='OUTPUT', identifier:str=None,) -> str:
     """return the type of the given nodegroups output at given socket idx"""
     
-    itm = get_socketui_from_socket(ng,
-        idx=idx, in_out=in_out, identifier=identifier,
-        )
-    return itm.socket_type
+    sockui = get_socketui_from_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
+    return sockui.socket_type
 
 
-def set_socket_type(ng, idx=None, in_out='OUTPUT', socket_type="NodeSocketFloat", identifier=None,):
+def set_socket_type(ng, idx:int=None, in_out:str='OUTPUT', socket_type:str="NodeSocketFloat", identifier:str=None,):
     """set socket type via bpy.ops.node.tree_socket_change_type() with manual override, context MUST be the geometry node editor"""
+    #NOTE blender bug: you might need to use the return value because the original socket after change will be dirty.
 
     socket_type = crosseditor_socktype_adjust(socket_type, ng.type)
-
-    itm = get_socketui_from_socket(ng,
-        idx=idx, in_out=in_out, identifier=identifier,
-        )
-    itm.socket_type = socket_type
-
-    #blender bug: you might need to use this return value because the original socket before change will be dirty.
-    return get_socket_from_socketui(ng, itm, in_out=in_out)
+    sockui = get_socketui_from_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
+    if (sockui.socket_type!=socket_type):
+        sockui.socket_type = socket_type
+    return get_socket_from_socketui(ng, sockui, in_out=in_out)
 
 
-def create_socket(ng, in_out='OUTPUT', socket_type="NodeSocketFloat", socket_name="Value",):
+def set_socket_description(ng, idx:int=None, in_out:str='OUTPUT', description:str='', identifier:str=None,) -> None:
+    """set the description of the given nodegroups socket"""
+
+    sockui = get_socketui_from_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
+    if (sockui.description!=description):
+        sockui.description = description
+    return None
+
+
+def get_socket_description(ng, idx:int=None, in_out:str='OUTPUT', identifier:str=None,) -> str:
+    """return the description of the given nodegroups socket"""
+    
+    sockui = get_socketui_from_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
+    return sockui.description
+
+
+def create_socket(ng, in_out:str='OUTPUT', socket_type:str="NodeSocketFloat", socket_name:str="Value", socket_description:str="",):
     """create a new socket output of given type for given nodegroup"""
     
     #naive support for strandard socket.type notation
@@ -354,11 +374,12 @@ def create_socket(ng, in_out='OUTPUT', socket_type="NodeSocketFloat", socket_nam
     socket_type = crosseditor_socktype_adjust(socket_type, ng.type)
 
     sockui = ng.interface.new_socket(socket_name, in_out=in_out, socket_type=socket_type,)
-    sock = get_socket_from_socketui(ng, sockui, in_out=in_out)
-    return sock
+    if (socket_description):
+        sockui.description = socket_description
+    return get_socket_from_socketui(ng, sockui, in_out=in_out)
 
 
-def remove_socket(ng, idx, in_out='OUTPUT',):
+def remove_socket(ng, idx:int, in_out:str='OUTPUT',) -> None:
     """remove a nodegroup socket output at given index"""
         
     itm = get_socketui_from_socket(ng, idx, in_out=in_out,)
@@ -367,7 +388,7 @@ def remove_socket(ng, idx, in_out='OUTPUT',):
     return None 
 
 
-def create_constant_input(ng, nodetype, value, uniquetag, location='auto', width=200,):
+def create_constant_input(ng, nodetype:str, value, uniquetag:str, location:str='auto', width:int=200,):
     """add a new constant input node in nodetree if not existing, ensure it's value"""
 
     if (not uniquetag.startswith('C|')) and (location=='auto'):
@@ -426,7 +447,7 @@ def create_constant_input(ng, nodetype, value, uniquetag, location='auto', width
     return None
 
 
-def create_new_nodegroup(name, tree_type='GeometryNodeTree', in_sockets={}, out_sockets={},):
+def create_new_nodegroup(name:str, tree_type:str='GeometryNodeTree', in_sockets:dict={}, out_sockets:dict={},):
     """create new nodegroup with outputs from given dict {"name":"type",}"""
 
     ng = bpy.data.node_groups.new(name=name, type=tree_type,)
@@ -469,13 +490,10 @@ def replace_node(node_tree, old_node, node_group):
     old_outputs_links = [sock.links[0].to_socket if sock.links else None for sock in old_node.outputs]
 
     # Determine the appropriate node type for a node group.
-    match node_tree.bl_idname:
-        case 'ShaderNodeTree':     ng_type = 'ShaderNodeGroup'
-        case 'CompositorNodeTree': ng_type = 'CompositorNodeGroup'
-        case 'GeometryNodeTree':   ng_type = 'GeometryNodeGroup'
-        case _:
-            print(f"replace_node() does not support '{node_tree.bl_idname}'.")
-            return None
+    ng_type = TREE_TO_GROUP_EQUIV.get(node_tree.bl_idname)
+    if (ng_type is None):
+        print(f"replace_node() does not support '{node_tree.bl_idname}'.")
+        return None
 
     # Delete the old node.
     node_tree.nodes.remove(old_node)
@@ -490,32 +508,26 @@ def replace_node(node_tree, old_node, node_group):
 
     # Re-apply default values to new node inputs (if available).
     for i, sock in enumerate(new_node.inputs):
-        if i < len(old_inputs_defaults) and old_inputs_defaults[i] is not None:
-            try:
-                sock.default_value = old_inputs_defaults[i]
-            except Exception as e:
-                print(f"Warning: Could not copy default for input '{sock.name}': {e}")
+        if (i < len(old_inputs_defaults) and old_inputs_defaults[i] is not None):
+            try: sock.default_value = old_inputs_defaults[i]
+            except Exception as e: print(f"Warning: Could not copy default for input '{sock.name}': {e}")
 
     # Re-create input links.
     for i, sock in enumerate(new_node.inputs):
-        if i < len(old_inputs_links) and old_inputs_links[i] is not None:
-            try:
-                node_tree.links.new(old_inputs_links[i], sock)
-            except Exception as e:
-                print(f"Warning: Could not re-link input '{sock.name}': {e}")
+        if (i < len(old_inputs_links) and old_inputs_links[i] is not None):
+            try: node_tree.links.new(old_inputs_links[i], sock)
+            except Exception as e: print(f"Warning: Could not re-link input '{sock.name}': {e}")
 
     # Re-create output links.
     for i, sock in enumerate(new_node.outputs):
-        if i < len(old_outputs_links) and old_outputs_links[i] is not None:
-            try:
-                node_tree.links.new(sock, old_outputs_links[i])
-            except Exception as e:
-                print(f"Warning: Could not re-link output '{sock.name}': {e}")
+        if (i < len(old_outputs_links) and old_outputs_links[i] is not None):
+            try: node_tree.links.new(sock, old_outputs_links[i])
+            except Exception as e: print(f"Warning: Could not re-link output '{sock.name}': {e}")
     
     return new_node
 
 
-def frame_nodes(node_tree, *nodes, label="Frame",):
+def frame_nodes(node_tree, *nodes, label:str="Frame",) -> None:
     """Create a Frame node in the given node_tree and parent the specified nodes to it."""
 
     # we check if there's not a frame already existing. Important for nodesetter.py
@@ -533,7 +545,7 @@ def frame_nodes(node_tree, *nodes, label="Frame",):
     return None
 
 
-def get_nearest_node_at_position(nodes, context, event, position=None, allow_reroute=True, forbidden=None,):
+def get_nearest_node_at_position(nodes:list|set, context, event, position=None, allow_reroute:bool=True, forbidden:list|set=None,):
     """get nearest node at cursor location"""
     # Function from from 'node_wrangler.py'
 
@@ -583,9 +595,9 @@ def get_nearest_node_at_position(nodes, context, event, position=None, allow_rer
         locx, locy = get_node_absolute_location(n)
         dimx, dimy = n.dimensions.x/get_dpifac(), n.dimensions.y/get_dpifac()
 
-        if (locx <= x <= locx+dimx) and (locy-dimy <= y <= locy):
-            nodes_under_mouse.append(n)
-
+        if (locx <= x <= locx+dimx) and \
+           (locy-dimy <= y <= locy):
+               nodes_under_mouse.append(n)
         continue
 
     if (len(nodes_under_mouse)==1):
@@ -604,17 +616,15 @@ def get_farest_node(node_tree):
     
     assert node_tree and node_tree.nodes, "Nodetree given is empty?"
 
-    right_bottom_node = None
-    
     # Initialize to extreme values; adjust if you expect nodes to have negative positions.
-    max_x = -1e6  
-    min_y = 1e6
+    max_x, min_y = -1e6, 1e6
+    farest = None
 
     for node in node_tree.nodes:
         x, y = node.location
-        if (x > max_x or (x == max_x and y < min_y)):
-            max_x = x
-            min_y = y
-            right_bottom_node = node
+        if ((x > max_x) or \
+           ((x == max_x) and (y < min_y))):
+            farest = node
+            max_x, min_y = x, y
 
-    return right_bottom_node
+    return farest
