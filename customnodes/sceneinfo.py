@@ -24,7 +24,7 @@ from ..utils.node_utils import (
 
 class Base():
 
-    bl_idname = "NodeBoosteSceneInfo"
+    bl_idname = "NodeBoosterSceneInfo"
     bl_label = "Scene Info"
     bl_description = """Custom Nodgroup: Gather informations about your active scene.
     • Expect updates on each depsgraph post and frame_pre update signals"""
