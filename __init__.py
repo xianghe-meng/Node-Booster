@@ -16,7 +16,7 @@
 
 # ---------------------------------------------------------------------------------------------
 
-# TODO v3.0 release
+# TODO v2.1 release
 #  - Wait a minute.. we can add custom NodeSocketTypes, with custom Node types? What the heck..???
 #    - Check how it behaves when passing default value output????
 #    - Check if we can process data from CustomSocketInput to CustomSocketOutput??
@@ -25,6 +25,7 @@
 #    - Can it creates/remove sockets on the fly? what about label? what about changing socket type on the fly?
 #    - Re-Implement most nodes as CustomNodes then.. Start with an easy one.. 
 #       node_utils will have some rework to do. need to precise type of operation, if CustomNodeGroup or CustoNode.
+#    - How does it behave when the nodegroup is unregistered???
 #    - How can we process NativeNodes mixed with CustomSockets? 
 #       - What if we wrap a CustomNodeSocket in a CustomNodeGroup? how can we do that via an API? it works manually.
 #       -  still, will need to find a solution to convert our CustomNodeSocket to a NativeSocket. Python could just update a Value node default_value..
@@ -125,6 +126,7 @@
 #  - Nodes Consistencies: Generally speaking, nodes are not consistent from one editor to another.
 #    For example ShaderNodeValue becomes CompositorNodeValue. Ect.. a lot of Native socket types could be ported to 
 #    all editors as well. For example, SocketBool can be in the compositor.
+#  - NodeSocket position should definitely be exposed for custom noodle drawing. or socket overdrawings.
 
 # ---------------------------------------------------------------------------------------------
 
@@ -132,8 +134,12 @@
 #
 # Generic Functionalities Ideas:
 #  - Maybe copy some nodewrangler functionality such as quick mix so user stick to our extrusion style workflow?
-#
+#  - Could have an operator for quickly editing a frame description?  Either full custom python editor, or popup a new small window.
+#  - Could implement background reference image. there's even a special drawing method for that in the API.
+#  - could implement a tab switch in the header for quickly switching between different the big 3 editors?
 # Nodes Ideas:
+# - Could design portal node. There are ways to hide sockets, even from user CTRL+H, this node could simply pass hidden sockets around? 
+#   Do some tests. Note: would only be nice if we draw a heavy 'portal line' effect from node A to node B. Bonus: animation of the direction.
 # - Material Info node? gather informations about the material? if so, what?
 # - Color Palette Node? easily swap between color palettes?
 # - Armature/Bone nodes? Will need to learn about rigging to do that tho..
