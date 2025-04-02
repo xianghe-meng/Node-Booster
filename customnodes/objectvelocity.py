@@ -129,7 +129,7 @@ class Base():
 
     bl_idname = "NodeBoosterObjectVelocity"
     bl_label = "Object Velocity Info"
-    bl_description = """Custom Nodegroup: Track an object's velocity, acceleration, and stopping power.
+    bl_description = """Track an object's velocity, acceleration, and stopping power.
     • Monitors the selected object's position, rotation, and scale.
     • Calculates velocity, acceleration, and stopping power in real-time.
     • Provides damping controls to smooth the motion data."""

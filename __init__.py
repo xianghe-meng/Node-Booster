@@ -13,10 +13,12 @@
 #  - Codebase review for extension.. Ask AI to do a big check.
 #  - Sound Sequencer Node: Text property with custom poll. That's it. No sound data.
 #  - Velocity Node: Better history calculations just doing last middle first is not precise enough. 
+#  - Too many nodes, organize add menu. add a property per classes to define submenus easily.
+#    ex: menus = ("NodeBooster", "Inputs")
 
 # ---------------------------------------------------------------------------------------------
 
-# TODO v2.1 release
+# TODO Custom SocketTypes Experiments.
 #  - Wait a minute.. we can add custom NodeSocketTypes, with custom Node types? What the heck..???
 #    - Check how it behaves when passing default value output????
 #    - Check if we can process data from CustomSocketInput to CustomSocketOutput??
@@ -34,6 +36,8 @@
 #       - What if we wrap a CustomNodeSocket in a CustomNodeGroup? how can we do that via an API? it works manually.
 #       -  still, will need to find a solution to convert our CustomNodeSocket to a NativeSocket. Python could just update a Value node default_value..
 #    - if possible, then we can cross the todo in  'Change to C blender code' for custom socket types.
+#       - Start with custom interpolation types. See if MapRange can be ported. Could linearmaprange to 01 then use the FloatMapCurve then map range to custom values. 
+#         The final nodes would simply do the evaluation. would not be nodegroup compatible tho. Problem:
 
 # See demo below:
 
@@ -173,6 +177,45 @@
 #  - You might stumble into this crash when hot-reloading (enable/disable) the plugin on blender 4.2/4.2
 #    https://projects.blender.org/blender/blender/issues/134669 Has been fixed in 4.4. 
 #    Only impacts developers hotreloading.
+#  - BugFix when adding a lot of nodes while animation is playing. Quite random, can't reproduce. must be related to depsgraph implementation?
+#    seems that all_3d_viewports trigger this but it might be a coincidence..
+#    ConsolePrints:
+#        RecursionError: maximum recursion depth exceeded
+#        Error in bpy.app.handlers.depsgraph_update_post[1]:
+#        Traceback (most recent call last):
+#          File "D:\Work\NodeBooster\nodebooster\handlers.py", line 106, in nodebooster_handler_depspost
+#          File "D:\Work\NodeBooster\nodebooster\handlers.py", line 32, in upd_all_custom_nodes
+#          File "D:\Work\NodeBooster\nodebooster\utils\node_utils.py", line 72, in get_all_nodes
+#        RecursionError: maximum recursion depth exceeded while calling a Python object
+#    It seems to trigger a depsgraph chain reaction with other addons.
+#        Error in bpy.app.handlers.depsgraph_update_post[0]:
+#        Traceback (most recent call last):
+#          File "D:\Work\Geo-Scatter\vLatest\geo_scatter\gpl_script\handlers\handlers.py", line 118, in scatter5_depsgraph
+#          File "D:\Work\Geo-Scatter\vLatest\geo_scatter\gpl_script\handlers\handlers.py", line 540, in shading_type_callback
+#          File "D:\Work\Geo-Scatter\vLatest\geo_scatter\gpl_script\utils\extra_utils.py", line 156, in is_rendered_view
+#          File "D:\Work\Geo-Scatter\vLatest\geo_scatter\gpl_script\utils\extra_utils.py", line 150, in all_3d_viewports_shading_type
+#        RecursionError: maximum recursion depth exceeded
+#        Error in bpy.app.handlers.depsgraph_update_post[1]:
+#        Traceback (most recent call last):
+#          File "D:\Work\NodeBooster\nodebooster\handlers.py", line 106, in nodebooster_handler_depspost
+#          File "D:\Work\NodeBooster\nodebooster\handlers.py", line 32, in upd_all_custom_nodes
+#          File "D:\Work\NodeBooster\nodebooster\utils\node_utils.py", line 72, in get_all_nodes
+#        RecursionError: maximum recursion depth exceeded while calling a Python object
+#        Error in bpy.app.handlers.depsgraph_update_post[0]:
+#        Traceback (most recent call last):
+#          File "D:\Work\Geo-Scatter\vLatest\geo_scatter\gpl_script\handlers\handlers.py", line 118, in scatter5_depsgraph
+#            shading_type_callback()
+#          File "D:\Work\Geo-Scatter\vLatest\geo_scatter\gpl_script\handlers\handlers.py", line 540, in shading_type_callback
+#            is_rdr = is_rendered_view()
+#                     ^^^^^^^^^^^^^^^^^^
+#          File "D:\Work\Geo-Scatter\vLatest\geo_scatter\gpl_script\utils\extra_utils.py", line 156, in is_rendered_view
+#            return 'RENDERED' in all_3d_viewports_shading_type()
+#                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#          File "D:\Work\Geo-Scatter\vLatest\geo_scatter\gpl_script\utils\extra_utils.py", line 150, in all_3d_viewports_shading_type
+#            for space in all_3d_viewports():
+#          File "D:\Work\Geo-Scatter\vLatest\geo_scatter\gpl_script\utils\extra_utils.py", line 140, in all_3d_viewports
+#            for window in bpy.context.window_manager.windows:
+#                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 # ---------------------------------------------------------------------------------------------
 

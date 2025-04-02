@@ -312,7 +312,7 @@ class Base():
     
     bl_idname = "NodeBoosterSequencerSound"
     bl_label = "Sequencer Sound"
-    bl_description = """Custom Nodgroup: Analyze the active sound of the VideoSequencer editor.
+    bl_description = """Analyze the active sound of the VideoSequencer editor.
     • Get the Generic Sound volume, the Bass/Pitch/Treble tones as well.
     • Bass/Pitch/Treble Tones components fall within define frequencies in Hz units.
     • If you wish to view or customize these Bass/Pitch/Treble frequencies go in 'N panel > Node Booster > Active node > Parameters'.

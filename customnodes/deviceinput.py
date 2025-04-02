@@ -343,7 +343,7 @@ class Base():
 
     bl_idname = "NodeBoosterDeviceInput"
     bl_label = "Keyboard & Mouse Info"
-    bl_description = """Custom Nodegroup: Listen for input device events and provide them as node outputs.
+    bl_description = """Listen for input device events and provide them as node outputs.
     • First, starts the modal operator that captures all input events of the 3D active Viewport.
     • Provides various data about input events (mouse, keyboard, etc.)
     • You can add custom key event types by entering them in a comma-separated list (e.g., "A,B,SPACE,RET"). See blender 'Event Type Items' documentation to know which kewords are supported.

@@ -276,7 +276,7 @@ class Base():
 
     bl_idname = "NodeBoosterMathExpression"
     bl_label = "Math Expression"
-    bl_description = """Custom Nodgroup: Evaluate a float math equation and create sockets from given variables on the fly.\n
+    bl_description = """Evaluate a float math equation and create sockets from given variables on the fly.\n
     • The sockets are limited to Float types. Consider this node a 'Float Math Expression' node.\n
     • Please See the 'NodeBooster > Active Node > Glossary' panel to see all functions and notation available and their descriptions.\n
     • If you wish to bake this node into a nodegroup, a bake operator is available in the 'NodeBooster > Active Node' panel.\n

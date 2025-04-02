@@ -26,7 +26,7 @@ class Base():
 
     bl_idname = "NodeBoosterSceneInfo"
     bl_label = "Scene Info"
-    bl_description = """Custom Nodgroup: Gather informations about your active scene.
+    bl_description = """Gather informations about your active scene.
     • Expect updates on each depsgraph post and frame_pre update signals"""
     auto_update = {'FRAME_PRE','DEPS_POST',}
     tree_type = "*ChildrenDefined*"

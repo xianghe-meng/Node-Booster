@@ -31,7 +31,7 @@ class Base():
 
     bl_idname = "NodeBoosterPyExpression"
     bl_label = "Python Expression"
-    bl_description = """Custom Nodgroup: Evaluate a python expression as a single value output.
+    bl_description = """Evaluate a python expression as a single value output.
     • The evaluated values can be of type 'float', 'int', 'Vector', 'Color', 'Quaternion', 'Matrix', 'String', 'Object', 'Collection', 'Material' & 'list/tuple/set' up to len 16.
     • For more advanced python expression, try out the 'Nex Script' node!"""
     auto_update = {'FRAME_PRE','DEPS_POST','AUTORIZATION_REQUIRED',}

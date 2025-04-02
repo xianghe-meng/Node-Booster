@@ -25,7 +25,7 @@ class Base():
 
     bl_idname = "NodeBoosterCameraInfoV2"
     bl_label = "Camera Info"
-    bl_description = """Custom Nodgroup: Gather informations about any camera.
+    bl_description = """Gather informations about any camera.
     • By default the camera will always use the active camera.
     • Expect updates on each depsgraph post and frame_pre update signals"""
     auto_update = {'FRAME_PRE','DEPS_POST',}

@@ -27,7 +27,7 @@ class Base():
 
     bl_idname = "NodeBoosterLightInfo"
     bl_label = "Light Info"
-    bl_description = """Custom Nodegroup: Gather informations about any lights.
+    bl_description = """Gather informations about any lights.
     • Expect updates on each depsgraph post and frame_pre update signals"""
     auto_update = {'FRAME_PRE','DEPS_POST',}
     tree_type = "*ChildrenDefined*"

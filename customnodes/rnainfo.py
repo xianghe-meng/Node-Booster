@@ -35,7 +35,7 @@ class Base():
 
     bl_idname = "NodeBoosterRNAInfo"
     bl_label = "RNA Info"
-    bl_description = """Custom Nodegroup: Gather informations about any ID data and their properties.
+    bl_description = """Gather informations about any ID data and their properties.
     • Expect the same behavior than setting up a driver variable in the driver editor.
     • Expect updates on each depsgraph post and frame_pre update signals"""
     auto_update = {'FRAME_PRE','DEPS_POST',}

@@ -252,7 +252,7 @@ class Base():
 
     bl_idname = "NodeBoosterPyNexScript"
     bl_label = "Python Nex Script"
-    bl_description = """Custom NodeGroup: Executes a Python script containing 'Nex' language. 'Nex' stands for nodal expression.\
+    bl_description = """Executes a Python script containing 'Nex' language. 'Nex' stands for nodal expression.\
     With Nex, you can efficiently and easily interpret python code into Geometry-Node nodal programming.
     • Create a new text-data and initiate Nex input and output using `a:infloat` or `z:outfloat = a` for example.
     • These created input variables are SocketTypes, do math, write code with them, then assign their values to an output.
