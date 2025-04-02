@@ -11,7 +11,7 @@
 
 import bpy
 
-from ..utils.node_utils import get_nearest_node_at_position, create_socket, get_socket_from_socketui
+from ..utils.node_utils import get_nearest_node_at_position, create_ng_socket, get_ng_socket_from_socketui
 from ..utils.draw_utils import ensure_mouse_cursor
 
 
@@ -456,7 +456,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                         newtype = 'FLOAT'
 
                     s_old = l.from_socket
-                    s_new = create_socket(self.node_tree, in_out='OUTPUT', 
+                    s_new = create_ng_socket(self.node_tree, in_out='OUTPUT', 
                         socket_type=newtype, socket_name='Output',)
                     self.node_tree.links.remove(l)
                     self.node_tree.links.new(s_old,s_new)
@@ -473,7 +473,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                         newtype = 'FLOAT'
 
                     s_old = l.to_socket
-                    s_new = create_socket(self.node_tree, in_out='INPUT', 
+                    s_new = create_ng_socket(self.node_tree, in_out='INPUT', 
                         socket_type=newtype, socket_name='Input',)
                     self.node_tree.links.new(s_new,s_old)
                     self.node_tree.links.remove(l)

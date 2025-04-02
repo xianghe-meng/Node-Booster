@@ -9,7 +9,7 @@ from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     create_new_nodegroup, 
-    set_socket_defvalue,
+    set_ng_socket_defvalue,
     get_all_nodes,
 )
 
@@ -75,8 +75,8 @@ class Base():
 
         scene = bpy.context.scene
 
-        set_socket_defvalue(self.node_tree, 0, value=scene.use_gravity)
-        set_socket_defvalue(self.node_tree, 1, value=scene.gravity)
+        set_ng_socket_defvalue(self.node_tree, 0, value=scene.use_gravity)
+        set_ng_socket_defvalue(self.node_tree, 1, value=scene.gravity)
 
         return None
 

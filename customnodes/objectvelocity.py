@@ -24,11 +24,11 @@ from ..utils.str_utils import word_wrap
 from ..resources import cust_icon
 from ..utils.node_utils import (
     create_new_nodegroup,
-    set_socket_defvalue,
-    set_socket_description,
+    set_ng_socket_defvalue,
+    set_ng_socket_description,
     get_all_nodes,
-    create_socket,
-    remove_socket,
+    create_ng_socket,
+    remove_ng_socket,
 )
 
 DEBUG = False
@@ -221,10 +221,10 @@ class Base():
 
         ng = self.node_tree
         if (not self.target_obj):
-            set_socket_defvalue(ng, socket_name="Direction", value=(0.0, 0.0, 0.0))
-            set_socket_defvalue(ng, socket_name="Velocity", value=0.0)
-            set_socket_defvalue(ng, socket_name="Acceleration", value=0.0)
-            set_socket_defvalue(ng, socket_name="Stopping Power", value=0.0)
+            set_ng_socket_defvalue(ng, socket_name="Direction", value=(0.0, 0.0, 0.0))
+            set_ng_socket_defvalue(ng, socket_name="Velocity", value=0.0)
+            set_ng_socket_defvalue(ng, socket_name="Acceleration", value=0.0)
+            set_ng_socket_defvalue(ng, socket_name="Stopping Power", value=0.0)
             return None
         
         # Initialize object entry if it doesn't exist
@@ -317,10 +317,10 @@ class Base():
         #                 stopping_power = 0.0
         
         # Update node outputs
-        set_socket_defvalue(ng, socket_name="Direction", value=direction)
-        set_socket_defvalue(ng, socket_name="Velocity", value=velocity_magnitude)
-        set_socket_defvalue(ng, socket_name="Acceleration", value=acceleration)
-        set_socket_defvalue(ng, socket_name="Stopping Power", value=stopping_power)
+        set_ng_socket_defvalue(ng, socket_name="Direction", value=direction)
+        set_ng_socket_defvalue(ng, socket_name="Velocity", value=velocity_magnitude)
+        set_ng_socket_defvalue(ng, socket_name="Acceleration", value=acceleration)
+        set_ng_socket_defvalue(ng, socket_name="Stopping Power", value=stopping_power)
         
         return None
 

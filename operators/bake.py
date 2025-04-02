@@ -5,7 +5,7 @@
 
 import bpy
 
-from ..utils.node_utils import replace_node
+from ..utils.node_utils import replace_node_by_ng
 
 
 class NODEBOOSTER_OT_bake_customnode(bpy.types.Operator):
@@ -47,7 +47,7 @@ class NODEBOOSTER_OT_bake_customnode(bpy.types.Operator):
         node_group = node_group.copy()
         node_group.name = f'{node_group.name}.Baked'
 
-        new_node = replace_node(node_tree, old_node, node_group,)
+        new_node = replace_node_by_ng(node_tree, old_node, node_group,)
         if (new_node is None):
             self.report({'ERROR'}, "Current NodeTree type not supported")
             return {'FINISHED'}

@@ -15,9 +15,9 @@ from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     crosseditor_socktype_adjust,
     create_new_nodegroup,
-    set_socket_defvalue,
-    set_socket_type,
-    set_socket_label,
+    set_ng_socket_defvalue,
+    set_ng_socket_type,
+    set_ng_socket_label,
     get_all_nodes,
 )
 from ..nex.pytonode import py_to_Sockdata
@@ -213,21 +213,21 @@ class Base():
 
         #reset to default
         self.is_error = False
-        set_socket_defvalue(ng, 1, value=False)
-        set_socket_label(ng, 0, label="Value")
-        set_socket_label(ng, 1, label="Error")
+        set_ng_socket_defvalue(ng, 1, value=False)
+        set_ng_socket_label(ng, 0, label="Value")
+        set_ng_socket_label(ng, 1, label="Error")
 
         # check if the data path is valid
         if (not data_path) or (not id_data):
-            set_socket_defvalue(ng, 1, value=True)
+            set_ng_socket_defvalue(ng, 1, value=True)
             return None
 
         # Try to evaluate the data path
         try:
             value = id_data.path_resolve(data_path)
         except Exception as e:
-            set_socket_defvalue(ng, 1, value=True)
-            set_socket_label(ng, 1, label="PathError")
+            set_ng_socket_defvalue(ng, 1, value=True)
+            set_ng_socket_label(ng, 1, label="PathError")
             self.is_error = True
             return None
         
@@ -235,24 +235,24 @@ class Base():
         try:
             set_value, set_label, socktype = py_to_Sockdata(value)
         except Exception as e:
-            set_socket_defvalue(ng, 1, value=True)
-            set_socket_label(ng, 1, label="UnsupportedTypeError")
+            set_ng_socket_defvalue(ng, 1, value=True)
+            set_ng_socket_label(ng, 1, label="UnsupportedTypeError")
             self.is_error = True
             return None
 
         # check if the socket type is supported in context editor.
         if crosseditor_socktype_adjust(socktype,ng.type).startswith('Unavailable'):
-            set_socket_defvalue(ng, 1, value=True)
-            set_socket_label(ng, 1, label="UnavailableSocketError")
+            set_ng_socket_defvalue(ng, 1, value=True)
+            set_ng_socket_label(ng, 1, label="UnavailableSocketError")
             self.is_error = True
             return None
     
         # Set socket type and value
         #set values
         if (assign_socketype):
-            set_socket_type(ng, 0, socket_type=socktype)
-        set_socket_label(ng, 0, label=set_label)
-        set_socket_defvalue(ng, 0, value=set_value)
+            set_ng_socket_type(ng, 0, socket_type=socktype)
+        set_ng_socket_label(ng, 0, label=set_label)
+        set_ng_socket_defvalue(ng, 0, value=set_value)
 
         return None
 

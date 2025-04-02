@@ -37,11 +37,11 @@ from ..utils.str_utils import word_wrap
 from ..resources import cust_icon
 from ..utils.node_utils import (
     create_new_nodegroup,
-    set_socket_defvalue,
-    set_socket_description,
+    set_ng_socket_defvalue,
+    set_ng_socket_description,
     get_all_nodes,
-    create_socket,
-    remove_socket,
+    create_ng_socket,
+    remove_ng_socket,
 )
 
 
@@ -445,7 +445,7 @@ class Base():
         for et in valids:
             socket_name = f"{et} Key"
             if (socket_name not in current_sockets):
-                create_socket(ng, in_out='OUTPUT', socket_type="NodeSocketBool", socket_name=socket_name)
+                create_ng_socket(ng, in_out='OUTPUT', socket_type="NodeSocketBool", socket_name=socket_name)
         
         # Remove sockets for event types that are no longer in the list
         # We need to identify custom event sockets (ones that end with " Key")
@@ -457,7 +457,7 @@ class Base():
 
         # Remove sockets in reverse order to avoid index shifting issues
         for idx in reversed(sorted(sockets_to_remove)):
-            remove_socket(ng, idx, in_out='OUTPUT')
+            remove_ng_socket(ng, idx, in_out='OUTPUT')
 
         # Refresh the node
         self.update()
@@ -533,24 +533,24 @@ class Base():
         ng = self.node_tree
 
         # Update node outputs based on event data
-        set_socket_defvalue(ng, socket_name="Mouse Position", value=(event_data['mouse_region_x'], event_data['mouse_region_y'], 0.0))
-        set_socket_defvalue(ng, socket_name="Mouse Direction", value=(event_data['mouse_direction_x'], event_data['mouse_direction_y'], 0.0))
-        set_socket_defvalue(ng, socket_name="Mouse Velocity", value=event_data['mouse_velocity'])
-        set_socket_defvalue(ng, socket_name="Ctrl", value=event_data['ctrl'])
-        set_socket_defvalue(ng, socket_name="Shift", value=event_data['shift'])
-        set_socket_defvalue(ng, socket_name="Alt", value=event_data['alt'])
-        set_socket_defvalue(ng, socket_name="Left Click", value=event_data['LEFTMOUSE'])
-        set_socket_defvalue(ng, socket_name="Right Click", value=event_data['RIGHTMOUSE'])
-        set_socket_defvalue(ng, socket_name="Middle Click", value=event_data['MIDDLEMOUSE'])
-        set_socket_defvalue(ng, socket_name="Wheel Up", value=event_data['WHEELUPMOUSE'])
-        set_socket_defvalue(ng, socket_name="Wheel Down", value=event_data['WHEELDOWNMOUSE'])
+        set_ng_socket_defvalue(ng, socket_name="Mouse Position", value=(event_data['mouse_region_x'], event_data['mouse_region_y'], 0.0))
+        set_ng_socket_defvalue(ng, socket_name="Mouse Direction", value=(event_data['mouse_direction_x'], event_data['mouse_direction_y'], 0.0))
+        set_ng_socket_defvalue(ng, socket_name="Mouse Velocity", value=event_data['mouse_velocity'])
+        set_ng_socket_defvalue(ng, socket_name="Ctrl", value=event_data['ctrl'])
+        set_ng_socket_defvalue(ng, socket_name="Shift", value=event_data['shift'])
+        set_ng_socket_defvalue(ng, socket_name="Alt", value=event_data['alt'])
+        set_ng_socket_defvalue(ng, socket_name="Left Click", value=event_data['LEFTMOUSE'])
+        set_ng_socket_defvalue(ng, socket_name="Right Click", value=event_data['RIGHTMOUSE'])
+        set_ng_socket_defvalue(ng, socket_name="Middle Click", value=event_data['MIDDLEMOUSE'])
+        set_ng_socket_defvalue(ng, socket_name="Wheel Up", value=event_data['WHEELUPMOUSE'])
+        set_ng_socket_defvalue(ng, socket_name="Wheel Down", value=event_data['WHEELDOWNMOUSE'])
 
         # Update custom event outputs
         user_keys = [k.name for k in self.outputs if k.name.endswith(" Key")]
         for k in user_keys:
             data = k.replace(" Key", "")
             value = event_data.get(data, False)
-            set_socket_defvalue(ng, socket_name=k, value=value)
+            set_ng_socket_defvalue(ng, socket_name=k, value=value)
             if (not value):
                 STORAGE.custom_event_types.add(data)
 

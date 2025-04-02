@@ -135,18 +135,6 @@ def set_node_socketattr(node, in_out:str='OUTPUT', socket_name:str="", attribute
     return None
 
 
-def get_socket_by_name(ng, socket_name:str='Foo', in_out:str='OUTPUT',) -> list|None:
-    """get a socket object from a nodetree input/output by name"""
-
-    sockets = ng.nodes["Group Output"].inputs if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs
-    r = [s for s in sockets if (s.name==socket_name)]
-    if (len(r)==0):
-        return None
-    elif (len(r)==1):
-        return r[0]
-    return r
-
-
 def crosseditor_socktype_adjust(socket_type:str, ngtype:str) -> str:
     """ensure the socket types are correct depending on the nodes editor"""
 
@@ -172,8 +160,20 @@ def crosseditor_socktype_adjust(socket_type:str, ngtype:str) -> str:
     return socket_type
 
 
-def get_socketui_from_socket(ng, idx:int=None, in_out:str='OUTPUT', identifier:str=None,):
-    """return a given socket index as an interface item, either find the socket by it's index, name or socketidentifier"""
+def get_ng_socket_by_name(ng, socket_name:str='Foo', in_out:str='OUTPUT',) -> list|None:
+    """for a NodeCustomGroup: get a socket object from a nodetree input/output by name"""
+
+    sockets = ng.nodes["Group Output"].inputs if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs
+    r = [s for s in sockets if (s.name==socket_name)]
+    if (len(r)==0):
+        return None
+    elif (len(r)==1):
+        return r[0]
+    return r
+
+
+def get_socketui_from_ng_socket(ng, idx:int=None, in_out:str='OUTPUT', identifier:str=None,):
+    """for a NodeCustomGroup: return a given socket index as an interface item, either find the socket by it's index, name or socketidentifier"""
     
     if (identifier is None):
         sockets = ng.nodes["Group Output"].inputs if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs
@@ -183,7 +183,7 @@ def get_socketui_from_socket(ng, idx:int=None, in_out:str='OUTPUT', identifier:s
                 break
 
     if (identifier is None):
-        raise Exception("ERROR: get_socketui_from_socket(): couldn't retrieve socket identifier..")
+        raise Exception("ERROR: get_socketui_from_ng_socket(): couldn't retrieve socket identifier..")
     
     #then we retrieve thesocket interface item from identifier
     sockui = None
@@ -192,16 +192,16 @@ def get_socketui_from_socket(ng, idx:int=None, in_out:str='OUTPUT', identifier:s
     if len(findgen):
         sockui = findgen[0]
         if len(findgen)>1:
-            print(f"WARNING: get_socketui_from_socket: multiple sockets with identifier '{identifier}' exists")
+            print(f"WARNING: get_socketui_from_ng_socket: multiple sockets with identifier '{identifier}' exists")
 
     if (sockui is None):
-        raise Exception("ERROR: get_socketui_from_socket(): couldn't retrieve socket interface item..")
+        raise Exception("ERROR: get_socketui_from_ng_socket(): couldn't retrieve socket interface item..")
     
     return sockui
 
 
-def get_socket_from_socketui(ng, sockui, in_out:str='OUTPUT'):
-    """retrieve NodeSocket from a NodeTreeInterfaceSocket type"""
+def get_ng_socket_from_socketui(ng, sockui, in_out:str='OUTPUT'):
+    """for a NodeCustomGroup: retrieve NodeSocket from a NodeTreeInterfaceSocket type"""
     
     sockets = ng.nodes["Group Output"].inputs if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs
     for s in sockets:
@@ -210,8 +210,8 @@ def get_socket_from_socketui(ng, sockui, in_out:str='OUTPUT'):
     raise Exception('NodeSocket from nodetree.interface.items_tree does not exist?')
 
 
-def get_socket_defvalue(ng, idx:int, in_out:str='OUTPUT',):
-    """return the value of the given nodegroups output at given socket idx"""
+def get_ng_socket_defvalue(ng, idx:int, in_out:str='OUTPUT',):
+    """for a NodeCustomGroup: return the value of the given nodegroups output at given socket idx"""
 
     match in_out:
         case 'OUTPUT':
@@ -220,13 +220,13 @@ def get_socket_defvalue(ng, idx:int, in_out:str='OUTPUT',):
             raise Exception("No Support for Inputs..")
             return ng.nodes["Group Input"].outputs[idx].default_value
         case _:
-            raise Exception("get_socket_defvalue(): in_out arg not valid")
+            raise Exception("get_ng_socket_defvalue(): in_out arg not valid")
 
 
-def set_socket_defvalue(ng, idx:int=None, socket=None, socket_name:str='', in_out:str='OUTPUT', value=None, node=None,):
-    """set the value of the given nodegroups inputs or output sockets"""
+def set_ng_socket_defvalue(ng, idx:int=None, socket=None, socket_name:str='', in_out:str='OUTPUT', value=None, node=None,):
+    """for a NodeCustomGroup: set the value of the given nodegroups inputs or output sockets"""
 
-    assert in_out in {'INPUT','OUTPUT'}, "set_socket_defvalue(): in_out arg not valid"
+    assert in_out in {'INPUT','OUTPUT'}, "set_ng_socket_defvalue(): in_out arg not valid"
 
     in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
 
@@ -341,52 +341,52 @@ def set_socket_defvalue(ng, idx:int=None, socket=None, socket_name:str='', in_ou
 
     return None
 
-def set_socket_label(ng, idx:int=None, in_out:str='OUTPUT', label:str='', identifier:str=None,) -> None:
-    """return the label of the given nodegroups output at given socket idx"""
+def set_ng_socket_label(ng, idx:int=None, in_out:str='OUTPUT', label:str='', identifier:str=None,) -> None:
+    """for a NodeCustomGroup: return the label of the given nodegroups output at given socket idx"""
     if (not label):
         return None
-    sockui = get_socketui_from_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
+    sockui = get_socketui_from_ng_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
     if (sockui.name!=label):
         sockui.name = label
     return None  
 
 
-def get_socket_type(ng, idx:int=None, in_out:str='OUTPUT', identifier:str=None,) -> str:
-    """return the type of the given nodegroups output at given socket idx"""
+def get_ng_socket_type(ng, idx:int=None, in_out:str='OUTPUT', identifier:str=None,) -> str:
+    """for a NodeCustomGroup: return the type of the given nodegroups output at given socket idx"""
     
-    sockui = get_socketui_from_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
+    sockui = get_socketui_from_ng_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
     return sockui.socket_type
 
 
-def set_socket_type(ng, idx:int=None, in_out:str='OUTPUT', socket_type:str="NodeSocketFloat", identifier:str=None,):
-    """set socket type via bpy.ops.node.tree_socket_change_type() with manual override, context MUST be the geometry node editor"""
+def set_ng_socket_type(ng, idx:int=None, in_out:str='OUTPUT', socket_type:str="NodeSocketFloat", identifier:str=None,):
+    """for a NodeCustomGroup: set socket type via bpy.ops.node.tree_socket_change_type() with manual override, context MUST be the geometry node editor"""
     #NOTE blender bug: you might need to use the return value because the original socket after change will be dirty.
 
     socket_type = crosseditor_socktype_adjust(socket_type, ng.type)
-    sockui = get_socketui_from_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
+    sockui = get_socketui_from_ng_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
     if (sockui.socket_type!=socket_type):
         sockui.socket_type = socket_type
-    return get_socket_from_socketui(ng, sockui, in_out=in_out)
+    return get_ng_socket_from_socketui(ng, sockui, in_out=in_out)
 
 
-def set_socket_description(ng, idx:int=None, in_out:str='OUTPUT', description:str='', identifier:str=None,) -> None:
-    """set the description of the given nodegroups socket"""
+def set_ng_socket_description(ng, idx:int=None, in_out:str='OUTPUT', description:str='', identifier:str=None,) -> None:
+    """for a NodeCustomGroup: set the description of the given nodegroups socket"""
 
-    sockui = get_socketui_from_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
+    sockui = get_socketui_from_ng_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
     if (sockui.description!=description):
         sockui.description = description
     return None
 
 
-def get_socket_description(ng, idx:int=None, in_out:str='OUTPUT', identifier:str=None,) -> str:
-    """return the description of the given nodegroups socket"""
+def get_ng_socket_description(ng, idx:int=None, in_out:str='OUTPUT', identifier:str=None,) -> str:
+    """for a NodeCustomGroup: return the description of the given nodegroups socket"""
     
-    sockui = get_socketui_from_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
+    sockui = get_socketui_from_ng_socket(ng, idx=idx, in_out=in_out, identifier=identifier,)
     return sockui.description
 
 
-def create_socket(ng, in_out:str='OUTPUT', socket_type:str="NodeSocketFloat", socket_name:str="Value", socket_description:str="",):
-    """create a new socket output of given type for given nodegroup"""
+def create_ng_socket(ng, in_out:str='OUTPUT', socket_type:str="NodeSocketFloat", socket_name:str="Value", socket_description:str="",):
+    """for a NodeCustomGroup: create a new socket output of given type for given nodegroup"""
     
     #naive support for strandard socket.type notation
     if (socket_type.isupper()):
@@ -397,23 +397,23 @@ def create_socket(ng, in_out:str='OUTPUT', socket_type:str="NodeSocketFloat", so
     sockui = ng.interface.new_socket(socket_name, in_out=in_out, socket_type=socket_type,)
     if (socket_description):
         sockui.description = socket_description
-    return get_socket_from_socketui(ng, sockui, in_out=in_out)
+    return get_ng_socket_from_socketui(ng, sockui, in_out=in_out)
 
 
-def remove_socket(ng, idx:int, in_out:str='OUTPUT',) -> None:
-    """remove a nodegroup socket output at given index"""
+def remove_ng_socket(ng, idx:int, in_out:str='OUTPUT',) -> None:
+    """for a NodeCustomGroup: remove a nodegroup socket output at given index"""
         
-    itm = get_socketui_from_socket(ng, idx, in_out=in_out,)
+    itm = get_socketui_from_ng_socket(ng, idx, in_out=in_out,)
     ng.interface.remove(itm)
     
     return None 
 
 
-def create_constant_input(ng, nodetype:str, value, uniquetag:str, location:str='auto', width:int=200,):
-    """add a new constant input node in nodetree if not existing, ensure it's value"""
+def create_ng_constant_node(ng, nodetype:str, value, uniquetag:str, location:str='auto', width:int=200,):
+    """for a NodeCustomGroup: add a new constant input node in nodetree if not existing, ensure it's value"""
 
     if (not uniquetag.startswith('C|')) and (location=='auto'):
-        print("WARNING: Internal message: create_constant_input() please make the uniquetag startswith 'C|' to support automatic location")
+        print("WARNING: Internal message: create_ng_constant_node() please make the uniquetag startswith 'C|' to support automatic location")
 
     if (location=='auto'):
         constcount = len([C for C in ng.nodes if C.name.startswith('C|')])
@@ -481,11 +481,11 @@ def create_new_nodegroup(name:str, tree_type:str='GeometryNodeTree', in_sockets:
     #create the sockets
     #inputs
     for sname, stype in in_sockets.items():
-        create_socket(ng, in_out='INPUT', socket_type=stype,
+        create_ng_socket(ng, in_out='INPUT', socket_type=stype,
             socket_name=sname, socket_description=sockets_description.get(sname,''))
     #outputs
     for sname, stype in out_sockets.items():
-        create_socket(ng, in_out='OUTPUT', socket_type=stype,
+        create_ng_socket(ng, in_out='OUTPUT', socket_type=stype,
             socket_name=sname, socket_description=sockets_description.get(sname,''))
 
     return ng
@@ -501,7 +501,7 @@ def link_sockets(socket1, socket2):
     return ng.links.new(socket1, socket2)
 
 
-def replace_node(node_tree, old_node, node_group):
+def replace_node_by_ng(node_tree, old_node, node_group):
     """Replace an existing node with a new Node Group node (assuming same socket structure)"""
 
     # Save old node properties.
@@ -518,7 +518,7 @@ def replace_node(node_tree, old_node, node_group):
     # Determine the appropriate node type for a node group.
     ng_type = TREE_TO_GROUP_EQUIV.get(node_tree.bl_idname)
     if (ng_type is None):
-        print(f"replace_node() does not support '{node_tree.bl_idname}'.")
+        print(f"replace_node_by_ng() does not support '{node_tree.bl_idname}'.")
         return None
 
     # Delete the old node.

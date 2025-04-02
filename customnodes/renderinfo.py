@@ -9,7 +9,7 @@ from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     create_new_nodegroup,
-    set_socket_defvalue,
+    set_ng_socket_defvalue,
     get_all_nodes,
 )
 
@@ -81,14 +81,14 @@ class Base():
 
         scene = bpy.context.scene
 
-        set_socket_defvalue(self.node_tree, 0, value=scene.render.resolution_x)
-        set_socket_defvalue(self.node_tree, 1, value=scene.render.resolution_y)
-        set_socket_defvalue(self.node_tree, 2, value=scene.render.resolution_percentage)
-        set_socket_defvalue(self.node_tree, 3, value=scene.render.pixel_aspect_x)
-        set_socket_defvalue(self.node_tree, 4, value=scene.render.pixel_aspect_y)
-        set_socket_defvalue(self.node_tree, 5, value=scene.frame_start)
-        set_socket_defvalue(self.node_tree, 6, value=scene.frame_end)
-        set_socket_defvalue(self.node_tree, 7, value=scene.frame_step)
+        set_ng_socket_defvalue(self.node_tree, 0, value=scene.render.resolution_x)
+        set_ng_socket_defvalue(self.node_tree, 1, value=scene.render.resolution_y)
+        set_ng_socket_defvalue(self.node_tree, 2, value=scene.render.resolution_percentage)
+        set_ng_socket_defvalue(self.node_tree, 3, value=scene.render.pixel_aspect_x)
+        set_ng_socket_defvalue(self.node_tree, 4, value=scene.render.pixel_aspect_y)
+        set_ng_socket_defvalue(self.node_tree, 5, value=scene.frame_start)
+        set_ng_socket_defvalue(self.node_tree, 6, value=scene.frame_end)
+        set_ng_socket_defvalue(self.node_tree, 7, value=scene.frame_step)
 
         return None
 

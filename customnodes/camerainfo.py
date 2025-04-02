@@ -9,7 +9,7 @@ from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     create_new_nodegroup,
-    set_socket_defvalue,
+    set_ng_socket_defvalue,
     get_all_nodes,
 )
 
@@ -153,7 +153,7 @@ class Base():
                 values["Sensor Type"] = 0 if (cd.sensor_fit=='AUTO') else 2 if (cd.sensor_fit=='HORIZONTAL') else 3
 
         for k,v in values.items():
-            set_socket_defvalue(self.node_tree, socket_name=k, value=v,)
+            set_ng_socket_defvalue(self.node_tree, socket_name=k, value=v,)
 
         return None
 

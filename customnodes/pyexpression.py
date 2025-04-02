@@ -12,9 +12,9 @@ from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     crosseditor_socktype_adjust,
     create_new_nodegroup,
-    set_socket_defvalue,
-    set_socket_type,
-    set_socket_label,
+    set_ng_socket_defvalue,
+    set_ng_socket_type,
+    set_ng_socket_label,
     get_node_objusers,
     get_all_nodes,
 )
@@ -102,15 +102,15 @@ class Base():
         self.debug_evaluation_counter += 1 # potential issue with int limit here? idk how blender handle this
 
         #we reset the Error status back to false
-        set_socket_label(ng,1, label="NoErrors",)
-        set_socket_defvalue(ng,1, value=False,)
+        set_ng_socket_label(ng,1, label="NoErrors",)
+        set_ng_socket_defvalue(ng,1, value=False,)
         self.error_message = ''
 
         #check if string is empty first, perhaps user didn't input anything yet 
         if (self.user_pyexpression==""):
-            set_socket_label(ng,0, label="Waiting for Input" ,)
-            set_socket_label(ng,1, label="EmptyFieldError",)
-            set_socket_defvalue(ng,1, value=True,)
+            set_ng_socket_label(ng,0, label="Waiting for Input" ,)
+            set_ng_socket_label(ng,1, label="EmptyFieldError",)
+            set_ng_socket_defvalue(ng,1, value=True,)
             return None
 
         to_evaluate = self.user_pyexpression
@@ -148,9 +148,9 @@ class Base():
                 msg = "'self' not Available in this Context."
             #display error to user
             self.error_message = msg
-            set_socket_label(ng,0, label=type(e).__name__,)
-            set_socket_label(ng,1, label="ExecutionError",)
-            set_socket_defvalue(ng,1, value=True,)
+            set_ng_socket_label(ng,0, label=type(e).__name__,)
+            set_ng_socket_label(ng,1, label="ExecutionError",)
+            set_ng_socket_defvalue(ng,1, value=True,)
             return None
 
         #python to actual values we can use
@@ -160,25 +160,25 @@ class Base():
             print(f"{self.bl_idname} Parsing Exception '{type(e).__name__}':\n{e}")
             #display error to user
             self.error_message = str(e)
-            set_socket_label(ng,0, label=type(e).__name__,)
-            set_socket_label(ng,1, label="ParsingError",)
-            set_socket_defvalue(ng,1, value=True,)
+            set_ng_socket_label(ng,0, label=type(e).__name__,)
+            set_ng_socket_label(ng,1, label="ParsingError",)
+            set_ng_socket_defvalue(ng,1, value=True,)
             return None
 
         #cross editor compatibility
         if crosseditor_socktype_adjust(socktype,ng.type).startswith('Unavailable'):
             #display error to user
             self.error_message = f"{socktype.replace('NodeSocket','')} sockets are not available in {ng.type.title()}."
-            set_socket_label(ng,0, label=set_label,)
-            set_socket_label(ng,1, label="TypeAvailabilityError",)
-            set_socket_defvalue(ng,1, value=True,)
+            set_ng_socket_label(ng,0, label=set_label,)
+            set_ng_socket_label(ng,1, label="TypeAvailabilityError",)
+            set_ng_socket_defvalue(ng,1, value=True,)
             return None
 
         #set values
         if (assign_socketype):
-            set_socket_type(ng,0, socket_type=socktype,)
-        set_socket_label(ng,0, label=set_label ,)
-        set_socket_defvalue(ng,0, value=set_value ,)
+            set_ng_socket_type(ng,0, socket_type=socktype,)
+        set_ng_socket_label(ng,0, label=set_label ,)
+        set_ng_socket_defvalue(ng,0, value=set_value ,)
 
         return None
 

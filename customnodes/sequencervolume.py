@@ -13,7 +13,7 @@ from ..utils.nbr_utils import map_range
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     create_new_nodegroup,
-    set_socket_defvalue,
+    set_ng_socket_defvalue,
     get_all_nodes,
 )
 
@@ -481,10 +481,10 @@ class Base():
         if (not (evalvolume or evalpitch or evalbass or evaltreble)) \
             or ((self.target=='SPECIFIC') and (not self.sound)) \
             or (vse is None):
-            set_socket_defvalue(ng, socket_name='Volume',value=0,)
-            set_socket_defvalue(ng, socket_name='Pitch',value=0,)
-            set_socket_defvalue(ng, socket_name='Bass',value=0,)
-            set_socket_defvalue(ng, socket_name='Treble',value=0,)
+            set_ng_socket_defvalue(ng, socket_name='Volume',value=0,)
+            set_ng_socket_defvalue(ng, socket_name='Pitch',value=0,)
+            set_ng_socket_defvalue(ng, socket_name='Bass',value=0,)
+            set_ng_socket_defvalue(ng, socket_name='Treble',value=0,)
             return None
 
         #update frequencies range?
@@ -505,20 +505,20 @@ class Base():
             )
 
         if (evalvolume):
-              set_socket_defvalue(ng, socket_name='Volume',value=data['volume'],)
-        else: set_socket_defvalue(ng, socket_name='Volume',value=0,)
+              set_ng_socket_defvalue(ng, socket_name='Volume',value=data['volume'],)
+        else: set_ng_socket_defvalue(ng, socket_name='Volume',value=0,)
 
         if (evalpitch):
-              set_socket_defvalue(ng, socket_name='Pitch',value=data['pitch'],)
-        else: set_socket_defvalue(ng, socket_name='Pitch',value=0,)
+              set_ng_socket_defvalue(ng, socket_name='Pitch',value=data['pitch'],)
+        else: set_ng_socket_defvalue(ng, socket_name='Pitch',value=0,)
 
         if (evalbass):
-              set_socket_defvalue(ng, socket_name='Bass',value=data['bass'],)
-        else: set_socket_defvalue(ng, socket_name='Bass',value=0,)
+              set_ng_socket_defvalue(ng, socket_name='Bass',value=data['bass'],)
+        else: set_ng_socket_defvalue(ng, socket_name='Bass',value=0,)
 
         if (evaltreble):
-              set_socket_defvalue(ng, socket_name='Treble',value=data['treble'],)
-        else: set_socket_defvalue(ng, socket_name='Treble',value=0,)
+              set_ng_socket_defvalue(ng, socket_name='Treble',value=data['treble'],)
+        else: set_ng_socket_defvalue(ng, socket_name='Treble',value=0,)
 
         return None
     

@@ -7,7 +7,7 @@ import bpy
 
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
-from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue
+from ..utils.node_utils import create_new_nodegroup, set_ng_socket_defvalue
 
 
 def all_3d_viewports():
@@ -69,7 +69,7 @@ class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
         self.node_tree = ng
         self.label = self.bl_label
 
-        set_socket_defvalue(ng, 0, value=is_rendered_view(),)
+        set_ng_socket_defvalue(ng, 0, value=is_rendered_view(),)
         return None 
 
     def update(self):
@@ -79,7 +79,7 @@ class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
     
     # def sync_out_values(self):
     #     """sync output socket values with data"""
-    #     set_socket_defvalue(self.node_tree, 0, value=is_rendered_view(),)
+    #     set_ng_socket_defvalue(self.node_tree, 0, value=is_rendered_view(),)
     #     return None
 
     def draw_label(self,):
@@ -127,7 +127,7 @@ class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
         name = f".{cls.bl_idname}"
         ng = bpy.data.node_groups.get(name)
         if (ng):
-            set_socket_defvalue(ng, 0, value=is_rendered_view(),)
+            set_ng_socket_defvalue(ng, 0, value=is_rendered_view(),)
             
         return None
     

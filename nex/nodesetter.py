@@ -55,7 +55,7 @@ import typing
 from mathutils import Vector, Matrix, Quaternion, Color
 
 from ..nex.pytonode import py_to_Vec3, py_to_Mtx16, py_to_RGBA
-from ..utils.node_utils import link_sockets, frame_nodes, create_constant_input
+from ..utils.node_utils import link_sockets, frame_nodes, create_ng_constant_node
 from ..utils.fct_utils import is_annotation_compliant, alltypes, anytype, ColorRGBA
 
 #shortcuts for socket types
@@ -1011,8 +1011,8 @@ def generalmatrixmath(ng, callhistory,
                 #unfortunately we are forced to create a new node, there's no .default_value option for type SocketMatrix..
                 rowflatten = [v for row in val for v in row]
                 if (uniquename):
-                      defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f"C|{uniquename}|def{i}")
-                else: defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f'C|{rowflatten[:]}') #enough space in nodename property? hmm. this function should't be used with no uniquename anyway..
+                      defval = create_ng_constant_node(ng, 'FunctionNodeCombineMatrix', val, f"C|{uniquename}|def{i}")
+                else: defval = create_ng_constant_node(ng, 'FunctionNodeCombineMatrix', val, f'C|{rowflatten[:]}') #enough space in nodename property? hmm. this function should't be used with no uniquename anyway..
                 if needs_linking:
                     link_sockets(defval, node.inputs[i])
 
@@ -1130,8 +1130,8 @@ def generalcombsepa(ng, callhistory,
                 case Quaternion(): #this is for sepaquat()
                     #unfortunately we are forced to create a new node, there's no quaternion .default_value option for type SocketRotation..
                     if (uniquename):
-                          defval = create_constant_input(ng, 'FunctionNodeQuaternionToRotation', val, f"C|{uniquename}|def0")
-                    else: defval = create_constant_input(ng, 'FunctionNodeQuaternionToRotation', val, f'C|{val[:]}')
+                          defval = create_ng_constant_node(ng, 'FunctionNodeQuaternionToRotation', val, f"C|{uniquename}|def0")
+                    else: defval = create_ng_constant_node(ng, 'FunctionNodeQuaternionToRotation', val, f'C|{val[:]}')
                     if needs_linking:
                         link_sockets(defval, node.inputs[0])
 
@@ -1139,8 +1139,8 @@ def generalcombsepa(ng, callhistory,
                     #unfortunately we are forced to create a new node, there's no .default_value option for type SocketMatrix..
                     rowflatten = [v for row in val for v in row]
                     if (uniquename):
-                          defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f"C|{uniquename}|def0")
-                    else: defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f'C|{rowflatten[:]}') #enough space in nodename property? hmm. this function should't be used with no uniquename anyway..
+                          defval = create_ng_constant_node(ng, 'FunctionNodeCombineMatrix', val, f"C|{uniquename}|def0")
+                    else: defval = create_ng_constant_node(ng, 'FunctionNodeCombineMatrix', val, f'C|{rowflatten[:]}') #enough space in nodename property? hmm. this function should't be used with no uniquename anyway..
                     if needs_linking:
                         link_sockets(defval, node.inputs[0])
 
@@ -1171,8 +1171,8 @@ def generalcombsepa(ng, callhistory,
                     case Quaternion(): #this is for combitransforms, will have a quaternion element
                         #unfortunately we are forced to create a new node, there's no quaternion .default_value option for type SocketRotation..
                         if (uniquename):
-                              defval = create_constant_input(ng, 'FunctionNodeQuaternionToRotation', val, f"C|{uniquename}|def0")
-                        else: defval = create_constant_input(ng, 'FunctionNodeQuaternionToRotation', val, f'C|{val[:]}')
+                              defval = create_ng_constant_node(ng, 'FunctionNodeQuaternionToRotation', val, f"C|{uniquename}|def0")
+                        else: defval = create_ng_constant_node(ng, 'FunctionNodeQuaternionToRotation', val, f'C|{val[:]}')
                         if needs_linking:
                             link_sockets(defval, node.inputs[i])
 
@@ -1274,8 +1274,8 @@ def generalswitch(ng, callhistory,
                 #unfortunately we are forced to create a new node, there's no .default_value option for type SocketMatrix..
                 rowflatten = [v for row in val for v in row]
                 if (uniquename):
-                      defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f"C|{uniquename}|def{i}")
-                else: defval = create_constant_input(ng, 'FunctionNodeCombineMatrix', val, f'C|{rowflatten[:]}') #enough space in nodename property? hmm. this function should't be used with no uniquename anyway..
+                      defval = create_ng_constant_node(ng, 'FunctionNodeCombineMatrix', val, f"C|{uniquename}|def{i}")
+                else: defval = create_ng_constant_node(ng, 'FunctionNodeCombineMatrix', val, f'C|{rowflatten[:]}') #enough space in nodename property? hmm. this function should't be used with no uniquename anyway..
                 if needs_linking:
                     link_sockets(defval, node.inputs[i])
 

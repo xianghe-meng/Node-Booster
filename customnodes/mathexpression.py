@@ -26,10 +26,10 @@ from ..utils.str_utils import (
 )
 from ..utils.node_utils import (
     create_new_nodegroup,
-    create_socket,
-    remove_socket,
+    create_ng_socket,
+    remove_ng_socket,
     link_sockets,
-    create_constant_input,
+    create_ng_constant_node,
 )
 from ..nex.nodesetter import (
     get_nodesetter_functions, 
@@ -577,7 +577,7 @@ class Base():
             current_vars = [s.name for s in in_nod.outputs]
             for var in elemVar:
                 if (var not in current_vars):
-                    create_socket(ng, in_out='INPUT', socket_type="NodeSocketFloat", socket_name=var,)
+                    create_ng_socket(ng, in_out='INPUT', socket_type="NodeSocketFloat", socket_name=var,)
 
         # Remove unused sockets
         idx_to_del = []
@@ -585,7 +585,7 @@ class Base():
             if ((socket.type!='CUSTOM') and (socket.name not in elemVar)):
                 idx_to_del.append(idx)
         for idx in reversed(idx_to_del):
-            remove_socket(ng, idx, in_out='INPUT')
+            remove_ng_socket(ng, idx, in_out='INPUT')
 
         # We need to collect the equivalence between the varnames and const and their constant socket representation
         vareq, consteq = dict(), dict()
@@ -603,7 +603,7 @@ class Base():
             xloc, yloc = in_nod.location.x, in_nod.location.y-330
             for const in elemConst:
                 nodetype = 'CompositorNodeValue' if (self.tree_type=='CompositorNodeTree') else 'ShaderNodeValue'
-                con_sck = create_constant_input(ng, nodetype, float(const), f"C|{const}", location=(xloc,yloc),)
+                con_sck = create_ng_constant_node(ng, nodetype, float(const), f"C|{const}", location=(xloc,yloc),)
                 yloc -= 90
                 consteq[const] = con_sck
                 continue

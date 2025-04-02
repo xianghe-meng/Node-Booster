@@ -9,7 +9,7 @@ from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     create_new_nodegroup,
-    set_socket_defvalue,
+    set_ng_socket_defvalue,
     get_all_nodes,
     set_node_socketattr,
 )
@@ -149,13 +149,13 @@ class Base():
         if (not valid):
             ltype = "" if is_geonode else 0
             if (not is_geonode):
-                  set_socket_defvalue(ng, socket_name="Location", value=(0,0,0))
-                  set_socket_defvalue(ng, socket_name="Rotation", value=(0,0,0))
-                  set_socket_defvalue(ng, socket_name="Scale", value=(0,0,0))
-            else: set_socket_defvalue(ng, socket_name="Object", value=None)
-            set_socket_defvalue(ng, socket_name="Type", value=ltype)
-            set_socket_defvalue(ng, socket_name="Color", value=[0.0, 0.0, 0.0, 0.0])
-            set_socket_defvalue(ng, socket_name="Power", value=0.0)
+                  set_ng_socket_defvalue(ng, socket_name="Location", value=(0,0,0))
+                  set_ng_socket_defvalue(ng, socket_name="Rotation", value=(0,0,0))
+                  set_ng_socket_defvalue(ng, socket_name="Scale", value=(0,0,0))
+            else: set_ng_socket_defvalue(ng, socket_name="Object", value=None)
+            set_ng_socket_defvalue(ng, socket_name="Type", value=ltype)
+            set_ng_socket_defvalue(ng, socket_name="Color", value=[0.0, 0.0, 0.0, 0.0])
+            set_ng_socket_defvalue(ng, socket_name="Power", value=0.0)
             set_node_socketattr(self, socket_name="Shape", attribute='enabled', value=False, in_out='OUTPUT',)
             set_node_socketattr(self, socket_name="Size X", attribute='enabled', value=False, in_out='OUTPUT',)
             set_node_socketattr(self, socket_name="Size Y", attribute='enabled', value=False, in_out='OUTPUT',)
@@ -174,13 +174,13 @@ class Base():
         #These are always on and shared across all
         ltype = ld.type  if is_geonode else 0 if (ld.type=='POINT')   else 1 if (ld.type=='SUN')        else 2 if (ld.type=='SPOT')  else 3
         if (not is_geonode):
-              set_socket_defvalue(ng, socket_name="Location", value=lo.location)
-              set_socket_defvalue(ng, socket_name="Rotation", value=lo.rotation_euler)
-              set_socket_defvalue(ng, socket_name="Scale", value=lo.scale)
-        else: set_socket_defvalue(ng, socket_name="Object", value=lo)
-        set_socket_defvalue(ng, socket_name="Type", value=ltype)
-        set_socket_defvalue(ng, socket_name="Color", value=[ld.color[0], ld.color[1], ld.color[2], 1.0])
-        set_socket_defvalue(ng, socket_name="Power", value=ld.energy)
+              set_ng_socket_defvalue(ng, socket_name="Location", value=lo.location)
+              set_ng_socket_defvalue(ng, socket_name="Rotation", value=lo.rotation_euler)
+              set_ng_socket_defvalue(ng, socket_name="Scale", value=lo.scale)
+        else: set_ng_socket_defvalue(ng, socket_name="Object", value=lo)
+        set_ng_socket_defvalue(ng, socket_name="Type", value=ltype)
+        set_ng_socket_defvalue(ng, socket_name="Color", value=[ld.color[0], ld.color[1], ld.color[2], 1.0])
+        set_ng_socket_defvalue(ng, socket_name="Power", value=ld.energy)
 
         #below depends on lught type
         match ld.type:
@@ -189,8 +189,8 @@ class Base():
                 set_node_socketattr(self, socket_name="Size X", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Size Y", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Spread", attribute='enabled', value=False, in_out='OUTPUT',)
-                set_socket_defvalue(ng, socket_name="Soft Falloff", value=ld.use_soft_falloff)
-                set_socket_defvalue(ng, socket_name="Radius", value=ld.shadow_soft_size)
+                set_ng_socket_defvalue(ng, socket_name="Soft Falloff", value=ld.use_soft_falloff)
+                set_ng_socket_defvalue(ng, socket_name="Radius", value=ld.shadow_soft_size)
                 set_node_socketattr(self, socket_name="Angle", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Size", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Blend", attribute='enabled', value=False, in_out='OUTPUT',)
@@ -203,7 +203,7 @@ class Base():
                 set_node_socketattr(self, socket_name="Spread", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Soft Falloff", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Radius", attribute='enabled', value=False, in_out='OUTPUT',)
-                set_socket_defvalue(ng, socket_name="Angle", value=ld.angle)
+                set_ng_socket_defvalue(ng, socket_name="Angle", value=ld.angle)
                 set_node_socketattr(self, socket_name="Size", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Blend", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Show Cone", attribute='enabled', value=False, in_out='OUTPUT',)
@@ -213,8 +213,8 @@ class Base():
                 set_node_socketattr(self, socket_name="Size X", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Size Y", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Spread", attribute='enabled', value=False, in_out='OUTPUT',)
-                set_socket_defvalue(ng, socket_name="Soft Falloff", value=ld.use_soft_falloff)
-                set_socket_defvalue(ng, socket_name="Radius", value=ld.shadow_soft_size)
+                set_ng_socket_defvalue(ng, socket_name="Soft Falloff", value=ld.use_soft_falloff)
+                set_ng_socket_defvalue(ng, socket_name="Radius", value=ld.shadow_soft_size)
                 set_node_socketattr(self, socket_name="Angle", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Size", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Blend", attribute='enabled', value=False, in_out='OUTPUT',)
@@ -222,10 +222,10 @@ class Base():
 
             case 'AREA':
                 lshape = ld.shape if is_geonode else 0 if (ld.shape=='SQUARE') else 1 if (ld.shape=='RECTANGLE') else 2 if (ld.shape=='DISK') else 3
-                set_socket_defvalue(ng, socket_name="Shape", value=lshape)
-                set_socket_defvalue(ng, socket_name="Size X", value=ld.size)
-                set_socket_defvalue(ng, socket_name="Size Y", value=ld.size_y)
-                set_socket_defvalue(ng, socket_name="Spread", value=ld.spread)
+                set_ng_socket_defvalue(ng, socket_name="Shape", value=lshape)
+                set_ng_socket_defvalue(ng, socket_name="Size X", value=ld.size)
+                set_ng_socket_defvalue(ng, socket_name="Size Y", value=ld.size_y)
+                set_ng_socket_defvalue(ng, socket_name="Spread", value=ld.spread)
                 set_node_socketattr(self, socket_name="Soft Falloff", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Radius", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Angle", attribute='enabled', value=False, in_out='OUTPUT',)

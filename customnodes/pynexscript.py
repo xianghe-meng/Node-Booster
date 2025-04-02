@@ -21,9 +21,9 @@ from ..utils.str_utils import word_wrap, prettyError
 from ..utils.node_utils import (
     crosseditor_socktype_adjust,
     create_new_nodegroup,
-    set_socket_defvalue,
-    remove_socket,
-    set_socket_label,
+    set_ng_socket_defvalue,
+    remove_ng_socket,
+    set_ng_socket_label,
     get_farest_node,
     get_all_nodes,
     
@@ -359,7 +359,7 @@ class Base():
                 continue
 
             for idx in reversed(idx_to_del):
-                remove_socket(ng, idx, in_out=mode,)
+                remove_ng_socket(ng, idx, in_out=mode,)
 
         return None
 
@@ -426,8 +426,8 @@ class Base():
         self.error_message = ''
 
         #we reset the Error status back to false
-        set_socket_label(ng,0, label="NoErrors",)
-        set_socket_defvalue(ng,0, value=False,)
+        set_ng_socket_label(ng,0, label="NoErrors",)
+        set_ng_socket_defvalue(ng,0, value=False,)
         self.error_message = ''
 
         #Keepsafe the text data as extra user
@@ -439,8 +439,8 @@ class Base():
             self.cleanse_sockets()
             self.cleanse_nodes()
             # set error to True
-            set_socket_label(ng,0, label="VoidTextError",)
-            set_socket_defvalue(ng,0, value=True,)
+            set_ng_socket_label(ng,0, label="VoidTextError",)
+            set_ng_socket_defvalue(ng,0, value=True,)
             return None
 
         user_script = self.user_textdata.as_string()
@@ -454,8 +454,8 @@ class Base():
             # Display error
             self.error_message = err
             # set error to True
-            set_socket_label(ng,0, label="AvailabilityError",)
-            set_socket_defvalue(ng,0, value=True,)
+            set_ng_socket_label(ng,0, label="AvailabilityError",)
+            set_ng_socket_defvalue(ng,0, value=True,)
             return None
 
         #capture the inputs/outputs later on execution.
@@ -515,8 +515,8 @@ class Base():
                 full, short = prettyError(e)
                 print(full)
                 # set error to True
-                set_socket_label(ng,0, label="SynthaxError",)
-                set_socket_defvalue(ng,0, value=True,)
+                set_ng_socket_label(ng,0, label="SynthaxError",)
+                set_ng_socket_defvalue(ng,0, value=True,)
                 # Display error
                 self.error_message =  short
                 # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
@@ -528,8 +528,8 @@ class Base():
                 full, short = prettyError(e, userfilename=self.user_textdata.name,)
                 print(full)
                 # set error to True
-                set_socket_label(ng,0, label="NexError",)
-                set_socket_defvalue(ng,0, value=True,)
+                set_ng_socket_label(ng,0, label="NexError",)
+                set_ng_socket_defvalue(ng,0, value=True,)
                 # Display error
                 self.error_message = short
                 # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
@@ -544,8 +544,8 @@ class Base():
                 print("Full Traceback Error:")
                 traceback.print_exc()
                 # set error to True
-                set_socket_label(ng,0, label="PythonError",)
-                set_socket_defvalue(ng,0, value=True,)
+                set_ng_socket_label(ng,0, label="PythonError",)
+                set_ng_socket_defvalue(ng,0, value=True,)
                 # Display error
                 self.error_message = short
                 return None
@@ -557,16 +557,16 @@ class Base():
             self.cleanse_sockets()
             self.cleanse_nodes()
             # set error to True
-            set_socket_label(ng,0, label="VoidNexError",)
-            set_socket_defvalue(ng,0, value=True,)
+            set_ng_socket_label(ng,0, label="VoidNexError",)
+            set_ng_socket_defvalue(ng,0, value=True,)
             # Display error
             self.error_message = f"No Nex Found in Script. An example of NexScript can be found in 'Text Editor > Template > Booster Scripts'"
             return None
         #also make sure there are Nex outputs types in there..
         if len(all_outputs_names)==0:
             # set error to True
-            set_socket_label(ng,0, label="NoOutputError",)
-            set_socket_defvalue(ng,0, value=True,)
+            set_ng_socket_label(ng,0, label="NoOutputError",)
+            set_ng_socket_defvalue(ng,0, value=True,)
             # Display error
             self.error_message = f"Mandatory Outputs not Found. An example of NexScript can be found in 'Text Editor > Template > Booster Scripts'"
             return None

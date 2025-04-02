@@ -28,16 +28,16 @@ from ..__init__ import dprint
 from ..utils.fct_utils import alltypes, anytype, ColorRGBA
 from ..utils.node_utils import (
     create_new_nodegroup,
-    set_socket_defvalue,
-    get_socket_by_name,
-    get_socket_type,
-    set_socket_type,
-    create_socket,
-    get_socket_from_socketui,
-    remove_socket,
-    set_socket_label,
+    set_ng_socket_defvalue,
+    get_ng_socket_by_name,
+    get_ng_socket_type,
+    set_ng_socket_type,
+    create_ng_socket,
+    get_ng_socket_from_socketui,
+    remove_ng_socket,
+    set_ng_socket_label,
     link_sockets,
-    create_constant_input,
+    create_ng_constant_node,
     frame_nodes,
 )
 from ..nex.pytonode import py_to_Sockdata, py_to_Mtx16, py_to_Vec3, py_to_RGBA, py_to_Quat4
@@ -141,9 +141,9 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
             case _:
                 raise Exception(f"create_Nex_constant() Unsupported constant for Nextype '{type_name}'.")
 
-        # create_constant_input fct is smart it will create the node only if it doesn't exist, & ensure (new?) values
+        # create_ng_constant_node fct is smart it will create the node only if it doesn't exist, & ensure (new?) values
         node_tree = NODEINSTANCE.node_tree
-        newsock = create_constant_input(node_tree, nodetype, value, uniquetag)
+        newsock = create_ng_constant_node(node_tree, nodetype, value, uniquetag)
 
         new.nxsock = newsock
         return new
@@ -872,16 +872,16 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_ng_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
-                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
+                        outsock = create_ng_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
 
                     #ensure type is correct, change type if necessary
-                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    current_type = get_ng_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
                     if (current_type!=self.nxstype):
-                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+                        outsock = set_ng_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
 
                     self.nxsock = outsock
                     self.nxsnam = socket_name
@@ -889,7 +889,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     #ensure default value of socket in node instance
                     if (value is not None):
                         fval = float(value)
-                        set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
+                        set_ng_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
 
                 # wrong initialization?
                 case _:
@@ -946,23 +946,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_ng_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
-                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
+                        outsock = create_ng_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
 
                     #ensure type is correct, change type if necessary
-                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    current_type = get_ng_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
                     if (current_type!=self.nxstype):
-                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+                        outsock = set_ng_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
 
                     self.nxsock = outsock
                     self.nxsnam = socket_name
 
                     #ensure default value of socket in node instance
                     if (value is not None):
-                        set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=value, in_out='INPUT',)
+                        set_ng_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=value, in_out='INPUT',)
 
                 # wrong initialization?
                 case _:
@@ -1015,23 +1015,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_ng_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
-                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
+                        outsock = create_ng_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
 
                     #ensure type is correct, change type if necessary
-                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    current_type = get_ng_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
                     if (current_type!=self.nxstype):
-                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+                        outsock = set_ng_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
 
                     self.nxsock = outsock
                     self.nxsnam = socket_name
 
                     #ensure default value of socket in node instance
                     if (value is not None):
-                        set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=int(value), in_out='INPUT',)
+                        set_ng_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=int(value), in_out='INPUT',)
 
                 # wrong initialization?
                 case _:
@@ -1084,16 +1084,16 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_ng_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
-                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
+                        outsock = create_ng_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
 
                     #ensure type is correct, change type if necessary
-                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    current_type = get_ng_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
                     if (current_type!=self.nxstype):
-                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+                        outsock = set_ng_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
 
                     self.nxsock = outsock
                     self.nxsnam = socket_name
@@ -1101,7 +1101,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     #ensure default value of socket in node instance
                     if (value is not None):
                         fval = trypy_to_Vec3(value)
-                        set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
+                        set_ng_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
 
                 case _:
                     raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketVector'. Was expecting 'None' | 'Vector[3]' | 'list[3]' | 'set[3]' | 'tuple[3]' | 'int' | 'float' | 'bool'.")
@@ -1297,16 +1297,16 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_ng_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
-                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
+                        outsock = create_ng_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
 
                     #ensure type is correct, change type if necessary
-                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    current_type = get_ng_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
                     if (current_type!=self.nxstype):
-                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+                        outsock = set_ng_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
 
                     self.nxsock = outsock
                     self.nxsnam = socket_name
@@ -1314,7 +1314,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     #ensure default value of socket in node instance
                     if (value is not None):
                         fval = trypy_to_RGBA(value)
-                        set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
+                        set_ng_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
 
                 case _:
                     raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to var '{socket_name}' of type 'SocketColor'. Was expecting 'None' | 'Color[3]' | 'list[4]' | 'set[4]' | 'tuple[4]'.")
@@ -1612,16 +1612,16 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_ng_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
-                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
+                        outsock = create_ng_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
 
                     #ensure type is correct, change type if necessary
-                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    current_type = get_ng_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
                     if (current_type!=self.nxstype):
-                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+                        outsock = set_ng_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
 
                     self.nxsock = outsock
                     self.nxsnam = socket_name
@@ -1840,16 +1840,16 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     ALLINPUTS.append(socket_name)
 
                     #get socket, create if non existent
-                    outsock = get_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
+                    outsock = get_ng_socket_by_name(self.node_tree, in_out='INPUT', socket_name=socket_name,)
                     if (outsock is None):
-                        outsock = create_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
+                        outsock = create_ng_socket(self.node_tree, in_out='INPUT', socket_type=self.nxstype, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
 
                     #ensure type is correct, change type if necessary
-                    current_type = get_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
+                    current_type = get_ng_socket_type(self.node_tree, in_out='INPUT', identifier=outsock.identifier,)
                     if (current_type!=self.nxstype):
-                        outsock = set_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
+                        outsock = set_ng_socket_type(self.node_tree, in_out='INPUT', socket_type=self.nxstype, identifier=outsock.identifier,)
 
                     self.nxsock = outsock
                     self.nxsnam = socket_name
@@ -1857,7 +1857,7 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                     # #ensure default value of socket in node instance
                     # if (value is not None):
                     #     fval = trypy_to_Mtx16(value)
-                    #     set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
+                    #     set_ng_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT',)
                     #     NOTE: SocketMatrix type do not support assigning a default socket values.
 
                 case _:
@@ -2189,16 +2189,16 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         out_type = value.nxstype
 
                     #get socket, create if non existent
-                    outsock = get_socket_by_name(self.node_tree, in_out='OUTPUT', socket_name=socket_name,)
+                    outsock = get_ng_socket_by_name(self.node_tree, in_out='OUTPUT', socket_name=socket_name,)
                     if (outsock is None):
-                        outsock = create_socket(self.node_tree, in_out='OUTPUT', socket_type=out_type, socket_name=socket_name,)
+                        outsock = create_ng_socket(self.node_tree, in_out='OUTPUT', socket_type=out_type, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
 
                     #ensure type is correct, change type if necessary
-                    current_type = get_socket_type(self.node_tree, in_out='OUTPUT', identifier=outsock.identifier,)
+                    current_type = get_ng_socket_type(self.node_tree, in_out='OUTPUT', identifier=outsock.identifier,)
                     if (current_type!=out_type):
-                        outsock = set_socket_type(self.node_tree, in_out='OUTPUT', socket_type=out_type, identifier=outsock.identifier,)
+                        outsock = set_ng_socket_type(self.node_tree, in_out='OUTPUT', socket_type=out_type, identifier=outsock.identifier,)
 
                     self.nxsock = outsock
                     self.nxsnam = socket_name
@@ -2220,23 +2220,23 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
                         out_type = socktype
 
                     #get socket, create if non existent
-                    outsock = get_socket_by_name(self.node_tree, in_out='OUTPUT', socket_name=socket_name,)
+                    outsock = get_ng_socket_by_name(self.node_tree, in_out='OUTPUT', socket_name=socket_name,)
                     if (outsock is None):
-                        outsock = create_socket(self.node_tree, in_out='OUTPUT', socket_type=out_type, socket_name=socket_name,)
+                        outsock = create_ng_socket(self.node_tree, in_out='OUTPUT', socket_type=out_type, socket_name=socket_name,)
                     elif (type(outsock) is list):
                         raise NexError(f"SocketNameError. Multiple sockets with the name '{socket_name}' found. Ensure names are unique.")
 
                     #ensure type is correct, change type if necessary
-                    current_type = get_socket_type(self.node_tree, in_out='OUTPUT', identifier=outsock.identifier,)
+                    current_type = get_ng_socket_type(self.node_tree, in_out='OUTPUT', identifier=outsock.identifier,)
                     if (current_type!=out_type):
-                        outsock = set_socket_type(self.node_tree, in_out='OUTPUT', socket_type=out_type, identifier=outsock.identifier,)
+                        outsock = set_ng_socket_type(self.node_tree, in_out='OUTPUT', socket_type=out_type, identifier=outsock.identifier,)
 
                     self.nxsock = outsock
                     self.nxsnam = socket_name
 
                     # just do a try except to see if the var assignment to python is working.. easier.
                     try:
-                        set_socket_defvalue(self.node_tree, value=newval, socket=outsock, in_out='OUTPUT',)
+                        set_ng_socket_defvalue(self.node_tree, value=newval, socket=outsock, in_out='OUTPUT',)
                     except Exception as e:
                         print(e)
                         raise NexError(f"TypeError. Cannot assign type '{type(value).__name__}' to output {self.nxtydsp} '{socket_name}'.")
