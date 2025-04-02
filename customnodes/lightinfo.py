@@ -11,6 +11,7 @@ from ..utils.node_utils import (
     create_new_nodegroup,
     set_socket_defvalue,
     get_all_nodes,
+    set_node_socketattr,
 )
 
 
@@ -155,16 +156,16 @@ class Base():
             set_socket_defvalue(ng, socket_name="Type", value=ltype)
             set_socket_defvalue(ng, socket_name="Color", value=[0.0, 0.0, 0.0, 0.0])
             set_socket_defvalue(ng, socket_name="Power", value=0.0)
-            self.outputs["Shape"].enabled = False
-            self.outputs["Size X"].enabled = False
-            self.outputs["Size Y"].enabled = False
-            self.outputs["Spread"].enabled = False
-            self.outputs["Soft Falloff"].enabled = False
-            self.outputs["Radius"].enabled = False
-            self.outputs["Angle"].enabled = False
-            self.outputs["Size"].enabled = False
-            self.outputs["Blend"].enabled = False
-            self.outputs["Show Cone"].enabled = False
+            set_node_socketattr(self, socket_name="Shape", attribute='enabled', value=False, in_out='OUTPUT',)
+            set_node_socketattr(self, socket_name="Size X", attribute='enabled', value=False, in_out='OUTPUT',)
+            set_node_socketattr(self, socket_name="Size Y", attribute='enabled', value=False, in_out='OUTPUT',)
+            set_node_socketattr(self, socket_name="Spread", attribute='enabled', value=False, in_out='OUTPUT',)
+            set_node_socketattr(self, socket_name="Soft Falloff", attribute='enabled', value=False, in_out='OUTPUT',)
+            set_node_socketattr(self, socket_name="Radius", attribute='enabled', value=False, in_out='OUTPUT',)
+            set_node_socketattr(self, socket_name="Angle", attribute='enabled', value=False, in_out='OUTPUT',)
+            set_node_socketattr(self, socket_name="Size", attribute='enabled', value=False, in_out='OUTPUT',)
+            set_node_socketattr(self, socket_name="Blend", attribute='enabled', value=False, in_out='OUTPUT',)
+            set_node_socketattr(self, socket_name="Show Cone", attribute='enabled', value=False, in_out='OUTPUT',)
             return None
 
         if (ld.type not in {'POINT','SUN','SPOT','AREA',}):
@@ -184,40 +185,40 @@ class Base():
         #below depends on lught type
         match ld.type:
             case 'POINT':
-                self.outputs["Shape"].enabled = False
-                self.outputs["Size X"].enabled = False
-                self.outputs["Size Y"].enabled = False
-                self.outputs["Spread"].enabled = False
+                set_node_socketattr(self, socket_name="Shape", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Size X", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Size Y", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Spread", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_socket_defvalue(ng, socket_name="Soft Falloff", value=ld.use_soft_falloff)
                 set_socket_defvalue(ng, socket_name="Radius", value=ld.shadow_soft_size)
-                self.outputs["Angle"].enabled = False
-                self.outputs["Size"].enabled = False
-                self.outputs["Blend"].enabled = False
-                self.outputs["Show Cone"].enabled = False
+                set_node_socketattr(self, socket_name="Angle", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Size", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Blend", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Show Cone", attribute='enabled', value=False, in_out='OUTPUT',)
 
             case 'SUN':
-                self.outputs["Shape"].enabled = False
-                self.outputs["Size X"].enabled = False
-                self.outputs["Size Y"].enabled = False
-                self.outputs["Spread"].enabled = False
-                self.outputs["Soft Falloff"].enabled = False
-                self.outputs["Radius"].enabled = False
+                set_node_socketattr(self, socket_name="Shape", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Size X", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Size Y", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Spread", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Soft Falloff", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Radius", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_socket_defvalue(ng, socket_name="Angle", value=ld.angle)
-                self.outputs["Size"].enabled = False
-                self.outputs["Blend"].enabled = False
-                self.outputs["Show Cone"].enabled = False
+                set_node_socketattr(self, socket_name="Size", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Blend", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Show Cone", attribute='enabled', value=False, in_out='OUTPUT',)
 
             case 'SPOT':
-                self.outputs["Shape"].enabled = False
-                self.outputs["Size X"].enabled = False
-                self.outputs["Size Y"].enabled = False
-                self.outputs["Spread"].enabled = False
+                set_node_socketattr(self, socket_name="Shape", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Size X", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Size Y", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Spread", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_socket_defvalue(ng, socket_name="Soft Falloff", value=ld.use_soft_falloff)
                 set_socket_defvalue(ng, socket_name="Radius", value=ld.shadow_soft_size)
-                self.outputs["Angle"].enabled = False
-                self.outputs["Size"].enabled = False
-                self.outputs["Blend"].enabled = False
-                self.outputs["Show Cone"].enabled = False
+                set_node_socketattr(self, socket_name="Angle", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Size", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Blend", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Show Cone", attribute='enabled', value=False, in_out='OUTPUT',)
 
             case 'AREA':
                 lshape = ld.shape if is_geonode else 0 if (ld.shape=='SQUARE') else 1 if (ld.shape=='RECTANGLE') else 2 if (ld.shape=='DISK') else 3
@@ -225,12 +226,12 @@ class Base():
                 set_socket_defvalue(ng, socket_name="Size X", value=ld.size)
                 set_socket_defvalue(ng, socket_name="Size Y", value=ld.size_y)
                 set_socket_defvalue(ng, socket_name="Spread", value=ld.spread)
-                self.outputs["Soft Falloff"].enabled = False
-                self.outputs["Radius"].enabled = False
-                self.outputs["Angle"].enabled = False
-                self.outputs["Size"].enabled = False
-                self.outputs["Blend"].enabled = False
-                self.outputs["Show Cone"].enabled = False
+                set_node_socketattr(self, socket_name="Soft Falloff", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Radius", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Angle", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Size", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Blend", attribute='enabled', value=False, in_out='OUTPUT',)
+                set_node_socketattr(self, socket_name="Show Cone", attribute='enabled', value=False, in_out='OUTPUT',)
 
         return None
 

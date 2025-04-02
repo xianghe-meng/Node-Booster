@@ -115,6 +115,26 @@ def get_node_absolute_location(node) -> Vector:
     return Vector((x,y))
 
 
+def set_node_socketattr(node, in_out:str='OUTPUT', socket_name:str="", attribute:str="", value=None,):
+    """set a given attribute of a given socket. Required because sometimes sockets['Name'] doesn't work."""
+
+    sockets = node.outputs if (in_out=='OUTPUT') else node.inputs
+
+    sock = None    
+    for s in sockets:
+        if (s.name==socket_name):
+            sock = s
+            break
+
+    if (sock is None):
+        raise Exception(f"ERROR: set_node_socketattr(): socket '{socket_name}' not found in node '{node.name}'")
+    if not hasattr(sock, attribute):
+        raise Exception(f"ERROR: set_node_socketattr(): socket '{socket_name}' does not have attribute '{attribute}'")
+
+    setattr(sock, attribute, value)
+    return None
+
+
 def get_socket_by_name(ng, socket_name:str='Foo', in_out:str='OUTPUT',) -> list|None:
     """get a socket object from a nodetree input/output by name"""
 
