@@ -26,7 +26,10 @@ def all_3d_viewports_shading_type():
 
 def is_rendered_view():
     """check if is rendered view in a 3d view somewhere"""
-    return 'RENDERED' in all_3d_viewports_shading_type()
+    for shading_type in all_3d_viewports_shading_type():
+        if (shading_type == 'RENDERED'):
+            return True
+    return False
 
 
 # ooooo      ooo                 .o8            
@@ -74,6 +77,11 @@ class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
 
         return None
     
+    # def sync_out_values(self):
+    #     """sync output socket values with data"""
+    #     set_socket_defvalue(self.node_tree, 0, value=is_rendered_view(),)
+    #     return None
+
     def draw_label(self,):
         """node label"""
         
@@ -109,8 +117,8 @@ class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
         return None
 
     @classmethod
-    def update_all_instances(cls, using_nodes=None, signal_from_handlers=False,):
-        """search for all nodes of this type and update them. Will be called if .auto_update's are defined"""
+    def update_all(cls, using_nodes=None, signal_from_handlers=False,):
+        """search for all node instances of this type and refresh them. Will be called automatically if .auto_update's are defined"""
         
         # actually we don't need to update all instances. 
         # for this special node who always use the same node_tree for all nodes, 

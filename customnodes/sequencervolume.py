@@ -321,7 +321,7 @@ class Base():
     tree_type = "*ChildrenDefined*"
 
     def sound_datablock_poll(self, sound):
-        """Poll function: only allow sounds that are used in the current scene’s VSE."""
+        """Poll function: only allow sounds that are used in the current scene's VSE."""
         vse = bpy.context.scene.sequence_editor
         if (vse is None):
             return False
@@ -331,7 +331,7 @@ class Base():
         return False
 
     def update_signal(self,context):
-        self.update()
+        self.sync_out_values()
         return None 
 
     channel : bpy.props.EnumProperty(
@@ -465,6 +465,11 @@ class Base():
     def update(self):
         """generic update function"""
 
+        return None
+        
+    def sync_out_values(self):
+        """sync output socket values with data"""
+
         ng = self.node_tree
         vse = bpy.context.scene.sequence_editor
             
@@ -595,8 +600,8 @@ class Base():
         return None
 
     @classmethod
-    def update_all_instances(cls, using_nodes=None, signal_from_handlers=False,):
-        """search for all nodes of this type and update them. Will be called if .auto_update's are defined"""
+    def update_all(cls, using_nodes=None, signal_from_handlers=False,):
+        """search for all node instances of this type and refresh them. Will be called automatically if .auto_update's are defined"""
 
         if (using_nodes is None):
               nodes = get_all_nodes(exactmatch_idnames={cls.bl_idname},)
@@ -605,7 +610,7 @@ class Base():
         for n in nodes:
             if (n.mute):
                 continue
-            n.update()
+            n.sync_out_values()
 
         return None
 

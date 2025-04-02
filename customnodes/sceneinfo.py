@@ -68,6 +68,11 @@ class Base():
     def update(self):
         """generic update function"""
 
+        return None
+        
+    def sync_out_values(self):
+        """sync output socket values with data"""
+
         scene = bpy.context.scene
 
         set_socket_defvalue(self.node_tree, 0, value=scene.use_gravity)
@@ -110,15 +115,15 @@ class Base():
         return None
 
     @classmethod
-    def update_all_instances(cls, using_nodes=None, signal_from_handlers=False,):
-        """search for all nodes of this type and update them. Will be called if .auto_update's are defined"""
+    def update_all(cls, using_nodes=None, signal_from_handlers=False,):
+        """search for all node instances of this type and refresh them. Will be called automatically if .auto_update's are defined"""
 
         if (using_nodes is None):
               nodes = get_all_nodes(exactmatch_idnames={cls.bl_idname},)
         else: nodes = [n for n in using_nodes if (n.bl_idname==cls.bl_idname)]
 
         for n in nodes:
-            n.update()
+            n.sync_out_values()
             
         return None 
 

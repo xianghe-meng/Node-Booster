@@ -67,7 +67,8 @@ def get_all_nodes(ignore_ng_name:str="NodeBooster", approxmatch_idnames:str="", 
         #we ignore specific ng names?
         if (ignore_ng_name and (ignore_ng_name in ng.name)):
             continue
-
+        
+        #batch add all these nodes.
         nodes.update(ng.nodes)
         continue
 

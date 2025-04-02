@@ -22,6 +22,10 @@
 #    - Check if we can process data from CustomSocketInput to CustomSocketOutput??
 #    - Check if cross compatible 4.2 / 4.3 / 4.4
 #    - How does it behave in a nodegroup??
+#      - problem with nodegroup input evaluation. i believe it is technically impossible to evaluate something from a 
+#        nodegroup context, as it is unknown. The evaluation can only be done within the larger context..
+#        So in short, we will never be able to toy with CustomSocket NativeSocket within the same nodegroups, 
+#        there's will be an evaluation conflict.
 #    - Can it creates/remove sockets on the fly? what about label? what about changing socket type on the fly?
 #    - Re-Implement most nodes as CustomNodes then.. Start with an easy one.. 
 #       node_utils will have some rework to do. need to precise type of operation, if CustomNodeGroup or CustoNode.
@@ -146,10 +150,19 @@
 # - File IO: For geometry node, could create a mesh on the fly from a file and set up as field attributes.
 # - View3D Info node: Like camera info, but for the 3d view (location/rotation/fov/clip/)
 #   Problem: what if there are many? Perhaps should use context.
-# - Animation Nodes/ Svershock inspiration: See which nodes can be ported.
 # - MetaBall Info node?
 # - Evaluate sequencer images? Possible to feed the sequencer render to the nodes? Hmm
 # - SoundData Info Node: Sample the sound? Generate a sound geometry curve? Evaluate Sound at time? If we work based on sound, perhaps it's for the best isn't it?
+# - See if it's possible to imitate a multi-socket like the geometry join node, in customNode, and in customNodegroup. multi math ect would be nice.
+# - IF CustomSocketTypes works with NativeSockets:
+#     - we could port the interpolation nodes from AnimationNodes?
+#       problem is: how do apply the interpolation, to what kind of data, and how?
+#         we could use Float/Vector Curve.
+#         for geometry node we can even make a curve. 
+#         problem is, what about map range?? see how it's internally calculated.
+#     - we could have some sort of gamelogic nodes?
+# - See inspirations from other softs: AnimationNodes/Svershock/Houdini/Ue5/MayaFrost/ect.. see what can be extending GeoNode/Shader/Compositor.
+# - MaterialMaker/ SubstanceDesigner import/livelink would be nice. 
 
 # ---------------------------------------------------------------------------------------------
 

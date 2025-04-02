@@ -181,10 +181,10 @@ class Base():
             "Stopping Power": "NodeSocketFloat",
             }
         descriptions = {
-            "Direction": "Normalized direction vector of the object's movement.",
-            "Velocity": "Object velocity magnitude in meters per second.",
-            "Acceleration": "Rate of velocity increase in meters per second squared.",
-            "Stopping Power": "Rate of velocity decrease in meters per second squared."
+            "Direction": "Normalized direction vector of the object's movement",
+            "Velocity": "Object velocity magnitude in meters per second (m/s)",
+            "Acceleration": "Rate of velocity increase in meters per second squared (m/s²)",
+            "Stopping Power": "Rate of velocity decrease in meters per second squared (m/s²)"
             }
 
         ng = bpy.data.node_groups.get(name)
@@ -210,16 +210,15 @@ class Base():
 
     def update(self):
         """generic update function"""
+
         return None
 
-    def free(self):
-        """Remove node from objvelocities when deleted"""
-        # Clean up any stored data for this node
-        return None
+    def sync_out_values(self):
+        """sync output socket values with data"""
 
-    def update_velocity_data(self, context):
-        """Update velocity data for the target object"""
-        
+        context = bpy.context
+        wm = context.window_manager
+
         ng = self.node_tree
         if (not self.target_obj):
             set_socket_defvalue(ng, socket_name="Direction", value=(0.0, 0.0, 0.0))
@@ -227,8 +226,6 @@ class Base():
             set_socket_defvalue(ng, socket_name="Acceleration", value=0.0)
             set_socket_defvalue(ng, socket_name="Stopping Power", value=0.0)
             return None
-            
-        wm = context.window_manager
         
         # Initialize object entry if it doesn't exist
         if not hasattr(wm, "objvelocities"):
@@ -329,6 +326,7 @@ class Base():
 
     def draw_label(self):
         """node label"""
+
         return self.bl_label
 
     def draw_buttons(self, context, layout):
@@ -418,9 +416,8 @@ class Base():
         return None
 
     @classmethod
-    def update_all_instances(cls, using_nodes=None, signal_from_handlers=False,):
+    def update_all(cls, using_nodes=None, signal_from_handlers=False,):
         """update all instances of this node in all node trees"""
-        context = bpy.context
         
         # Update all object velocity nodes
         for node in get_all_nodes(exactmatch_idnames={
@@ -428,7 +425,7 @@ class Base():
             NODEBOOSTER_NG_SH_ObjectVelocity.bl_idname,
             NODEBOOSTER_NG_CP_ObjectVelocity.bl_idname,
             }):
-            node.update_velocity_data(context)
+            node.sync_out_values()
 
         return None
 

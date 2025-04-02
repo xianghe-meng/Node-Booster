@@ -210,7 +210,7 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
             NODEBOOSTER_NG_SH_DeviceInput.bl_idname,
             NODEBOOSTER_NG_CP_DeviceInput.bl_idname,
             }):
-            node.pass_event(STORAGE.event_data)
+            node.sync_out_event(STORAGE.event_data)
             continue
 
         return None
@@ -348,7 +348,7 @@ class Base():
     • Provides various data about input events (mouse, keyboard, etc.)
     • You can add custom key event types by entering them in a comma-separated list (e.g., "A,B,SPACE,RET"). See blender 'Event Type Items' documentation to know which kewords are supported.
     • Control the global velocity damping behavior to smooth out the mouse movement in 'N Panle > NodeBooster > Active Node > Parameters'."""
-    auto_update = {'NONE',}
+    auto_update = {'*CUSTOM_IMPLEMENTATION*',}
     tree_type = "*ChildrenDefined*"
 
     def get_velocity_damping(self):
@@ -527,12 +527,7 @@ class Base():
 
         return None
 
-    def free(self):
-        """Remove node from update list when deleted"""
-
-        return None
-
-    def pass_event(self, event_data):
+    def sync_out_event(self, event_data):
         """Update node outputs based on event data"""
 
         ng = self.node_tree
@@ -658,7 +653,7 @@ class Base():
         return None
 
     @classmethod
-    def update_all_instances(cls, using_nodes=None, signal_from_handlers=False,):
+    def update_all(cls, using_nodes=None, signal_from_handlers=False,):
         """update all instances of this node in all node trees"""
 
         # Nothing to execute for DeviceInput nodes

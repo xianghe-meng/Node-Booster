@@ -299,7 +299,6 @@ class Base():
         )
 
     def update_signal(self,context):
-        """evaluate user expression and change the sockets implicitly"""
         self.apply_user_expression()
         return None 
 
@@ -793,8 +792,8 @@ class Base():
         return None
 
     @classmethod
-    def update_all_instances(cls, using_nodes=None, signal_from_handlers=False,):
-        """search for all nodes of this type and update them. Will be called if .auto_update's are defined"""
+    def update_all(cls, using_nodes=None, signal_from_handlers=False,):
+        """search for all node instances of this type and refresh them. Will be called automatically if .auto_update's are defined"""
 
         # No need to update anything for this node. 
         # The update is done when the user enter his text.
