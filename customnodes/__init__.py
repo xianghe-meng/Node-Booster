@@ -2,17 +2,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# NOTE: 
-#  - registration happens in the main __init__.py file.
-#  - we automatically detect NodeCustom and NodeCustomGroup cls in this module localspace for generating the 'classes' list.
-#  - handlers.py module will use 'allcustomnodes' list for automatic updates.
 
-
-import sys, inspect
-
-from . sockets.generalcustom import (
-        NODEBOOSTER_SK_GeneralCustom,
-        NODEBOOSTER_ND_CustomSocketRerouteUtility,
+from .sockets.custom_sockets import (
+        NODEBOOSTER_SK_Interpolation,
+        NODEBOOSTER_ND_CustomSocketUtility,
         )
 from . camerainfo import (
         NODEBOOSTER_NG_GN_CameraInfo,
@@ -72,6 +65,17 @@ from . objectvelocity import (
         NODEBOOSTER_NG_SH_ObjectVelocity,
         NODEBOOSTER_NG_CP_ObjectVelocity,
         )
+from . interpolation.interpolationinput import (
+        NODEBOOSTER_NG_GN_InterpolationInput,
+        NODEBOOSTER_NG_SH_InterpolationInput,
+        NODEBOOSTER_NG_CP_InterpolationInput,
+        )
+from . interpolation.interpolationinput import NODEBOOSTER_OT_interpolation_input_update
+from . interpolation.interpolationmap import (
+        NODEBOOSTER_NG_GN_InterpolationMap,
+        NODEBOOSTER_NG_SH_InterpolationMap,
+        NODEBOOSTER_NG_CP_InterpolationMap,
+        )
 
 #For menus, in order of appearance
 
@@ -88,7 +92,9 @@ GN_CustomNodes = (
     NODEBOOSTER_NG_GN_MathExpression,
     NODEBOOSTER_NG_GN_PyExpression,
     NODEBOOSTER_NG_GN_PyNexScript,
-    NODEBOOSTER_ND_CustomSocketRerouteUtility, #TESTING
+    NODEBOOSTER_NG_GN_InterpolationInput,
+    NODEBOOSTER_NG_GN_InterpolationMap,
+    NODEBOOSTER_ND_CustomSocketUtility, #dev utility.
     )
 
 SH_CustomNodes = (
@@ -103,7 +109,9 @@ SH_CustomNodes = (
     NODEBOOSTER_NG_SH_MathExpression,
     NODEBOOSTER_NG_SH_PyExpression,
     NODEBOOSTER_NG_SH_PyNexScript,
-    NODEBOOSTER_ND_CustomSocketRerouteUtility, #TESTING
+    NODEBOOSTER_NG_SH_InterpolationInput,
+    NODEBOOSTER_NG_SH_InterpolationMap,
+    NODEBOOSTER_ND_CustomSocketUtility, #dev utility.
     )
 
 CP_CustomNodes = (
@@ -118,12 +126,57 @@ CP_CustomNodes = (
     NODEBOOSTER_NG_CP_MathExpression,
     NODEBOOSTER_NG_CP_PyExpression,
     NODEBOOSTER_NG_CP_PyNexScript,
-    NODEBOOSTER_ND_CustomSocketRerouteUtility, #TESTING
+    NODEBOOSTER_NG_CP_InterpolationInput,
+    NODEBOOSTER_NG_CP_InterpolationMap,
+    NODEBOOSTER_ND_CustomSocketUtility, #dev utility.
     )
 
 # for registration
-classes = tuple(o for n,o in inspect.getmembers(sys.modules[__name__]) if 
-           inspect.isclass(o) and n.startswith("NODEBOOSTER_"))
+classes = (
+    NODEBOOSTER_SK_Interpolation,
+    NODEBOOSTER_ND_CustomSocketUtility,
+    NODEBOOSTER_NG_GN_CameraInfo,
+    NODEBOOSTER_NG_SH_CameraInfo,
+    NODEBOOSTER_NG_CP_CameraInfo,
+    NODEBOOSTER_NG_GN_LightInfo,
+    NODEBOOSTER_NG_SH_LightInfo,
+    NODEBOOSTER_NG_CP_LightInfo,
+    NODEBOOSTER_NG_GN_SceneInfo,
+    NODEBOOSTER_NG_SH_SceneInfo,
+    NODEBOOSTER_NG_CP_SceneInfo,
+    NODEBOOSTER_NG_GN_RenderInfo,
+    NODEBOOSTER_NG_SH_RenderInfo,
+    NODEBOOSTER_NG_CP_RenderInfo,
+    NODEBOOSTER_NG_GN_RNAInfo,
+    NODEBOOSTER_NG_SH_RNAInfo,
+    NODEBOOSTER_NG_CP_RNAInfo,
+    NODEBOOSTER_NG_GN_IsRenderedView,
+    NODEBOOSTER_NG_GN_SequencerSound,
+    NODEBOOSTER_NG_SH_SequencerSound,
+    NODEBOOSTER_NG_CP_SequencerSound,
+    NODEBOOSTER_NG_GN_MathExpression,
+    NODEBOOSTER_NG_SH_MathExpression,
+    NODEBOOSTER_NG_CP_MathExpression,
+    NODEBOOSTER_NG_GN_PyExpression,
+    NODEBOOSTER_NG_SH_PyExpression,
+    NODEBOOSTER_NG_CP_PyExpression,
+    NODEBOOSTER_NG_GN_PyNexScript,
+    NODEBOOSTER_NG_SH_PyNexScript,
+    NODEBOOSTER_NG_CP_PyNexScript,
+    NODEBOOSTER_NG_GN_DeviceInput,
+    NODEBOOSTER_NG_SH_DeviceInput,
+    NODEBOOSTER_NG_CP_DeviceInput,
+    NODEBOOSTER_NG_GN_ObjectVelocity,
+    NODEBOOSTER_NG_SH_ObjectVelocity,
+    NODEBOOSTER_NG_CP_ObjectVelocity,
+    NODEBOOSTER_NG_GN_InterpolationInput,
+    NODEBOOSTER_NG_SH_InterpolationInput,
+    NODEBOOSTER_NG_CP_InterpolationInput,
+    NODEBOOSTER_NG_GN_InterpolationMap,
+    NODEBOOSTER_NG_SH_InterpolationMap,
+    NODEBOOSTER_NG_CP_InterpolationMap,
+    NODEBOOSTER_OT_interpolation_input_update,
+    )
 
 #for utility. handlers.py module will use this list.
 allcustomnodes = tuple(cls for cls in classes if

@@ -355,6 +355,7 @@ class Base():
         header, panel = layout.panel("params_panelid", default_closed=False)
         header.label(text="Parameters")
         if panel:
+
             col = panel.column(align=True)
             col.prop(self, "target_obj", text="")
 

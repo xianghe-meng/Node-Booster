@@ -132,7 +132,7 @@ class Base():
 
 class NODEBOOSTER_NG_GN_SceneInfo(Base, bpy.types.GeometryNodeCustomGroup):
     tree_type = "GeometryNodeTree"
-    bl_idname = "GeometryNodeSceneInfo" + Base.bl_idname
+    bl_idname = "GeometryNode" + Base.bl_idname
 
 class NODEBOOSTER_NG_SH_SceneInfo(Base, bpy.types.ShaderNodeCustomGroup):
     tree_type = "ShaderNodeTree"

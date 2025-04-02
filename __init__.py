@@ -13,22 +13,19 @@
 #  - Codebase review for extension.. Ask AI to do a big check.
 #  - Sound Sequencer Node: Text property with custom poll. That's it. No sound data.
 #  - Velocity Node: Better history calculations just doing last middle first is not precise enough. 
-#  - Too many nodes, organize add menu. add a property per classes to define submenus easily.
-#    ex: menus = ("NodeBooster", "Inputs")
+#  - Continue with the interpolation nodes for proof of concept of note below.
+#    - warning message if the node encounter a user nodegroup. NG can't be evaluated.
+#    - Document why it crash on blender reload. Specific to geomtry node not supporting custom NodeSocket. 
+#      Report once the proof of concept is done. devs need to see it's worth it.
+#    - Why is there a triple update signal when adding a new node?
 
 # ---------------------------------------------------------------------------------------------
 
 # TODO Custom SocketTypes Experiments.
 #  - Wait a minute.. we can add custom NodeSocketTypes, with custom Node types? What the heck..???
-#    - Check how it behaves when passing default value output????
-#    - Check if we can process data from CustomSocketInput to CustomSocketOutput??
-#    - Check if cross compatible 4.2 / 4.3 / 4.4
-#    - How does it behave in a nodegroup??
-#      - problem with nodegroup input evaluation. i believe it is technically impossible to evaluate something from a 
-#        nodegroup context, as it is unknown. The evaluation can only be done within the larger context..
-#        So in short, we will never be able to toy with CustomSocket NativeSocket within the same nodegroups, 
-#        there's will be an evaluation conflict.
+#    - Check if cross compatible 4.2 / 4.3 / 4.4????
 #    - Can it creates/remove sockets on the fly? what about label? what about changing socket type on the fly?
+#      -A: i think yes, but not for NodeCustomGroup in GeometryNode api limitations. NodeCustom should be ok. need to test..
 #    - Re-Implement most nodes as CustomNodes then.. Start with an easy one.. 
 #       node_utils will have some rework to do. need to precise type of operation, if CustomNodeGroup or CustoNode.
 #    - How does it behave when the nodegroup is unregistered???
@@ -38,81 +35,6 @@
 #    - if possible, then we can cross the todo in  'Change to C blender code' for custom socket types.
 #       - Start with custom interpolation types. See if MapRange can be ported. Could linearmaprange to 01 then use the FloatMapCurve then map range to custom values. 
 #         The final nodes would simply do the evaluation. would not be nodegroup compatible tho. Problem:
-
-# See demo below:
-
-# import bpy
-# from bpy.types import Node, NodeSocket
-
-# # Define a custom socket with a custom color property
-# class CustomColorSocket(NodeSocket):
-#     bl_idname = 'CustomColorSocketType'
-#     bl_label = "Custom Color Socket"
-
-#     # Custom property (an RGB color)
-#     value: bpy.props.FloatVectorProperty(
-#         name="Color Value",
-#         subtype='COLOR',
-#         default=(0.8, 0.2, 0.2),
-#         min=0.0, max=1.0,
-#         size=3
-#     )
-
-#     def draw(self, context, layout, node, text):
-#         # Display the socket property in the node UI
-#         layout.prop(self, "value", text=text)
-    
-#     def draw_color(self, context, node):
-#         r, g, b = self.value
-#         return (r, g, b, 1.0)
-
-# # Define a custom Geometry Node that uses our custom socket type
-# class CustomGeometryNode(Node):
-#     bl_idname = 'CustomGeometryNodeType'
-#     bl_label = 'Custom Geometry Node'
-#     bl_icon = 'NODE'
-    
-#     def init(self, context):
-#         # Create an input and an output using our custom socket type.
-#         self.inputs.new('CustomColorSocketType', "Custom Data")
-#         self.outputs.new('CustomColorSocketType', "Custom Data")
-        
-#         # Create a standard Float socket with an initial value.
-#         float_socket = self.outputs.new('NodeSocketFloat', "Normal Data")
-#         float_socket.default_value = 0.0
-
-#     def update(self):
-#         print('update signal')
-#         # Find the Float socket and increment its value by 1 on each update.
-#         for socket in self.outputs:
-#             if socket.bl_idname == 'NodeSocketFloat':
-#                 socket.default_value += 1
-#                 print(f"Updated {socket.name} to {socket.default_value}")
-
-#     def draw_buttons(self, context, layout):
-#         # You can add custom buttons here if desired.
-#         pass
-    
-#     def draw_label(self):
-#         return "Custom Geometry Node"
-
-# # Append the custom node to the Geometry Node Editor's "Add" menu.
-# def custom_nodes_menu_draw(self, context):
-#     if context.space_data.tree_type == 'GeometryNodeTree':
-#         self.layout.operator("node.add_node", text="Custom Geometry Node", icon="NODE").type = "CustomGeometryNodeType"
-
-# def register():
-#     bpy.utils.register_class(CustomColorSocket)
-#     bpy.utils.register_class(CustomGeometryNode)
-#     bpy.types.NODE_MT_add.append(custom_nodes_menu_draw)
-
-# def unregister():
-#     bpy.types.NODE_MT_add.remove(custom_nodes_menu_draw)
-#     bpy.utils.unregister_class(CustomGeometryNode)
-#     bpy.utils.unregister_class(CustomColorSocket)
-
-# if __name__ == "__main__":
-#     register()
 
 # ---------------------------------------------------------------------------------------------
 

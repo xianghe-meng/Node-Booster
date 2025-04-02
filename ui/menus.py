@@ -32,10 +32,9 @@ class NODEBOOSTER_MT_addmenu_general(bpy.types.Menu):
                  'ShaderNodeTree': SH_CustomNodes,}
 
         for cls in Menus.get(tree_type,list(),):
-            if ('_NG_' in cls.__name__):
-                op = self.layout.operator("node.add_node", text=cls.bl_label,)
-                op.type = cls.bl_idname
-                op.use_transform = True
+            op = self.layout.operator("node.add_node", text=cls.bl_label,)
+            op.type = cls.bl_idname
+            op.use_transform = True
 
         return None
 

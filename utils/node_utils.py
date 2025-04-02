@@ -31,6 +31,7 @@ TREE_TO_GROUP_EQUIV = {
     'GeometryNodeTree': 'GeometryNodeGroup',
     }
 
+
 def get_all_nodes(ignore_ng_name:str="NodeBooster", approxmatch_idnames:str="", exactmatch_idnames:set=None, ngtypes:set=None,) -> set|list:
     """get nodes instances across many nodetree editor types.
     - ngtypes: the editor types to be supported in {'GEOMETRY','SHADER','COMPOSITING',}. will use all if None
@@ -82,6 +83,68 @@ def get_all_nodes(ignore_ng_name:str="NodeBooster", approxmatch_idnames:str="", 
 
     return nodes
 
+def parcour_node_tree(nodes, socket, direction:str='LEFT',):
+    """ parcour a nodetree and return all sockets connected to the passed socket.
+    - important information about parcouring nodetrees: https://www.youtube.com/watch?v=FuqVCBlgJTo
+    - direction: 'LEFT' or 'RIGHT'
+    - the function will return a dictionary of {socket: links}.
+    """
+
+    result = {}  # Will store final sockets and their links
+    visited_sockets = set()  # To avoid feedback loops
+    visited_links = []  # Store all visited links
+    
+    # Start with the initial socket
+    sockets_to_process = [socket]
+    visited_sockets.add(socket)
+
+    while sockets_to_process:
+        current_socket = sockets_to_process.pop(0)
+
+        # Get all links connected to this socket
+        match direction:
+            case 'LEFT': # Going left means we look at inputs, so we need links where current_socket is the to_socket
+                links = [link for link in current_socket.links if link.to_socket == current_socket]
+            case 'RIGHT': # Going right means we look at outputs, so we need links where current_socket is the from_socket
+                links = [link for link in current_socket.links if link.from_socket == current_socket]
+
+        for link in links:
+            # Add link to visited links
+            visited_links.append(link)
+
+            # Determine the next socket to process
+            next_socket = link.from_socket if (direction == 'LEFT') else link.to_socket
+
+            # Skip if we've already visited this socket
+            if (next_socket in visited_sockets):
+                continue
+            visited_sockets.add(next_socket)
+
+            # Get the node of the next socket
+            next_node = next_socket.node
+
+            # If it's a reroute node, continue traversing
+            if (next_node.bl_idname == 'NodeReroute'):
+
+                # For reroute, add the socket to process
+                next_socket_to_process = next_node.inputs[0] if (direction == 'LEFT') else next_node.outputs[0]
+
+                # Check if this reroute leads nowhere (colliding reroute)
+                if (not next_socket_to_process.links):
+                    # This is a dead end reroute, add its socket as a result
+                    if next_socket not in result:
+                        result[next_socket] = []
+                    result[next_socket].append(link)
+                else:
+                    sockets_to_process.append(next_socket_to_process)
+            else:
+                # For non-reroute nodes, add the socket to result
+                if next_socket not in result:
+                    result[next_socket] = []
+                result[next_socket].append(link)
+
+    return result
+
 
 def get_node_objusers(node) -> set:
     """Return a list of objects using the given Node."""
@@ -113,6 +176,23 @@ def get_node_absolute_location(node) -> Vector:
         continue
 
     return Vector((x,y))
+
+
+def get_node_socket_by_name(node, in_out:str='OUTPUT', socket_name:str="",):
+    """get a given socket by name. Required because sometimes sockets['Name'] doesn't work."""
+
+    sockets = node.outputs if (in_out=='OUTPUT') else node.inputs
+
+    sock = None    
+    for s in sockets:
+        if (s.name==socket_name):
+            sock = s
+            break
+
+    if (sock is None):
+        raise Exception(f"ERROR: get_node_socket_by_name(): socket '{socket_name}' not found in node '{node.name}'")
+
+    return sock
 
 
 def set_node_socketattr(node, in_out:str='OUTPUT', socket_name:str="", attribute:str="", value=None,):
@@ -385,9 +465,44 @@ def get_ng_socket_description(ng, idx:int=None, in_out:str='OUTPUT', identifier:
     return sockui.description
 
 
-def create_ng_socket(ng, in_out:str='OUTPUT', socket_type:str="NodeSocketFloat", socket_name:str="Value", socket_description:str="",):
-    """for a NodeCustomGroup: create a new socket output of given type for given nodegroup"""
-    
+def create_ng_socket(ng, in_out:str='OUTPUT', socket_type:str="NodeSocketFloat",
+    socket_name:str="Value", socket_description:str="",): #socket_custom_info:dict=None,):
+    """for a NodeCustomGroup: create a new socket output of given type for given nodegroup."""
+
+    # NOTE this is a test on how to create a custom socket type in a nodegroup. It failed. 
+    # because ng.links.new() to a CUSTOM grey socketype of a ng input/output do not 
+    # automatically create the socket we need. We counter this problem by using existing ng stored in .blend files.
+    # NOTE would be nice that the C ng.interface.new_socket() supports custom socket types...
+    # Attempt: 
+    # # NOTE about custom socket types:
+    # # it's not possible to use the ng.interface.new_socket() but we can link to an undefined socket and it shall work
+    # # node.inputs.new('customtype') works on other editors, but not for geometry node.. because could benefit from a C source code modif..
+    # # NOTE C++ ng.interface isn't happy with custom types. Color is pink and if user go in interface it will scream.
+    # # perhaps would require a bug report? THis tool need to gain popularity first tho, to convice C dev it's very useful to userbase and plugin dev base..
+    # if (socket_type.startswith('NodeBoosterCustomSocket')):
+    #
+    #     #create an utility reroute
+    #     customreroute = ng.nodes.new('CustomSocketUtility')
+    #
+    #     #specify custom socket information
+    #     subtype, color = socket_custom_info['type'], socket_custom_info['color']
+    #     rr_in, rr_out = customreroute.inputs[0], customreroute.outputs[0]
+    #     rr_in.socket_type, rr_in.socket_color = subtype, color
+    #     rr_out.socket_type, rr_out.socket_color = subtype, color
+    #
+    #     #link the reroute to the nodegroup socket
+    #     undefsocket = ng.nodes["Group Output"].inputs[-1] if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs[-1]
+    #     tolink = rr_out if (in_out=='OUTPUT') else rr_in
+    #     link_sockets(tolink, undefsocket)
+    #
+    #     # remove the utility node after linking. We got our new sockets.
+    #     # ng.nodes.remove(customreroute)
+    #
+    #     # TODO socket name and description..
+    #     # is it safe to assume last item of ng.interface is our new socket?
+    #
+    #     return None
+
     #naive support for strandard socket.type notation
     if (socket_type.isupper()):
         socket_type = f'NodeSocket{socket_type.title()}'
@@ -468,7 +583,8 @@ def create_ng_constant_node(ng, nodetype:str, value, uniquetag:str, location:str
     return None
 
 
-def create_new_nodegroup(name:str, tree_type:str='GeometryNodeTree', in_sockets:dict={}, out_sockets:dict={}, sockets_description:dict={}):
+def create_new_nodegroup(name:str, tree_type:str='GeometryNodeTree', in_sockets:dict={},
+    out_sockets:dict={}, sockets_description:dict={},): #socket_custom_info:dict=None,):
     """create new nodegroup with outputs from given dict {"name":"type",},
     optionally pass a sockets_description dict to set the description of the sockets, format: {socket_name:description}"""
 
@@ -483,12 +599,35 @@ def create_new_nodegroup(name:str, tree_type:str='GeometryNodeTree', in_sockets:
     for sname, stype in in_sockets.items():
         create_ng_socket(ng, in_out='INPUT', socket_type=stype,
             socket_name=sname, socket_description=sockets_description.get(sname,''))
+            #socket_custom_info=socket_custom_info.get(sname,{}),) #LATER? when we make this work..
     #outputs
     for sname, stype in out_sockets.items():
         create_ng_socket(ng, in_out='OUTPUT', socket_type=stype,
             socket_name=sname, socket_description=sockets_description.get(sname,''))
+            #socket_custom_info=socket_custom_info.get(sname,{}),) #LATER? when we make this work..
 
     return ng
+
+
+def import_new_nodegroup(blendpath, ngname, tree_type='GeometryNodeTree'):
+    """Import a nodegroup from an external blend file."""
+
+    # Check if the nodegroup already exists
+    if ngname in bpy.data.node_groups:
+        return bpy.data.node_groups[ngname]
+    
+    # Import the nodegroup from the blend file
+    with bpy.data.libraries.load(blendpath, link=False) as (data_from, data_to):
+        if ngname in data_from.node_groups:
+            data_to.node_groups = [ngname]
+        else:
+            return None
+    
+    # Return the imported nodegroup
+    if (data_to.node_groups):
+        return data_to.node_groups[0]
+
+    return None
 
 
 def link_sockets(socket1, socket2):

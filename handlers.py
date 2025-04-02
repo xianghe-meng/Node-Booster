@@ -10,7 +10,7 @@ from collections.abc import Iterable
 from .__init__ import get_addon_prefs
 from .operators.palette import msgbus_palette_callback
 from .utils.node_utils import get_all_nodes
-from .customnodes import classes as allcustomnodes
+from .customnodes import allcustomnodes
 from .customnodes import NODEBOOSTER_NG_GN_IsRenderedView
 
 def upd_all_custom_nodes(classes:list):
@@ -33,8 +33,9 @@ def upd_all_custom_nodes(classes:list):
     # print("upd_all_custom_nodes().nodes:", matching_blid, nodes, )
 
     for n in nodes:
-        if (not hasattr(n,'update_all')):
-            print(f"WARNING: update_all() function is required in your customnode class for an automatic execution. For node {n.name}.")
+
+        #cls with auto_update property are eligible for automatic execution.
+        if (not hasattr(n,'update_all')) or (not hasattr(n,'auto_update')):
             continue
 
         #automatic re-evaluation of the Python Expression and Python Nex Nodes.
