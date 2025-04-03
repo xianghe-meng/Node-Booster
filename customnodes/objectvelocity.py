@@ -128,7 +128,7 @@ def calculate_object_metrics(history: list) -> tuple:
 class Base():
 
     bl_idname = "NodeBoosterObjectVelocity"
-    bl_label = "Object Velocity Info"
+    bl_label = "Object Velocity"
     bl_description = """Track an object's velocity, acceleration, and stopping power.
     • Monitors the selected object's position, rotation, and scale.
     • Calculates velocity, acceleration, and stopping power in real-time.

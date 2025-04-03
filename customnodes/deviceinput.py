@@ -342,7 +342,7 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
 class Base():
 
     bl_idname = "NodeBoosterDeviceInput"
-    bl_label = "Keyboard & Mouse Info"
+    bl_label = "Keyboard & Mouse"
     bl_description = """Listen for input device events and provide them as node outputs.
     • First, starts the modal operator that captures all input events of the 3D active Viewport.
     • Provides various data about input events (mouse, keyboard, etc.)
