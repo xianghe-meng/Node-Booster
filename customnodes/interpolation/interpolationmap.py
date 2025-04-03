@@ -104,6 +104,8 @@ class Base():
     def evaluator(self,)->None:
         """evaluator the node required for the output evaluator"""
 
+        #1: We make some sockets invisible depending on user mode and tree type
+
         #compositor node has no factor socket for vector curves for some reasons.
         match self.tree_type:
             case 'GeometryNodeTree' | 'ShaderNodeTree':
@@ -132,7 +134,6 @@ class Base():
                 set_node_socketattr(self, socket_name="Color", attribute='enabled', value=False, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Color", attribute='enabled', value=False, in_out='OUTPUT',)
 
-                value_socket = get_node_socket_by_name(self, socket_name="Float", in_out='INPUT',)
                 interp_sockets = {
                     'Interpolation':self.node_tree.nodes['float_map'].mapping.curves[0],
                     }
@@ -153,7 +154,6 @@ class Base():
                 set_node_socketattr(self, socket_name="Color", attribute='enabled', value=False, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Color", attribute='enabled', value=False, in_out='OUTPUT',)
 
-                value_socket = get_node_socket_by_name(self, socket_name="Vector", in_out='INPUT',)
                 interp_sockets = {
                     'Interpolation X':self.node_tree.nodes['vector_map'].mapping.curves[0],
                     'Interpolation Y':self.node_tree.nodes['vector_map'].mapping.curves[1],
@@ -176,7 +176,6 @@ class Base():
                 set_node_socketattr(self, socket_name="Color", attribute='enabled', value=True, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Color", attribute='enabled', value=True, in_out='OUTPUT',)
 
-                value_socket = get_node_socket_by_name(self, socket_name="Color", in_out='INPUT',)
                 interp_sockets = {
                     'Interpolation C':self.node_tree.nodes['color_map'].mapping.curves[3],
                     'Interpolation R':self.node_tree.nodes['color_map'].mapping.curves[0],
@@ -184,11 +183,20 @@ class Base():
                     'Interpolation B':self.node_tree.nodes['color_map'].mapping.curves[2],
                     }
 
-        # Nodetree evaluator logic:
-        # we need to evaluate the curve interpolation data, and feed it to our curve mapping node.
+        #2: Nodetree evaluator logic:
+        # NOTE This node is the final output of a series of our custom interpolation datatype.
+        # Therefore we need to navigate upsteam to to and evaluate the nodes we collide with, for each of our sockets.
+        # We do that with the parcour_node_tree() function, which will return a dictionary of {colliding_socket:parcoured_links[]}
+        # because we are parcouring from left to right, only one collision is possible.
+        # Once we found a valid collision, we use the colliding_node.evaluator(socket) to get
+        # the data. this colliding_node might also run a similar operation, and so on.
 
-        already_calculated = {}
+        # we store values of sockets already evaluated here, to avoid redundand evaluations calculations
+        already_evaluated = {}
         
+        #NOTE inter_sockets rerpresents the name of the our custom interpolation socket types.
+        # and the equivalent node.mapping.curve that needs to be updated.
+
         #get all nodes connected to the value socket
         for k,c in interp_sockets.items():
             sock = self.inputs[k]
@@ -226,11 +234,13 @@ class Base():
                 continue
 
             #the interpolation socket type always return a list of points.
-            if (colliding_node.name in already_calculated):
-                  pts = already_calculated[colliding_node.name]
-            else: pts = colliding_node.evaluator(colliding_socket)
+            key = colliding_node.name + ':' + colliding_socket.identifier
+            pts = already_evaluated.get(key)
+            if (pts is None):
+                pts = colliding_node.evaluator(colliding_socket)
+                already_evaluated[key] = pts
+
             points_to_curve(c, pts)
-            already_calculated[colliding_node.name] = pts
             continue
         
         # NOTE unfortunately python API for curve mapping is meh..

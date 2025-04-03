@@ -50,7 +50,7 @@ class DynaMenu():
                             layout.menu(submenu_id)
                             been_drawn.append(submenu_id)
 
-            # Case 4: NodeClass
+            # Case NodeClass
             elif hasattr(item, 'bl_label') and hasattr(item, 'bl_idname'):
                 op = layout.operator("node.add_node", text=item.bl_label)
                 op.type = item.bl_idname

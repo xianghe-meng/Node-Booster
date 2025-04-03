@@ -18,6 +18,7 @@
 #    - Document why it crash on blender reload. Specific to geomtry node not supporting custom NodeSocket. 
 #      Report once the proof of concept is done. devs need to see it's worth it.
 #    - Why is there a triple update signal when adding a new node?
+#    - IMPORTANT: Geometry node seems to ignore evaluation of our custom group. Why? 'Not Logged during evaluation'. Need a report.
 
 # ---------------------------------------------------------------------------------------------
 

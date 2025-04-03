@@ -26,14 +26,15 @@ class NODEBOOSTER_OT_interpolation_input_update(bpy.types.Operator):
     bl_description = "Apply the new graph values"
     bl_options = {'REGISTER', 'INTERNAL'}
 
+    node_name : bpy.props.StringProperty()
+    
     @classmethod
     def poll(cls, context):
         return context.active_node is not None
 
     def execute(self, context):
 
-        node = context.active_node
-        node.update_trigger()
+        context.space_data.edit_tree.nodes[self.node_name].update_trigger()
 
         return {'FINISHED'}
 
@@ -126,8 +127,8 @@ class Base():
         layout.template_curve_mapping(data, "mapping", type='NONE',)
 
         row = layout.row(align=True)
-        row.scale_x = 2.25
-        row.operator("nodebooster.update_interpolation", text="Apply",)
+        row.scale_y = 1.2
+        row.operator("nodebooster.update_interpolation", text="Apply",).node_name = self.name
 
         return None
 
@@ -144,7 +145,7 @@ class Base():
 
             data = self.node_tree.nodes[self.graph_type]
             panel.template_curve_mapping(data, "mapping", type='NONE',)
-            panel.operator("nodebooster.update_interpolation", text="Apply",)
+            panel.operator("nodebooster.update_interpolation", text="Apply",).node_name = self.name
             panel.separator()
 
         header, panel = layout.panel("doc_panelid", default_closed=True,)
