@@ -29,6 +29,7 @@ class Base():
         )
     display_label : bpy.props.BoolProperty(
         default=False,
+        name="Display Label",
         description="do we display the socket_label or the native socket name attribute?"
         )
 
@@ -88,13 +89,15 @@ class NODEBOOSTER_ND_CustomSocketUtility(bpy.types.Node):
         
         col = layout.column(align=True)
         col.label(text="Outputs")
-        col.prop(self.outputs[0], "socket_label")
-        col.prop(self.outputs[0], "socket_color")
+        col.prop(self.outputs[0], "display_label")
+        col.prop(self.outputs[0], "socket_label", text="")
+        col.prop(self.outputs[0], "socket_color", text="")
         
         col = layout.column(align=True)
         col.label(text="Inputs")
-        col.prop(self.inputs[0], "socket_label")
-        col.prop(self.inputs[0], "socket_color")
+        col.prop(self.outputs[0], "display_label")
+        col.prop(self.inputs[0], "socket_label", text="")
+        col.prop(self.inputs[0], "socket_color", text="")
 
         return None
 
