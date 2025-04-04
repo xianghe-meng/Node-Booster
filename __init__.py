@@ -13,32 +13,23 @@
 #    (see compositor refresh, perhaps it's because of node.update()?? need to investigate)
 #  - Finalize NexScript for Shader/compositor. Need to overview functions..
 #  - Codebase review for extension.. Ask AI to do a big check.
-#  - Sound Sequencer Node: Text property with custom poll. That's it. No sound data.
 #  - Velocity Node: Better history calculations just doing last middle first is not precise enough. 
-
-
-
-
-# ---------------------------------------------------------------------------------------------
-
-# TODO Custom SocketTypes Experiments.
-
-#    - For this to work in geometry node, we'll need this PR to get accepted 
-#      https://projects.blender.org/blender/blender/pulls/136968
-
-#  - Experimental Interpolation
-#    - supported nested ng? or not.
-#    - Document why it crash on blender reload. Specific to geomtry node not supporting custom NodeSocket. 
-#      Report once the proof of concept is done. devs need to see it's worth it.
-#    - Why is there a triple update signal when adding a new node?
-#    - Implement transform curves evaluators. 
-#         - Better structure for the node_tree evaluator system? Centralized the functions in one place maybe?
-#           Do more tests with InterpolationSocket transformers.
-#           what about storing the evaluated values somewhere, and only recalculate when needed? maybe add a is_dirty flag?
-#           maybe could simply store a 'StringProperty' .evaluator_cache per sockets?
-#    - if possible, then we can cross the todo in  'Change to C blender code' for custom socket types.
-#       - Start with custom interpolation types. See if MapRange can be ported. Could linearmaprange to 01 then use the FloatMapCurve then map range to custom values. 
-#         The final nodes would simply do the evaluation. would not be nodegroup compatible tho. Problem:
+#  - Experiment with custom Socket Types:
+#     - For this to work in geometry node, we'll need this PR to get accepted 
+#       https://projects.blender.org/blender/blender/pulls/136968
+#     - Experimental Interpolation
+#       - supported nested ng? or not.
+#       - Document why it crash on blender reload. Specific to geomtry node not supporting custom NodeSocket. 
+#         Report once the proof of concept is done. devs need to see it's worth it.
+#       - Why is there a triple update signal when adding a new node?
+#       - Implement transform curves evaluators. 
+#            - Better structure for the node_tree evaluator system? Centralized the functions in one place maybe?
+#              Do more tests with InterpolationSocket transformers.
+#              what about storing the evaluated values somewhere, and only recalculate when needed? maybe add a is_dirty flag?
+#              maybe could simply store a 'StringProperty' .evaluator_cache per sockets?
+#       - if possible, then we can cross the todo in  'Change to C blender code' for custom socket types.
+#          - Start with custom interpolation types. See if MapRange can be ported. Could linearmaprange to 01 then use the FloatMapCurve then map range to custom values. 
+#            The final nodes would simply do the evaluation. would not be nodegroup compatible tho. Problem:
 
 # ---------------------------------------------------------------------------------------------
 

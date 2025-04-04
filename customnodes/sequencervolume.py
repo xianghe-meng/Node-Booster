@@ -51,9 +51,12 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
       dict with keys for each requested feature.
       If no data is available or frame is out of range, all features default to 0.
     """
+
+    sound = strip.sound
     ret = {}
+
     # If frame is not within the final range of the strip, return defaults (0)
-    if not (strip.frame_final_start < frame < strip.frame_final_end):
+    if (not (strip.frame_final_start < frame < strip.frame_final_end)) or (not sound):
         if volume: ret['volume'] = 0
         if pitch:  ret['pitch']  = 0
         if bass:   ret['bass']   = 0
@@ -64,7 +67,6 @@ def evaluate_strip_audio_features(strip, frame, fps, depsgraph,
     time_from = (frame - 1 - strip.frame_start) / fps
     time_to   = (frame - strip.frame_start) / fps
 
-    sound = strip.sound
     audio = sound.evaluated_get(depsgraph).factory
     chunk = audio.limit(time_from, time_to).data()
 
@@ -220,7 +222,7 @@ def evaluate_smoothed_audio_features(strip, frame, fps, depsgraph, smoothing, sm
 #         return 0
 #     return 20 * math.log10(amplitude)
 
-def evaluate_sequencer_audio_data(frame_offset=0, at_sound=None, smoothing=0, 
+def evaluate_sequencer_audio_data(frame_offset=0, at_sequence_name=None, smoothing=0, 
     smoothing_type='GAUSSIAN', volume=False, pitch=False, bass=False, treble=False, channel='CENTER', frequencies=None,):
     """
     Evaluate aggregated audio features from all non-muted sound strips in the sequencer.
@@ -228,12 +230,12 @@ def evaluate_sequencer_audio_data(frame_offset=0, at_sound=None, smoothing=0,
     (stored in linear) are aggregated using the helper.
 
     Parameters:
-      frame_offset   : offset added to the current scene frame.
-      at_sound       : if provided, only consider strips with this sound data.
-      smoothing      : smoothing window size (if <= 1, no smoothing is applied).
-      smoothing_type : 'LINEAR' or 'GAUSSIAN' smoothing.
+      frame_offset     : offset added to the current scene frame.
+      at_sequence_name : if provided (string), only consider the sequence with this name.
+      smoothing        : smoothing window size (if <= 1, no smoothing is applied).
+      smoothing_type   : 'LINEAR' or 'GAUSSIAN' smoothing.
       volume, pitch, bass, treble : booleans for which features to compute.
-      channel        : 'LEFT', 'RIGHT', or 'CENTER' for channel selection.
+      channel          : 'LEFT', 'RIGHT', or 'CENTER' for channel selection.
 
     Returns:
       dict with aggregated features. For amplitude-based features, the final result is
@@ -253,10 +255,10 @@ def evaluate_sequencer_audio_data(frame_offset=0, at_sound=None, smoothing=0,
     fps = scene.render.fps / scene.render.fps_base
     frame = scene.frame_current + frame_offset
 
-    # Filter for non-muted sound strips; if at_sound is provided, restrict to those.
-    sound_sequences = [s for s in sequences if (s.type == 'SOUND') and (not s.mute)]
-    if (at_sound):
-        sound_sequences = [s for s in sound_sequences if (s.sound==at_sound)]
+    # Filter for non-muted sound strips; if at_sequence_name is provided, restrict to that sequence.
+    sound_sequences = [s for s in sequences if (s.type == 'SOUND')]
+    if (at_sequence_name):
+        sound_sequences = [s for s in sound_sequences if (s.name == at_sequence_name)]
 
     # Determine which features to aggregate.
     keys = []
@@ -270,7 +272,13 @@ def evaluate_sequencer_audio_data(frame_offset=0, at_sound=None, smoothing=0,
 
     # Loop through each sound strip.
     for s in sound_sequences:
-
+        
+        #ignore if muted or no sound
+        if (s.mute):
+            continue
+        if (not s.sound):
+            continue
+        
         # Compute effective fade for this strip at the target frame?
         # effective_fade = local_get_fade(s, frame)
         effective_fade = 1
@@ -320,15 +328,6 @@ class Base():
     auto_update = {'FRAME_PRE','DEPS_POST',}
     tree_type = "*ChildrenDefined*"
 
-    def sound_datablock_poll(self, sound):
-        """Poll function: only allow sounds that are used in the current scene's VSE."""
-        vse = bpy.context.scene.sequence_editor
-        if (vse is None):
-            return False
-        for s in vse.sequences_all:
-            if (s.type=='SOUND' and s.sound==sound):
-                return True
-        return False
 
     def update_signal(self,context):
         self.sync_out_values()
@@ -347,8 +346,8 @@ class Base():
         name= "Sound Target",
         description= "Specify how to sample",
         default= 'ALL',
-        items= [('ALL',     "All Sounds",     "Sample all sound strips",),
-                ('SPECIFY', "Specific Sound", "Sample a only the strips assigned to the given sound data",),],
+        items= [('ALL',     "All Sequences",  "Sample all sound strips",),
+                ('SPECIFY', "Chosen Sequence", "Sample a only the strips assigned to the given sound data",),],
         update= update_signal,
         )
     offset : bpy.props.IntProperty(
@@ -365,12 +364,13 @@ class Base():
         description= "Smooth out the result",
         update=update_signal,
         )
-    sound : bpy.props.PointerProperty(
-        name= "Sound Datablock",
-        description= "Select a sound datablock used in the VSE (from sound sequences)",
-        type= bpy.types.Sound,
-        poll= sound_datablock_poll,
+    sequence_name : bpy.props.StringProperty(
+        name= "Sound Sequence",
+        description= "Select a sound sequence from the VSE",
+        default="",
         update=update_signal,
+        search=lambda self,context,text:  [s.name for s in context.scene.sequence_editor.sequences_all if (s.type=='SOUND') and (text in s.name)],
+        search_options={'SUGGESTION','SORT'},
         )
     deffreq : bpy.props.BoolProperty(
         default=False,
@@ -424,7 +424,7 @@ class Base():
         default=(4_000, 25_000),
         size=2,
         )
-    
+
     @classmethod
     def poll(cls, context):
         """mandatory poll"""
@@ -472,15 +472,26 @@ class Base():
 
         ng = self.node_tree
         vse = bpy.context.scene.sequence_editor
-            
+
+        # check user links, this node is a bit expensive to evaluate.
+        # so let's not evaluate if not needed.
         evalvolume = bool(self.outputs['Volume'].links)
         evalpitch  = bool(self.outputs['Pitch'].links)
         evalbass   = bool(self.outputs['Bass'].links)
         evaltreble = bool(self.outputs['Treble'].links)
+        valid = (evalvolume or evalpitch or evalbass or evaltreble) and (vse is not None)
 
-        if (not (evalvolume or evalpitch or evalbass or evaltreble)) \
-            or ((self.target=='SPECIFIC') and (not self.sound)) \
-            or (vse is None):
+        # Check if the target is a specific sound sequence
+        at_sequence_name = None
+        if (self.target == 'SPECIFY'):
+            target_seq = vse.sequences_all.get(self.sequence_name) if (vse) else None
+            if ((target_seq is None) or (target_seq.type != 'SOUND')):
+                valid = False
+            else:
+                at_sequence_name = self.sequence_name
+
+        # If not valid circumpstance, no evaluation & go back to default.
+        if (not valid):
             set_ng_socket_defvalue(ng, socket_name='Volume',value=0,)
             set_ng_socket_defvalue(ng, socket_name='Pitch',value=0,)
             set_ng_socket_defvalue(ng, socket_name='Bass',value=0,)
@@ -495,7 +506,7 @@ class Base():
         data = evaluate_sequencer_audio_data(
             frame_offset=self.offset,
             smoothing=self.smoothing,
-            at_sound=self.sound,
+            at_sequence_name=at_sequence_name,
             volume=evalvolume,
             pitch=evalpitch,
             bass=evalbass,
@@ -530,13 +541,29 @@ class Base():
     def draw_buttons(self,context,layout,):
         """node interface drawing"""
 
+        vse = bpy.context.scene.sequence_editor
+        
         layout.prop(self, "channel", text="")
         layout.prop(self, "target", text="")
 
-        row = layout.row(align=True)
-        prop = row.row(align=True)
         if (self.target=='SPECIFY'):
-            prop.prop(self, "sound", text="", icon="SOUND",)
+            prop = layout.column(align=True)
+            prop.prop(self, "sequence_name", text="", icon='SEQ_SEQUENCER')
+            # if (vse and vse.sequences_all.get(self.sequence_name)):
+            #     seq = vse.sequences_all[self.sequence_name]
+            #     if (seq.type != 'SOUND') or (not hasattr(seq,'sound')) or (not seq.sound):
+            #         label = prop.box()
+            #         label.scale_y = 0.5
+            #         label.alert = True
+            #         label.label(text="No sound data.",)
+            #     elif (seq.mute):
+            #         label = prop.box()
+            #         label.scale_y = 0.5
+            #         label.alert = True
+            #         label.label(text="Strip is muted.",)
+            #     else:
+            #         prop.template_ID(seq, "sound", open="sound.open")
+            prop.separator(factor=0.333)
 
         col = layout.column()
         col.prop(self, "offset",)
@@ -548,6 +575,7 @@ class Base():
         """draw in the nodebooster N panel 'Active Node'"""
     
         n = self
+        vse = bpy.context.scene.sequence_editor
 
         header, panel = layout.panel("params_panelid", default_closed=False,)
         header.label(text="Parameters",)
@@ -556,10 +584,10 @@ class Base():
             panel.prop(self, "channel", text="")
             panel.prop(self, "target", text="")
 
-            row = panel.row(align=True)
-            prop = row.row(align=True)
             if (self.target=='SPECIFY'):
-                prop.prop(self, "sound", text="", icon="SOUND",)
+                prop = panel.column(align=True)
+                prop.prop(self, "sequence_name", text="", icon='SEQ_SEQUENCER')
+                prop.separator(factor=0.333)
 
             col = panel.column()
             col.use_property_split = True
