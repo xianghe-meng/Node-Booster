@@ -20,8 +20,9 @@ Please note the following restrictions, due to how Blender handles node evaluati
 - You can: 
   - Arrange a hidden nodegroup nodetree nodes, links, and parameters value. 
   - Spit out a constant value. 
-  - Add your own separate nodes evaluation process, which outputs will automatically arrange a hidden node_tree 
-    and/or spit out a constant value.
+  - For Shader and Compositor: Add your own separate nodes evaluation process, which outputs will automatically arrange a hidden node_tree 
+    and/or spit out a constant value. for geometry node this PR is required because unknown socketypes implementation in GN source is
+    not as flexible as the other editors https://projects.blender.org/blender/blender/pulls/136968.
 
 
 Folder Structure & Contribution

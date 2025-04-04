@@ -15,31 +15,27 @@
 #  - Codebase review for extension.. Ask AI to do a big check.
 #  - Sound Sequencer Node: Text property with custom poll. That's it. No sound data.
 #  - Velocity Node: Better history calculations just doing last middle first is not precise enough. 
-#  - Continue with the interpolation nodes for proof of concept of note below.
-#    - warning message if the node encounter a user nodegroup. NG can't be evaluated.
+
+
+
+
+# ---------------------------------------------------------------------------------------------
+
+# TODO Custom SocketTypes Experiments.
+
+#    - For this to work in geometry node, we'll need this PR to get accepted 
+#      https://projects.blender.org/blender/blender/pulls/136968
+
+#  - Experimental Interpolation
+#    - supported nested ng? or not.
 #    - Document why it crash on blender reload. Specific to geomtry node not supporting custom NodeSocket. 
 #      Report once the proof of concept is done. devs need to see it's worth it.
 #    - Why is there a triple update signal when adding a new node?
-#    - IMPORTANT: Geometry node seems to ignore evaluation of our custom group. Why? 'Not Logged during evaluation'. Need a report.
 #    - Implement transform curves evaluators. 
 #         - Better structure for the node_tree evaluator system? Centralized the functions in one place maybe?
 #           Do more tests with InterpolationSocket transformers.
 #           what about storing the evaluated values somewhere, and only recalculate when needed? maybe add a is_dirty flag?
 #           maybe could simply store a 'StringProperty' .evaluator_cache per sockets?
-
-# ---------------------------------------------------------------------------------------------
-
-# TODO Custom SocketTypes Experiments.
-#  - Wait a minute.. we can add custom NodeSocketTypes, with custom Node types? What the heck..???
-#    - Check if cross compatible 4.2 / 4.3 / 4.4????
-#    - Can it creates/remove sockets on the fly? what about label? what about changing socket type on the fly?
-#      -A: i think yes, but not for NodeCustomGroup in GeometryNode api limitations. NodeCustom should be ok. need to test..
-#    - Re-Implement most nodes as CustomNodes then.. Start with an easy one.. 
-#       node_utils will have some rework to do. need to precise type of operation, if CustomNodeGroup or CustoNode.
-#    - How does it behave when the nodegroup is unregistered???
-#    - How can we process NativeNodes mixed with CustomSockets? 
-#       - What if we wrap a CustomNodeSocket in a CustomNodeGroup? how can we do that via an API? it works manually.
-#       -  still, will need to find a solution to convert our CustomNodeSocket to a NativeSocket. Python could just update a Value node default_value..
 #    - if possible, then we can cross the todo in  'Change to C blender code' for custom socket types.
 #       - Start with custom interpolation types. See if MapRange can be ported. Could linearmaprange to 01 then use the FloatMapCurve then map range to custom values. 
 #         The final nodes would simply do the evaluation. would not be nodegroup compatible tho. Problem:
@@ -47,20 +43,15 @@
 # ---------------------------------------------------------------------------------------------
 
 # NOTE Ideas for changes of blender C source code:
-#  - Would be great to display error messages for context nodes who use them like the native node. 
-#    API is not exposed th
+#  - There's a little message box above a node in GN, how can we write one via python API? 
 #  - Color of some nodes should'nt be red. sometimes blue for converter (math expression) or script color..
 #    Unfortunately the API si not Exposed. It would be nice to have custom colors for our nodes.. Or at least choose in existing colortype list.
 #  - Eval socket_value API??? ex `my_node.inputs[0].eval_value()` would return a single value, or a numpy array (if possible?)
 #    So far in this plugin we can only pass information to a socket, or arrange nodes.
 #    What would be an extremely useful functionality, woould be to sample a socket value from a socket.evaluate_value()
 #    integrated directly in blender. Unfortunately there are no plans to implement such API.
-#  - CustomSocketTypes API? (NOTE it seems that this one is possible).
-#    If we could create custom SocketTypes, we could create nodes that process specific data before sending it 
-#    to the native blender SocketTypes. A lot of new CustomNodes could be implemented that way for each editors.
-#    It would greatly improve how extensible existing editors are. A lot of nodes from Animation nodes for example
-#    could be implemented on for all editors types, and be directly use within these native editors without the need
-#    of a separate nodetree interface.
+#  - CustomSocketTypes API? 
+#    https://projects.blender.org/blender/blender/pulls/136968
 #  - Nodes Consistencies: Generally speaking, nodes are not consistent from one editor to another.
 #    For example ShaderNodeValue becomes CompositorNodeValue. Ect.. a lot of Native socket types could be ported to 
 #    all editors as well. For example, SocketBool can be in the compositor.

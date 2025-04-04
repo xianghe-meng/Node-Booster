@@ -260,6 +260,12 @@ class Base():
         """node interface drawing"""
 
         layout.prop(self, 'mode' ,text="")
+        
+        col = layout.column().box()
+        word_wrap(layout=col, alert=False, active=True, max_char=self.width/6.65, 
+            string="For this concept to work in Geometry-Node, we'll need the following PR to be accepted in main:",
+            )
+        layout.operator("wm.url_open", text="Patch #136968",).url = "https://projects.blender.org/blender/blender/pulls/136968"
 
         return None
 
