@@ -100,7 +100,7 @@
 #       then we could do multi-math / multi Bool logic. Min/Max All Any, all eq, in between ect..
 #     - We could re-implement 
 #     - We could have a Shader PBR material
-#     - Could have a sprite sheet socket type.
+#     - Could have a sprite sheet socket type. random sprite selection.
 # - See inspirations from other softs: AnimationNodes/Svershock/Houdini/Ue5/MayaFrost/ect.. see what can be extending GeoNode/Shader/Compositor.
 # - MaterialMaker/ SubstanceDesigner import/livelink would be nice. 
 

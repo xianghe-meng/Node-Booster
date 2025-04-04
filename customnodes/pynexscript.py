@@ -439,7 +439,7 @@ class Base():
             self.cleanse_sockets()
             self.cleanse_nodes()
             # set error to True
-            set_ng_socket_label(ng,0, label="VoidTextError",)
+            set_ng_socket_label(ng,0, label="EmptyTextError",)
             set_ng_socket_defvalue(ng,0, value=True,)
             return None
 

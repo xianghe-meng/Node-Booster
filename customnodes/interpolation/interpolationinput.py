@@ -60,8 +60,8 @@ class Base():
         name="Graph Type",
         description="Which kind of data do we process ?",
         items=[
-            ("float_mapping", "Float", "Float interpolation graph, ranging from 0 to 1"),
-            ("vector_mapping", "Vector", "Vector interpolation graph, ranging from -1 to 1"),
+            ("float_mapping", "Unsigned Values", "Delimit your graph to unsigned values, ranging from 0 to 1"),
+            ("vector_mapping", "Signed Values", "Delimit your graph to signed values, ranging from -1 to 1"),
             ],
         default="float_mapping",
         update=lambda self, context: self.update_trigger(),

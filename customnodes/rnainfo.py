@@ -172,7 +172,7 @@ class Base():
                 tree_type=self.tree_type,
                 out_sockets={
                     "Value" : "NodeSocketFloat",
-                    "Error" : "NodeSocketBool",
+                    "NoErrors" : "NodeSocketBool",
                     },
                 )
 
@@ -215,11 +215,16 @@ class Base():
         self.is_error = False
         set_ng_socket_defvalue(ng, 1, value=False)
         set_ng_socket_label(ng, 0, label="Value")
-        set_ng_socket_label(ng, 1, label="Error")
+        set_ng_socket_label(ng, 1, label="NoErrors")
 
         # check if the data path is valid
-        if (not data_path) or (not id_data):
+        if (not id_data):
             set_ng_socket_defvalue(ng, 1, value=True)
+            set_ng_socket_label(ng, 1, label="EmptyDataError")
+            return None
+        if (not data_path):
+            set_ng_socket_defvalue(ng, 1, value=True)
+            set_ng_socket_label(ng, 1, label="EmptyPathError")
             return None
 
         # Try to evaluate the data path
@@ -227,7 +232,7 @@ class Base():
             value = id_data.path_resolve(data_path)
         except Exception as e:
             set_ng_socket_defvalue(ng, 1, value=True)
-            set_ng_socket_label(ng, 1, label="PathError")
+            set_ng_socket_label(ng, 1, label="WrongPathError")
             self.is_error = True
             return None
         

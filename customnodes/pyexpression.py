@@ -160,8 +160,8 @@ class Base():
             print(f"{self.bl_idname} Parsing Exception '{type(e).__name__}':\n{e}")
             #display error to user
             self.error_message = str(e)
-            set_ng_socket_label(ng,0, label=type(e).__name__,)
-            set_ng_socket_label(ng,1, label="ParsingError",)
+            set_ng_socket_label(ng,0, label=type(evaluated_pyvalue).__name__.title(),)
+            set_ng_socket_label(ng,1, label="SocketTypeError",)
             set_ng_socket_defvalue(ng,1, value=True,)
             return None
 
