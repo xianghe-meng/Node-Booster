@@ -247,7 +247,10 @@ class Base():
         # we need to send an update trigger. Maybe there's a solution for this?.
         for nd in self.node_tree.nodes:
             if nd.name in {'float_map', 'vector_map', 'color_map'}:
+                #send a hard refresh trigger. 
                 nd.mapping.update()
+                nd.mute = not nd.mute
+                nd.mute = not nd.mute
                 nd.update()
                 continue
 

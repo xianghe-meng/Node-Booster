@@ -5,6 +5,8 @@
 # ---------------------------------------------------------------------------------------------
 
 # TODO v2.0 release
+#  - Actually, we don’t need triple CustomNodeGroup! not needed! Could use context.space_data to guess type. One class only. 
+#     - change the menu.py system then.
 #  - Custom operator shortcuts are not saved, they reset on each blender sessions.
 #  - Functions should always check if a value or type isn't already set before setting it. 
 #    I believe the tool is currently sending a lot of useless update signals by setting the same values 
@@ -19,6 +21,11 @@
 #      Report once the proof of concept is done. devs need to see it's worth it.
 #    - Why is there a triple update signal when adding a new node?
 #    - IMPORTANT: Geometry node seems to ignore evaluation of our custom group. Why? 'Not Logged during evaluation'. Need a report.
+#    - Implement transform curves evaluators. 
+#         - Better structure for the node_tree evaluator system? Centralized the functions in one place maybe?
+#           Do more tests with InterpolationSocket transformers.
+#           what about storing the evaluated values somewhere, and only recalculate when needed? maybe add a is_dirty flag?
+#           maybe could simply store a 'StringProperty' .evaluator_cache per sockets?
 
 # ---------------------------------------------------------------------------------------------
 
@@ -87,7 +94,13 @@
 #         we could use Float/Vector Curve.
 #         for geometry node we can even make a curve. 
 #         problem is, what about map range?? see how it's internally calculated.
-#     - we could have some sort of gamelogic nodes?
+#     - We could have some sort of gamelogic nodes?
+#     - mess with multi sockets like the join node. Check if we can use a native socket with this option?? 
+#       how could we possibly do that?
+#       then we could do multi-math / multi Bool logic. Min/Max All Any, all eq, in between ect..
+#     - We could re-implement 
+#     - We could have a Shader PBR material
+#     - Could have a sprite sheet socket type.
 # - See inspirations from other softs: AnimationNodes/Svershock/Houdini/Ue5/MayaFrost/ect.. see what can be extending GeoNode/Shader/Compositor.
 # - MaterialMaker/ SubstanceDesigner import/livelink would be nice. 
 

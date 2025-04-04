@@ -15,17 +15,18 @@ class Base():
     bl_description = "Custom Datatype"
     
     nodebooster_socket_type = "*ChildrenDefined*"
-
+    nodebooster_socket_color = (0.8, 0.2, 0.2, 1)
+    
     default_value : bpy.props.FloatProperty(
         default=0.0,
         )
     socket_color : bpy.props.FloatVectorProperty(
         subtype='COLOR',
-        default=(0.8, 0.2, 0.2, 1),
+        default=nodebooster_socket_color,
         size=4,
         )
     socket_label : bpy.props.StringProperty(
-        default="",
+        default=nodebooster_socket_type.title(),
         )
     display_label : bpy.props.BoolProperty(
         default=False,
@@ -42,8 +43,11 @@ class Base():
         return None
 
     def draw_color(self, context, node):
-
         return self.socket_color
+
+    @classmethod
+    def draw_color_simple(cls,):
+        return cls.nodebooster_socket_color
 
 
 class NODEBOOSTER_SK_Interpolation(Base, bpy.types.NodeSocket):
@@ -56,18 +60,18 @@ class NODEBOOSTER_SK_Interpolation(Base, bpy.types.NodeSocket):
     bl_idname = "NodeBoosterCustomSocketInterpolation"
     bl_label = "Interpolation"
     bl_description = "Interpolation Data Type"
-    
     nodebooster_socket_type = "INTERPOLATION"
+    nodebooster_socket_color = (0.713274, 0.432440, 0.349651, 1.0)
 
     socket_color : bpy.props.FloatVectorProperty(
         subtype='COLOR',
-        default=[0.713274, 0.432440, 0.349651, 10000.000000],
+        default=nodebooster_socket_color,
         size=4,
         )
     socket_label : bpy.props.StringProperty(
-        default="Interpolation",
+        default=nodebooster_socket_type.title(),
         )
-    
+
 class NODEBOOSTER_ND_CustomSocketUtility(bpy.types.Node):
 
     bl_idname = "CustomSocketUtility"
