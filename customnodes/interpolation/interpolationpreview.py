@@ -68,6 +68,11 @@ class Base():
         default="POS",
         update= lambda self, context: self.evaluator(),
         )
+    draw_fill : bpy.props.BoolProperty(
+        name="Draw Fill",
+        description="Draw the fill of the curve",
+        default=False,
+        )
 
     @classmethod
     def poll(cls, context):
@@ -137,6 +142,7 @@ class Base():
         rowl.prop(self, 'preview_scale', text="",)
         rowr = row.row(align=True)
         rowr.alignment = 'RIGHT'
+        rowr.prop(self, 'draw_fill', text="", icon='FCURVE')
         rowr.prop(self, 'show_handles', text="", icon='HANDLE_ALIGNED')
         layout.separator(factor=self.width / 7 if self.preview_lock else 35.0)
 
@@ -146,11 +152,6 @@ class Base():
         """draw in the nodebooster N panel 'Active Node'"""
 
         n = self
-
-        # header, panel = layout.panel("params_panelid", default_closed=False)
-        # header.label(text="Parameters")
-        # if panel:
-        #     panel.separator(factor=1.0)
 
         header, panel = layout.panel("doc_panelid", default_closed=True,)
         header.label(text="Documentation",)
@@ -188,7 +189,7 @@ class Base():
 
 
 def draw_rectangle(shader, view2d, location, dimensions,
-    bounds=((0.0,0.0),(1.0,1.0),), tick_interval=0.25,
+    bounds=((0.0,0.0),(1.0,1.0)), tick_interval=0.25,
     rectangle_color=(0.0, 0.0, 0.0, 0.3), 
     grid_color=(0.5, 0.5, 0.5, 0.05), grid_line_width=1.0,
     axis_color=(0.8, 0.8, 0.8, 0.15), axis_line_width=2.0,
@@ -415,11 +416,166 @@ def draw_bezpoints(shader, recverts, bezsegs,
 
     return None
 
+def draw_curve_fill(shader, recverts, preview_data, bounds, fill_color, num_steps=20):
+    """Draws the filled area under the bezier curve, extending with tangents."""
+    if fill_color is None or preview_data is None or not isinstance(preview_data, np.ndarray) \
+        or preview_data.ndim != 2 or preview_data.shape[1] != 8 or preview_data.shape[0] == 0:
+        return
+
+    # Coordinate Mapping Setup (copied from draw_bezcurve)
+    all_x = [v[0] for v in recverts]
+    all_y = [v[1] for v in recverts]
+    screen_min_x, screen_max_x = min(all_x), max(all_x)
+    screen_min_y, screen_max_y = min(all_y), max(all_y)
+    screen_width = screen_max_x - screen_min_x
+    screen_height = screen_max_y - screen_min_y
+    if (screen_width <= 0) or (screen_height <= 0):
+        return
+    data_min_x, data_max_x = bounds[0][0], bounds[1][0]
+    data_min_y, data_max_y = bounds[0][1], bounds[1][1]
+    data_width = data_max_x - data_min_x
+    data_height = data_max_y - data_min_y
+    if abs(data_width) < 1e-6 or abs(data_height) < 1e-6:
+        return
+
+    def map_point_to_screen(data_point):
+        norm_x = (data_point[0] - data_min_x) / data_width if data_width else 0.5
+        norm_y = (data_point[1] - data_min_y) / data_height if data_height else 0.5
+        screen_x = screen_min_x + norm_x * screen_width
+        screen_y = screen_min_y + norm_y * screen_height
+        return screen_x, screen_y
+    
+    def evaluate_segment(P0, P1, P2, P3, t):
+        omt = 1.0 - t; omt2 = omt * omt; omt3 = omt2 * omt
+        t2 = t * t; t3 = t2 * t
+        return (P0 * omt3) + (P1 * 3.0 * omt2 * t) + (P2 * 3.0 * omt * t2) + (P3 * t3)
+
+    # Generate Curve Points
+    curve_points_screen = []
+    for i in range(preview_data.shape[0]):
+        P0 = np.array(preview_data[i, 0:2], dtype=float)
+        P1 = np.array(preview_data[i, 2:4], dtype=float)
+        P2 = np.array(preview_data[i, 4:6], dtype=float)
+        P3 = np.array(preview_data[i, 6:8], dtype=float)
+        start_idx = 1 if i > 0 else 0
+        for j in range(start_idx, num_steps + 1):
+            t = j / num_steps
+            data_point = evaluate_segment(P0, P1, P2, P3, t)
+            screen_point = map_point_to_screen(data_point)
+            if curve_points_screen and np.allclose(screen_point, curve_points_screen[-1]):
+                continue
+            curve_points_screen.append(screen_point)
+    
+    if len(curve_points_screen) < 2:
+        return
+
+    # Calculate Tangent Intersections
+    P0_data = np.array(preview_data[0, 0:2], dtype=float)
+    P1_data = np.array(preview_data[0, 2:4], dtype=float)
+    P2_last_data = np.array(preview_data[-1, 4:6], dtype=float)
+    P3_last_data = np.array(preview_data[-1, 6:8], dtype=float)
+    P0s = map_point_to_screen(P0_data)
+    P1s = map_point_to_screen(P1_data)
+    P2s_last = map_point_to_screen(P2_last_data)
+    P3s_last = map_point_to_screen(P3_last_data)
+    Tx_start, Ty_start = P1s[0] - P0s[0], P1s[1] - P0s[1]
+    Tx_end, Ty_end = P3s_last[0] - P2s_last[0], P3s_last[1] - P2s_last[1]
+
+    # Define the intersection helper function *within* draw_curve_fill
+    def _get_rect_intersection(point, tangent, screen_min_x, screen_max_x, screen_min_y, screen_max_y):
+        P = np.array(point)
+        T = np.array(tangent)
+        min_t = float('inf')
+        intersect = P # Default to original point
+        epsilon = 1e-6
+        # Check Left Edge (x = screen_min_x)
+        if abs(T[0]) > epsilon:
+            t = (screen_min_x - P[0]) / T[0]
+            if t >= -epsilon: 
+                y = P[1] + t * T[1]
+                if screen_min_y - epsilon <= y <= screen_max_y + epsilon:
+                    if t < min_t:
+                        min_t = t
+                        intersect = (screen_min_x, y)
+        # Check Right Edge (x = screen_max_x)
+        if abs(T[0]) > epsilon:
+            t = (screen_max_x - P[0]) / T[0]
+            if t >= -epsilon:
+                y = P[1] + t * T[1]
+                if screen_min_y - epsilon <= y <= screen_max_y + epsilon:
+                     if t < min_t:
+                        min_t = t
+                        intersect = (screen_max_x, y)
+        # Check Bottom Edge (y = screen_min_y)
+        if abs(T[1]) > epsilon:
+            t = (screen_min_y - P[1]) / T[1]
+            if t >= -epsilon:
+                x = P[0] + t * T[0]
+                if screen_min_x - epsilon <= x <= screen_max_x + epsilon:
+                    if t < min_t:
+                        min_t = t
+                        intersect = (x, screen_min_y)
+        # Check Top Edge (y = screen_max_y)
+        if abs(T[1]) > epsilon:
+            t = (screen_max_y - P[1]) / T[1]
+            if t >= -epsilon:
+                x = P[0] + t * T[0]
+                if screen_min_x - epsilon <= x <= screen_max_x + epsilon:
+                     if t < min_t:
+                        min_t = t
+                        intersect = (x, screen_max_y)
+        # Final clamp 
+        intersect = (max(screen_min_x, min(screen_max_x, intersect[0])),
+                     max(screen_min_y, min(screen_max_y, intersect[1])))
+        return intersect
+
+    intersect_start = _get_rect_intersection(P0s, (-Tx_start, -Ty_start), screen_min_x, screen_max_x, screen_min_y, screen_max_y)
+    intersect_end = _get_rect_intersection(P3s_last, (Tx_end, Ty_end), screen_min_x, screen_max_x, screen_min_y, screen_max_y)
+
+    # Construct vertices for TRI_STRIP fill
+    fill_vertices = []
+    fill_vertices.append((intersect_start[0], screen_min_y)) # Bottom start
+    fill_vertices.append(intersect_start)                   # Top start
+    for point in curve_points_screen:
+        fill_vertices.append((point[0], screen_min_y))       # Bottom mid
+        fill_vertices.append(point)                         # Top mid (curve)
+    fill_vertices.append((intersect_end[0], screen_min_y))   # Bottom end
+    fill_vertices.append(intersect_end)                     # Top end
+
+    # Draw main fill area
+    fill_batch = batch_for_shader(shader, 'TRI_STRIP', {"pos": fill_vertices})
+    shader.uniform_float("color", fill_color)
+    fill_batch.draw(shader)
+
+    # Draw Corner Rectangles if Intersection Hit Top Edge
+    epsilon_y = 1e-4
+    corner_rect_indices = [(0, 1, 2), (0, 2, 3)]
+    epsilon = 1e-6 # Added epsilon for x comparison
+
+    if abs(intersect_start[1] - screen_max_y) < epsilon_y and intersect_start[0] > screen_min_x + epsilon:
+        left_corner_verts = [
+            (screen_min_x, screen_min_y), (screen_min_x, screen_max_y),
+            (intersect_start[0], screen_max_y), (intersect_start[0], screen_min_y)
+        ]
+        corner_batch = batch_for_shader(shader, 'TRIS', {"pos": left_corner_verts}, indices=corner_rect_indices)
+        shader.uniform_float("color", fill_color)
+        corner_batch.draw(shader)
+
+    if abs(intersect_end[1] - screen_max_y) < epsilon_y and intersect_end[0] < screen_max_x - epsilon:
+        right_corner_verts = [
+            (intersect_end[0], screen_min_y), (intersect_end[0], screen_max_y),
+            (screen_max_x, screen_max_y), (screen_max_x, screen_min_y)
+        ]
+        corner_batch = batch_for_shader(shader, 'TRIS', {"pos": right_corner_verts}, indices=corner_rect_indices)
+        shader.uniform_float("color", fill_color)
+        corner_batch.draw(shader)
+
 def draw_bezcurve(shader, recverts, preview_data,
     bounds=((0.0,0.0),(1.0,1.0)),
-    color=(0.9, 0.9, 0.9, 0.9), thickness=2.0, num_steps=20
+    line_color=(0.9, 0.9, 0.9, 0.9), # Removed fill_color
+    thickness=2.0, num_steps=20
     ):
-    """Draw the bezier curve represented by the preview_data, mapping from bounds."""
+    """Draw only the bezier curve line, mapping from bounds."""
 
     # Nothing to draw?
     if preview_data is None or not isinstance(preview_data, np.ndarray) \
@@ -431,9 +587,13 @@ def draw_bezcurve(shader, recverts, preview_data,
     all_y = [v[1] for v in recverts]
     screen_min_x, screen_max_x = min(all_x), max(all_x)
     screen_min_y, screen_max_y = min(all_y), max(all_y)
-    
+
     screen_width = screen_max_x - screen_min_x
-    screen_height = screen_max_y - screen_min_y # Assuming screen Y increases upwards
+    screen_height = screen_max_y - screen_min_y
+
+    # Check for degenerate rectangle first
+    if (screen_width <= 0) or (screen_height <= 0):
+        return None
 
     data_min_x, data_max_x = bounds[0][0], bounds[1][0]
     data_min_y, data_max_y = bounds[0][1], bounds[1][1]
@@ -441,80 +601,55 @@ def draw_bezcurve(shader, recverts, preview_data,
     data_width = data_max_x - data_min_x
     data_height = data_max_y - data_min_y
 
-    # Check for degenerate rectangle or data range
-    if (screen_width <= 0) or (screen_height <= 0) or abs(data_width) < 1e-6 or abs(data_height) < 1e-6:
+    # Check for degenerate data range
+    if abs(data_width) < 1e-6 or abs(data_height) < 1e-6:
         return None
 
     def map_point_to_screen(data_point):
-        """Maps a point from data bounds space to screen space within the rectangle."""
-        # Normalize data point coordinates (0 to 1)
-        norm_x = (data_point[0] - data_min_x) / data_width
-        norm_y = (data_point[1] - data_min_y) / data_height
-        # Map normalized coordinates to screen space
+        norm_x = (data_point[0] - data_min_x) / data_width if data_width else 0.5
+        norm_y = (data_point[1] - data_min_y) / data_height if data_height else 0.5
         screen_x = screen_min_x + norm_x * screen_width
-        screen_y = screen_min_y + norm_y * screen_height 
+        screen_y = screen_min_y + norm_y * screen_height
         return screen_x, screen_y
 
-    # Local Bezier Evaluation Function
-    # Avoids external dependency, uses only numpy
     def evaluate_segment(P0, P1, P2, P3, t):
-        """Evaluates a single cubic bezier segment at t."""
-        omt = 1.0 - t
-        omt2 = omt * omt
-        omt3 = omt2 * omt
-        t2 = t * t
-        t3 = t2 * t
+        omt = 1.0 - t; omt2 = omt * omt; omt3 = omt2 * omt
+        t2 = t * t; t3 = t2 * t
         return (P0 * omt3) + (P1 * 3.0 * omt2 * t) + (P2 * 3.0 * omt * t2) + (P3 * t3)
 
     # Generate Curve Points
     curve_points_screen = []
     for i in range(preview_data.shape[0]):
-        # Extract control points for the current segment
-        # Ensure they are numpy arrays for calculations
         P0 = np.array(preview_data[i, 0:2], dtype=float)
         P1 = np.array(preview_data[i, 2:4], dtype=float)
         P2 = np.array(preview_data[i, 4:6], dtype=float)
         P3 = np.array(preview_data[i, 6:8], dtype=float)
-
-        # Evaluate points along the segment
-        for j in range(num_steps + 1):
+        start_idx = 1 if i > 0 else 0
+        for j in range(start_idx, num_steps + 1):
             t = j / num_steps
             data_point = evaluate_segment(P0, P1, P2, P3, t)
-            # Map the data point to screen coordinates
             screen_point = map_point_to_screen(data_point)
-            
-            # Add to list, but avoid adding the start point of subsequent segments
-            # if it's identical to the previous end point (prevents duplicate verts in line strip)
-            if i > 0 and j == 0: 
-                # Check if close to the last point added
-                if curve_points_screen:
-                    last_pt = curve_points_screen[-1]
-                    if abs(screen_point[0] - last_pt[0]) < 0.1 and abs(screen_point[1] - last_pt[1]) < 0.1:
-                         continue # Skip adding duplicate start point
-            
+            if curve_points_screen and np.allclose(screen_point, curve_points_screen[-1]):
+                continue
             curve_points_screen.append(screen_point)
-
-    if not curve_points_screen:
-        # print("DEBUG draw_bezcurve: No screen points generated.")
+    
+    if len(curve_points_screen) < 2:
         return None
 
-    # Draw Curve
-    # Set line width (Note: might not be supported by all drivers/GPUs consistently)
+    # --- Draw Curve Line Only --- 
     try:
         gpu.state.line_width_set(thickness)
     except:
-        print("Warning: Could not set line width.") # Fallback if unsupported
+        print("Warning: Could not set line width.")
 
-    # Create batch for the line strip
-    batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": curve_points_screen})
-    shader.uniform_float("color", color)
-    batch.draw(shader)
+    line_batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": curve_points_screen})
+    shader.uniform_float("color", line_color)
+    line_batch.draw(shader)
 
-    # Reset line width to default if it was set
     try:
-        gpu.state.line_width_set(1.0) 
+        gpu.state.line_width_set(1.0)
     except:
-        pass # Ignore if reset fails
+        pass 
 
     return None
 
@@ -526,14 +661,20 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
     if (not nd_to_draw):
         return None
 
-    # Set up drawing state
-    gpu.state.blend_set('ALPHA')
+    # Save global states we might modify
+    original_blend = gpu.state.blend_get()
 
     # Set up shader
     shader = gpu.shader.from_builtin('UNIFORM_COLOR')
 
     for node in nd_to_draw:
         cwidth = 3.5 if node.show_handles else 2.75
+        
+        # NOTE we need to cut drawing out of preview area.
+        # Save states we modify within the loop
+        original_scissor_box = gpu.state.scissor_get()
+        # Set states needed for this node's drawing
+        gpu.state.blend_set('ALPHA') 
         
         # Get node location and properly apply DPI scaling
         nlocx, nlocy = node.location
@@ -589,17 +730,43 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
             dpi=dpi, zoom=zoom,
             )
         
+        # NOTE Scissor for Clipping out of preview area
+        # Find screen bounds from recverts
+        all_x = [v[0] for v in recverts]
+        all_y = [v[1] for v in recverts]
+        min_sx, max_sx = min(all_x), max(all_x)
+        min_sy, max_sy = min(all_y), max(all_y)
+        scissor_x = int(min_sx)
+        scissor_y = int(min_sy)
+        scissor_w = int(max_sx - min_sx)
+        scissor_h = int(max_sy - min_sy)
+
+        # Ensure valid width/height before setting scissor
+        if (scissor_w > 0) and (scissor_h > 0):
+            # Enable scissor test and set the box
+            gpu.state.scissor_test_set(True)
+            gpu.state.scissor_set(scissor_x, scissor_y, scissor_w, scissor_h)
+        else:
+            # If dimensions are invalid, ensure test is off
+            gpu.state.scissor_test_set(False)
+
         if (preview_data is not None):
-            # draw the curve
+            # Draw the fill first
+            if (node.draw_fill):
+                draw_curve_fill(shader, recverts, preview_data, bounds=data_bounds,
+                                fill_color=(0, 0, 0, 0.17), # Pass fill color
+                                num_steps=20) # Pass num_steps if needed
+            # Then draw the curve line
             draw_bezcurve(shader, recverts, preview_data, bounds=data_bounds,
-                color=(0.0, 0.0, 0.0, 0.45),
+                line_color=(0.0, 0.0, 0.0, 0.45), # Use line_color
                 thickness=cwidth * dpi * zoom,
-                )
+                num_steps=20) # Pass num_steps if needed
+                
             #draw the handles
             draw_bezpoints(shader, recverts, preview_data, bounds=data_bounds,
                 anchor_color=(1, 1, 1, 1.0),
-                handle_color=(0.5, 0.3, 0.3, 1.0),
-                handle_line_color=(0.6, 0.4, 0.4, 0.2),
+                handle_color=(0.6, 0.3, 0.3, 1.0),
+                handle_line_color=(0.7, 0.4, 0.4, 0.2),
                 handle_line_thickness=1.0,
                 anchor_size=4.75,
                 handle_size=3.5,
@@ -607,11 +774,18 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
                 draw_handle_lines=node.show_handles,
                 dpi=dpi, zoom=zoom,
                 )
-            
+
+        # Restore original scissor box and disable test
+        gpu.state.scissor_set(*original_scissor_box) # Unpack tuple for arguments
+        gpu.state.scissor_test_set(False) # Disable test for this node
+        # Restore other states modified for this node
+        gpu.state.blend_set(original_blend) # Restore original blend state
+
         continue
 
-    # Reset blend mode
-    gpu.state.blend_set('NONE')
+    # Final state clipping restoration.
+    # It's possible the loop didn't run, so restore global state here too
+    gpu.state.blend_set(original_blend)
     
     return None
 
