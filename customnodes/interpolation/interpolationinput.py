@@ -8,7 +8,7 @@ import os
 
 from ...__init__ import get_addon_prefs
 from ...utils.str_utils import word_wrap
-from ...utils.interpolation_utils import curvemapping_to_bezsegs
+from ...utils.interpolation_utils import reverseengineer_curvemapping_to_bezsegs
 from ...utils.node_utils import (
     import_new_nodegroup, 
 )
@@ -185,7 +185,7 @@ class Base():
         # NOTE the evaluator works based on socket output passed in args. 
         # but here, there's only one output..(simpler)
 
-        result = curvemapping_to_bezsegs(self.node_tree.nodes[self.graph_type].mapping.curves[0])
+        result = reverseengineer_curvemapping_to_bezsegs(self.node_tree.nodes[self.graph_type].mapping.curves[0])
         print("OUT:", result)
         return result
 

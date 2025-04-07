@@ -36,8 +36,8 @@ PREVIEW_DATA = {}
 class Base():
 
     bl_idname = "NodeBoosterInterpolationPreview"
-    bl_label = "Interpolation Preview"
-    bl_description = """Preview the result of an interpolation curve."""
+    bl_label = "2D Curve Preview"
+    bl_description = """Preview the result of a 2D curve."""
     bl_width_min = 157
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
@@ -45,6 +45,17 @@ class Base():
     # NOTE this node is the end of the line for our a socket type, 
     # it has a special evaluator responsability for socket.nodebooster_socket_type == 'INTERPOLATION'.
     evaluator_properties = {'INTERPOLATION_OUTPUT',}
+
+    show_handle_pts : bpy.props.BoolProperty(
+        name="Show Handles Points",
+        description="Show the handles points of the curve",
+        default=False,
+        )
+    show_handle_lines : bpy.props.BoolProperty(
+        name="Show Handle Lines",
+        description="Show the lines of the handles",
+        default=False,
+        )
 
     # preview_type : bpy.props.EnumProperty(
     #     name="Preview Type",
@@ -109,13 +120,10 @@ class Base():
     def evaluator(self,)->None:
         """evaluator the node required for the output evaluator"""
 
-        val = evaluate_upstream_value(self.inputs[0], self.node_tree,
+        PREVIEW_DATA[f"Preview{self.name}"] = evaluate_upstream_value(self.inputs[0], self.node_tree,
             match_evaluator_properties={'INTERPOLATION_NODE',},
             set_link_invalid=True,
             )
-        print(val)
-        PREVIEW_DATA[f"Preview{self.name}"] = val
-        print("--------------------------------")
 
         return None
 
@@ -123,6 +131,14 @@ class Base():
         """node interface drawing"""
 
         # layout.prop(self, 'preview_type', text="")
+        row = layout.row(align=True)
+        # rowl = row.row(align=True)
+        # rowl.alignment = 'LEFT'
+        # rowl.prop(self, 'curve_width', text="",)
+        rowr = row.row(align=True)
+        rowr.alignment = 'RIGHT'
+        rowr.prop(self, 'show_handle_lines', text="", icon='IPO_LINEAR')
+        rowr.prop(self, 'show_handle_pts', text="", icon='HANDLE_ALIGNED')
         layout.separator(factor=34.30)
 
         return None
@@ -215,10 +231,11 @@ def draw_rectangle(shader, view2d, location, dimensions, area_width,
 
     return vertices    
 
-def draw_bezhandles(shader, view2d, recverts, bezsegs,
+def draw_bezpoints(shader, view2d, recverts, bezsegs,
     anchor_color=(0.2, 0.2, 0.2, 0.8), anchor_size=40,
     handle_color=(0.5, 0.5, 0.5, 0.8), handle_size=10,
     handle_line_color=(0.4, 0.4, 0.4, 0.5), handle_line_thickness=2.0,
+    draw_handle_pts=True, draw_handle_lines=True,
     ):
     """Draw anchor points, handle points, and lines for bezier segments."""
 
@@ -267,39 +284,34 @@ def draw_bezhandles(shader, view2d, recverts, bezsegs,
     anchors = []
     handles = []
 
-    # first we draw the handle lines
     for i in range(bezsegs.shape[0]):
 
-        # Map points to screen coordinates
         P0s = map_point_to_screen(bezsegs[i, 0:2])
         P1s = map_point_to_screen(bezsegs[i, 2:4])
         P2s = map_point_to_screen(bezsegs[i, 4:6])
         P3s = map_point_to_screen(bezsegs[i, 6:8])
 
-        # Draw Handle Lines (P0->P1 and P2->P3)
-        batch_lines = batch_for_shader(shader, 'LINES',
-            {"pos":[P0s, P1s, P2s, P3s]}, indices=[(0, 1), (2, 3)])
-        shader.uniform_float("color", handle_line_color)
-        gpu.state.line_width_set(handle_line_thickness)
-        batch_lines.draw(shader)
-        gpu.state.line_width_set(1.0)
+        if (draw_handle_lines):
+            batch_lines = batch_for_shader(shader, 'LINES',
+                {"pos":[P0s, P1s, P2s, P3s]}, indices=[(0, 1), (2, 3)])
+            shader.uniform_float("color", handle_line_color)
+            gpu.state.line_width_set(handle_line_thickness)
+            batch_lines.draw(shader)
+            gpu.state.line_width_set(1.0)
 
-        # Draw Handle Points (P1 and P2)
-        handles.append([P1s, handle_size, handle_color])
-        handles.append([P2s, handle_size, handle_color])
+        if (draw_handle_pts):
+            handles.append([P1s, handle_size, handle_color])
+            handles.append([P2s, handle_size, handle_color])
 
-        # Draw Anchor Points (P0 and P3)
-        # Draw P0 only for the first segment
         if (i==0):
             anchors.append([P0s, anchor_size, anchor_color])
-        # Draw P3 for every segment (as it's the end anchor)
         anchors.append([P3s, anchor_size, anchor_color])
         continue
 
-    #then we draw the points
     for point in handles:
         draw_point_square(point[0], point[1], point[2])
         continue
+
     for point in anchors:
         draw_point_square(point[0], point[1], point[2])
         continue
@@ -311,12 +323,12 @@ def draw_bezcurve(shader, view2d, recverts, preview_data,
     ):
     """Draw the bezier curve represented by the preview_data."""
 
-    # --- Input Validation ---
-    if preview_data is None or not isinstance(preview_data, np.ndarray) or preview_data.ndim != 2 or preview_data.shape[1] != 8 or preview_data.shape[0] == 0:
-        # print("DEBUG draw_bezcurve: Invalid or empty preview_data")
+    # Nothing to draw?
+    if preview_data is None or not isinstance(preview_data, np.ndarray) \
+        or preview_data.ndim != 2 or preview_data.shape[1] != 8 or preview_data.shape[0] == 0:
         return None
 
-    # --- Coordinate Mapping Setup ---
+    # Coordinate Mapping Setup
     all_x = [v[0] for v in recverts]
     all_y = [v[1] for v in recverts]
     min_x, max_x = min(all_x), max(all_x)
@@ -325,8 +337,7 @@ def draw_bezcurve(shader, view2d, recverts, preview_data,
     width = max_x - min_x
     height = max_y - min_y
 
-    if width <= 0 or height <= 0:
-        # print("DEBUG draw_bezcurve: Degenerate rectangle")
+    if (width <= 0) or (height <= 0):
         return None
 
     def map_point_to_screen(point_01):
@@ -334,7 +345,7 @@ def draw_bezcurve(shader, view2d, recverts, preview_data,
         screen_y = min_y + point_01[1] * height 
         return screen_x, screen_y
 
-    # --- Local Bezier Evaluation Function ---
+    # Local Bezier Evaluation Function
     # Avoids external dependency, uses only numpy
     def evaluate_segment(P0, P1, P2, P3, t):
         """Evaluates a single cubic bezier segment at t."""
@@ -345,7 +356,7 @@ def draw_bezcurve(shader, view2d, recverts, preview_data,
         t3 = t2 * t
         return (P0 * omt3) + (P1 * 3.0 * omt2 * t) + (P2 * 3.0 * omt * t2) + (P3 * t3)
 
-    # --- Generate Curve Points ---
+    # Generate Curve Points
     curve_points_screen = []
     for i in range(preview_data.shape[0]):
         # Extract control points for the current segment
@@ -377,7 +388,7 @@ def draw_bezcurve(shader, view2d, recverts, preview_data,
         # print("DEBUG draw_bezcurve: No screen points generated.")
         return None
 
-    # --- Draw Curve ---
+    # Draw Curve
     # Set line width (Note: might not be supported by all drivers/GPUs consistently)
     try:
         gpu.state.line_width_set(thickness)
@@ -398,7 +409,7 @@ def draw_bezcurve(shader, view2d, recverts, preview_data,
     return None
 
 def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
-    margin_top=38, margin_bottom=35, margin_left=13.5, margin_right=13.5,):
+    margin_top=65, margin_bottom=40, margin_left=13.5, margin_right=13.5,):
     """Draw transparent black box on InterpolationPreview nodes with custom margins"""
 
     nd_to_draw = [n for n in node_tree.nodes if (not n.hide) and ('NodeBoosterInterpolationPreview' in n.bl_idname)]
@@ -415,6 +426,7 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
     awidth = bpy.context.area.width
 
     for node in nd_to_draw:
+        cwidth = 4.0 if node.show_handle_lines else 2.75
         
         # Get node location and properly apply DPI scaling
         nlocx, nlocy = node.location
@@ -442,16 +454,18 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
         # draw the handles
         draw_bezcurve(shader, view2d, recverts, preview_data,
             color=(0.0, 0.0, 0.0, 0.45),
-            thickness=4.0 * dpi * zoom,
+            thickness=cwidth * dpi * zoom,
             )
         #draw the handles
-        draw_bezhandles(shader, view2d, recverts, preview_data,
+        draw_bezpoints(shader, view2d, recverts, preview_data,
             anchor_color=(1, 1, 1, 1.0),
             handle_color=(0.3, 0.3, 0.3, 1.0),
             handle_line_color=(0.4, 0.4, 0.4, 0.2),
             handle_line_thickness=1.0 * dpi * zoom,
-            anchor_size=4.5 * dpi * zoom,
+            anchor_size=4.75 * dpi * zoom,
             handle_size=4.0 * dpi * zoom,
+            draw_handle_pts=node.show_handle_pts,
+            draw_handle_lines=node.show_handle_lines,
             )
         
         continue
