@@ -1,0 +1,9 @@
+
+In this folder you'll find:
+  - `nodesetter.py`
+    A function system to easily set up a nodetree from function execution, passing and returning sockets.
+  - `nextypes.py`
+    A module containing our socket classes for the python nex-script node. When the user create an input or 
+    output socket using `myvar:infloat` it init a NexType.
+  - `pytonode.py`
+    A utility type-conversion module for converting python values to socket-types.

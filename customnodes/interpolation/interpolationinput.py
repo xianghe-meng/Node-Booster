@@ -8,7 +8,7 @@ import os
 
 from ...__init__ import get_addon_prefs
 from ...utils.str_utils import word_wrap
-from ...utils.curve_utils import curve_to_points
+from ...utils.interpolation_utils import curvemapping_to_bezsegs
 from ...utils.node_utils import (
     import_new_nodegroup, 
 )
@@ -27,15 +27,9 @@ class NODEBOOSTER_OT_interpolation_input_update(bpy.types.Operator):
     bl_options = {'REGISTER', 'INTERNAL'}
 
     node_name : bpy.props.StringProperty()
-    
-    @classmethod
-    def poll(cls, context):
-        return context.active_node is not None
 
     def execute(self, context):
-
         context.space_data.edit_tree.nodes[self.node_name].update_trigger()
-
         return {'FINISHED'}
 
 # ooooo      ooo                 .o8            
@@ -51,7 +45,7 @@ class Base():
     bl_idname = "NodeBoosterInterpolationInput"
     bl_label = "Interpolation"
     bl_description = """Create an interpolation socket type from a define curvegraph."""
-    auto_update = {'TREE_INTERPOLATION_EVALUATOR',}
+    auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
 
     evaluator_properties = {'INTERPOLATION_NODE',}
@@ -109,8 +103,6 @@ class Base():
     def update(self):
         """generic update function"""
 
-        print("DEBUG: InterpolationInput update")
-
         return None
 
     def draw_label(self,):
@@ -141,16 +133,17 @@ class Base():
         header.label(text="Parameters")
         if panel:
 
-            layout.prop(self, 'graph_type', text="")
+            panel.prop(self, 'graph_type', text="")
 
             data = self.node_tree.nodes[self.graph_type]
             panel.template_curve_mapping(data, "mapping", type='NONE',)
             panel.operator("nodebooster.update_interpolation", text="Apply",).node_name = self.name
-            panel.separator()
+            panel.separator(factor=0.3)
 
         header, panel = layout.panel("doc_panelid", default_closed=True,)
         header.label(text="Documentation",)
         if (panel):
+
             word_wrap(layout=panel, alert=False, active=True, max_char='auto',
                 char_auto_sidepadding=0.9, context=context, string=n.bl_description,
                 )
@@ -189,13 +182,11 @@ class Base():
     def evaluator(self, socket_output)->list: 
         """evaluator the node required for the output evaluator"""
 
-        result = curve_to_points(self.node_tree.nodes[self.graph_type].mapping.curves[0])
+        # NOTE the evaluator works based on socket output passed in args. 
+        # but here, there's only one output..(simpler)
 
-        # NOTE the evaluator works based on socket output. but here, there's only one output..(simpler)
-        # for sock in socket_output:
-        #     if sock == socket_output:
-        #         return ...
-
+        result = curvemapping_to_bezsegs(self.node_tree.nodes[self.graph_type].mapping.curves[0])
+        print("OUT:", result)
         return result
 
 #Per Node-Editor Children:

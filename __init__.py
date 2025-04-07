@@ -61,6 +61,7 @@
 # - Could design portal node. There are ways to hide sockets, even from user CTRL+H, this node could simply pass hidden sockets around? 
 #   Do some tests. Note: would only be nice if we draw a heavy 'portal line' effect from node A to node B. Bonus: animation of the direction.
 # - Material Info node? gather informations about the material? if so, what?
+# - Transform Is rendered view into a View3D info node, where user can get info about a or active 3Dview informations. Optional index to select which 3Dview he's talking about.
 # - Color Palette Node? easily swap between color palettes?
 # - Armature/Bone nodes? Will need to learn about rigging to do that tho..
 # - File IO: For geometry node, could create a mesh on the fly from a file and set up as field attributes.
@@ -200,7 +201,7 @@ def register():
 
     from .resources import load_icons
     load_icons() 
-    
+
     #register every single addon classes here
     for cls in get_addon_classes():
         bpy.utils.register_class(cls)
@@ -219,7 +220,6 @@ def register():
 
     from .operators import load_operators_keymaps
     load_operators_keymaps()
-    
 
     return None
 
@@ -235,6 +235,9 @@ def unregister():
 
     from .handlers import unload_handlers  
     unload_handlers()
+
+    from .gpudraw import unregister_gpu_drawcalls
+    unregister_gpu_drawcalls()
 
     from .properties import unload_properties
     unload_properties()

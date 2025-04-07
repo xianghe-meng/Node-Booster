@@ -66,15 +66,20 @@ from . objectvelocity import (
         NODEBOOSTER_NG_CP_ObjectVelocity,
         )
 from . interpolation.interpolationinput import (
+        NODEBOOSTER_OT_interpolation_input_update,
         NODEBOOSTER_NG_GN_InterpolationInput,
         NODEBOOSTER_NG_SH_InterpolationInput,
         NODEBOOSTER_NG_CP_InterpolationInput,
         )
-from . interpolation.interpolationinput import NODEBOOSTER_OT_interpolation_input_update
 from . interpolation.interpolationmap import (
         NODEBOOSTER_NG_GN_InterpolationMap,
         NODEBOOSTER_NG_SH_InterpolationMap,
         NODEBOOSTER_NG_CP_InterpolationMap,
+        )
+from . interpolation.interpolationpreview import (
+        NODEBOOSTER_NG_GN_InterpolationPreview,
+        NODEBOOSTER_NG_SH_InterpolationPreview,
+        NODEBOOSTER_NG_CP_InterpolationPreview,
         )
 
 # For menus, in order of appearance
@@ -92,14 +97,17 @@ GN_CustomNodes = (
         NODEBOOSTER_NG_GN_IsRenderedView, #this one doesn't make sense in other editors.
         NODEBOOSTER_NG_GN_SequencerSound, ),
     ),
+    ('Expressions',(
+        NODEBOOSTER_NG_GN_MathExpression,
+        NODEBOOSTER_NG_GN_PyExpression,
+        NODEBOOSTER_NG_GN_PyNexScript, ),
+    ),
     ('Experimental',(
         NODEBOOSTER_NG_GN_InterpolationInput,
         NODEBOOSTER_NG_GN_InterpolationMap,
+        NODEBOOSTER_NG_GN_InterpolationPreview,
         NODEBOOSTER_ND_CustomSocketUtility, ), #dev utility.
-    ), 
-    (NODEBOOSTER_NG_GN_MathExpression),
-    (NODEBOOSTER_NG_GN_PyExpression),
-    (NODEBOOSTER_NG_GN_PyNexScript),
+    ),
     )
 
 SH_CustomNodes = (
@@ -113,14 +121,17 @@ SH_CustomNodes = (
         NODEBOOSTER_NG_SH_DeviceInput,
         NODEBOOSTER_NG_SH_SequencerSound, ),
     ),
+    ('Expressions',(
+        NODEBOOSTER_NG_SH_MathExpression,
+        NODEBOOSTER_NG_SH_PyExpression,
+        NODEBOOSTER_NG_SH_PyNexScript, ),
+    ),
     ('Experimental',(
         NODEBOOSTER_NG_SH_InterpolationInput,
         NODEBOOSTER_NG_SH_InterpolationMap,
+        NODEBOOSTER_NG_SH_InterpolationPreview,
         NODEBOOSTER_ND_CustomSocketUtility, ), #dev utility.    
     ), 
-    (NODEBOOSTER_NG_SH_MathExpression),
-    (NODEBOOSTER_NG_SH_PyExpression),
-    (NODEBOOSTER_NG_SH_PyNexScript),
     )
 
 CP_CustomNodes = (
@@ -134,14 +145,17 @@ CP_CustomNodes = (
         NODEBOOSTER_NG_CP_DeviceInput,
         NODEBOOSTER_NG_CP_SequencerSound, ),
     ),
+    ('Expressions',(
+        NODEBOOSTER_NG_CP_MathExpression,
+        NODEBOOSTER_NG_CP_PyExpression,
+        NODEBOOSTER_NG_CP_PyNexScript, ),
+    ),
     ('Experimental',(
         NODEBOOSTER_NG_CP_InterpolationInput,
         NODEBOOSTER_NG_CP_InterpolationMap,
+        NODEBOOSTER_NG_CP_InterpolationPreview,
         NODEBOOSTER_ND_CustomSocketUtility, ), #dev utility.
     ), 
-    (NODEBOOSTER_NG_CP_MathExpression),
-    (NODEBOOSTER_NG_CP_PyExpression),
-    (NODEBOOSTER_NG_CP_PyNexScript),
     )
 
 # for registration
@@ -188,6 +202,9 @@ classes = (
     NODEBOOSTER_NG_GN_InterpolationMap,
     NODEBOOSTER_NG_SH_InterpolationMap,
     NODEBOOSTER_NG_CP_InterpolationMap,
+    NODEBOOSTER_NG_GN_InterpolationPreview,
+    NODEBOOSTER_NG_SH_InterpolationPreview,
+    NODEBOOSTER_NG_CP_InterpolationPreview,
     NODEBOOSTER_OT_interpolation_input_update,
     )
 

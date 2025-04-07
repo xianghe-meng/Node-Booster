@@ -8,7 +8,8 @@ import os
 
 from ...__init__ import get_addon_prefs
 from ...utils.str_utils import word_wrap
-from ...utils.curve_utils import points_to_curve, reset_curve
+from ...utils.interpolation_utils import bezsegs_to_curvemapping, reset_curvemapping
+from ..evaluator import evaluate_upstream_value
 from ...utils.node_utils import (
     import_new_nodegroup, 
     set_node_socketattr,
@@ -91,7 +92,7 @@ class Base():
     def update(self):
         """generic update function"""
         
-        print("DEBUG: InterpolationMap update")
+        print("DEBUG: InterpolationMap Evaluator update")
         self.evaluator()
         
         return None
@@ -134,7 +135,7 @@ class Base():
                 set_node_socketattr(self, socket_name="Color", attribute='enabled', value=False, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Color", attribute='enabled', value=False, in_out='OUTPUT',)
 
-                interp_sockets = {
+                sock_to_evaluate = {
                     'Interpolation':self.node_tree.nodes['float_map'].mapping.curves[0],
                     }
 
@@ -154,7 +155,7 @@ class Base():
                 set_node_socketattr(self, socket_name="Color", attribute='enabled', value=False, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Color", attribute='enabled', value=False, in_out='OUTPUT',)
 
-                interp_sockets = {
+                sock_to_evaluate = {
                     'Interpolation X':self.node_tree.nodes['vector_map'].mapping.curves[0],
                     'Interpolation Y':self.node_tree.nodes['vector_map'].mapping.curves[1],
                     'Interpolation Z':self.node_tree.nodes['vector_map'].mapping.curves[2],
@@ -176,7 +177,7 @@ class Base():
                 set_node_socketattr(self, socket_name="Color", attribute='enabled', value=True, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Color", attribute='enabled', value=True, in_out='OUTPUT',)
 
-                interp_sockets = {
+                sock_to_evaluate = {
                     'Interpolation C':self.node_tree.nodes['color_map'].mapping.curves[3],
                     'Interpolation R':self.node_tree.nodes['color_map'].mapping.curves[0],
                     'Interpolation G':self.node_tree.nodes['color_map'].mapping.curves[1],
@@ -184,65 +185,31 @@ class Base():
                     }
 
         #2: Nodetree evaluator logic:
-        # NOTE This node is the final output of a series of our custom interpolation datatype.
+        # NOTE This node is the final output of a series of our custom interpolation datatype. 
+        # we need to evaluate the values upstream consecutively.
         # Therefore we need to navigate upsteam to to and evaluate the nodes we collide with, for each of our sockets.
-        # We do that with the parcour_node_tree() function, which will return a dictionary of {colliding_socket:parcoured_links[]}
-        # because we are parcouring from left to right, only one collision is possible.
-        # Once we found a valid collision, we use the colliding_node.evaluator(socket) to get
-        # the data. this colliding_node might also run a similar operation, and so on.
-
-        # we store values of sockets already evaluated here, to avoid redundand evaluations calculations
-        already_evaluated = {}
         
-        #NOTE inter_sockets rerpresents the name of the our custom interpolation socket types.
+        #NOTE sock_to_evaluate rerpresents the name of the our custom interpolation socket types.
         # and the equivalent node.mapping.curve that needs to be updated.
 
         #get all nodes connected to the value socket
-        for k,c in interp_sockets.items():
+        cache = {}
+        for k,c in sock_to_evaluate.items():
             sock = self.inputs[k]
-
-            #nothing links?
-            if (not sock.links):
-                reset_curve(c)
-                continue
-
-            #get colliding nodes on the left in {socket:links}
-            parcour_info = parcour_node_tree(self.node_tree.nodes, sock, direction='LEFT')
-            print(f"DEBUG: parcour_info: {parcour_info}, len: {len(parcour_info)}")
-
-            #nothing hit?
-            if (len(parcour_info)==0):
-                print("DEBUG: no parcour info. resetting curve.")
-                reset_curve(c)
-                continue
-
-            #get our colliding socket. when parcouring right to left, we expect only one collision.
-            assert len(parcour_info) == 1, f"It should not be possible to collide with more than one socket type, when parcouring from right to left. how did you manage that?\n{parcour_info}"
-
-            # Extract the first (and only) item from the dictionary
-            colliding_socket = list(parcour_info.keys())[0]
-            colliding_node = colliding_socket.node
-            parcoured_links = parcour_info[colliding_socket]
-
-            #we are expecting to collide with specific socket types!
-            if not hasattr(colliding_node,'evaluator_properties') \
-               or ('INTERPOLATION_NODE' not in colliding_node.evaluator_properties):
-                print("DEBUG: parcour not successful. resetting curve.")
-                reset_curve(c)
-                first_link = parcoured_links[0]
-                first_link.is_valid = False
-                continue
-
-            #the interpolation socket type always return a list of points.
-            key = colliding_node.name + ':' + colliding_socket.identifier
-            pts = already_evaluated.get(key)
-            if (pts is None):
-                pts = colliding_node.evaluator(colliding_socket)
-                already_evaluated[key] = pts
-
-            points_to_curve(c, pts)
+            # retrieve the value from the node behind.
+            # the node might do a similar operation, and so on.
+            val = evaluate_upstream_value(sock, self.node_tree,
+                match_evaluator_properties={'INTERPOLATION_NODE',},
+                set_link_invalid=True,
+                cached_values=cache,
+                )
+            # if the evaluator system failed to retrieve a value, we reset the curve to default..
+            # else we set the points.
+            if (val is None):
+                  reset_curvemapping(c)
+            else: bezsegs_to_curvemapping(c, val)
             continue
-        
+
         # NOTE unfortunately python API for curve mapping is meh..
         # we need to send an update trigger. Maybe there's a solution for this?.
         for nd in self.node_tree.nodes:
@@ -263,9 +230,8 @@ class Base():
         
         col = layout.column().box()
         word_wrap(layout=col, alert=False, active=True, max_char=self.width/6.65, 
-            string="For this concept to work in Geometry-Node, we'll need the following PR to be accepted in main:",
+            string="Geometry-Node is not very tolerent to unrecognized sockets currently, see PR #136968.",
             )
-        layout.operator("wm.url_open", text="Patch #136968",).url = "https://projects.blender.org/blender/blender/pulls/136968"
 
         return None
 
