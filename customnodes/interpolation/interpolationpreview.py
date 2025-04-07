@@ -8,6 +8,7 @@ import os
 import gpu
 from gpu_extras.batch import batch_for_shader
 import numpy as np
+import math # Add math import for calculations
 
 from ...__init__ import get_addon_prefs
 from ...utils.str_utils import word_wrap
@@ -46,28 +47,27 @@ class Base():
     # it has a special evaluator responsability for socket.nodebooster_socket_type == 'INTERPOLATION'.
     evaluator_properties = {'INTERPOLATION_OUTPUT',}
 
-    show_handle_pts : bpy.props.BoolProperty(
-        name="Show Handles Points",
-        description="Show the handles points of the curve",
-        default=False,
-        )
-    show_handle_lines : bpy.props.BoolProperty(
+    show_handles : bpy.props.BoolProperty(
         name="Show Handle Lines",
         description="Show the lines of the handles",
         default=False,
         )
-
-    # preview_type : bpy.props.EnumProperty(
-    #     name="Preview Type",
-    #     description="How to display the interpolation preview",
-    #     items=[
-    #         ("LINE", "Line", "Display as a line"),
-    #         ("BARS", "Bars", "Display as vertical bars"),
-    #         ("DOTS", "Dots", "Display as dots"),
-    #         ],
-    #     default="LINE",
-    #     update= lambda self, context: self.evaluator(),
-    #     )
+    preview_lock : bpy.props.BoolProperty(
+        name="Preview Lock",
+        description="Lock the preview scale with the width of the node",
+        default=False,
+        )
+    preview_scale : bpy.props.EnumProperty(
+        name="Graph Scale",
+        description="How to fit the graph",
+        items=[
+            ("POS", "Positive", "Graph in 0/1 range"),
+            ("NEG", "Negative", "Graph in -1/-1 range"),
+            ("FIT", "Fit Curve", "Graph fit the curve range"),
+            ],
+        default="POS",
+        update= lambda self, context: self.evaluator(),
+        )
 
     @classmethod
     def poll(cls, context):
@@ -130,16 +130,15 @@ class Base():
     def draw_buttons(self, context, layout):
         """node interface drawing"""
 
-        # layout.prop(self, 'preview_type', text="")
         row = layout.row(align=True)
-        # rowl = row.row(align=True)
-        # rowl.alignment = 'LEFT'
-        # rowl.prop(self, 'curve_width', text="",)
+        rowl = row.row(align=True)
+        rowl.alignment = 'LEFT'
+        rowl.prop(self, 'preview_lock', text="", icon='LOCKED' if self.preview_lock else 'UNLOCKED')
+        rowl.prop(self, 'preview_scale', text="",)
         rowr = row.row(align=True)
         rowr.alignment = 'RIGHT'
-        rowr.prop(self, 'show_handle_lines', text="", icon='IPO_LINEAR')
-        rowr.prop(self, 'show_handle_pts', text="", icon='HANDLE_ALIGNED')
-        layout.separator(factor=34.30)
+        rowr.prop(self, 'show_handles', text="", icon='HANDLE_ALIGNED')
+        layout.separator(factor=self.width / 7 if self.preview_lock else 35.0)
 
         return None
 
@@ -151,7 +150,6 @@ class Base():
         # header, panel = layout.panel("params_panelid", default_closed=False)
         # header.label(text="Parameters")
         # if panel:
-        #     panel.prop(self, 'preview_type', text="Preview Style")
         #     panel.separator(factor=1.0)
 
         header, panel = layout.panel("doc_panelid", default_closed=True,)
@@ -183,14 +181,20 @@ class Base():
 #                888                   
 #               o888o                  
 
-#TODO bonus:
-# - What if interpolation goes beyond 0-1 range? what if beyond -1/1 range? 
-#   perhaps we should first arrange the graph data, then resize it to fit box.
-# - Points on 00-11 are going out of the box clip area.
+#TODO:
+# - Points or curve can go out of the rectangle area
+# - detail: line width do not scale well with zoom
+# - important: dpi scaling is not ok with graph..
 
-def draw_rectangle(shader, view2d, location, dimensions, area_width,
-    rectangle_color=(0.0, 0.0, 0.0, 0.3), grid_color=(0.5, 0.5, 0.5, 0.05),):
-    """Draw transparent black box on InterpolationPreview nodes with custom margins"""
+
+def draw_rectangle(shader, view2d, location, dimensions,
+    bounds=((0.0,0.0),(1.0,1.0),), tick_interval=0.25,
+    rectangle_color=(0.0, 0.0, 0.0, 0.3), 
+    grid_color=(0.5, 0.5, 0.5, 0.05), grid_line_width=1.0,
+    axis_color=(0.8, 0.8, 0.8, 0.15), axis_line_width=2.0,
+    border_color=(0.1, 0.1, 0.1, 0.5), border_width=1.0,
+    dpi=1.0, zoom=1.0):
+    """Draw transparent black box with grid, axes, and border, mapping data bounds to the box."""
 
     nlocx, nlocy = location
     ndimx, ndimy = dimensions
@@ -210,34 +214,117 @@ def draw_rectangle(shader, view2d, location, dimensions, area_width,
     shader.uniform_float("color", rectangle_color)
     batch.draw(shader)
 
-    # Draw grid lines every quarter
-    for i in range(5):
+    if (bounds is not None):
 
-        # Horizontal
-        y_pos = y1 - (i * (y1 - y4) / 4)
-        h_vertices = [(x1, y_pos), (x2, y_pos)]
-        batch = batch_for_shader(shader, 'LINES', {"pos": h_vertices})
-        shader.uniform_float("color", grid_color)
-        batch.draw(shader)
+        x_min, x_max = bounds[0][0], bounds[1][0]
+        y_min, y_max = bounds[0][1], bounds[1][1]
 
-        # Vertical
-        x_pos = x1 + (i * (x2 - x1) / 4)
-        v_vertices = [(x_pos, y1), (x_pos, y4)]
-        batch = batch_for_shader(shader, 'LINES', {"pos": v_vertices})
-        shader.uniform_float("color", grid_color)
-        batch.draw(shader)
+        # raw Grid Lines
+        screen_width = x2 - x1
+        screen_height = y1 - y4 # Assuming y1 > y4 (top > bottom)
+        data_width = x_max - x_min
+        data_height = y_max - y_min
 
-        continue
+        # Small epsilon for floating point comparison near zero
+        epsilon = 1e-6 
 
-    return vertices    
+        # Helper to map data value to screen coordinate
+        def map_x_to_screen(data_x):
+            if abs(data_width) < epsilon: return x1 # Avoid division by zero
+            return x1 + ((data_x - x_min) / data_width) * screen_width
+        
+        def map_y_to_screen(data_y):
+            if abs(data_height) < epsilon: return y4 # Avoid division by zero
+            # Map from bottom (y4) up
+            return y4 + ((data_y - y_min) / data_height) * screen_height
 
-def draw_bezpoints(shader, view2d, recverts, bezsegs,
+        # Calculate scaled line widths
+        scaled_grid_width = grid_line_width * dpi * zoom
+        scaled_axis_width = axis_line_width * dpi * zoom
+
+        # Vertical Grid Lines (X ticks)
+        if (abs(data_width) > epsilon) and (tick_interval > epsilon) and (scaled_grid_width > 0):
+            start_x_tick = math.ceil(x_min / tick_interval) * tick_interval
+            current_x_tick = start_x_tick
+            while current_x_tick <= x_max + epsilon:
+                # Skip zero axis (drawn separately) and boundary lines if they are zero
+                if abs(current_x_tick) < epsilon or \
+                (abs(x_min) < epsilon and abs(current_x_tick - x_min) < epsilon) or \
+                (abs(x_max) < epsilon and abs(current_x_tick - x_max) < epsilon):
+                    current_x_tick += tick_interval
+                    continue
+
+                x_pos = map_x_to_screen(current_x_tick)
+                v_vertices = [(x_pos, y1), (x_pos, y4)]
+                batch = batch_for_shader(shader, 'LINES', {"pos": v_vertices})
+                gpu.state.line_width_set(scaled_grid_width)
+                shader.uniform_float("color", grid_color)
+                batch.draw(shader)
+                gpu.state.line_width_set(1.0) # Reset
+                current_x_tick += tick_interval
+
+        # Horizontal Grid Lines (Y ticks)
+        if (abs(data_height) > epsilon) and (tick_interval > epsilon) and (scaled_grid_width > 0):
+            start_y_tick = math.ceil(y_min / tick_interval) * tick_interval
+            current_y_tick = start_y_tick
+            while current_y_tick <= y_max + epsilon:
+                # Skip zero axis (drawn separately) and boundary lines if they are zero
+                if abs(current_y_tick) < epsilon or \
+                (abs(y_min) < epsilon and abs(current_y_tick - y_min) < epsilon) or \
+                (abs(y_max) < epsilon and abs(current_y_tick - y_max) < epsilon):
+                    current_y_tick += tick_interval
+                    continue
+                    
+                y_pos = map_y_to_screen(current_y_tick)
+                h_vertices = [(x1, y_pos), (x2, y_pos)]
+                batch = batch_for_shader(shader, 'LINES', {"pos": h_vertices})
+                gpu.state.line_width_set(scaled_grid_width)
+                shader.uniform_float("color", grid_color)
+                batch.draw(shader)
+                gpu.state.line_width_set(1.0) # Reset
+                current_y_tick += tick_interval
+
+        # Draw Y Axis (X=0)
+        if (scaled_axis_width > 0) and (x_min < -epsilon) and (x_max > epsilon):
+            x_pos_zero = map_x_to_screen(0.0)
+            axis_vertices = [(x_pos_zero, y1), (x_pos_zero, y4)]
+            batch = batch_for_shader(shader, 'LINES', {"pos": axis_vertices})
+            gpu.state.line_width_set(scaled_axis_width)
+            shader.uniform_float("color", axis_color)
+            batch.draw(shader)
+            gpu.state.line_width_set(1.0) # Reset
+
+        # Draw X Axis (Y=0)
+        if (scaled_axis_width > 0) and (y_min < -epsilon) and (y_max > epsilon):
+            y_pos_zero = map_y_to_screen(0.0)
+            axis_vertices = [(x1, y_pos_zero), (x2, y_pos_zero)]
+            batch = batch_for_shader(shader, 'LINES', {"pos": axis_vertices})
+            gpu.state.line_width_set(scaled_axis_width)
+            shader.uniform_float("color", axis_color)
+            batch.draw(shader)
+            gpu.state.line_width_set(1.0) # Reset
+
+    # Draw Border
+    scaled_border_width = border_width * dpi * zoom
+    if (scaled_border_width > 0) and (border_color is not None):
+         border_indices = [(0, 1), (1, 2), (2, 3), (3, 0)]
+         border_batch = batch_for_shader(shader, 'LINES', {"pos": vertices}, indices=border_indices)
+         gpu.state.line_width_set(scaled_border_width)
+         shader.uniform_float("color", border_color)
+         border_batch.draw(shader)
+         gpu.state.line_width_set(1.0) # Reset
+
+    return vertices
+
+def draw_bezpoints(shader, recverts, bezsegs,
+    bounds=((0.0,0.0),(1.0,1.0)),
     anchor_color=(0.2, 0.2, 0.2, 0.8), anchor_size=40,
     handle_color=(0.5, 0.5, 0.5, 0.8), handle_size=10,
     handle_line_color=(0.4, 0.4, 0.4, 0.5), handle_line_thickness=2.0,
     draw_handle_pts=True, draw_handle_lines=True,
+    dpi=1.0, zoom=1.0,
     ):
-    """Draw anchor points, handle points, and lines for bezier segments."""
+    """Draw anchor points, handle points, and lines for bezier segments, mapping from bounds."""
 
     # Nothing to draw?
     if (bezsegs is None) or not isinstance(bezsegs, np.ndarray) \
@@ -245,30 +332,33 @@ def draw_bezpoints(shader, view2d, recverts, bezsegs,
         return None
 
     # NOTE Coordinate Mapping Setup
-    # recverts = [(x1, y1), (x2, y2), (x3, y3), (x4, y4)] -> screen space corners
-    # (x1, y1) = Top-left, (x4, y4) = Bottom-left (usually)
-    # Important: Need to handle potential flipped y-coordinates depending on view_to_region results.
-    # Let's assume standard screen coordinates where Y increases downwards for now,
-    # but usually, view_to_region gives bottom-left origin.
-
     # Find min/max screen coordinates from the rectangle vertices
     all_x = [v[0] for v in recverts]
     all_y = [v[1] for v in recverts]
-    min_x, max_x = min(all_x), max(all_x)
-    min_y, max_y = min(all_y), max(all_y)
+    screen_min_x, screen_max_x = min(all_x), max(all_x)
+    screen_min_y, screen_max_y = min(all_y), max(all_y)
 
-    width = max_x - min_x
-    height = max_y - min_y
+    screen_width = screen_max_x - screen_min_x
+    screen_height = screen_max_y - screen_min_y # Assuming screen Y increases upwards
 
-    # Check for degenerate rectangle
-    if (width <= 0) or (height <= 0):
+    data_min_x, data_max_x = bounds[0][0], bounds[1][0]
+    data_min_y, data_max_y = bounds[0][1], bounds[1][1]
+
+    data_width = data_max_x - data_min_x
+    data_height = data_max_y - data_min_y
+
+    # Check for degenerate rectangle or data range
+    if (screen_width <= 0) or (screen_height <= 0) or abs(data_width) < 1e-6 or abs(data_height) < 1e-6:
         return None
 
-    def map_point_to_screen(point_01):
-        """Maps a point from 0-1 space to screen space within the rectangle.
-        Assuming Y=0 is bottom, Y=1 is top in normalized space"""
-        screen_x = min_x + point_01[0] * width
-        screen_y = min_y + point_01[1] * height 
+    def map_point_to_screen(data_point):
+        """Maps a point from data bounds space to screen space within the rectangle."""
+        # Normalize data point coordinates (0 to 1)
+        norm_x = (data_point[0] - data_min_x) / data_width
+        norm_y = (data_point[1] - data_min_y) / data_height
+        # Map normalized coordinates to screen space
+        screen_x = screen_min_x + norm_x * screen_width
+        screen_y = screen_min_y + norm_y * screen_height 
         return screen_x, screen_y
 
     def draw_point_square(pos, size, color):
@@ -284,6 +374,11 @@ def draw_bezpoints(shader, view2d, recverts, bezsegs,
     anchors = []
     handles = []
 
+    # Scale sizes based on dpi and zoom
+    scaled_anchor_size = anchor_size * dpi * zoom
+    scaled_handle_size = handle_size * dpi * zoom
+    scaled_handle_line_thickness = handle_line_thickness * dpi * zoom
+
     for i in range(bezsegs.shape[0]):
 
         P0s = map_point_to_screen(bezsegs[i, 0:2])
@@ -291,37 +386,40 @@ def draw_bezpoints(shader, view2d, recverts, bezsegs,
         P2s = map_point_to_screen(bezsegs[i, 4:6])
         P3s = map_point_to_screen(bezsegs[i, 6:8])
 
-        if (draw_handle_lines):
+        if (draw_handle_lines and scaled_handle_line_thickness > 0):
             batch_lines = batch_for_shader(shader, 'LINES',
                 {"pos":[P0s, P1s, P2s, P3s]}, indices=[(0, 1), (2, 3)])
             shader.uniform_float("color", handle_line_color)
-            gpu.state.line_width_set(handle_line_thickness)
+            gpu.state.line_width_set(scaled_handle_line_thickness)
             batch_lines.draw(shader)
             gpu.state.line_width_set(1.0)
 
         if (draw_handle_pts):
-            handles.append([P1s, handle_size, handle_color])
-            handles.append([P2s, handle_size, handle_color])
+            handles.append([P1s, scaled_handle_size, handle_color])
+            handles.append([P2s, scaled_handle_size, handle_color])
 
         if (i==0):
-            anchors.append([P0s, anchor_size, anchor_color])
-        anchors.append([P3s, anchor_size, anchor_color])
+            anchors.append([P0s, scaled_anchor_size, anchor_color])
+        anchors.append([P3s, scaled_anchor_size, anchor_color])
         continue
 
     for point in handles:
-        draw_point_square(point[0], point[1], point[2])
+        if point[1] > 0: # Only draw if size is positive
+            draw_point_square(point[0], point[1], point[2])
         continue
 
     for point in anchors:
-        draw_point_square(point[0], point[1], point[2])
+        if point[1] > 0: # Only draw if size is positive
+            draw_point_square(point[0], point[1], point[2])
         continue
 
     return None
 
-def draw_bezcurve(shader, view2d, recverts, preview_data,
+def draw_bezcurve(shader, recverts, preview_data,
+    bounds=((0.0,0.0),(1.0,1.0)),
     color=(0.9, 0.9, 0.9, 0.9), thickness=2.0, num_steps=20
     ):
-    """Draw the bezier curve represented by the preview_data."""
+    """Draw the bezier curve represented by the preview_data, mapping from bounds."""
 
     # Nothing to draw?
     if preview_data is None or not isinstance(preview_data, np.ndarray) \
@@ -331,18 +429,30 @@ def draw_bezcurve(shader, view2d, recverts, preview_data,
     # Coordinate Mapping Setup
     all_x = [v[0] for v in recverts]
     all_y = [v[1] for v in recverts]
-    min_x, max_x = min(all_x), max(all_x)
-    min_y, max_y = min(all_y), max(all_y)
+    screen_min_x, screen_max_x = min(all_x), max(all_x)
+    screen_min_y, screen_max_y = min(all_y), max(all_y)
     
-    width = max_x - min_x
-    height = max_y - min_y
+    screen_width = screen_max_x - screen_min_x
+    screen_height = screen_max_y - screen_min_y # Assuming screen Y increases upwards
 
-    if (width <= 0) or (height <= 0):
+    data_min_x, data_max_x = bounds[0][0], bounds[1][0]
+    data_min_y, data_max_y = bounds[0][1], bounds[1][1]
+
+    data_width = data_max_x - data_min_x
+    data_height = data_max_y - data_min_y
+
+    # Check for degenerate rectangle or data range
+    if (screen_width <= 0) or (screen_height <= 0) or abs(data_width) < 1e-6 or abs(data_height) < 1e-6:
         return None
 
-    def map_point_to_screen(point_01):
-        screen_x = min_x + point_01[0] * width
-        screen_y = min_y + point_01[1] * height 
+    def map_point_to_screen(data_point):
+        """Maps a point from data bounds space to screen space within the rectangle."""
+        # Normalize data point coordinates (0 to 1)
+        norm_x = (data_point[0] - data_min_x) / data_width
+        norm_y = (data_point[1] - data_min_y) / data_height
+        # Map normalized coordinates to screen space
+        screen_x = screen_min_x + norm_x * screen_width
+        screen_y = screen_min_y + norm_y * screen_height 
         return screen_x, screen_y
 
     # Local Bezier Evaluation Function
@@ -369,9 +479,9 @@ def draw_bezcurve(shader, view2d, recverts, preview_data,
         # Evaluate points along the segment
         for j in range(num_steps + 1):
             t = j / num_steps
-            point_01 = evaluate_segment(P0, P1, P2, P3, t)
-            # Map the 0-1 point to screen coordinates
-            screen_point = map_point_to_screen(point_01)
+            data_point = evaluate_segment(P0, P1, P2, P3, t)
+            # Map the data point to screen coordinates
+            screen_point = map_point_to_screen(data_point)
             
             # Add to list, but avoid adding the start point of subsequent segments
             # if it's identical to the previous end point (prevents duplicate verts in line strip)
@@ -422,11 +532,8 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
     # Set up shader
     shader = gpu.shader.from_builtin('UNIFORM_COLOR')
 
-    # Area width for clipping
-    awidth = bpy.context.area.width
-
     for node in nd_to_draw:
-        cwidth = 4.0 if node.show_handle_lines else 2.75
+        cwidth = 3.5 if node.show_handles else 2.75
         
         # Get node location and properly apply DPI scaling
         nlocx, nlocy = node.location
@@ -442,32 +549,65 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
         ndimx -= (margin_left + margin_right)
         ndimy -= (margin_top + margin_bottom)
 
-        # draw a background rectangle
-        recverts = draw_rectangle(shader, view2d, (nlocx, nlocy), (ndimx, ndimy), awidth,
-            rectangle_color=(0.0, 0.0, 0.0, 0.3), grid_color=(0.5, 0.5, 0.5, 0.05),)
-        
         # draw the bezier curve
         preview_data = PREVIEW_DATA.get(f"Preview{node.name}")
-        if (preview_data is None):
-            continue
-        
-        # draw the handles
-        draw_bezcurve(shader, view2d, recverts, preview_data,
-            color=(0.0, 0.0, 0.0, 0.45),
-            thickness=cwidth * dpi * zoom,
+
+        # Define bounds once
+        data_bounds = None
+        match node.preview_scale:
+            case 'POS':
+                data_bounds = ((0,0),(1,1),)
+            case 'NEG':
+                data_bounds = ((-1,-1),(1,1),)
+            case 'FIT':
+                # Find the bounds of the curve data to fit it in the view
+                if (preview_data is not None) and (isinstance(preview_data, np.ndarray)) and (preview_data.size > 0):
+                    # Extract x and y coordinates from bezier segments
+                    x_coords = preview_data[:, [0, 2, 4, 6]].flatten()  # All x coordinates (P0x, P1x, P2x, P3x)
+                    y_coords = preview_data[:, [1, 3, 5, 7]].flatten()  # All y coordinates (P0y, P1y, P2y, P3y)
+
+                    # Calculate min/max with small padding
+                    x_min, x_max = np.min(x_coords), np.max(x_coords)
+                    y_min, y_max = np.min(y_coords), np.max(y_coords)
+
+                    # Add 5% padding
+                    x_pad = (x_max - x_min) * 0.05
+                    y_pad = (y_max - y_min) * 0.05
+
+                    # Ensure we have some minimum bounds even for flat curves
+                    x_pad = max(x_pad, 0.1)
+                    y_pad = max(y_pad, 0.1)
+                    
+                    data_bounds = ((x_min - x_pad, y_min - y_pad), (x_max + x_pad, y_max + y_pad))
+
+        # draw a background rectangle and get screen origin
+        recverts = draw_rectangle(shader, view2d, (nlocx, nlocy), (ndimx, ndimy),
+            bounds=data_bounds, tick_interval=0.25,
+            rectangle_color=(0.0, 0.0, 0.0, 0.3), grid_color=(0.5, 0.5, 0.5, 0.04), grid_line_width=1.0,
+            axis_color=(0.6, 0.6, 0.6, 0.1), axis_line_width=1.2,
+            border_color=(0.0, 0.0, 0.0, 0.6), border_width=1.0,
+            dpi=dpi, zoom=zoom,
             )
-        #draw the handles
-        draw_bezpoints(shader, view2d, recverts, preview_data,
-            anchor_color=(1, 1, 1, 1.0),
-            handle_color=(0.3, 0.3, 0.3, 1.0),
-            handle_line_color=(0.4, 0.4, 0.4, 0.2),
-            handle_line_thickness=1.0 * dpi * zoom,
-            anchor_size=4.75 * dpi * zoom,
-            handle_size=4.0 * dpi * zoom,
-            draw_handle_pts=node.show_handle_pts,
-            draw_handle_lines=node.show_handle_lines,
-            )
         
+        if (preview_data is not None):
+            # draw the curve
+            draw_bezcurve(shader, recverts, preview_data, bounds=data_bounds,
+                color=(0.0, 0.0, 0.0, 0.45),
+                thickness=cwidth * dpi * zoom,
+                )
+            #draw the handles
+            draw_bezpoints(shader, recverts, preview_data, bounds=data_bounds,
+                anchor_color=(1, 1, 1, 1.0),
+                handle_color=(0.5, 0.3, 0.3, 1.0),
+                handle_line_color=(0.6, 0.4, 0.4, 0.2),
+                handle_line_thickness=1.0,
+                anchor_size=4.75,
+                handle_size=3.5,
+                draw_handle_pts=node.show_handles,
+                draw_handle_lines=node.show_handles,
+                dpi=dpi, zoom=zoom,
+                )
+            
         continue
 
     # Reset blend mode
