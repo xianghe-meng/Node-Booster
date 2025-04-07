@@ -61,11 +61,11 @@ class Base():
         name="Graph Scale",
         description="How to fit the graph",
         items=[
-            ("POS", "Positive", "Graph in 0/1 range"),
-            ("NEG", "Negative", "Graph in -1/-1 range"),
-            ("FIT", "Fit Curve", "Graph fit the curve range"),
+            ('POS', "Positive", "Graph in 0/1 range"),
+            ('NEG', "Negative", "Graph in -1/-1 range"),
+            ('FIT', "Fit Curve", "Graph will fit the curve min/maxrange"),
             ],
-        default="POS",
+        default='FIT',
         update= lambda self, context: self.evaluator(),
         )
     draw_fill : bpy.props.BoolProperty(
