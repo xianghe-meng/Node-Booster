@@ -47,11 +47,6 @@ class Base():
     # it has a special evaluator responsability for socket.nodebooster_socket_type == 'INTERPOLATION'.
     evaluator_properties = {'INTERPOLATION_OUTPUT',}
 
-    show_handles : bpy.props.BoolProperty(
-        name="Show Handle Lines",
-        description="Show the lines of the handles",
-        default=False,
-        )
     preview_lock : bpy.props.BoolProperty(
         name="Preview Lock",
         description="Lock the preview scale with the width of the node",
@@ -68,10 +63,37 @@ class Base():
         default='FIT',
         update= lambda self, context: self.evaluator(),
         )
+    draw_handles : bpy.props.BoolProperty(
+        name="Handles",
+        description="Draw the handles of the curve",
+        default=False,
+        )
     draw_fill : bpy.props.BoolProperty(
-        name="Draw Fill",
+        name="Interpolation Fill",
         description="Draw the fill of the curve",
         default=False,
+        )
+    grid_tick : bpy.props.FloatProperty(
+        name="Grid Tick",
+        description="The tick of the grid",
+        default=0.25,
+        min=0.01,
+        soft_max=1.0,
+        )
+    draw_grid : bpy.props.BoolProperty(
+        name="Grid",
+        description="Draw the grid of the curve",
+        default=True,
+        )
+    draw_anchor : bpy.props.BoolProperty(
+        name="Anchors",
+        description="Draw the anchors of the curve",
+        default=True,
+        )
+    draw_curve : bpy.props.BoolProperty(
+        name="Curve",
+        description="Draw the curve of the curve",
+        default=True,
         )
 
     @classmethod
@@ -136,15 +158,18 @@ class Base():
         """node interface drawing"""
 
         row = layout.row(align=True)
-        rowl = row.row(align=True)
-        rowl.alignment = 'LEFT'
-        rowl.prop(self, 'preview_lock', text="", icon='LOCKED' if self.preview_lock else 'UNLOCKED')
-        rowl.prop(self, 'preview_scale', text="",)
-        rowr = row.row(align=True)
-        rowr.alignment = 'RIGHT'
-        rowr.prop(self, 'draw_fill', text="", icon='FCURVE')
-        rowr.prop(self, 'show_handles', text="", icon='HANDLE_ALIGNED')
-        layout.separator(factor=self.width / 7 if self.preview_lock else 35.0)
+
+        roww = row.row(align=True)
+        roww.alignment = 'LEFT'
+
+        roww = row.row(align=True)
+        roww.alignment = 'RIGHT'
+        roww.context_pointer_set("pass_nodecontext", self)
+        roww.popover("NODEBOOSTER_PT_InterpolationOptions", text="", icon='OPTIONS')
+        roww.prop(self, 'preview_scale', text="",)
+        roww.prop(self, 'preview_lock', text="", icon='LOCKED' if self.preview_lock else 'UNLOCKED')
+
+        layout.separator(factor=self.width/5.5 if self.preview_lock else 35.0)
 
         return None
 
@@ -172,6 +197,33 @@ class Base():
 
         return None
 
+
+class NODEBOOSTER_PT_InterpolationOptions(bpy.types.Panel):
+
+    bl_idname      = "NODEBOOSTER_PT_InterpolationOptions"
+    bl_label       = "Draw Preferences"
+    bl_description = "Choose how to draw your preview"
+    bl_category    = ""
+    bl_space_type  = "NODE_EDITOR"
+    bl_region_type = "HEADER" #Hide this panel? not sure how to hide them...
+
+    def draw(self, context):
+        layout = self.layout
+        node = context.pass_nodecontext
+        
+        col = layout.column(align=True)
+        col.label(text="Drawing Options:")
+        col.prop(node, 'draw_curve')
+        col.prop(node, 'draw_fill')
+        col.prop(node, 'draw_anchor')
+        col.prop(node, 'draw_handles')
+        col.prop(node, 'draw_grid')
+        subcol = col.column(align=True)
+        subcol.active = node.draw_grid
+        subcol.prop(node, 'grid_tick')
+        
+        return None
+
 #   .oooooo.                           
 #  d8P'  `Y8b                          
 # 888           oo.ooooo.  oooo  oooo  
@@ -183,10 +235,13 @@ class Base():
 #               o888o                  
 
 #TODO:
-# - Points or curve can go out of the rectangle area
-# - detail: line width do not scale well with zoom
-# - important: dpi scaling is not ok with graph..
-
+# IMPORTANT: 
+# - caching system for the spline calculation.
+#   Will need to calculate everything in local, and map to screen ath the end.
+# - dpi scaling is not ok with graph..
+# BONUS:
+# - Line width do not scale well with zoom
+# - Would be nice to have some ideas of start and end anchor units.
 
 def draw_rectangle(shader, view2d, location, dimensions,
     bounds=((0.0,0.0),(1.0,1.0)), tick_interval=0.25,
@@ -194,7 +249,7 @@ def draw_rectangle(shader, view2d, location, dimensions,
     grid_color=(0.5, 0.5, 0.5, 0.05), grid_line_width=1.0,
     axis_color=(0.8, 0.8, 0.8, 0.15), axis_line_width=2.0,
     border_color=(0.1, 0.1, 0.1, 0.5), border_width=1.0,
-    dpi=1.0, zoom=1.0):
+    draw_grid=True, dpi=1.0, zoom=1.0):
     """Draw transparent black box with grid, axes, and border, mapping data bounds to the box."""
 
     nlocx, nlocy = location
@@ -244,46 +299,48 @@ def draw_rectangle(shader, view2d, location, dimensions,
         scaled_axis_width = axis_line_width * dpi * zoom
 
         # Vertical Grid Lines (X ticks)
-        if (abs(data_width) > epsilon) and (tick_interval > epsilon) and (scaled_grid_width > 0):
-            start_x_tick = math.ceil(x_min / tick_interval) * tick_interval
-            current_x_tick = start_x_tick
-            while current_x_tick <= x_max + epsilon:
-                # Skip zero axis (drawn separately) and boundary lines if they are zero
-                if abs(current_x_tick) < epsilon or \
-                (abs(x_min) < epsilon and abs(current_x_tick - x_min) < epsilon) or \
-                (abs(x_max) < epsilon and abs(current_x_tick - x_max) < epsilon):
-                    current_x_tick += tick_interval
-                    continue
+        if (draw_grid):
+            if (abs(data_width) > epsilon) and (tick_interval > epsilon) and (scaled_grid_width > 0):
+                start_x_tick = math.ceil(x_min / tick_interval) * tick_interval
+                current_x_tick = start_x_tick
+                while current_x_tick <= x_max + epsilon:
+                    # Skip zero axis (drawn separately) and boundary lines if they are zero
+                    if abs(current_x_tick) < epsilon or \
+                    (abs(x_min) < epsilon and abs(current_x_tick - x_min) < epsilon) or \
+                    (abs(x_max) < epsilon and abs(current_x_tick - x_max) < epsilon):
+                        current_x_tick += tick_interval
+                        continue
 
-                x_pos = map_x_to_screen(current_x_tick)
-                v_vertices = [(x_pos, y1), (x_pos, y4)]
-                batch = batch_for_shader(shader, 'LINES', {"pos": v_vertices})
-                gpu.state.line_width_set(scaled_grid_width)
-                shader.uniform_float("color", grid_color)
-                batch.draw(shader)
-                gpu.state.line_width_set(1.0) # Reset
-                current_x_tick += tick_interval
+                    x_pos = map_x_to_screen(current_x_tick)
+                    v_vertices = [(x_pos, y1), (x_pos, y4)]
+                    batch = batch_for_shader(shader, 'LINES', {"pos": v_vertices})
+                    gpu.state.line_width_set(scaled_grid_width)
+                    shader.uniform_float("color", grid_color)
+                    batch.draw(shader)
+                    gpu.state.line_width_set(1.0) # Reset
+                    current_x_tick += tick_interval
 
         # Horizontal Grid Lines (Y ticks)
-        if (abs(data_height) > epsilon) and (tick_interval > epsilon) and (scaled_grid_width > 0):
-            start_y_tick = math.ceil(y_min / tick_interval) * tick_interval
-            current_y_tick = start_y_tick
-            while current_y_tick <= y_max + epsilon:
-                # Skip zero axis (drawn separately) and boundary lines if they are zero
-                if abs(current_y_tick) < epsilon or \
-                (abs(y_min) < epsilon and abs(current_y_tick - y_min) < epsilon) or \
-                (abs(y_max) < epsilon and abs(current_y_tick - y_max) < epsilon):
+        if (draw_grid):
+            if (abs(data_height) > epsilon) and (tick_interval > epsilon) and (scaled_grid_width > 0):
+                start_y_tick = math.ceil(y_min / tick_interval) * tick_interval
+                current_y_tick = start_y_tick
+                while current_y_tick <= y_max + epsilon:
+                    # Skip zero axis (drawn separately) and boundary lines if they are zero
+                    if abs(current_y_tick) < epsilon or \
+                    (abs(y_min) < epsilon and abs(current_y_tick - y_min) < epsilon) or \
+                    (abs(y_max) < epsilon and abs(current_y_tick - y_max) < epsilon):
+                        current_y_tick += tick_interval
+                        continue
+                        
+                    y_pos = map_y_to_screen(current_y_tick)
+                    h_vertices = [(x1, y_pos), (x2, y_pos)]
+                    batch = batch_for_shader(shader, 'LINES', {"pos": h_vertices})
+                    gpu.state.line_width_set(scaled_grid_width)
+                    shader.uniform_float("color", grid_color)
+                    batch.draw(shader)
+                    gpu.state.line_width_set(1.0) # Reset
                     current_y_tick += tick_interval
-                    continue
-                    
-                y_pos = map_y_to_screen(current_y_tick)
-                h_vertices = [(x1, y_pos), (x2, y_pos)]
-                batch = batch_for_shader(shader, 'LINES', {"pos": h_vertices})
-                gpu.state.line_width_set(scaled_grid_width)
-                shader.uniform_float("color", grid_color)
-                batch.draw(shader)
-                gpu.state.line_width_set(1.0) # Reset
-                current_y_tick += tick_interval
 
         # Draw Y Axis (X=0)
         if (scaled_axis_width > 0) and (x_min < -epsilon) and (x_max > epsilon):
@@ -322,7 +379,7 @@ def draw_bezpoints(shader, recverts, bezsegs,
     anchor_color=(0.2, 0.2, 0.2, 0.8), anchor_size=40,
     handle_color=(0.5, 0.5, 0.5, 0.8), handle_size=10,
     handle_line_color=(0.4, 0.4, 0.4, 0.5), handle_line_thickness=2.0,
-    draw_handle_pts=True, draw_handle_lines=True,
+    draw_handle_pts=True, draw_handle_lines=True, draw_anchor=True,
     dpi=1.0, zoom=1.0,
     ):
     """Draw anchor points, handle points, and lines for bezier segments, mapping from bounds."""
@@ -399,9 +456,10 @@ def draw_bezpoints(shader, recverts, bezsegs,
             handles.append([P1s, scaled_handle_size, handle_color])
             handles.append([P2s, scaled_handle_size, handle_color])
 
-        if (i==0):
-            anchors.append([P0s, scaled_anchor_size, anchor_color])
-        anchors.append([P3s, scaled_anchor_size, anchor_color])
+        if (draw_anchor):   
+            if (i==0):
+                anchors.append([P0s, scaled_anchor_size, anchor_color])
+            anchors.append([P3s, scaled_anchor_size, anchor_color])
         continue
 
     for point in handles:
@@ -667,12 +725,13 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
     # Set up shader
     shader = gpu.shader.from_builtin('UNIFORM_COLOR')
 
+    # NOTE we need to cut drawing out of preview area.
+    # Save states we modify within the loop
+    original_scissor_box = gpu.state.scissor_get()
+
     for node in nd_to_draw:
-        cwidth = 3.5 if node.show_handles else 2.75
-        
-        # NOTE we need to cut drawing out of preview area.
-        # Save states we modify within the loop
-        original_scissor_box = gpu.state.scissor_get()
+        cwidth = 3.5 if node.draw_handles else 2.75
+
         # Set states needed for this node's drawing
         gpu.state.blend_set('ALPHA') 
         
@@ -723,44 +782,46 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
 
         # draw a background rectangle and get screen origin
         recverts = draw_rectangle(shader, view2d, (nlocx, nlocy), (ndimx, ndimy),
-            bounds=data_bounds, tick_interval=0.25,
+            bounds=data_bounds, tick_interval=node.grid_tick,
             rectangle_color=(0.0, 0.0, 0.0, 0.3), grid_color=(0.5, 0.5, 0.5, 0.04), grid_line_width=1.0,
             axis_color=(0.6, 0.6, 0.6, 0.1), axis_line_width=1.2,
             border_color=(0.0, 0.0, 0.0, 0.6), border_width=1.0,
+            draw_grid=node.draw_grid,
             dpi=dpi, zoom=zoom,
             )
         
-        # NOTE Scissor for Clipping out of preview area
-        # Find screen bounds from recverts
-        all_x = [v[0] for v in recverts]
-        all_y = [v[1] for v in recverts]
-        min_sx, max_sx = min(all_x), max(all_x)
-        min_sy, max_sy = min(all_y), max(all_y)
-        scissor_x = int(min_sx)
-        scissor_y = int(min_sy)
-        scissor_w = int(max_sx - min_sx)
-        scissor_h = int(max_sy - min_sy)
-
-        # Ensure valid width/height before setting scissor
-        if (scissor_w > 0) and (scissor_h > 0):
-            # Enable scissor test and set the box
-            gpu.state.scissor_test_set(True)
-            gpu.state.scissor_set(scissor_x, scissor_y, scissor_w, scissor_h)
-        else:
-            # If dimensions are invalid, ensure test is off
-            gpu.state.scissor_test_set(False)
-
         if (preview_data is not None):
+
+            # NOTE Scissor for Clipping out of preview area
+            # in case the drawing below goes out of bounds..
+            # Find screen bounds from recverts
+            all_x = [v[0] for v in recverts]
+            all_y = [v[1] for v in recverts]
+            min_sx, max_sx = min(all_x), max(all_x)
+            min_sy, max_sy = min(all_y), max(all_y)
+            scissor_x = int(min_sx)
+            scissor_y = int(min_sy)
+            scissor_w = int(max_sx - min_sx)
+            scissor_h = int(max_sy - min_sy)
+
+            # Ensure valid width/height before setting scissor
+            if (scissor_w > 0) and (scissor_h > 0):
+                # Enable scissor test and set the box
+                gpu.state.scissor_test_set(True)
+                gpu.state.scissor_set(scissor_x, scissor_y, scissor_w, scissor_h)
+            else:
+                # If dimensions are invalid, ensure test is off
+                gpu.state.scissor_test_set(False)
+
             # Draw the fill first
             if (node.draw_fill):
                 draw_curve_fill(shader, recverts, preview_data, bounds=data_bounds,
-                                fill_color=(0, 0, 0, 0.17), # Pass fill color
-                                num_steps=20) # Pass num_steps if needed
+                                fill_color=(0, 0, 0, 0.185), num_steps=20,)
             # Then draw the curve line
-            draw_bezcurve(shader, recverts, preview_data, bounds=data_bounds,
-                line_color=(0.0, 0.0, 0.0, 0.45), # Use line_color
-                thickness=cwidth * dpi * zoom,
-                num_steps=20) # Pass num_steps if needed
+            if (node.draw_curve):
+                draw_bezcurve(shader, recverts, preview_data, bounds=data_bounds,
+                    line_color=(0.0, 0.0, 0.0, 0.45),
+                    thickness=cwidth * dpi * zoom, num_steps=20,)
                 
             #draw the handles
             draw_bezpoints(shader, recverts, preview_data, bounds=data_bounds,
@@ -770,8 +831,9 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
                 handle_line_thickness=1.0,
                 anchor_size=4.75,
                 handle_size=3.5,
-                draw_handle_pts=node.show_handles,
-                draw_handle_lines=node.show_handles,
+                draw_anchor=node.draw_anchor,
+                draw_handle_pts=node.draw_handles,
+                draw_handle_lines=node.draw_handles,
                 dpi=dpi, zoom=zoom,
                 )
 

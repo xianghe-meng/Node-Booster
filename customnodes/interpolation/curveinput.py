@@ -83,7 +83,7 @@ class Base():
         ng = ng.copy() #always using a copy of the original ng
 
         self.node_tree = ng
-        self.width = 240
+        self.width = 150
         self.label = self.bl_label
 
         return None
@@ -150,45 +150,40 @@ class Base():
 
         row = layout.row(align=True)
         row.prop(self, "space", expand=True)
-        
 
     def draw_panel(self, layout, context):
         pass
 
     def evaluator(self, socket_output)->list:
-        # Reset internal state
-        self._output_bezsegs = None
 
         curve_obj = self.curve_object
-        if not curve_obj or curve_obj.type != 'CURVE':
+        if (not curve_obj or curve_obj.type != 'CURVE'):
             return None
 
         curve_data = curve_obj.data
-        if not curve_data.splines or self.spline_index >= len(curve_data.splines):
+        if (not curve_data.splines or self.spline_index >= len(curve_data.splines)):
             return None
 
         spline = curve_data.splines[self.spline_index]
 
-        if spline.type != 'BEZIER' or not spline.bezier_points:
+        if (spline.type != 'BEZIER' or not spline.bezier_points):
             print(f"Warning: Spline {self.spline_index} in '{curve_obj.name}' is not a Bezier spline. Cannot extract handle data.")
             return None
-            
+
         bezier_points = spline.bezier_points
-        if len(bezier_points) < 2:
+        if (len(bezier_points) < 2):
             return None
 
         # Get the transformation matrix based on selected space
-        transform_matrix = curve_obj.matrix_world if self.space == 'WORLD' else None
+        transform_matrix = curve_obj.matrix_world if (self.space == 'WORLD') else None
 
         # Determine which axes map to 2D X and Y
-        if self.axis_source == 'X':
-            idx_2d_x, idx_2d_y = 1, 2 # Use World Y, Z
-        elif self.axis_source == 'Y':
-            idx_2d_x, idx_2d_y = 0, 2 # Use World X, Z
-        else: # Z is default
-            idx_2d_x, idx_2d_y = 0, 1 # Use World X, Y
-            
-        # --- Build Bezier Segment Array Directly --- 
+        match self.axis_source:
+            case 'X': idx_2d_x, idx_2d_y = 1, 2 # Use World Y, Z
+            case 'Y': idx_2d_x, idx_2d_y = 0, 2 # Use World X, Z
+            case 'Z': idx_2d_x, idx_2d_y = 0, 1 # Use World X, Y
+
+        # Build Bezier Segment Array Directly
         bezsegs_list = []
         num_segments = len(bezier_points) - 1
         for i in range(num_segments):
@@ -202,7 +197,7 @@ class Base():
             P3_3d = bp_i1.co
 
             # Apply transform if needed
-            if transform_matrix:
+            if (transform_matrix):
                 P0_3d = transform_matrix @ P0_3d
                 P1_3d = transform_matrix @ P1_3d
                 P2_3d = transform_matrix @ P2_3d
@@ -217,11 +212,11 @@ class Base():
             segment = np.concatenate((P0, P1, P2, P3))
             bezsegs_list.append(segment)
             
-        if not bezsegs_list:
+            continue
+
+        if (not bezsegs_list):
              return None
-             
-        self._output_bezsegs = np.array(bezsegs_list, dtype=float)
-        return self._output_bezsegs
+        return np.array(bezsegs_list, dtype=float)
 
 
 #Per Node-Editor Children:

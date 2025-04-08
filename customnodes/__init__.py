@@ -77,6 +77,7 @@ from . interpolation.interpolationmap import (
         NODEBOOSTER_NG_CP_InterpolationMap,
         )
 from . interpolation.interpolationpreview import (
+        NODEBOOSTER_PT_InterpolationOptions,
         NODEBOOSTER_NG_GN_InterpolationPreview,
         NODEBOOSTER_NG_SH_InterpolationPreview,
         NODEBOOSTER_NG_CP_InterpolationPreview,
@@ -210,6 +211,7 @@ classes = (
     NODEBOOSTER_NG_GN_InterpolationMap,
     NODEBOOSTER_NG_SH_InterpolationMap,
     NODEBOOSTER_NG_CP_InterpolationMap,
+    NODEBOOSTER_PT_InterpolationOptions,
     NODEBOOSTER_NG_GN_InterpolationPreview,
     NODEBOOSTER_NG_SH_InterpolationPreview,
     NODEBOOSTER_NG_CP_InterpolationPreview,
