@@ -355,21 +355,62 @@ def hash_bezsegs(segments:np.ndarray)->str:
     return hashlib.md5(segments.tobytes()).hexdigest()
 
 
-# def evaluate_cubic_bezseg(segment, t):
-#     """
-#     Evaluate a cubic Bézier segment at parameter t (0 <= t <= 1).
-#     evaluate tuple (P0, P1, P2, P3) with each point as a NumPy array.
-#     Returns the point (as a NumPy array) on the curve.
-#     """
-#     # Ensure points are numpy arrays
-#     try:
-#         P0, P1, P2, P3 = map(np.asarray, segment)
-#     except Exception as e:
-#         print(f"Error converting segment points to numpy array in evaluate: {e}")
-#         print(f"Segment data: {segment}")
-#         return np.array([0.0, 0.0]) # Fallback
-        
-#     return (1-t)**3 * P0 + 3*(1-t)**2 * t * P1 + 3*(1-t)*t**2 * P2 + t**3 * P3
+def evaluate_cubic_bezseg(segment:np.ndarray, t:float):
+    """
+    Evaluate a cubic Bézier segment at parameter t.
+    evaluate segment as (np.ndarray): An (N-1) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y]
+    """
+    # Ensure segment is a numpy array
+    try:
+        # Extract points
+        segment_arr = np.asarray(segment)
+        if segment_arr.shape != (8,):
+            raise ValueError(f"Expected segment shape (8,), got {segment_arr.shape}")
+        P0 = segment_arr[0:2]
+        P1 = segment_arr[2:4]
+        P2 = segment_arr[4:6]
+        P3 = segment_arr[6:8]
+
+    except (ValueError, TypeError) as e:
+        print(f"Error processing segment data in evaluate: {e}")
+        print(f"Segment data: {segment}")
+        return np.array([0.0, 0.0]) # Fallback
+
+    # Calculate point on curve
+    omt = 1.0 - t
+    omt2 = omt * omt
+    omt3 = omt2 * omt
+    t2 = t * t
+    t3 = t2 * t
+
+    return (P0 * omt3) + (P1 * 3.0 * omt2 * t) + (P2 * 3.0 * omt * t2) + (P3 * t3)
+
+
+def sample_bezsegs(segments:np.ndarray, sampling_rate:int):
+    """generate points from the the segments numpy array.
+    segments (np.ndarray): An (N-1) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y]."""
+
+    curvepts = []
+
+    for i in range(segments.shape[0]):
+        start_idx = 1 if (i > 0) else 0
+
+        for j in range(start_idx, sampling_rate + 1):
+
+            t = j / sampling_rate
+            pt = evaluate_cubic_bezseg(segments[i], t)
+
+            # we don't want to draw the same point twice.
+            if (curvepts and np.allclose(pt, curvepts[-1])):
+                continue
+
+            curvepts.append(pt)
+            continue
+
+        continue
+
+    return curvepts
+
 
 # def casteljau_subdiv_bezseg(segment, t):
 #     """

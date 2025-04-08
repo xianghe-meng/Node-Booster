@@ -14,6 +14,7 @@ from ...__init__ import get_addon_prefs
 from ...utils.str_utils import word_wrap
 from ...utils.interpolation_utils import (
     hash_bezsegs,
+    sample_bezsegs,
 )
 from ..evaluator import evaluate_upstream_value
 from ...utils.node_utils import (
@@ -352,8 +353,8 @@ def draw_rectangle(shader, view2d, location, dimensions,
     x4, y4 = view2d.view_to_region(nlocx, nlocy - ndimy, clip=False)
 
     # Draw simple rectangle
-    vertices = [(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
-    indices = [(0, 1, 2), (0, 2, 3)]
+    vertices = [(x1,y1), (x2,y2), (x3,y3), (x4,y4)]
+    indices = [(0,1,2), (0,2,3)]
     batch = batch_for_shader(shader, 'TRIS', {"pos": vertices}, indices=indices)
     shader.uniform_float("color", rectangle_color)
     batch.draw(shader)
@@ -573,7 +574,7 @@ def draw_curve_fill(shader, recverts, preview_data, bounds, fill_color, num_step
     """Draws the filled area under the bezier curve, extending with tangents."""
     
     # NOTE this is AI generated slop. It works tho.
-    # needs a clean up.
+    # TODO needs a big clean up. Also need f.CACHE optimization like in draw_bezcurve.
 
     if (fill_color is None) \
         or (preview_data is None) \
@@ -751,52 +752,21 @@ def draw_bezcurve(
         or (preview_data.shape[0] == 0):
         return None
 
+    #1: Get the curve points.
+
     # Initiate function cache
     f = draw_bezcurve
     if not hasattr(f,'CACHE'):
         f.CACHE = {}
 
-    #1: Get the curve points.
-
-    def get_curvepts(preview_data:np.ndarray, num_steps:int):
-        """generate polygon points from the preview data.
-        The curve points are cached in globals."""
-
-        def evaluate_segment(P0, P1, P2, P3, t):
-            omt = 1.0 - t; omt2 = omt * omt; omt3 = omt2 * omt
-            t2 = t * t; t3 = t2 * t
-            return (P0 * omt3) + (P1 * 3.0 * omt2 * t) + (P2 * 3.0 * omt * t2) + (P3 * t3)
-
-        hash = hash_bezsegs(preview_data)
-        curvepts = f.CACHE.get(hash)
-        if (curvepts is not None):
-            return curvepts
-
-        curvepts = []
-
-        for i in range(preview_data.shape[0]):
-            P0 = np.array(preview_data[i, 0:2], dtype=float)
-            P1 = np.array(preview_data[i, 2:4], dtype=float)
-            P2 = np.array(preview_data[i, 4:6], dtype=float)
-            P3 = np.array(preview_data[i, 6:8], dtype=float)
-            
-            start_idx = 1 if (i > 0) else 0
-            for j in range(start_idx, num_steps + 1):
-                t = j / num_steps
-                pt = evaluate_segment(P0, P1, P2, P3, t)
-
-                # we don't want to draw the same point twice.
-                if (curvepts and np.allclose(pt, curvepts[-1])):
-                    continue
-                curvepts.append(pt)
-                continue
-            continue
-
-        f.CACHE[hash] = curvepts
-        return curvepts
-
     # get the curve points. might be harnessed from cache.
-    curvepts = get_curvepts(preview_data, num_steps)
+    hash = hash_bezsegs(preview_data)
+    if (hash in f.CACHE):
+        curvepts = f.CACHE[hash]
+    else:
+        curvepts = sample_bezsegs(preview_data, num_steps)
+        f.CACHE[hash] = curvepts
+
     if (len(curvepts) < 2):
         return None
 
@@ -843,8 +813,7 @@ def draw_bezcurve(
 
     return None
 
-def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
-    margin_top=65, margin_bottom=40, margin_left=13.5, margin_right=13.5,):
+def draw_interpolation_preview(node_tree, view2d, dpi, zoom):
     """Draw transparent black box on InterpolationPreview nodes with custom margins"""
 
     nd_to_draw = [n for n in node_tree.nodes if (not n.hide) and ('NodeBoosterInterpolationPreview' in n.bl_idname)]
@@ -875,14 +844,17 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
         # Get node dimensions
         ndimx, ndimy = node.dimensions.x, node.dimensions.y
 
-        # Apply custom margins
-        nlocx += margin_left
-        nlocy -= margin_top
-        ndimx -= (margin_left + margin_right)
-        ndimy -= (margin_top + margin_bottom)
+        # define margins. Scaling based on dpi.
+        margin_top = 50 * dpi
+        margin_bottom = 27 * dpi
+        margin_left = 9.5 * dpi
+        margin_right = 9.5 * dpi
 
-        # draw the bezier curve
-        preview_data = PREVIEW_DATA.get(f"Preview{node.name}")
+        # Define our rectangle locaiton and dimensions.
+        locx = nlocx + margin_left
+        loxy = nlocy - margin_top
+        dimx = ndimx - (margin_left + margin_right)
+        dimy = ndimy - (margin_top + margin_bottom)
 
         # get the bounds
         match node.preview_scale:
@@ -892,7 +864,7 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
             case 'FIT':    data_bounds = ((node.bounds_fitcurve[0], node.bounds_fitcurve[1]), (node.bounds_fitcurve[2], node.bounds_fitcurve[3]))
 
         # draw a background rectangle and get screen origin
-        recverts = draw_rectangle(shader, view2d, (nlocx, nlocy), (ndimx, ndimy),
+        recverts = draw_rectangle(shader, view2d, (locx, loxy), (dimx, dimy),
             bounds=data_bounds, tick_interval=node.grid_tick,
             rectangle_color=(0.0, 0.0, 0.0, 0.3), grid_color=(0.5, 0.5, 0.5, 0.04), grid_line_width=1.0,
             axis_color=(0.6, 0.6, 0.6, 0.1), axis_line_width=1.2,
@@ -900,6 +872,9 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
             draw_grid=node.draw_grid, dpi=dpi, zoom=zoom,
             )
         
+        # get the data to draw the bezier curve and anchors/handles ect..
+        preview_data = PREVIEW_DATA.get(f"Preview{node.name}")
+
         if (preview_data is not None):
 
             # NOTE Scissor for Clipping out of preview area
@@ -931,7 +906,7 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
             # Then draw the curve line
             if (node.draw_curve):
                 draw_bezcurve(shader, recverts, preview_data, 
-                    bounds=data_bounds, line_color=(0.0, 0.0, 0.0, 0.45),
+                    bounds=data_bounds, line_color=(0.1, 0.1, 0.1, 1.0),
                     thickness=cwidth * dpi * zoom, num_steps=20,
                     )
 
