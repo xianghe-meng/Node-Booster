@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import numpy as np
+import hashlib
 
 
 def reverseengineer_curvemapping_to_bezsegs(curve) -> np.ndarray:
@@ -338,6 +339,20 @@ def reset_curvemapping(curve) -> None:
     points[1].location = (1,1)
 
     return None
+
+
+def hash_bezsegs(segments:np.ndarray)->str:
+    """Generate a string hash value for a numpy array containing bezier curve data.
+    segments (np.ndarray): An (N-1) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y]."""
+
+    if (segments is None) \
+        or (not isinstance(segments, np.ndarray)) \
+        or (segments.ndim != 2) \
+        or (segments.shape[1] != 8):
+        return None
+
+    # Convert to bytes and hash
+    return hashlib.md5(segments.tobytes()).hexdigest()
 
 
 # def evaluate_cubic_bezseg(segment, t):

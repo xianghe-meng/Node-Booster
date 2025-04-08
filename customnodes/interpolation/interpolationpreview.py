@@ -12,7 +12,9 @@ import math # Add math import for calculations
 
 from ...__init__ import get_addon_prefs
 from ...utils.str_utils import word_wrap
-from ...utils.interpolation_utils import bezsegs_to_curvemapping, reset_curvemapping
+from ...utils.interpolation_utils import (
+    hash_bezsegs,
+)
 from ..evaluator import evaluate_upstream_value
 from ...utils.node_utils import (
     import_new_nodegroup, 
@@ -349,11 +351,9 @@ def draw_rectangle(shader, view2d, location, dimensions,
     x3, y3 = view2d.view_to_region(nlocx + ndimx, nlocy - ndimy, clip=False)
     x4, y4 = view2d.view_to_region(nlocx, nlocy - ndimy, clip=False)
 
-    # Create rectangle vertices
+    # Draw simple rectangle
     vertices = [(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
     indices = [(0, 1, 2), (0, 2, 3)]
-
-    # Create batch and draw
     batch = batch_for_shader(shader, 'TRIS', {"pos": vertices}, indices=indices)
     shader.uniform_float("color", rectangle_color)
     batch.draw(shader)
@@ -363,7 +363,7 @@ def draw_rectangle(shader, view2d, location, dimensions,
         x_min, x_max = bounds[0][0], bounds[1][0]
         y_min, y_max = bounds[0][1], bounds[1][1]
 
-        # raw Grid Lines
+        # Raw Grid Lines
         screen_width = x2 - x1
         screen_height = y1 - y4 # Assuming y1 > y4 (top > bottom)
         data_width = x_max - x_min
@@ -379,8 +379,7 @@ def draw_rectangle(shader, view2d, location, dimensions,
         
         def map_y_to_screen(data_y):
             if abs(data_height) < epsilon: return y4 # Avoid division by zero
-            # Map from bottom (y4) up
-            return y4 + ((data_y - y_min) / data_height) * screen_height
+            return y4 + ((data_y - y_min) / data_height) * screen_height # Map from bottom (y4) up
 
         # Calculate scaled line widths
         scaled_grid_width = grid_line_width * dpi * zoom
@@ -407,6 +406,7 @@ def draw_rectangle(shader, view2d, location, dimensions,
                     batch.draw(shader)
                     gpu.state.line_width_set(1.0) # Reset
                     current_x_tick += tick_interval
+                    continue
 
         # Horizontal Grid Lines (Y ticks)
         if (draw_grid):
@@ -420,7 +420,7 @@ def draw_rectangle(shader, view2d, location, dimensions,
                     (abs(y_max) < epsilon and abs(current_y_tick - y_max) < epsilon):
                         current_y_tick += tick_interval
                         continue
-                        
+
                     y_pos = map_y_to_screen(current_y_tick)
                     h_vertices = [(x1, y_pos), (x2, y_pos)]
                     batch = batch_for_shader(shader, 'LINES', {"pos": h_vertices})
@@ -429,6 +429,7 @@ def draw_rectangle(shader, view2d, location, dimensions,
                     batch.draw(shader)
                     gpu.state.line_width_set(1.0) # Reset
                     current_y_tick += tick_interval
+                    continue
 
         # Draw Y Axis (X=0)
         if (scaled_axis_width > 0) and (x_min < -epsilon) and (x_max > epsilon):
@@ -473,8 +474,11 @@ def draw_bezpoints(shader, recverts, bezsegs,
     """Draw anchor points, handle points, and lines for bezier segments, mapping from bounds."""
 
     # Nothing to draw?
-    if (bezsegs is None) or not isinstance(bezsegs, np.ndarray) \
-        or (bezsegs.ndim != 2) or (bezsegs.shape[1] != 8) or (bezsegs.shape[0] == 0):
+    if (bezsegs is None) \
+        or (not isinstance(bezsegs, np.ndarray)) \
+        or (bezsegs.ndim != 2) \
+        or (bezsegs.shape[1] != 8) \
+        or (bezsegs.shape[0] == 0):
         return None
 
     # NOTE Coordinate Mapping Setup
@@ -494,7 +498,10 @@ def draw_bezpoints(shader, recverts, bezsegs,
     data_height = data_max_y - data_min_y
 
     # Check for degenerate rectangle or data range
-    if (screen_width <= 0) or (screen_height <= 0) or abs(data_width) < 1e-6 or abs(data_height) < 1e-6:
+    if (screen_width <= 0) \
+        or (screen_height <= 0) \
+        or (abs(data_width) < 1e-6) \
+        or (abs(data_height) < 1e-6):
         return None
 
     def map_point_to_screen(data_point):
@@ -516,9 +523,9 @@ def draw_bezpoints(shader, recverts, bezsegs,
         batch = batch_for_shader(shader, 'TRIS', {"pos": verts}, indices=indices)
         shader.uniform_float("color", color)
         batch.draw(shader)
+        return None
 
-    anchors = []
-    handles = []
+    anchors, handles = [], []
 
     # Scale sizes based on dpi and zoom
     scaled_anchor_size = anchor_size * dpi * zoom
@@ -564,9 +571,17 @@ def draw_bezpoints(shader, recverts, bezsegs,
 
 def draw_curve_fill(shader, recverts, preview_data, bounds, fill_color, num_steps=20):
     """Draws the filled area under the bezier curve, extending with tangents."""
-    if fill_color is None or preview_data is None or not isinstance(preview_data, np.ndarray) \
-        or preview_data.ndim != 2 or preview_data.shape[1] != 8 or preview_data.shape[0] == 0:
-        return
+    
+    # NOTE this is AI generated slop. It works tho.
+    # needs a clean up.
+
+    if (fill_color is None) \
+        or (preview_data is None) \
+        or (not isinstance(preview_data, np.ndarray)) \
+        or (preview_data.ndim != 2) \
+        or (preview_data.shape[1] != 8) \
+        or (preview_data.shape[0] == 0):
+        return None
 
     # Coordinate Mapping Setup (copied from draw_bezcurve)
     all_x = [v[0] for v in recverts]
@@ -576,13 +591,13 @@ def draw_curve_fill(shader, recverts, preview_data, bounds, fill_color, num_step
     screen_width = screen_max_x - screen_min_x
     screen_height = screen_max_y - screen_min_y
     if (screen_width <= 0) or (screen_height <= 0):
-        return
+        return None
     data_min_x, data_max_x = bounds[0][0], bounds[1][0]
     data_min_y, data_max_y = bounds[0][1], bounds[1][1]
     data_width = data_max_x - data_min_x
     data_height = data_max_y - data_min_y
-    if abs(data_width) < 1e-6 or abs(data_height) < 1e-6:
-        return
+    if (abs(data_width) < 1e-6) or (abs(data_height) < 1e-6):
+        return None
 
     def map_point_to_screen(data_point):
         norm_x = (data_point[0] - data_min_x) / data_width if data_width else 0.5
@@ -603,17 +618,20 @@ def draw_curve_fill(shader, recverts, preview_data, bounds, fill_color, num_step
         P1 = np.array(preview_data[i, 2:4], dtype=float)
         P2 = np.array(preview_data[i, 4:6], dtype=float)
         P3 = np.array(preview_data[i, 6:8], dtype=float)
-        start_idx = 1 if i > 0 else 0
+        start_idx = 1 if (i > 0) else 0
+
         for j in range(start_idx, num_steps + 1):
             t = j / num_steps
             data_point = evaluate_segment(P0, P1, P2, P3, t)
             screen_point = map_point_to_screen(data_point)
-            if curve_points_screen and np.allclose(screen_point, curve_points_screen[-1]):
-                continue
-            curve_points_screen.append(screen_point)
-    
-    if len(curve_points_screen) < 2:
-        return
+            if not (curve_points_screen and np.allclose(screen_point, curve_points_screen[-1])):
+                curve_points_screen.append(screen_point)
+            continue
+
+        continue
+
+    if (len(curve_points_screen) < 2):
+        return None
 
     # Calculate Tangent Intersections
     P0_data = np.array(preview_data[0, 0:2], dtype=float)
@@ -681,12 +699,12 @@ def draw_curve_fill(shader, recverts, preview_data, bounds, fill_color, num_step
     # Construct vertices for TRI_STRIP fill
     fill_vertices = []
     fill_vertices.append((intersect_start[0], screen_min_y)) # Bottom start
-    fill_vertices.append(intersect_start)                   # Top start
+    fill_vertices.append(intersect_start)                    # Top start
     for point in curve_points_screen:
-        fill_vertices.append((point[0], screen_min_y))       # Bottom mid
-        fill_vertices.append(point)                         # Top mid (curve)
-    fill_vertices.append((intersect_end[0], screen_min_y))   # Bottom end
-    fill_vertices.append(intersect_end)                     # Top end
+        fill_vertices.append((point[0], screen_min_y))     # Bottom mid
+        fill_vertices.append(point)                        # Top mid (curve)
+    fill_vertices.append((intersect_end[0], screen_min_y)) # Bottom end
+    fill_vertices.append(intersect_end)                    # Top end
 
     # Draw main fill area
     fill_batch = batch_for_shader(shader, 'TRI_STRIP', {"pos": fill_vertices})
@@ -698,25 +716,27 @@ def draw_curve_fill(shader, recverts, preview_data, bounds, fill_color, num_step
     corner_rect_indices = [(0, 1, 2), (0, 2, 3)]
     epsilon = 1e-6 # Added epsilon for x comparison
 
-    if abs(intersect_start[1] - screen_max_y) < epsilon_y and intersect_start[0] > screen_min_x + epsilon:
-        left_corner_verts = [
-            (screen_min_x, screen_min_y), (screen_min_x, screen_max_y),
-            (intersect_start[0], screen_max_y), (intersect_start[0], screen_min_y)
-        ]
+    if (abs(intersect_start[1] - screen_max_y) < epsilon_y) \
+        and (intersect_start[0] > screen_min_x + epsilon):
+        left_corner_verts = [(screen_min_x, screen_min_y), (screen_min_x, screen_max_y),
+                             (intersect_start[0], screen_max_y), (intersect_start[0], screen_min_y)]
         corner_batch = batch_for_shader(shader, 'TRIS', {"pos": left_corner_verts}, indices=corner_rect_indices)
         shader.uniform_float("color", fill_color)
         corner_batch.draw(shader)
 
-    if abs(intersect_end[1] - screen_max_y) < epsilon_y and intersect_end[0] < screen_max_x - epsilon:
-        right_corner_verts = [
-            (intersect_end[0], screen_min_y), (intersect_end[0], screen_max_y),
-            (screen_max_x, screen_max_y), (screen_max_x, screen_min_y)
-        ]
+    if (abs(intersect_end[1] - screen_max_y) < epsilon_y) \
+        and (intersect_end[0] < screen_max_x - epsilon):
+        right_corner_verts = [(intersect_end[0], screen_min_y), (intersect_end[0], screen_max_y),
+                             (screen_max_x, screen_max_y), (screen_max_x, screen_min_y)]
         corner_batch = batch_for_shader(shader, 'TRIS', {"pos": right_corner_verts}, indices=corner_rect_indices)
         shader.uniform_float("color", fill_color)
         corner_batch.draw(shader)
 
-def draw_bezcurve(shader, recverts, preview_data,
+    return None
+
+
+def draw_bezcurve(
+    shader, recverts, preview_data:np.ndarray,
     bounds=((0.0,0.0),(1.0,1.0)),
     line_color=(0.9, 0.9, 0.9, 0.9), # Removed fill_color
     thickness=2.0, num_steps=20
@@ -724,16 +744,69 @@ def draw_bezcurve(shader, recverts, preview_data,
     """Draw only the bezier curve line, mapping from bounds."""
 
     # Nothing to draw?
-    if preview_data is None or not isinstance(preview_data, np.ndarray) \
-        or preview_data.ndim != 2 or preview_data.shape[1] != 8 or preview_data.shape[0] == 0:
+    if (preview_data is None) \
+        or (not isinstance(preview_data, np.ndarray)) \
+        or (preview_data.ndim != 2) \
+        or (preview_data.shape[1] != 8) \
+        or (preview_data.shape[0] == 0):
         return None
+
+    # Initiate function cache
+    f = draw_bezcurve
+    if not hasattr(f,'CACHE'):
+        f.CACHE = {}
+
+    #1: Get the curve points.
+
+    def get_curvepts(preview_data:np.ndarray, num_steps:int):
+        """generate polygon points from the preview data.
+        The curve points are cached in globals."""
+
+        def evaluate_segment(P0, P1, P2, P3, t):
+            omt = 1.0 - t; omt2 = omt * omt; omt3 = omt2 * omt
+            t2 = t * t; t3 = t2 * t
+            return (P0 * omt3) + (P1 * 3.0 * omt2 * t) + (P2 * 3.0 * omt * t2) + (P3 * t3)
+
+        hash = hash_bezsegs(preview_data)
+        curvepts = f.CACHE.get(hash)
+        if (curvepts is not None):
+            return curvepts
+
+        curvepts = []
+
+        for i in range(preview_data.shape[0]):
+            P0 = np.array(preview_data[i, 0:2], dtype=float)
+            P1 = np.array(preview_data[i, 2:4], dtype=float)
+            P2 = np.array(preview_data[i, 4:6], dtype=float)
+            P3 = np.array(preview_data[i, 6:8], dtype=float)
+            
+            start_idx = 1 if (i > 0) else 0
+            for j in range(start_idx, num_steps + 1):
+                t = j / num_steps
+                pt = evaluate_segment(P0, P1, P2, P3, t)
+
+                # we don't want to draw the same point twice.
+                if (curvepts and np.allclose(pt, curvepts[-1])):
+                    continue
+                curvepts.append(pt)
+                continue
+            continue
+
+        f.CACHE[hash] = curvepts
+        return curvepts
+
+    # get the curve points. might be harnessed from cache.
+    curvepts = get_curvepts(preview_data, num_steps)
+    if (len(curvepts) < 2):
+        return None
+
+    #2: We map our curve points to screen space.
 
     # Coordinate Mapping Setup
     all_x = [v[0] for v in recverts]
     all_y = [v[1] for v in recverts]
     screen_min_x, screen_max_x = min(all_x), max(all_x)
     screen_min_y, screen_max_y = min(all_y), max(all_y)
-
     screen_width = screen_max_x - screen_min_x
     screen_height = screen_max_y - screen_min_y
 
@@ -741,61 +814,32 @@ def draw_bezcurve(shader, recverts, preview_data,
     if (screen_width <= 0) or (screen_height <= 0):
         return None
 
+    # get screen bounds data for mapping the curve data in screen space
     data_min_x, data_max_x = bounds[0][0], bounds[1][0]
     data_min_y, data_max_y = bounds[0][1], bounds[1][1]
-
     data_width = data_max_x - data_min_x
     data_height = data_max_y - data_min_y
 
     # Check for degenerate data range
-    if abs(data_width) < 1e-6 or abs(data_height) < 1e-6:
+    if (abs(data_width) < 1e-6) or (abs(data_height) < 1e-6):
         return None
 
     def map_point_to_screen(data_point):
-        norm_x = (data_point[0] - data_min_x) / data_width if data_width else 0.5
-        norm_y = (data_point[1] - data_min_y) / data_height if data_height else 0.5
+        norm_x = (data_point[0] - data_min_x) / data_width if (data_width) else 0.5
+        norm_y = (data_point[1] - data_min_y) / data_height if (data_height) else 0.5
         screen_x = screen_min_x + norm_x * screen_width
         screen_y = screen_min_y + norm_y * screen_height
         return screen_x, screen_y
 
-    def evaluate_segment(P0, P1, P2, P3, t):
-        omt = 1.0 - t; omt2 = omt * omt; omt3 = omt2 * omt
-        t2 = t * t; t3 = t2 * t
-        return (P0 * omt3) + (P1 * 3.0 * omt2 * t) + (P2 * 3.0 * omt * t2) + (P3 * t3)
+    # map the curve points to screen space
+    curvepts_screen = [map_point_to_screen(pt) for pt in curvepts]
 
-    # Generate Curve Points
-    curve_points_screen = []
-    for i in range(preview_data.shape[0]):
-        P0 = np.array(preview_data[i, 0:2], dtype=float)
-        P1 = np.array(preview_data[i, 2:4], dtype=float)
-        P2 = np.array(preview_data[i, 4:6], dtype=float)
-        P3 = np.array(preview_data[i, 6:8], dtype=float)
-        start_idx = 1 if i > 0 else 0
-        for j in range(start_idx, num_steps + 1):
-            t = j / num_steps
-            data_point = evaluate_segment(P0, P1, P2, P3, t)
-            screen_point = map_point_to_screen(data_point)
-            if curve_points_screen and np.allclose(screen_point, curve_points_screen[-1]):
-                continue
-            curve_points_screen.append(screen_point)
-    
-    if len(curve_points_screen) < 2:
-        return None
-
-    # --- Draw Curve Line Only --- 
-    try:
-        gpu.state.line_width_set(thickness)
-    except:
-        print("Warning: Could not set line width.")
-
-    line_batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": curve_points_screen})
+    # Draw Curve Line Only
+    gpu.state.line_width_set(thickness)
+    line_batch = batch_for_shader(shader, 'LINE_STRIP', {"pos":curvepts_screen,})
     shader.uniform_float("color", line_color)
     line_batch.draw(shader)
-
-    try:
-        gpu.state.line_width_set(1.0)
-    except:
-        pass 
+    gpu.state.line_width_set(1.0)
 
     return None
 
@@ -818,7 +862,7 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
     original_scissor_box = gpu.state.scissor_get()
 
     for node in nd_to_draw:
-        cwidth = 3.5 if node.draw_handles else 2.75
+        cwidth = 3.5 if (node.draw_handles) else 2.75
 
         # Set states needed for this node's drawing
         gpu.state.blend_set('ALPHA') 
@@ -853,8 +897,7 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
             rectangle_color=(0.0, 0.0, 0.0, 0.3), grid_color=(0.5, 0.5, 0.5, 0.04), grid_line_width=1.0,
             axis_color=(0.6, 0.6, 0.6, 0.1), axis_line_width=1.2,
             border_color=(0.0, 0.0, 0.0, 0.6), border_width=1.0,
-            draw_grid=node.draw_grid,
-            dpi=dpi, zoom=zoom,
+            draw_grid=node.draw_grid, dpi=dpi, zoom=zoom,
             )
         
         if (preview_data is not None):
@@ -882,16 +925,19 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
 
             # Draw the fill first
             if (node.draw_fill):
-                draw_curve_fill(shader, recverts, preview_data, bounds=data_bounds,
-                                fill_color=(0, 0, 0, 0.185), num_steps=20,)
+                draw_curve_fill(shader, recverts, preview_data,
+                    bounds=data_bounds, fill_color=(0, 0, 0, 0.185), num_steps=20,
+                    )
             # Then draw the curve line
             if (node.draw_curve):
-                draw_bezcurve(shader, recverts, preview_data, bounds=data_bounds,
-                    line_color=(0.0, 0.0, 0.0, 0.45),
-                    thickness=cwidth * dpi * zoom, num_steps=20,)
-                
+                draw_bezcurve(shader, recverts, preview_data, 
+                    bounds=data_bounds, line_color=(0.0, 0.0, 0.0, 0.45),
+                    thickness=cwidth * dpi * zoom, num_steps=20,
+                    )
+
             #draw the handles
-            draw_bezpoints(shader, recverts, preview_data, bounds=data_bounds,
+            draw_bezpoints(shader, recverts, preview_data, 
+                bounds=data_bounds,
                 anchor_color=(1, 1, 1, 1.0),
                 handle_color=(0.6, 0.3, 0.3, 1.0),
                 handle_line_color=(0.7, 0.4, 0.4, 0.2),

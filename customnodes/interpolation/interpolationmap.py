@@ -42,12 +42,10 @@ class Base():
     mode : bpy.props.EnumProperty(
         name="Mode",
         description="Which kind of data do we process ?",
-        items=[
-            ("FLOAT", "Float", "Float interpolation"),
-            ("COLOR", "Color", "Color interpolation"),
-            ("VECTOR", "Vector", "Vector interpolation"),
-            ],
-        default="FLOAT",
+        default='FLOAT',
+        items=(('FLOAT', "Float", "Float interpolation"),
+               ('COLOR', "Color", "Color interpolation"),
+               ('VECTOR', "Vector", "Vector interpolation"),),
         update= lambda self, context: self.evaluator(),
         )
 
