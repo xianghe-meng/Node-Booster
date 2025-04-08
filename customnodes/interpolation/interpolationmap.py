@@ -30,7 +30,7 @@ from ...utils.node_utils import (
 class Base():
 
     bl_idname = "NodeBoosterInterpolationMap"
-    bl_label = "Map Interpolation"
+    bl_label = "Interpolation Map"
     bl_description = """Map a value to an interpolation curve. Similar to the 'Curve Mapping' node."""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"

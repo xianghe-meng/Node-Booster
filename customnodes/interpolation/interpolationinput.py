@@ -14,9 +14,14 @@ from ...utils.node_utils import (
 )
 
 # TODO
-# - Add a EnumOperator that apply various presets.
-# - would be nice to get rid of the update operator and find a callback.
-#   if so, which callback? will msgbus work for once? ehm..
+# - IMPORTANT: Support hidden blender feature:
+#   - Either the interpolation graph is in 'Extend extrapolated' or in 'Extend horizontal'... 
+#     need to support this.. how? 
+#   - Could simply create two new segment if in horizontal mode, that's it would work.
+# - Lifeupdate feature: Add a EnumOperator that apply various presets.
+# - No update button. Automatic update on graph interaction with graph. 
+#   How? which callback? will msgbus work for once? ehm..
+#   Could store a cache of numpy hash in the node, and check if new graph val is same.
 
 class NODEBOOSTER_OT_interpolation_input_update(bpy.types.Operator):
     """Update the interpolation output. Cheap trick: we unlink and relink"""

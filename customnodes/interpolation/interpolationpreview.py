@@ -21,6 +21,16 @@ from ...utils.node_utils import (
     parcour_node_tree,
 )
 
+# TODO Interpolation graph:
+# - Add option for Extend extrapolated. or Extend horizontal for fill preview..
+# TODO GPU Drawing Improvements:
+# IMPORTANT: 
+# - caching system for the spline calculation.
+#   Will need to calculate everything in local, and map to screen ath the end.
+# - dpi scaling is not ok with graph..
+# BONUS:
+# - Line width do not scale well with zoom
+# - Would be nice to have some ideas of start and end anchor units.
 
 # ooooo      ooo                 .o8            
 # `888b.     `8'                "888            
@@ -31,8 +41,10 @@ from ...utils.node_utils import (
 # o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
 
 
+# NOTE for some reasons i was not able to store the numpy value 
+# as a self.preview_data directly.. weird. So we store this in a global here..0
+# dict keys will be the node name.
 PREVIEW_DATA = {}
-
 
 class Base():
 
@@ -55,11 +67,12 @@ class Base():
     preview_scale : bpy.props.EnumProperty(
         name="Graph Scale",
         description="How to fit the graph",
-        items=[
+        items=(
             ('POS', "Positive", "Graph in 0/1 range"),
             ('NEG', "Negative", "Graph in -1/-1 range"),
             ('FIT', "Fit Curve", "Graph will fit the curve min/maxrange"),
-            ],
+            ('CUSTOM', "Custom", "Graph will use the custom bounds"),
+            ),
         default='FIT',
         update= lambda self, context: self.evaluator(),
         )
@@ -94,6 +107,32 @@ class Base():
         name="Curve",
         description="Draw the curve of the curve",
         default=True,
+        )
+    bounds_custom : bpy.props.FloatVectorProperty(
+        name="Graph Bound",
+        description="The bounds of the graph",
+        default=(-1,0,1,1),
+        soft_min=-10,
+        soft_max=10,
+        size=4,
+        )
+    bounds_fitcurve : bpy.props.FloatVectorProperty(
+        name="Graph Bound",
+        description="The bounds of the graph",
+        default=(0,0,1,1), #Defined in evaluator()
+        size=4,
+        )
+    bounds_positive : bpy.props.FloatVectorProperty(
+        name="Graph Bound", #Informative purpose for user
+        description="The bounds of the graph",
+        default=(0,0,1,1),
+        size=4,
+        )
+    bounds_negative : bpy.props.FloatVectorProperty(
+        name="Graph Bound", #Informative purpose for user
+        description="The bounds of the graph",
+        default=(-1,-1,1,1),
+        size=4,
         )
 
     @classmethod
@@ -147,10 +186,40 @@ class Base():
     def evaluator(self,)->None:
         """evaluator the node required for the output evaluator"""
 
-        PREVIEW_DATA[f"Preview{self.name}"] = evaluate_upstream_value(self.inputs[0], self.node_tree,
+        result = evaluate_upstream_value(self.inputs[0], self.node_tree,
             match_evaluator_properties={'INTERPOLATION_NODE',},
             set_link_invalid=True,
             )
+        
+
+        # Find the bounds of the curve data to fit it in the view. Store this info in the node properties.
+        if (result is not None) and (isinstance(result, np.ndarray)) and (result.size > 0):
+
+            # Extract x and y coordinates from bezier segments
+            x_coords = result[:, [0, 2, 4, 6]].flatten()  # All x coordinates (P0x, P1x, P2x, P3x)
+            y_coords = result[:, [1, 3, 5, 7]].flatten()  # All y coordinates (P0y, P1y, P2y, P3y)
+
+            # Calculate min/max with small padding
+            x_min, x_max = np.min(x_coords), np.max(x_coords)
+            y_min, y_max = np.min(y_coords), np.max(y_coords)
+
+            # Add 5% padding
+            x_pad = (x_max - x_min) * 0.05
+            y_pad = (y_max - y_min) * 0.05
+
+            # Ensure we have some minimum bounds even for flat curves
+            x_pad = max(x_pad, 0.1)
+            y_pad = max(y_pad, 0.1)
+            
+            self.bounds_fitcurve = (
+                x_min - x_pad,
+                y_min - y_pad,
+                x_max + x_pad,
+                y_max + y_pad,
+                )
+
+        # Store the result in this preview data dict.
+        PREVIEW_DATA[f"Preview{self.name}"] = result
 
         return None
 
@@ -211,17 +280,44 @@ class NODEBOOSTER_PT_InterpolationOptions(bpy.types.Panel):
         layout = self.layout
         node = context.pass_nodecontext
         
-        col = layout.column(align=True)
-        col.label(text="Drawing Options:")
+        col = layout.column(align=True, heading="Drawing")
+        col.use_property_split = True
+        col.use_property_decorate = False
         col.prop(node, 'draw_curve')
         col.prop(node, 'draw_fill')
         col.prop(node, 'draw_anchor')
         col.prop(node, 'draw_handles')
         col.prop(node, 'draw_grid')
+
+        col = layout.column(align=True)
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.active = node.draw_grid
+        col.prop(node, 'grid_tick')
+
+        layout.separator(type='LINE')
+
+        col = layout.column(heading="Bounds")
+        col.use_property_split = True
+        col.use_property_decorate = False
+        col.prop(node, 'preview_scale',)
+
+        match node.preview_scale:
+            case 'CUSTOM': data = 'bounds_custom'   ; enabled = True
+            case 'POS':    data = 'bounds_positive' ; enabled = False
+            case 'NEG':    data = 'bounds_negative' ; enabled = False
+            case 'FIT':    data = 'bounds_fitcurve' ; enabled = False
+
         subcol = col.column(align=True)
-        subcol.active = node.draw_grid
-        subcol.prop(node, 'grid_tick')
-        
+        subcol.enabled = enabled
+        subcol.prop(node,data, index=0, text="Start")
+        subcol.prop(node,data, index=1, text=" ")
+
+        subcol = col.column(align=True)
+        subcol.enabled = enabled
+        subcol.prop(node,data, index=2, text="End")
+        subcol.prop(node,data, index=3, text=" ")
+
         return None
 
 #   .oooooo.                           
@@ -234,14 +330,6 @@ class NODEBOOSTER_PT_InterpolationOptions(bpy.types.Panel):
 #                888                   
 #               o888o                  
 
-#TODO:
-# IMPORTANT: 
-# - caching system for the spline calculation.
-#   Will need to calculate everything in local, and map to screen ath the end.
-# - dpi scaling is not ok with graph..
-# BONUS:
-# - Line width do not scale well with zoom
-# - Would be nice to have some ideas of start and end anchor units.
 
 def draw_rectangle(shader, view2d, location, dimensions,
     bounds=((0.0,0.0),(1.0,1.0)), tick_interval=0.25,
@@ -752,33 +840,12 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom,
         # draw the bezier curve
         preview_data = PREVIEW_DATA.get(f"Preview{node.name}")
 
-        # Define bounds once
-        data_bounds = None
+        # get the bounds
         match node.preview_scale:
-            case 'POS':
-                data_bounds = ((0,0),(1,1),)
-            case 'NEG':
-                data_bounds = ((-1,-1),(1,1),)
-            case 'FIT':
-                # Find the bounds of the curve data to fit it in the view
-                if (preview_data is not None) and (isinstance(preview_data, np.ndarray)) and (preview_data.size > 0):
-                    # Extract x and y coordinates from bezier segments
-                    x_coords = preview_data[:, [0, 2, 4, 6]].flatten()  # All x coordinates (P0x, P1x, P2x, P3x)
-                    y_coords = preview_data[:, [1, 3, 5, 7]].flatten()  # All y coordinates (P0y, P1y, P2y, P3y)
-
-                    # Calculate min/max with small padding
-                    x_min, x_max = np.min(x_coords), np.max(x_coords)
-                    y_min, y_max = np.min(y_coords), np.max(y_coords)
-
-                    # Add 5% padding
-                    x_pad = (x_max - x_min) * 0.05
-                    y_pad = (y_max - y_min) * 0.05
-
-                    # Ensure we have some minimum bounds even for flat curves
-                    x_pad = max(x_pad, 0.1)
-                    y_pad = max(y_pad, 0.1)
-                    
-                    data_bounds = ((x_min - x_pad, y_min - y_pad), (x_max + x_pad, y_max + y_pad))
+            case 'POS':    data_bounds = ((node.bounds_positive[0], node.bounds_positive[1]), (node.bounds_positive[2], node.bounds_positive[3]))
+            case 'NEG':    data_bounds = ((node.bounds_negative[0], node.bounds_negative[1]), (node.bounds_negative[2], node.bounds_negative[3]))
+            case 'CUSTOM': data_bounds = ((node.bounds_custom[0], node.bounds_custom[1]), (node.bounds_custom[2], node.bounds_custom[3]))
+            case 'FIT':    data_bounds = ((node.bounds_fitcurve[0], node.bounds_fitcurve[1]), (node.bounds_fitcurve[2], node.bounds_fitcurve[3]))
 
         # draw a background rectangle and get screen origin
         recverts = draw_rectangle(shader, view2d, (nlocx, nlocy), (ndimx, ndimy),

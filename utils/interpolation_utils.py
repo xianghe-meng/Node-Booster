@@ -5,41 +5,21 @@
 import numpy as np
 
 
-def reverseengineer_curvemapping_to_bezsegs(curve, use_wrapping=False, ensure_x_monotonic=True) -> np.ndarray:
+def reverseengineer_curvemapping_to_bezsegs(curve) -> np.ndarray:
     """
     Convert a Blender CurveMapping object to a NumPy array of Bézier segments,
     calculating handle positions based on Blender's internal C functions,
     optionally ensuring X-monotonicity.
-
-    Args:
-        curve: A Blender CurveMapping object.
-        use_wrapping (bool): Apply wrapping logic for neighbors (usually False).
-        ensure_x_monotonic (bool): If True, clamps handle X-coords to prevent
-                                   the curve moving backward in X within a segment.
-
-    Returns:
-        np.ndarray: An (N-1) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
+    Returns: np.ndarray: An (N-1) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
     """
 
     # NOTE
     # a blender curvemapping bezier has a lot of logic to it with the handles.
     # this function tries to reverse engineer that logic into a list of cubic beziers segments.
-    # it's AI generated slop from gemini 2.5, far from perfect.
+    # it's AI generated slop from gemini 2.5, far from perfect, could be largly improved and cleaned up.
 
-    def _v2_sub(a, b): return np.subtract(a, b)
-    def _v2_add(a, b): return np.add(a, b)
-    def _v2_len_squared(a): return np.dot(a, a)
-    def _v2_len(a): return np.linalg.norm(a)
-    def _v2_len_v2v2(a, b): return np.linalg.norm(_v2_sub(a, b))
-    def _v2_normalize(a):
-        norm = np.linalg.norm(a)
-        return a / norm if norm > 1e-7 else np.array([0.0, 0.0])
-
-    def _calculate_curvemap_handles_strict(current_pt, prev_pt, next_pt):
-        """
-        Calculates handle positions mimicking Blender C function calchandle_curvemap.
-        (Code is identical to the previous 'strict' version)
-        """
+    def _guess_handles(current_pt, prev_pt, next_pt):
+        """Calculates handle positions mimicking Blender C function calchandle_curvemap."""
 
         handle_type = current_pt.handle_type
         h1_type = handle_type
@@ -47,36 +27,36 @@ def reverseengineer_curvemapping_to_bezsegs(curve, use_wrapping=False, ensure_x_
 
         p2 = np.array(current_pt.location, dtype=float)
 
-        if prev_pt is None:
-            if next_pt is None:
+        if (prev_pt is None):
+            if (next_pt is None):
                 p1 = p2.copy(); p3 = p2.copy()
             else:
                 p3 = np.array(next_pt.location, dtype=float)
                 p1 = 2.0 * p2 - p3
         else:
             p1 = np.array(prev_pt.location, dtype=float)
-            if next_pt is None:
+            if (next_pt is None):
                 p3 = 2.0 * p2 - p1
             else:
                 p3 = np.array(next_pt.location, dtype=float)
 
-        dvec_a = _v2_sub(p2, p1)
-        dvec_b = _v2_sub(p3, p2)
-        len_a = _v2_len(dvec_a)
-        len_b = _v2_len(dvec_b)
+        dvec_a = np.subtract(p2, p1)
+        dvec_b = np.subtract(p3, p2)
+        len_a = np.linalg.norm(dvec_a)
+        len_b = np.linalg.norm(dvec_b)
 
-        if abs(len_a) < 1e-5: len_a = 1.0
-        if abs(len_b) < 1e-5: len_b = 1.0
+        if (abs(len_a) < 1e-5): len_a = 1.0
+        if (abs(len_b) < 1e-5): len_b = 1.0
 
         h1_calc = p2.copy()
         h2_calc = p2.copy()
 
-        if h1_type == 'AUTO' or h1_type == 'AUTO_CLAMPED':
+        if ((h1_type == 'AUTO') or (h1_type == 'AUTO_CLAMPED')):
             tvec = (dvec_b / len_b) + (dvec_a / len_a)
-            len_tvec = _v2_len(tvec)
+            len_tvec = np.linalg.norm(tvec)
             len_factor = len_tvec * 2.5614
 
-            if abs(len_factor) > 1e-5:
+            if (abs(len_factor) > 1e-5):
                 scale_a = len_a / len_factor
                 scale_b = len_b / len_factor
                 base_h1 = p2 - tvec * scale_a
@@ -84,35 +64,35 @@ def reverseengineer_curvemapping_to_bezsegs(curve, use_wrapping=False, ensure_x_
                 h1_calc = base_h1.copy()
                 h2_calc = base_h2.copy()
 
-                if h1_type == 'AUTO_CLAMPED' and prev_pt is not None and next_pt is not None:
+                if ((h1_type == 'AUTO_CLAMPED') and (prev_pt is not None) and (next_pt is not None)):
                     y_prev = prev_pt.location[1]
                     y_curr = current_pt.location[1]
                     y_next = next_pt.location[1]
                     ydiff1 = y_prev - y_curr
                     ydiff2 = y_next - y_curr
                     is_extremum = (ydiff1 <= 0.0 and ydiff2 <= 0.0) or \
-                                (ydiff1 >= 0.0 and ydiff2 >= 0.0)
-                    if is_extremum:
+                                  (ydiff1 >= 0.0 and ydiff2 >= 0.0)
+                    if (is_extremum):
                         h1_calc[1] = y_curr
                     else:
                         if ydiff1 <= 0.0: h1_calc[1] = max(y_prev, base_h1[1])
                         else: h1_calc[1] = min(y_prev, base_h1[1])
 
-                if h2_type == 'AUTO_CLAMPED' and prev_pt is not None and next_pt is not None:
+                if ((h2_type == 'AUTO_CLAMPED') and (prev_pt is not None) and (next_pt is not None)):
                     y_prev = prev_pt.location[1]
                     y_curr = current_pt.location[1]
                     y_next = next_pt.location[1]
                     ydiff1 = y_prev - y_curr
                     ydiff2 = y_next - y_curr
                     is_extremum = (ydiff1 <= 0.0 and ydiff2 <= 0.0) or \
-                                (ydiff1 >= 0.0 and ydiff2 >= 0.0)
-                    if is_extremum:
+                                  (ydiff1 >= 0.0 and ydiff2 >= 0.0)
+                    if (is_extremum):
                         h2_calc[1] = y_curr
                     else:
-                        if ydiff1 <= 0.0: h2_calc[1] = min(y_next, base_h2[1])
+                        if (ydiff1 <= 0.0): h2_calc[1] = min(y_next, base_h2[1])
                         else: h2_calc[1] = max(y_next, base_h2[1])
 
-        elif h1_type == 'VECTOR':
+        elif (h1_type == 'VECTOR'):
             h1_calc = p2 - dvec_a / 3.0
             h2_calc = p2 + dvec_b / 3.0
 
@@ -121,7 +101,7 @@ def reverseengineer_curvemapping_to_bezsegs(curve, use_wrapping=False, ensure_x_
 
         return h1_calc, h2_calc
 
-    def _apply_x_monotonicity(points, all_left_h, all_right_h):
+    def _points_x_monotonicity(points, all_left_h, all_right_h):
         """
         Adjusts calculated handle X-coordinates to ensure X-monotonicity for each segment.
         Enforces x0 <= x1 <= x2 <= x3 where P1=HR_i, P2=HL_i+1.
@@ -142,7 +122,8 @@ def reverseengineer_curvemapping_to_bezsegs(curve, use_wrapping=False, ensure_x_
         final_left_h = [h.copy() for h in all_left_h]
         final_right_h = [h.copy() for h in all_right_h]
 
-        for i in range(n_points - 1): # Iterate through segments [i, i+1]
+        # Iterate through segments [i, i+1]
+        for i in range(n_points - 1):
             # P0 = knot[i], P1 = HR[i], P2 = HL[i+1], P3 = knot[i+1]
             x_k_i = points[i].location[0]
             x_k_i1 = points[i+1].location[0]
@@ -169,13 +150,14 @@ def reverseengineer_curvemapping_to_bezsegs(curve, use_wrapping=False, ensure_x_
                 # No crossover, just apply the individual clamps.
                 final_right_h[i][0] = x_hr_i_clamped
                 final_left_h[i+1][0] = x_hl_i1_clamped
+            continue
 
         return final_left_h, final_right_h
 
     points = curve.points
     n_points = len(points)
 
-    if n_points < 2:
+    if (n_points < 2):
         return np.empty((0, 8), dtype=float)
 
     # Calculate initial handle positions
@@ -186,73 +168,162 @@ def reverseengineer_curvemapping_to_bezsegs(curve, use_wrapping=False, ensure_x_
         current_pt = points[i]
         prev_pt = points[i - 1] if i > 0 else None
         next_pt = points[i + 1] if i < n_points - 1 else None
-        if use_wrapping:
-             if i == 0 and n_points > 1: prev_pt = points[n_points - 1]
-             if i == n_points - 1 and n_points > 1: next_pt = points[0]
 
-        left_h, right_h = _calculate_curvemap_handles_strict(current_pt, prev_pt, next_pt)
+        left_h, right_h = _guess_handles(current_pt, prev_pt, next_pt)
         all_left_h[i] = left_h
         all_right_h[i] = right_h
+        continue
 
     # Apply Endpoint Handle Correction (if applicable)
     # This is a simplified version, adjust if needed for specific handle types/logic
-    if n_points > 2 and not use_wrapping:
-        if points[0].handle_type == 'AUTO':
+    if (n_points > 2):
+        if (points[0].handle_type == 'AUTO'):
             P0 = np.array(points[0].location, dtype=float)
             P1_orig = all_right_h[0]
-            hlen = _v2_len_v2v2(P0, P1_orig)
-            if hlen > 1e-7:
+            hlen = np.linalg.norm(np.subtract(P0, P1_orig)) #
+            if (hlen > 1e-7):
                 neighbor_handle = all_left_h[1]
                 clamped_neighbor_x = max(neighbor_handle[0], P0[0])
                 direction_vec = np.array([clamped_neighbor_x - P0[0], neighbor_handle[1] - P0[1]])
-                nlen = _v2_len(direction_vec)
-                if nlen > 1e-7:
+                nlen = np.linalg.norm(direction_vec)
+                if (nlen > 1e-7):
                     scaled_direction = direction_vec * (hlen / nlen)
                     all_right_h[0] = P0 + scaled_direction
 
         last_idx = n_points - 1
-        if points[last_idx].handle_type == 'AUTO':
+        if (points[last_idx].handle_type == 'AUTO'):
             P3 = np.array(points[last_idx].location, dtype=float)
             P2_orig = all_left_h[last_idx]
-            hlen = _v2_len_v2v2(P3, P2_orig)
-            if hlen > 1e-7:
+            hlen = np.linalg.norm(np.subtract(P3, P2_orig)) #
+            if (hlen > 1e-7):
                 neighbor_handle = all_right_h[last_idx - 1]
                 clamped_neighbor_x = min(neighbor_handle[0], P3[0])
                 direction_vec = np.array([clamped_neighbor_x - P3[0], neighbor_handle[1] - P3[1]])
-                nlen = _v2_len(direction_vec)
-                if nlen > 1e-7:
+                nlen = np.linalg.norm(direction_vec)
+                if (nlen > 1e-7):
                     scaled_direction = direction_vec * (hlen / nlen)
                     all_left_h[last_idx] = P3 + scaled_direction
 
     # Apply X-Monotonicity
-    if (ensure_x_monotonic):
-        final_left_h, final_right_h = _apply_x_monotonicity(points, all_left_h, all_right_h)
-    else:
-        final_left_h = all_left_h
-        final_right_h = all_right_h
+    final_left_h, final_right_h = _points_x_monotonicity(points, all_left_h, all_right_h)
 
     # Build segments
     segments_list = []
     for i in range(n_points - 1):
+
         P0 = np.array(points[i].location, dtype=float)
         P3 = np.array(points[i + 1].location, dtype=float)
-        # Use the potentially clamped handles
+
         P1 = final_right_h[i]
         P2 = final_left_h[i + 1]
 
-        if np.any(np.isnan(P0)) or np.any(np.isnan(P1)) or \
-           np.any(np.isnan(P2)) or np.any(np.isnan(P3)):
-           print(f"Warning: NaN detected in segment {i}. Skipping.")
-           continue
+        if (np.any(np.isnan(P0)) or np.any(np.isnan(P1)) or \
+            np.any(np.isnan(P2)) or np.any(np.isnan(P3))):
+            print(f"Warning: NaN detected in segment {i}. Skipping.")
+            continue
 
         segment_row = np.concatenate((P0, P1, P2, P3))
         segments_list.append(segment_row)
+        continue
 
-    if not segments_list:
+    if (not segments_list):
          return np.empty((0, 8), dtype=float)
 
     segments_array = np.array(segments_list, dtype=float)
     return segments_array
+
+
+def is_handle_aligned(
+    handle:np.ndarray, anchor1:np.ndarray, anchor2:np.ndarray, epsilon:float=1e-6) -> bool:
+    """
+    Checks if the handle vector (anchor1 -> handle) is collinear with the
+    anchor vector (anchor1 -> anchor2).
+
+    Args:
+        handle (np.array): Coordinates of the handle point.
+        anchor1 (np.array): Coordinates of the anchor point connected to the handle.
+        anchor2 (np.array): Coordinates of the other anchor point in the segment.
+        epsilon (float): Tolerance for floating point comparisons.
+
+    Returns:
+        bool: True if the handle is aligned (collinear or zero length), False otherwise.
+    """
+    V_handle = handle - anchor1
+    V_anchor = anchor2 - anchor1
+
+    # Check if handle vector has zero length (squared magnitude)
+    mag_handle_sq = np.dot(V_handle, V_handle)
+    if (mag_handle_sq < epsilon * epsilon):
+        return True # Zero length handle is considered aligned (VECTOR)
+
+    # Check if anchor vector has zero length (squared magnitude)
+    mag_anchor_sq = np.dot(V_anchor, V_anchor)
+    if (mag_anchor_sq < epsilon * epsilon):
+        return False # Cannot align with a zero-length anchor segment
+
+    # Calculate the 2D cross product's Z component
+    # If vectors are A=(ax, ay) and B=(bx, by), cross_product = ax*by - ay*bx
+    cross_product = (V_handle[0] * V_anchor[1]) - (V_handle[1] * V_anchor[0])
+
+    # Return True if the cross product is close to zero (collinear)
+    return (abs(cross_product) < epsilon)
+
+
+def bezsegs_to_curvemapping(curve, segments:np.ndarray) -> None:
+    """Apply an N x 8 NumPy array of Bézier segments to a blender curvemapping.
+    Assumes `segments` is a NumPy array where each row is: [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y]
+    """
+
+    if (not isinstance(segments, np.ndarray)):
+        raise ValueError("Input segments must be a NumPy array")
+    if ((segments.ndim != 2) or (segments.shape[1] != 8)):
+        raise ValueError(f"Input segments array must have shape (N, 8), got {segments.shape}")
+
+    num_segments = segments.shape[0]
+    if (num_segments == 0):
+        raise ValueError("Input segments array is empty")
+
+    num_points = num_segments + 1
+    reset_curvemapping(curve) # Start fresh with default 2 points
+
+    # Ensure enough points exist in the Blender curve
+    while (len(curve.points) < num_points):
+        curve.points.new(0, 0) 
+
+    # Set first point's location
+    P0_first = segments[0, 0:2] # First point of first segment
+    curve.points[0].location = tuple(P0_first) # Convert slice to tuple for location
+
+    # Set subsequent points and handle types based on segments
+    for i in range(num_segments):
+        try:
+            # Extract points directly using slicing
+            P0 = segments[i, 0:2]
+            P1 = segments[i, 2:4]
+            P2 = segments[i, 4:6]
+            P3 = segments[i, 6:8]
+
+            # Set Point Locations
+            # Location of the end point of this segment corresponds to curve.points[i+1]
+            curve.points[i+1].location = tuple(P3) # Convert slice to tuple
+
+            # vector handle types are simply aligned handles/anchors.
+            # default are all auto handles. We ignore clamped handles. too similar with auto imo.
+            if ((curve.points[i].handle_type == "AUTO") \
+                and is_handle_aligned(P1, P0, P3)):
+                curve.points[i].handle_type = "VECTOR"
+            if ((curve.points[i+1].handle_type == "AUTO") \
+                and is_handle_aligned(P2, P3, P0)):
+                curve.points[i+1].handle_type = "VECTOR"
+            continue
+
+        except Exception as e:
+            print(f"WARNING: Unexpected error processing segment {i}: {e}")
+            print(f"Segment data (row): {segments[i]}")
+
+        continue
+
+    return None
 
 
 def reset_curvemapping(curve) -> None:
@@ -268,59 +339,6 @@ def reset_curvemapping(curve) -> None:
 
     return None
 
-def bezsegs_to_curvemapping(curve, segments:np.ndarray) -> None:
-    """Apply an N x 8 NumPy array of Bézier segments to a blender curvemapping.
-    Assumes `segments` is a NumPy array where each row is: [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y]
-    """
-
-    if (not isinstance(segments, np.ndarray)):
-        raise ValueError("Input segments must be a NumPy array")
-    if (segments.ndim != 2 or segments.shape[1] != 8):
-        raise ValueError(f"Input segments array must have shape (N, 8), got {segments.shape}")
-
-    num_segments = segments.shape[0]
-    if (num_segments == 0):
-        raise ValueError("Input segments array is empty")
-
-    num_points = num_segments + 1
-    reset_curvemapping(curve) # Start fresh with default 2 points
-
-    # Ensure enough points exist in the Blender curve
-    while len(curve.points) < num_points:
-        curve.points.new(0, 0) 
-
-    # Set first point's location
-    P0_first = segments[0, 0:2] # First point of first segment
-    curve.points[0].location = tuple(P0_first) # Convert slice to tuple for location
-
-    # Set subsequent points and handle types based on segments
-    for i in range(num_segments):
-        try:
-            # Extract points directly using slicing
-            P0 = segments[i, 0:2]
-            P1 = segments[i, 2:4]
-            P2 = segments[i, 4:6]
-            P3 = segments[i, 6:8]
-            
-            # Set Point Locations
-            # Location of the end point of this segment corresponds to curve.points[i+1]
-            curve.points[i+1].location = tuple(P3) # Convert slice to tuple
-            
-            # Determine and Set Handle Types
-            # Direct comparison using NumPy arrays
-            is_vector_start = np.allclose(P0, P1) 
-            is_vector_end = np.allclose(P2, P3)
-            
-            # Set handle types in Blender CurveMappingPoint
-            curve.points[i].handle_type = "VECTOR" if is_vector_start else "AUTO"
-            curve.points[i+1].handle_type = "VECTOR" if is_vector_end else "AUTO"
-
-        except Exception as e:
-            print(f"WARNING: Unexpected error processing segment {i}: {e}")
-            print(f"Segment data (row): {segments[i]}")
-            continue 
-
-    return None
 
 # def evaluate_cubic_bezseg(segment, t):
 #     """
