@@ -87,6 +87,9 @@ from . interpolation.curveinput import (
         NODEBOOSTER_NG_SH_2DCurve,
         NODEBOOSTER_NG_CP_2DCurve,
         )
+from . interpolation.monotonicinterpolation import (
+        NODEBOOSTER_ND_EnsureMonotonicity,
+        )
 
 # For menus, in order of appearance
 # NOTE Redudancy. Perhaps menus.py could be refactored to use the _GN_, _SH_, _CP_ notations.
@@ -113,6 +116,7 @@ GN_CustomNodes = (
         NODEBOOSTER_NG_GN_InterpolationMap,
         NODEBOOSTER_NG_GN_InterpolationPreview,
         NODEBOOSTER_NG_GN_2DCurve,
+        NODEBOOSTER_ND_EnsureMonotonicity,
         NODEBOOSTER_ND_CustomSocketUtility, ), #dev utility.
     ),
     )
@@ -138,6 +142,7 @@ SH_CustomNodes = (
         NODEBOOSTER_NG_SH_InterpolationMap,
         NODEBOOSTER_NG_SH_InterpolationPreview,
         NODEBOOSTER_NG_SH_2DCurve,
+        NODEBOOSTER_ND_EnsureMonotonicity,
         NODEBOOSTER_ND_CustomSocketUtility, ), #dev utility.    
     ), 
     )
@@ -163,6 +168,7 @@ CP_CustomNodes = (
         NODEBOOSTER_NG_CP_InterpolationMap,
         NODEBOOSTER_NG_CP_InterpolationPreview,
         NODEBOOSTER_NG_CP_2DCurve,
+        NODEBOOSTER_ND_EnsureMonotonicity,
         NODEBOOSTER_ND_CustomSocketUtility, ), #dev utility.
     ), 
     )
@@ -219,6 +225,7 @@ classes = (
     NODEBOOSTER_NG_GN_2DCurve,
     NODEBOOSTER_NG_SH_2DCurve,
     NODEBOOSTER_NG_CP_2DCurve,
+    NODEBOOSTER_ND_EnsureMonotonicity,
     )
 
 #for utility. handlers.py module will use this list.

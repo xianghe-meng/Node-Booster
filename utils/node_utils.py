@@ -83,13 +83,18 @@ def get_all_nodes(ignore_ng_name:str="NodeBooster", approxmatch_idnames:str="", 
 
     return nodes
 
-def parcour_node_tree(nodes, socket, direction:str='LEFT',):
+
+def parcour_node_tree(socket, direction:str='LEFT',):
     """ parcour a nodetree and return all sockets connected to the passed socket.
     - important information about parcouring nodetrees: https://www.youtube.com/watch?v=FuqVCBlgJTo
     - direction: 'LEFT' or 'RIGHT'
     - the function will return a dictionary of {socket: links}.
     """
 
+    #TODO add support for muted node or links. 
+    # - should stop parcouring if muted links.
+    # - should continue parcouring if muted node, and respect internal links system.
+    
     result = {}  # Will store final sockets and their links
     visited_sockets = set()  # To avoid feedback loops
     visited_links = []  # Store all visited links

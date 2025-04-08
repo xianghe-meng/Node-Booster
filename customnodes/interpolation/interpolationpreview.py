@@ -28,9 +28,9 @@ from ...utils.node_utils import (
 # - Add option for Extend extrapolated. or Extend horizontal for fill preview..
 # TODO GPU Drawing Improvements:
 # IMPORTANT: 
-# - caching system for the spline calculation.
+# - f.CACHE for the fill calculation too. Too intensive right now.
 #   Will need to calculate everything in local, and map to screen ath the end.
-# - dpi scaling is not ok with graph..
+# - dpi scaling is not ok with graph.. disapear if resolution scale is above 1.33, why???
 # BONUS:
 # - Line width do not scale well with zoom
 # - Would be nice to have some ideas of start and end anchor units.
@@ -189,7 +189,7 @@ class Base():
     def evaluator(self,)->None:
         """evaluator the node required for the output evaluator"""
 
-        result = evaluate_upstream_value(self.inputs[0], self.node_tree,
+        result = evaluate_upstream_value(self.inputs[0],
             match_evaluator_properties={'INTERPOLATION_NODE',},
             set_link_invalid=True,
             )

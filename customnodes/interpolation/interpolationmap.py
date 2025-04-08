@@ -196,7 +196,7 @@ class Base():
             sock = self.inputs[k]
             # retrieve the value from the node behind.
             # the node might do a similar operation, and so on.
-            val = evaluate_upstream_value(sock, self.node_tree,
+            val = evaluate_upstream_value(sock,
                 match_evaluator_properties={'INTERPOLATION_NODE',},
                 set_link_invalid=True,
                 cached_values=cache,

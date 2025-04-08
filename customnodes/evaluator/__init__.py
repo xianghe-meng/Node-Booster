@@ -18,7 +18,7 @@ import bpy
 from ...utils.node_utils import parcour_node_tree
 
 
-def evaluate_upstream_value(sock, node_tree, match_evaluator_properties:set=None, set_link_invalid:bool=False, cached_values:dict=None):
+def evaluate_upstream_value(sock, match_evaluator_properties:set=None, set_link_invalid:bool=False, cached_values:dict=None):
     """evaluate the value of a socket upstream, fallback to None if the node upstream is not compatible or not linked.
     -Pass a match_evaluator_properties set to check if the node upstream node is compatible. ex: {'INTERPOLATION_NODE',}
     -Pass a set_link_invalid to set the link invalid if the node upstream is not compatible.
@@ -31,7 +31,7 @@ def evaluate_upstream_value(sock, node_tree, match_evaluator_properties:set=None
 
     #get colliding nodes upstream, on the left in {socket:links}
     #return a dictionary of {colliding_socket:parcoured_links[]}
-    parcour_info = parcour_node_tree(node_tree.nodes, sock, direction='LEFT')
+    parcour_info = parcour_node_tree(sock, direction='LEFT')
     print(f"DEBUG: parcour_info: {parcour_info}, len: {len(parcour_info)}")
 
     #nothing hit?

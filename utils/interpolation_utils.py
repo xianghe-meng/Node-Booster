@@ -231,24 +231,14 @@ def reverseengineer_curvemapping_to_bezsegs(curve) -> np.ndarray:
          return np.empty((0, 8), dtype=float)
 
     segments_array = np.array(segments_list, dtype=float)
+    
     return segments_array
 
 
-def is_handle_aligned(
-    handle:np.ndarray, anchor1:np.ndarray, anchor2:np.ndarray, epsilon:float=1e-6) -> bool:
-    """
-    Checks if the handle vector (anchor1 -> handle) is collinear with the
-    anchor vector (anchor1 -> anchor2).
+def is_handles_aligned(handle, anchor1, anchor2, epsilon:float=1e-6) -> bool:
+    """Checks if the handle vector (anchor1 -> handle) is collinear with the
+    anchor vector (anchor1 -> anchor2)."""
 
-    Args:
-        handle (np.array): Coordinates of the handle point.
-        anchor1 (np.array): Coordinates of the anchor point connected to the handle.
-        anchor2 (np.array): Coordinates of the other anchor point in the segment.
-        epsilon (float): Tolerance for floating point comparisons.
-
-    Returns:
-        bool: True if the handle is aligned (collinear or zero length), False otherwise.
-    """
     V_handle = handle - anchor1
     V_anchor = anchor2 - anchor1
 
@@ -311,10 +301,10 @@ def bezsegs_to_curvemapping(curve, segments:np.ndarray) -> None:
             # vector handle types are simply aligned handles/anchors.
             # default are all auto handles. We ignore clamped handles. too similar with auto imo.
             if ((curve.points[i].handle_type == "AUTO") \
-                and is_handle_aligned(P1, P0, P3)):
+                and is_handles_aligned(P1, P0, P3)):
                 curve.points[i].handle_type = "VECTOR"
             if ((curve.points[i+1].handle_type == "AUTO") \
-                and is_handle_aligned(P2, P3, P0)):
+                and is_handles_aligned(P2, P3, P0)):
                 curve.points[i+1].handle_type = "VECTOR"
             continue
 
@@ -353,6 +343,79 @@ def hash_bezsegs(segments:np.ndarray)->str:
 
     # Convert to bytes and hash
     return hashlib.md5(segments.tobytes()).hexdigest()
+
+
+def ensure_bezsegs_monotonic(segments:np.ndarray)->np.ndarray:
+    """Ensure the segments represent a curve monotonic in x.
+    This involves sorting anchor points by x-coordinate and then adjusting handles.
+    Monotonicity is important for interpolation, preventing the curve from backtracking on the X axis.
+    segments (np.ndarray): An (N) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
+    Returns a *new* NumPy array with the sorted and adjusted segments.
+    """
+
+    if (segments is None) or (segments.size == 0):
+        return np.empty((0, 8), dtype=segments.dtype if segments is not None else float) # Return empty array
+
+    num_segments = segments.shape[0]
+    num_points = num_segments + 1
+
+    # 1. Deconstruct into anchor points and handles
+    #    anchor_handle_data format: [Ax, Ay, HLx, HLy, HRx, HRy]
+    anchor_handle_data = np.zeros((num_points, 6), dtype=segments.dtype)
+
+    # Fill Anchor locations (Ax, Ay)
+    anchor_handle_data[0, 0:2] = segments[0, 0:2]  # First anchor is P0 of first segment
+    anchor_handle_data[1:, 0:2] = segments[:, 6:8] # Subsequent anchors are P3 of each segment
+
+    # Fill Left Handles (HLx, HLy)
+    # First anchor's left handle defaults to its own location
+    anchor_handle_data[0, 2:4] = anchor_handle_data[0, 0:2]
+    # Other left handles are P2 of the preceding segment
+    anchor_handle_data[1:, 2:4] = segments[:, 4:6]
+
+    # Fill Right Handles (HRx, HRy)
+    # Intermediate right handles are P1 of the current segment
+    anchor_handle_data[:-1, 4:6] = segments[:, 2:4]
+    # Last anchor's right handle defaults to its own location
+    anchor_handle_data[-1, 4:6] = anchor_handle_data[-1, 0:2]
+
+    # 2. Sort by Anchor X-coordinate
+    sort_indices = np.argsort(anchor_handle_data[:, 0])
+    sorted_anchor_handle_data = anchor_handle_data[sort_indices]
+
+    # 3. Reconstruct segments from sorted data
+    # Create a new array for the sorted segments
+    sorted_segments = np.zeros((num_segments, 8), dtype=segments.dtype)
+
+    # P0 comes from anchor i's location
+    sorted_segments[:, 0:2] = sorted_anchor_handle_data[:-1, 0:2]
+    # P1 comes from anchor i's right handle
+    sorted_segments[:, 2:4] = sorted_anchor_handle_data[:-1, 4:6]
+    # P2 comes from anchor i+1's left handle
+    sorted_segments[:, 4:6] = sorted_anchor_handle_data[1:, 2:4]
+    # P3 comes from anchor i+1's location
+    sorted_segments[:, 6:8] = sorted_anchor_handle_data[1:, 0:2]
+
+    # 4. Apply handle clamping to the *newly reconstructed* segments
+    #    (This is the same vectorized logic as before)
+    x0 = sorted_segments[:, 0]
+    x1 = sorted_segments[:, 2]
+    x2 = sorted_segments[:, 4]
+    x3 = sorted_segments[:, 6]
+
+    x_min = np.minimum(x0, x3)
+    x_max = np.maximum(x0, x3)
+
+    x1_clamped = np.clip(x1, x_min, x_max)
+    x2_clamped = np.clip(x2, x_min, x_max)
+
+    crossover_mask = x1_clamped > x2_clamped
+    x_split = (x1_clamped + x2_clamped) / 2.0
+
+    sorted_segments[:, 2] = np.where(crossover_mask, x_split, x1_clamped)
+    sorted_segments[:, 4] = np.where(crossover_mask, x_split, x2_clamped)
+
+    return sorted_segments
 
 
 def evaluate_cubic_bezseg(segment:np.ndarray, t:float):
