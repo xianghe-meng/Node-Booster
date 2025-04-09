@@ -70,10 +70,9 @@ class Base():
             ng.name = name
 
         ng = ng.copy() #always using a copy of the original ng
-
         self.node_tree = ng
+
         self.width = 160
-        self.label = self.bl_label
 
         return None
 
@@ -94,8 +93,9 @@ class Base():
 
     def draw_label(self,):
         """node label"""
-        
-        return self.bl_label
+        if (self.label==''):
+            return 'Remap Values'
+        return self.label
 
     def evaluator(self,)->None:
         """evaluator the node required for the output evaluator"""

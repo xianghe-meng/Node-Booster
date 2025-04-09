@@ -508,10 +508,9 @@ class Base():
                 out_sockets=sockets, sockets_description=descriptions,)
 
         ng = ng.copy()  # always using a copy of the original ng
-
         self.node_tree = ng
+
         self.width = 156
-        self.label = self.bl_label
 
         return None
 
@@ -558,8 +557,9 @@ class Base():
 
     def draw_label(self):
         """node label"""
-
-        return self.bl_label
+        if (self.label==''):
+            return 'Keyboard & Mouse'
+        return self.label
 
     def draw_buttons(self, context, layout):
         """node interface drawing"""

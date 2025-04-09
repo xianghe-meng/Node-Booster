@@ -67,7 +67,6 @@ class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
             )
 
         self.node_tree = ng
-        self.label = self.bl_label
 
         set_ng_socket_defvalue(ng, 0, value=is_rendered_view(),)
         return None 
@@ -84,8 +83,9 @@ class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
 
     def draw_label(self,):
         """node label"""
-        
-        return self.bl_label
+        if (self.label==''):
+            return 'Is Rendered View'
+        return self.label
 
     def draw_buttons(self, context, layout,):
         """node interface drawing"""

@@ -147,7 +147,7 @@ class NODEBOOSTER_ND_2DCurvePreview(bpy.types.Node):
         """this fct run when appending the node for the first time"""
 
         self.inputs.new('NodeBoosterCustomSocketInterpolation', "2D Curve")
-        self.label = self.bl_label
+
         self.width = 240
 
         return None
@@ -168,8 +168,9 @@ class NODEBOOSTER_ND_2DCurvePreview(bpy.types.Node):
 
     def draw_label(self,):
         """node label"""
-        
-        return self.bl_label
+        if (self.label==''):
+            return 'Preview'
+        return self.label
 
     def evaluator(self,)->None:
         """evaluator the node required for the output evaluator"""

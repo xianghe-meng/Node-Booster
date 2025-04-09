@@ -106,5 +106,4 @@ class NODEBOOSTER_ND_CustomSocketUtility(bpy.types.Node):
         return None
 
     def draw_label(self):
-
         return 'SocketUtility'

@@ -40,7 +40,7 @@ class NODEBOOSTER_ND_EnsureMonotonicity(bpy.types.Node):
 
         self.inputs.new('NodeBoosterCustomSocketInterpolation', "2D Curve")
         self.outputs.new('NodeBoosterCustomSocketInterpolation', "Interpolation")
-        self.label = self.bl_label
+
         self.width = 120
 
         return None
@@ -57,8 +57,9 @@ class NODEBOOSTER_ND_EnsureMonotonicity(bpy.types.Node):
 
     def draw_label(self,):
         """node label"""
-
-        return self.bl_label
+        if (self.label==''):
+            return 'Monotonicity'
+        return self.label
 
     def evaluator(self, socket_output)->None:
         """evaluator the node required for the output evaluator"""

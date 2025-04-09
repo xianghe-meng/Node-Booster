@@ -52,9 +52,7 @@ class Base():
                 )
          
         ng = ng.copy() #always using a copy of the original ng
-        
         self.node_tree = ng
-        self.label = self.bl_label
 
         return None
 
@@ -82,8 +80,9 @@ class Base():
 
     def draw_label(self,):
         """node label"""
-        
-        return self.bl_label
+        if (self.label==''):
+            return 'Scene Info'
+        return self.label
 
     def draw_buttons(self, context, layout):
         """node interface drawing"""

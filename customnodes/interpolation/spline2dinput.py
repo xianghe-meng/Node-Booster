@@ -67,7 +67,7 @@ class NODEBOOSTER_ND_2DCurveInput(bpy.types.Node):
         """this fct run when appending the node for the first time"""
 
         self.outputs.new('NodeBoosterCustomSocketInterpolation', "2D Curve")
-        self.label = self.bl_label
+
         self.width = 150
 
         return None
@@ -88,6 +88,12 @@ class NODEBOOSTER_ND_2DCurveInput(bpy.types.Node):
         send_refresh_signal(self.outputs[0])
 
         return None
+
+    def draw_label(self,):
+        """node label"""
+        if (self.label==''):
+            return '2D Curve'
+        return self.label
 
     def draw_buttons(self, context, layout):
     
