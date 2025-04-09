@@ -102,14 +102,15 @@ class Base():
 
         #1: We make some sockets invisible depending on user mode and tree type
 
-        #compositor node has no factor socket for vector curves for some reasons.
-        match self.tree_type:
-            case 'GeometryNodeTree' | 'ShaderNodeTree':
-                set_node_socketattr(self, socket_name="Factor", attribute='enabled', value=True, in_out='INPUT',)
-            case 'CompositorNodeTree':
-                if (self.mode == "VECTOR"):
-                      set_node_socketattr(self, socket_name="Factor", attribute='enabled', value=False, in_out='INPUT',)
-                else: set_node_socketattr(self, socket_name="Factor", attribute='enabled', value=True, in_out='INPUT',)
+        # NOTE commented out. normally remap node has no factor option.
+        # match self.tree_type:
+        #     case 'GeometryNodeTree' | 'ShaderNodeTree':
+        #         set_node_socketattr(self, socket_name="Factor", attribute='enabled', value=True, in_out='INPUT',)
+        #     case 'CompositorNodeTree':
+        #         if (self.mode == "VECTOR"):
+        #               set_node_socketattr(self, socket_name="Factor", attribute='enabled', value=False, in_out='INPUT',)
+        #         else: set_node_socketattr(self, socket_name="Factor", attribute='enabled', value=True, in_out='INPUT',)
+        set_node_socketattr(self, socket_name="Factor", attribute='enabled', value=False, in_out='INPUT',)
 
         #hide some sockets depending on the mode
         match self.mode:
