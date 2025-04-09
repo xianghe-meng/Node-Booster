@@ -7,7 +7,7 @@ import bpy
 import os
 import numpy as np
 
-from ...__init__ import get_addon_prefs
+from ... import get_addon_prefs
 from ...utils.str_utils import word_wrap
 from ...utils.bezier2d_utils import casteljau_subdiv_bezsegs, cut_bezsegs
 from ..evaluator import evaluate_upstream_value
@@ -22,6 +22,7 @@ from ...utils.node_utils import (
 #  8     `88b.8  888   888 888   888  888ooo888 
 #  8       `888  888   888 888   888  888    .o 
 # o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
+
 
 class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
 
@@ -69,7 +70,6 @@ class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
 
         self.inputs.new('NodeBoosterCustomSocketInterpolation', "2D Curve")
         self.outputs.new('NodeBoosterCustomSocketInterpolation', "2D Curve")
-        self.label = self.bl_label
 
         return None
 
@@ -85,8 +85,13 @@ class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
 
     def draw_label(self,):
         """node label"""
-
-        return self.bl_label
+        if (self.label==''):
+            match self.mode:
+                case 'SUBDIV':
+                    return 'Subdivide'
+                case 'CUT':
+                    return 'Cut'
+        return self.label
 
     def update_trigger(self,):
         """send an update trigger to the whole node_tree"""

@@ -49,7 +49,7 @@ class NODEBOOSTER_OT_interpolation_input_update(bpy.types.Operator):
 class Base():
 
     bl_idname = "NodeBoosterInterpolationInput"
-    bl_label = "Interpolation"
+    bl_label = "Interpolation Input"
     bl_description = """Create an interpolation socket type from a define curvegraph."""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"

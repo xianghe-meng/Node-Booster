@@ -75,7 +75,7 @@ class NODEBOOSTER_SK_Interpolation(Base, bpy.types.NodeSocket):
 class NODEBOOSTER_ND_CustomSocketUtility(bpy.types.Node):
 
     bl_idname = "CustomSocketUtility"
-    bl_label = "Socket Utility"
+    bl_label = "Socket Utility (Dev)"
     bl_description = "an internal utility node, for creating our customgroups"
     bl_icon = 'NODE'
     auto_update = {'NONE',}

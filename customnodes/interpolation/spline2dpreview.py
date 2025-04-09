@@ -181,18 +181,20 @@ class NODEBOOSTER_ND_2DCurvePreview(bpy.types.Node):
 
         # Find the bounds of the curve data to fit it in the view. Store this info in the node properties.
         if (result is not None) and (isinstance(result, np.ndarray)) and (result.size > 0):
-
+            
             # Extract x and y coordinates from bezier segments
-            x_coords = result[:, [0, 2, 4, 6]].flatten()  # All x coordinates (P0x, P1x, P2x, P3x)
-            y_coords = result[:, [1, 3, 5, 7]].flatten()  # All y coordinates (P0y, P1y, P2y, P3y)
+            curvepts = sample_bezsegs(result, 100)
+            x_coords = curvepts[:, 0]  # Extract x coordinates
+            y_coords = curvepts[:, 1]  # Extract y coordinates
 
             # Calculate min/max with small padding
             x_min, x_max = np.min(x_coords), np.max(x_coords)
             y_min, y_max = np.min(y_coords), np.max(y_coords)
 
             # Add 5% padding
-            x_pad = (x_max - x_min) * 0.05
-            y_pad = (y_max - y_min) * 0.05
+            padding = 0.15
+            x_pad = (x_max - x_min) * padding
+            y_pad = (y_max - y_min) * padding
 
             # Ensure we have some minimum bounds even for flat curves
             x_pad = max(x_pad, 0.1)

@@ -2,6 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# NOTE this is a numpy library for working with 2D bezier curves and interpolation.
+# heavily related to blender mapping.curve API.
+
 import numpy as np
 import hashlib
 
@@ -721,329 +724,415 @@ def cut_bezsegs(segments:np.ndarray, xlocation:float, sampling_rate:int=50, tole
     return modified_segments
 
 
-# def casteljau_subdiv_bezseg(segment_arr: np.ndarray, t: float | None = None, xloc: float | None = None, tol: float = 1e-6):
-#     """
-#     Subdivide a cubic Bézier segment using De Casteljau's algorithm.
+def extend_bezsegs(segments:np.ndarray, xlocation:float, mode:str='HANDLE', tol:float=1e-6,):
+    """
+    Extends a sequence of Bézier segments to a target xlocation,
+    if the xlocation is outside the current range of the segments.
 
-#     Can subdivide either at a specific parameter `t` or at a specific x-location `xloc`.
-#     If `t` is provided, it takes precedence.
-#     If only `xloc` is provided, the cubic equation for x(t) = xloc is solved to find `t`.
+    Args:
+        segments (np.ndarray): An (N, 8) NumPy array of Bézier segments.
+                               Assumed to be generally ordered by x for range check.
+        xlocation (float): The target x-coordinate to extend to.
+        mode (str): The extension mode. Must be 'HANDLE' or 'HORIZONTAL'.
+        tol (float): Tolerance for checking if tangent x-component is near zero.
 
-#     Args:
-#         segment_arr (np.ndarray): An 8-element NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
-#         t (float | None): The parameter (0.0 to 1.0) for subdivision. Defaults to None.
-#         xloc (float | None): The target x-coordinate for subdivision. Used if t is None. Defaults to None.
-#         tol (float): Tolerance used for comparing t values to 0 and 1 and for filtering roots.
+    Returns:
+        np.ndarray: A new NumPy array containing the original segments plus
+                    the added extension segment, if applicable. Shape will
+                    be (N, 8) or (N+1, 8). Returns a copy of the original
+                    if no extension is needed.
+    """
 
-#     Returns:
-#         tuple[np.ndarray, np.ndarray | None]: 
-#             - (seg1_arr, seg2_arr) if subdivision occurs.
-#             - (original_segment_arr, None) if subdivision does not occur.
-#     """
-#     try:
-#         # --- Input Validation and Parameter Determination --- 
-#         if not isinstance(segment_arr, np.ndarray) or segment_arr.shape != (8,):
-#             raise ValueError(f"Expected segment_arr shape (8,), got {segment_arr.shape}")
+    # --- Input Validation ---
+    if not isinstance(segments, np.ndarray) or segments.ndim != 2 or segments.shape[1] != 8:
+        raise ValueError(f"Input segments must be an (N, 8) NumPy array, got shape {segments.shape}")
+    if segments.size == 0:
+        print("Warning: Input segments array is empty. Cannot extend.")
+        return np.empty((0, 8), dtype=segments.dtype)
 
-#         P0x, P1x, P2x, P3x = segment_arr[0], segment_arr[2], segment_arr[4], segment_arr[6]
-#         final_t = -1.0 # Sentinel for t not yet determined
+    mode = mode.upper()
+    if mode not in ['HANDLE', 'HORIZONTAL']:
+        raise ValueError(f"Invalid mode '{mode}'. Must be 'HANDLE' or 'HORIZONTAL'.")
 
-#         if t is not None:
-#             final_t = np.clip(float(t), 0.0, 1.0)
-#         elif xloc is not None:
-#             # Check endpoints first (within tolerance)
-#             if abs(xloc - P0x) < tol:
-#                 final_t = 0.0
-#             elif abs(xloc - P3x) < tol:
-#                 final_t = 1.0
-#             else:
-#                 # --- Solve the cubic equation x(t) - xloc = 0 --- 
-#                 # Coefficients of the cubic polynomial in t: At^3 + Bt^2 + Ct + D = 0
-#                 # Where x(t) = (1-t)^3*P0x + 3(1-t)^2*t*P1x + 3(1-t)*t^2*P2x + t^3*P3x
-#                 # Rearranging x(t) - xloc = 0 gives:
-#                 A = P3x - 3*P2x + 3*P1x - P0x
-#                 B = 3*P2x - 6*P1x + 3*P0x
-#                 C = 3*P1x - 3*P0x
-#                 D = P0x - xloc
+    # --- Determine Current Range and Endpoints ---
+    P0_orig = segments[0, 0:2].astype(float)
+    P1_orig = segments[0, 2:4].astype(float)
+    P2_orig = segments[-1, 4:6].astype(float)
+    P3_orig = segments[-1, 6:8].astype(float)
+    min_x = P0_orig[0]
+    max_x = P3_orig[0]
+    original_dtype = segments.dtype
+    float_dtype = np.promote_types(original_dtype, float)
 
-#                 # Find the roots using numpy
-#                 # Note: np.roots expects coefficients from highest power to lowest
-#                 # Handle the near-zero coefficient case for A (reduces to quadratic/linear)
-#                 if abs(A) < tol:
-#                     if abs(B) < tol: # Linear case: Ct + D = 0
-#                         if abs(C) > tol:
-#                             roots = [-D / C]
-#                         else: # Constant case D = 0 (means xloc = P0x, handled above)
-#                             roots = [] 
-#                     else: # Quadratic case: Bt^2 + Ct + D = 0
-#                          roots = np.roots([B, C, D])
-#                 else: # Cubic case: At^3 + Bt^2 + Ct + D = 0
-#                      roots = np.roots([A, B, C, D])
+    # --- Check if Extension is Needed ---
+    if (min_x - tol) <= xlocation <= (max_x + tol):
+        return segments.copy()
 
-#                 # Filter roots: keep only real roots within [0 - tol, 1 + tol]
-#                 valid_roots = []
-#                 for r in roots:
-#                     if abs(np.imag(r)) < tol: # Check if root is real (within tolerance)
-#                          real_r = np.real(r)
-#                          if (0.0 - tol) <= real_r <= (1.0 + tol):
-#                              valid_roots.append(np.clip(real_r, 0.0, 1.0)) # Clip to exact [0,1]
-                
-#                 if len(valid_roots) == 1:
-#                     final_t = valid_roots[0]
-#                 elif len(valid_roots) > 1:
-#                     # Multiple valid roots means curve crosses xloc multiple times.
-#                     # Defaulting to the smallest valid t (first crossing from P0).
-#                     final_t = min(valid_roots)
-#                     # print(f"Warning: Multiple valid t values found for xloc={xloc}. Using smallest t={final_t:.4f}.")
-#                 # If len(valid_roots) == 0, final_t remains -1.0 (no subdivision)
+    # --- Calculate New Segment Anchors and Handles ---
+    new_segment_row = np.zeros(8, dtype=float_dtype)
+    needs_extension = True
 
-#         else:
-#             raise ValueError("Either t or xloc must be provided for subdivision.")
+    if (xlocation < min_x):
+        # Prepend: Extend to the left
+        anchor_point = P0_orig      # Point to connect to
+        connecting_handle = P1_orig # Handle defining tangent direction (P0-P1)
 
-#         # --- Perform Subdivision if t was determined --- 
-#         if final_t >= 0.0:
-#             P0, P1, P2, P3 = segment_arr[0:2], segment_arr[2:4], segment_arr[4:6], segment_arr[6:8]
-            
-#             omt = 1.0 - final_t
-#             Q0 = P0 * omt + P1 * final_t
-#             Q1 = P1 * omt + P2 * final_t
-#             Q2 = P2 * omt + P3 * final_t
-#             R0 = Q0 * omt + Q1 * final_t
-#             R1 = Q1 * omt + Q2 * final_t
-#             S = R0 * omt + R1 * final_t
+        P3_new = anchor_point # End of new segment is start of original
 
-#             seg1_arr = np.concatenate((P0, Q0, R0, S))
-#             seg2_arr = np.concatenate((S, R1, Q2, P3))
+        # Calculate Y coordinate of the new start point (P0_new) based on mode
+        match mode:
+            case 'HORIZONTAL':
+                new_y = anchor_point[1]
+            case 'HANDLE':
+                tangent_vec = anchor_point - connecting_handle # P0 - P1
+                Tx = tangent_vec[0]
+                Ty = tangent_vec[1]
+                if (abs(Tx) < tol):
+                    print("Warning: Tangent x-component near zero when extending left. Using horizontal Y.")
+                    new_y = anchor_point[1]
+                else:
+                    dx = xlocation - anchor_point[0] # Target x - start x (negative)
+                    scale = dx / Tx
+                    dy = scale * Ty
+                    new_y = anchor_point[1] + dy
 
-#             return seg1_arr, seg2_arr
-#         else:
-#             # No valid t found or needed, return original segment and None
-#             return segment_arr, None
+        P0_new = np.array([xlocation, new_y])
 
-#     except (ValueError, TypeError) as e:
-#         print(f"Error processing segment data in casteljau_subdiv_bezseg: {e}")
-#         print(f"Input segment_arr: {segment_arr}, t: {t}, xloc: {xloc}")
-#         return segment_arr, None # Return original segment and None on error
+        # Calculate handles based on 25% interpolation
+        segment_vec = P3_new - P0_new
+        P1_new = P0_new + 0.25 * segment_vec
+        P2_new = P3_new - 0.25 * segment_vec # = P0_new + 0.75 * segment_vec
 
+        new_segment_row[:] = np.concatenate((P0_new, P1_new, P2_new, P3_new))
+        combined_segments = np.vstack([new_segment_row, segments])
 
-# def casteljau_subdiv_bezsegs(segments: np.ndarray, xloc: float):
-#     """
-#     Subdivide segments in a NumPy array where the curve passes through a specific x-location.
+    elif (xlocation > max_x):
+        # Append: Extend to the right
+        anchor_point = P3_orig      # Point to connect to
+        connecting_handle = P2_orig # Handle defining tangent direction (P3-P2)
 
-#     Calls `casteljau_subdiv_bezseg` for each segment, providing the `xloc`.
-#     `casteljau_subdiv_bezseg` handles the logic of checking the range and finding `t`.
+        P0_new = anchor_point # Start of new segment is end of original
 
-#     Args:
-#         segments (np.ndarray): An N x 8 NumPy array of Bézier segments.
-#         xloc (float): The target x-coordinate for subdivision.
+        # Calculate Y coordinate of the new end point (P3_new) based on mode
+        match mode:
+            case 'HORIZONTAL':
+                new_y = anchor_point[1]
+            case 'HANDLE':
+                tangent_vec = anchor_point - connecting_handle # P3 - P2
+                Tx = tangent_vec[0]
+                Ty = tangent_vec[1]
+                if (abs(Tx) < tol):
+                    print("Warning: Tangent x-component near zero when extending right. Using horizontal Y.")
+                    new_y = anchor_point[1]
+                else:
+                    dx = xlocation - anchor_point[0] # Target x - start x (positive)
+                    scale = dx / Tx
+                    dy = scale * Ty
+                    new_y = anchor_point[1] + dy
 
-#     Returns:
-#         np.ndarray: A new NumPy array containing the original and subdivided segments.
-#                     The number of rows may be greater than N if subdivisions occurred.
-#     """
+        P3_new = np.array([xlocation, new_y])
 
-#     if (segments is None) or (segments.size == 0):
-#         return np.empty((0, 8), dtype=segments.dtype if segments is not None else float)
+        # Calculate handles based on 25% interpolation
+        segment_vec = P3_new - P0_new
+        P1_new = P0_new + 0.25 * segment_vec
+        P2_new = P3_new - 0.25 * segment_vec # = P0_new + 0.75 * segment_vec
 
-#     output_segments_list = []
-#     original_dtype = segments.dtype # Preserve original dtype
+        new_segment_row[:] = np.concatenate((P0_new, P1_new, P2_new, P3_new))
+        combined_segments = np.vstack([segments, new_segment_row])
 
-#     for segment_row in segments:
-#         try:
-#             # Call the modified function, providing only xloc
-#             # It returns (seg1, seg2) if split, or (original, None) if not split
-#             seg1, seg2_or_none = casteljau_subdiv_bezseg(segment_row, xloc=xloc)
+    else:
+         needs_extension = False
+         combined_segments = segments.copy()
 
-#             # Append the result(s)
-#             output_segments_list.append(seg1) # Always append the first returned segment
-#             if seg2_or_none is not None:
-#                 output_segments_list.append(seg2_or_none) # Append the second if subdivision happened
-
-#         except Exception as e:
-#             print(f"Error processing segment during casteljau_subdiv_bezsegs: {e}")
-#             # Add the original segment back on error during the call
-#             output_segments_list.append(segment_row)
-#         continue
-
-#     # Reassemble the segments array 
-#     if not output_segments_list:
-#          return np.empty((0, 8), dtype=original_dtype)
-
-#     return np.array(output_segments_list, dtype=original_dtype)
+    # Ensure final array has a compatible dtype
+    if needs_extension:
+        final_dtype = np.promote_types(original_dtype, float_dtype)
+        return combined_segments.astype(final_dtype, copy=False)
+    else:
+        return combined_segments.astype(original_dtype, copy=False)
 
 
-# def extended_seg(segment, goal_xy):
-#     """
-#     Extend a segment so its endpoint P3 becomes goal_xy.
-#     Creates a new segment starting from the original P3.
-#     Approximates new handles based on the tangent of the original segment.
-#     Returns the new segment (P0_new, P1_new, P2_new, P3_new).
-#     """
-#     try:
-#         P0, P1, P2, P3 = [np.array(pt, dtype=float) for pt in segment]
-#         goal_xy = np.array(goal_xy, dtype=float)
-#     except Exception as e:
-#          print(f"Error converting points in extended_seg: {e}")
-#          fallback_pt = np.array([0.0, 0.0])
-#          return (fallback_pt, fallback_pt, fallback_pt, fallback_pt)
-         
-#     # Use tangent at the end of the original segment (P3-P2)
-#     tangent = P3 - P2 if np.linalg.norm(P3-P2) > 1e-9 else np.array([0.0,0.0]) 
+def mirror_bezsegs(segments: np.ndarray):
+    """
+    Mirrors Bézier segments horizontally across the y-axis (x=0).
+
+    Args:
+        segments (np.ndarray): An (N, 8) NumPy array of Bézier segments
+                               [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
+
+    Returns:
+        np.ndarray: A new (N, 8) NumPy array containing the mirrored segments.
+                    The order of the points within each segment (P0..P3) is
+                    maintained, only their x-coordinates are negated.
+    """
+    # --- Input Validation ---
+    if not isinstance(segments, np.ndarray) or segments.ndim != 2 or segments.shape[1] != 8:
+        raise ValueError(f"Input segments must be an (N, 8) NumPy array, got shape {segments.shape}")
+    if segments.size == 0:
+        return np.empty((0, 8), dtype=segments.dtype)
+
+    # --- Create a float copy for modification ---
+    # This prevents modifying the original and handles potential integer inputs
+    mirrored_segments = segments.astype(float, copy=True)
+
+    # --- Negate all X coordinates ---
+    # X coordinates are at columns 0, 2, 4, 6
+    mirrored_segments[:, 0] *= -1.0 # P0x
+    mirrored_segments[:, 2] *= -1.0 # P1x
+    mirrored_segments[:, 4] *= -1.0 # P2x
+    mirrored_segments[:, 6] *= -1.0 # P3x
+
+    # Y coordinates (columns 1, 3, 5, 7) remain unchanged
+
+    # --- Return mirrored segments (cast back if original was not float?) ---
+    # Usually returning float is fine, but we can try to preserve original type if needed
+    try:
+        # Attempt to cast back to original type if it makes sense (e.g., if original was int)
+        # Note: This might lose precision if the original was int and negation created non-ints
+        # For geometric operations, float is usually preferred anyway.
+        if np.can_cast(mirrored_segments, segments.dtype, casting='same_kind'):
+             return mirrored_segments.astype(segments.dtype, copy=False)
+        else:
+             return mirrored_segments # Return as float if casting back is unsafe/lossy
+    except:
+        # Fallback to returning the float array
+         return mirrored_segments
+
+
+def match_bezsegs(segsA:np.ndarray, segsB:np.ndarray, cut_precision:int=50, tol:float=1e-6,):
+    """
+    Matches two Bézier curve segment arrays to have the same x-range and
+    aligned knots (anchor points) at all combined original knot locations.
+    Args:
+        segsA (np.ndarray): First curve as an (N, 8) NumPy array.
+        segsB (np.ndarray): Second curve as an (M, 8) NumPy array.
+        extend_mode (str): Mode used by extend_bezsegs ('HORIZONTAL' or 'HANDLE').
+                           Defaults to 'HORIZONTAL'.
+        cut_precision (int): Sampling rate used by cut_bezsegs for 't' estimation.
+        tol (float): Tolerance for floating point comparisons.
+    Returns:
+        tuple[np.ndarray, np.ndarray]: The matched segment arrays (matched_A, matched_B).
+                                       Shapes will likely differ from input due to subdivisions.
+    """
+
+    # --- Handle Empty Inputs ---
+    if (segsA is None) or (segsA.size == 0):
+        print("Warning: segsA is empty.")
+        return segsA, segsB # Return originals or potentially empty arrays
+    if (segsB is None) or (segsB.size == 0):
+        print("Warning: segsB is empty.")
+        return segsA, segsB
+
+    # --- Ensure Float for Calculations ---
+    # Work with copies to avoid modifying originals
+    current_segsA = segsA.astype(float, copy=True)
+    current_segsB = segsB.astype(float, copy=True)
+
+    # --- 1. Find Global X-Range ---
+    min_xA = current_segsA[0, 0]
+    max_xA = current_segsA[-1, 6]
+    min_xB = current_segsB[0, 0]
+    max_xB = current_segsB[-1, 6]
+
+    global_min_x = min(min_xA, min_xB)
+    global_max_x = max(max_xA, max_xB)
+
+    # --- 2. Extend Curves ---
+    try:
+        # Extend A Start
+        if (min_xA > (global_min_x+tol)): current_segsA = extend_bezsegs(current_segsA, global_min_x, 'HANDLE', tol)
+        # Extend A End
+        if (max_xA < (global_max_x-tol)): current_segsA = extend_bezsegs(current_segsA, global_max_x, 'HANDLE', tol)
+        # Extend B Start
+        if (min_xB > (global_min_x+tol)): current_segsB = extend_bezsegs(current_segsB, global_min_x, 'HANDLE', tol)
+        # Extend B End
+        if (max_xB < (global_max_x-tol)): current_segsB = extend_bezsegs(current_segsB, global_max_x, 'HANDLE', tol)
+    except Exception as e:
+        print(f"Error during curve extension: {e}. Returning potentially unextended curves.")
+        # Return current state before subdivision attempt
+        return current_segsA, current_segsB
+
+    # --- 3. Collect All Knot X-Coordinates ---
+    knots_A_x = np.concatenate(([current_segsA[0, 0]], current_segsA[:, 6]))
+    knots_B_x = np.concatenate(([current_segsB[0, 0]], current_segsB[:, 6]))
+    all_knots_x = np.unique(np.concatenate((knots_A_x, knots_B_x)))
+
+    # --- 4 & 5. Iterative Subdivision ---
+    final_segsA = current_segsA
+    final_segsB = current_segsB
+
+    for x_knot in all_knots_x:
+        # Skip subdividing exactly at the global boundaries
+        if abs(x_knot - global_min_x) < tol or abs(x_knot - global_max_x) < tol:
+            continue
+        try:
+            # Subdivide A at this x-location
+            final_segsA = cut_bezsegs(final_segsA, x_knot, cut_precision)
+            # Subdivide B at this x-location
+            final_segsB = cut_bezsegs(final_segsB, x_knot, cut_precision)
+
+        except Exception as e:
+            print(f"Error during subdivision at x={x_knot}: {e}. Stopping subdivision process.")
+            # Return the segments as they were before the error
+            return final_segsA, final_segsB
+
+        continue
+
+    # Debug Print x locations for debugging
+    # print("X locations A:", final_segsA[:, [0,6]])
+    # print("X locations B:", final_segsB[:, [0,6]])
+
+    return final_segsA, final_segsB
+
+
+def match_bounds(segments_to_modify:np.ndarray, reference_segments:np.ndarray, tol:float=1e-6):
+    """
+    Transforms (translates and scales) segments_to_modify so its overall start
+    and end points match those of reference_segments.
+
+    Applies independent scaling and translation to X and Y coordinates.
+
+    Args:
+        segments_to_modify (np.ndarray): Curve segments to transform (B). (M, 8) array.
+        reference_segments (np.ndarray): Curve segments defining target bounds (A). (N, 8) array.
+        tol (float): Tolerance for checking zero span.
+
+    Returns:
+        np.ndarray: The transformed segments_to_modify array (M, 8) with bounds matching
+                    reference_segments. Returns a copy of the input if modification
+                    is not possible (e.g., empty input, zero span).
+    """
+    if segments_to_modify is None or segments_to_modify.size == 0:
+        print("Warning: segments_to_modify is empty in match_bounds.")
+        return segments_to_modify # Return original/empty
+
+    if reference_segments is None or reference_segments.size == 0:
+        print("Warning: reference_segments is empty in match_bounds. Cannot match.")
+        return segments_to_modify.copy() # Return copy of original B
+
+    # --- Extract Bounds ---
+    P0A = reference_segments[0, 0:2].astype(float)
+    P3A = reference_segments[-1, 6:8].astype(float)
+    P0B = segments_to_modify[0, 0:2].astype(float)
+    P3B = segments_to_modify[-1, 6:8].astype(float)
+
+    # --- Calculate Spans ---
+    spanXA = P3A[0] - P0A[0]
+    spanYA = P3A[1] - P0A[1]
+    spanXB = P3B[0] - P0B[0]
+    spanYB = P3B[1] - P0B[1]
+
+    # --- Calculate Scale Factors (handle zero span) ---
+    scale_x = 1.0
+    if abs(spanXB) > tol:
+        scale_x = spanXA / spanXB
+    elif abs(spanXA) > tol:
+        # B has zero width, A does not. Cannot map non-zero width to zero.
+        # What's the desired behavior? Let's default to scale=1 (translation only)
+        # Or maybe scale=0? Let's use scale=1 for now.
+        print("Warning: Cannot scale zero-width curve B to match non-zero width curve A. Using scale_x=1.")
+        scale_x = 1.0
+
+    scale_y = 1.0
+    if abs(spanYB) > tol:
+        scale_y = spanYA / spanYB
+    elif abs(spanYA) > tol:
+        print("Warning: Cannot scale zero-height curve B to match non-zero height curve A. Using scale_y=1.")
+        scale_y = 1.0
+
+    # --- Apply Transformation ---
+    # Work on a float copy
+    transformed_segsB = segments_to_modify.astype(float, copy=True)
+
+    # Reshape to access points easily: (num_segments * 4, 2)
+    num_b_segments = transformed_segsB.shape[0]
+    points_b = transformed_segsB.reshape(-1, 2) # Reshapes to (N*4, 2)
+
+    # Translate B so P0B is at origin
+    points_b -= P0B
+
+    # Scale B
+    points_b[:, 0] *= abs(scale_x) # Scale x coordinates
+    points_b[:, 1] *= abs(scale_y) # Scale y coordinates
+
+    # Translate B so the (now scaled) P0B' lands on P0A
+    points_b += P0A
+
+    # Reshape back to (N, 8)
+    transformed_segsB = points_b.reshape(num_b_segments, 8)
+
+    # Ensure final array has a compatible dtype with original
+    final_dtype = np.promote_types(segments_to_modify.dtype, float)
+    return transformed_segsB.astype(final_dtype, copy=False)
+
+
+def lerp_bezsegs(segsA: np.ndarray, segsB: np.ndarray, mixfac:float, cut_precision:int=50, tol:float=1e-6):
+    """
+    Mixes (interpolates) between two Bézier curve segment arrays.
+
+    If the number of segments differs, it first aligns the curves using
+    match_bezsegs before interpolating. If the segments already have the
+    same length, it assumes they are aligned and interpolates directly.
+
+    Args:
+        segsA (np.ndarray): First curve as an (N, 8) NumPy array.
+        segsB (np.ndarray): Second curve as an (M, 8) NumPy array.
+        mixfac (float): The mixing factor (0.0 returns segsA, 1.0 returns segsB).
+        extend_mode (str): Mode used by match_bezsegs if alignment is needed.
+                           Defaults to 'HORIZONTAL'.
+        cut_precision (int): Sampling rate used by match_bezsegs if alignment is needed.
+                                 Defaults to 50.
+        tol (float): Tolerance for comparing mixfac to 0 and 1, and used internally
+                     by match_bezsegs.
+
+    Returns:
+        np.ndarray: The resulting mixed Bézier curve as an (L, 8) NumPy array.
+                    L will be the length of segsA/segsB after potential matching.
+    """
+
+    # Clamp mixfac just in case it's slightly outside [0, 1] after tolerance check
+    mixfac = np.clip(mixfac, 0.0, 1.0)
+
+    # --- move and rescape curve B to curve A to match start/end bounds ---
+    segsB = match_bounds(segsB, segsA)
     
-#     new_P0 = P3 # New segment starts where old one ended
-#     # Estimate new P1 based on the tangent direction
-#     new_P1 = P3 + tangent / 3.0 
-    
-#     new_P3 = goal_xy # New segment ends at the goal
-#     # Estimate new P2 based on pulling back from the new end point
-#     # Use the vector from the old P3 to the new P3 as a guide
-#     vec_P3_newP3 = new_P3 - P3
-#     new_P2 = new_P3 - vec_P3_newP3 / 3.0 # Simplistic estimate
-    
-#     return (new_P0, new_P1, new_P2, new_P3)
+    # --- Ensure Curves are Matching (if needed) ---
+    if segsA.shape[0] != segsB.shape[0]:
+        print(f"Segment counts differ ({segsA.shape[0]} vs {segsB.shape[0]}). Running match_bezsegs...")
+        try:
+            # Call match_bezsegs to get aligned versions
+            segsA, segsB = match_bezsegs(segsA, segsB, cut_precision=cut_precision, tol=tol,)
+            # Verify matching worked (should have same length now)
+            if segsA.shape[0] != segsB.shape[0]:
+                 print("CRITICAL ERROR: match_bezsegs failed to return arrays of the same length. Cannot mix.")
+                 return None
+            print(f"Matching complete. New segment count: {segsA.shape[0]}")
+        except Exception as e:
+            print(f"Error during match_bezsegs in lerp_bezsegs: {e}. Returning original segsA.")
+            return None
 
+    # --- Handle Edge Cases for mixfac ---
+    if (abs(mixfac - 0.0) < tol):
+        return segsA
+    if (abs(mixfac - 1.0) < tol):
+        return segsB
 
-# def match_curves(curve1_segs_arr: np.ndarray, curve2_segs_arr: np.ndarray, x_bounds):
-#     """
-#     Adjust two curves, provided as N x 8 NumPy arrays, so that both have 
-#     segment boundaries at the specified x_bounds.
-    
-#     Args:
-#         curve1_segs_arr (np.ndarray): First curve as N1x8 array.
-#         curve2_segs_arr (np.ndarray): Second curve as N2x8 array.
-#         x_bounds (list): Sorted list of x-coordinates for desired boundaries.
+    # Check for empty arrays after potential matching
+    if segsA.size == 0 or segsB.size == 0:
+         print("Warning: One or both segment arrays are empty after matching. Returning empty.")
+         return None
 
-#     Returns:
-#         tuple[np.ndarray, np.ndarray]: The adjusted curves as new M1x8 and M2x8 arrays.
-#     """
-    
-#     # --- Input Validation ---
-#     if not isinstance(curve1_segs_arr, np.ndarray) or curve1_segs_arr.ndim != 2 or curve1_segs_arr.shape[1] != 8:
-#         print(f"Error: curve1_segs_arr must be an Nx8 NumPy array, got shape {curve1_segs_arr.shape if hasattr(curve1_segs_arr, 'shape') else type(curve1_segs_arr)}")
-#         return curve1_segs_arr, curve2_segs_arr # Return originals on error
-#     if not isinstance(curve2_segs_arr, np.ndarray) or curve2_segs_arr.ndim != 2 or curve2_segs_arr.shape[1] != 8:
-#         print(f"Error: curve2_segs_arr must be an Nx8 NumPy array, got shape {curve2_segs_arr.shape if hasattr(curve2_segs_arr, 'shape') else type(curve2_segs_arr)}")
-#         return curve1_segs_arr, curve2_segs_arr
-#     if not curve1_segs_arr.size or not curve2_segs_arr.size:
-#          print("Warning: One or both input curves are empty in match_curves.")
-#          return curve1_segs_arr, curve2_segs_arr
-#     if not x_bounds:
-#          print("Warning: x_bounds is empty in match_curves. Returning original curves.")
-#          return curve1_segs_arr, curve2_segs_arr
-#     if not all(isinstance(x, (int, float)) for x in x_bounds):
-#             print("Error: x_bounds must contain only numbers.")
-#             return curve1_segs_arr, curve2_segs_arr
-            
-#     # Convert N x 8 array to list of (P0, P1, P2, P3) tuples for processing
-#     def array_to_segment_list(segments_arr):
-#         segment_list = []
-#         for row in segments_arr:
-#             P0 = row[0:2]
-#             P1 = row[2:4]
-#             P2 = row[4:6]
-#             P3 = row[6:8]
-#             segment_list.append((P0, P1, P2, P3))
-#         return segment_list
+    # --- Perform Optimized NumPy Lerp ---
+    # Ensure calculation uses float for the interpolation math
+    try:
+        float_A = segsA.astype(float, copy=False)
+        float_B = segsB.astype(float, copy=False)
 
-#     # Convert list of (P0, P1, P2, P3) tuples back to N x 8 array
-#     def segment_list_to_array(segment_list):
-#         if not segment_list: return np.empty((0, 8), dtype=float)
-#         segment_rows = [np.concatenate(seg) for seg in segment_list]
-#         return np.array(segment_rows, dtype=float)
+        # Linear interpolation: result = A * (1 - factor) + B * factor
+        mixed_segments = float_A * (1.0 - mixfac) + float_B * mixfac
 
-#     # --- Helper: Subdivide a list of segments --- 
-#     def subdivide_to_bounds(segments_list, x_bounds):
-#         if not segments_list: return [] 
-#         x_bounds = sorted(list(set(x_bounds))) 
-        
-#         start_x = segments_list[0][0][0]
-#         if x_bounds[0] < start_x - 1e-5:
-#             x_bounds = [x for x in x_bounds if x >= start_x - 1e-5]
-#             if not x_bounds: return segments_list
-#             if abs(x_bounds[0] - start_x) < 1e-5: x_bounds[0] = start_x
-#         elif abs(x_bounds[0] - start_x) > 1e-5:
-#              x_bounds.insert(0, start_x)
-#         else:
-#              x_bounds[0] = start_x
-             
-#         new_segments_list = []
-#         current_segments_queue = list(segments_list)
-#         bound_index = 0
+    except Exception as e:
+        print(f"Error during segment interpolation: {e}. Returning first segment array (potentially matched).")
+        return None
 
-#         while current_segments_queue:
-#             current_seg_tuple = current_segments_queue.pop(0)
-#             # Ensure points are numpy arrays for calculation
-#             P0, P1, P2, P3 = map(np.asarray, current_seg_tuple)
-#             P0_x = P0[0]
-#             P3_x = P3[0]
-            
-#             while bound_index < len(x_bounds) and x_bounds[bound_index] <= P0_x + 1e-5:
-#                 bound_index += 1
-            
-#             if bound_index >= len(x_bounds) or x_bounds[bound_index] >= P3_x - 1e-5:
-#                 new_segments_list.append(current_seg_tuple)
-#                 continue
-                
-#             target_x = x_bounds[bound_index]
-#             print(f"Subdividing segment [{P0_x:.2f} -> {P3_x:.2f}] at bound {target_x:.2f}")
-#             try:
-#                 # Pass the tuple representation to subdivide_segment
-#                 seg1_tuple, seg2_tuple = subdivide_segment(current_seg_tuple, target_x)
-#                 new_segments_list.append(seg1_tuple)
-#                 current_segments_queue.insert(0, seg2_tuple) 
-#             except Exception as e:
-#                 print(f"Error subdividing segment at {target_x}: {e}. Adding original segment.")
-#                 new_segments_list.append(current_seg_tuple) 
-                 
-#         return new_segments_list
-
-#     # --- Main Logic --- 
-#     # Convert input arrays to lists of tuples for processing
-#     curve1_list = array_to_segment_list(curve1_segs_arr)
-#     curve2_list = array_to_segment_list(curve2_segs_arr)
-    
-#     # Perform subdivision on the lists
-#     new_curve1_list = subdivide_to_bounds(curve1_list, x_bounds)
-#     new_curve2_list = subdivide_to_bounds(curve2_list, x_bounds)
-    
-#     # Convert results back to N x 8 arrays
-#     new_curve1_arr = segment_list_to_array(new_curve1_list)
-#     new_curve2_arr = segment_list_to_array(new_curve2_list)
-    
-#     return new_curve1_arr, new_curve2_arr
-
-
-# def mix_bezsegs(curve1_segs_arr: np.ndarray, curve2_segs_arr: np.ndarray, mix_factor):
-#     """
-#     Mix two curves (N x 8 NumPy arrays) that have matching segmentation.
-#     Linearly interpolates control points for corresponding segments.
-#     Assumes segment arrays are of the same length (N).
-    
-#     Args:
-#         curve1_segs_arr (np.ndarray): First curve as Nx8 array.
-#         curve2_segs_arr (np.ndarray): Second curve as Nx8 array.
-#         mix_factor (float): Interpolation factor (0.0 = curve1, 1.0 = curve2).
-        
-#     Returns:
-#         np.ndarray: The mixed curve as a new Nx8 array.
-#     """
-#     # --- Input Validation ---
-#     if not isinstance(curve1_segs_arr, np.ndarray) or curve1_segs_arr.ndim != 2 or curve1_segs_arr.shape[1] != 8:
-#         print(f"Error: curve1_segs_arr must be an Nx8 NumPy array, got shape {curve1_segs_arr.shape if hasattr(curve1_segs_arr, 'shape') else type(curve1_segs_arr)}")
-#         return np.empty((0, 8), dtype=float) # Return empty on error
-#     if not isinstance(curve2_segs_arr, np.ndarray) or curve2_segs_arr.ndim != 2 or curve2_segs_arr.shape[1] != 8:
-#         print(f"Error: curve2_segs_arr must be an Nx8 NumPy array, got shape {curve2_segs_arr.shape if hasattr(curve2_segs_arr, 'shape') else type(curve2_segs_arr)}")
-#         return np.empty((0, 8), dtype=float)
-        
-#     if curve1_segs_arr.shape[0] != curve2_segs_arr.shape[0]:
-#         print(f"Error: Curves must have the same number of segments to mix ({curve1_segs_arr.shape[0]} vs {curve2_segs_arr.shape[0]}). Returning first curve.")
-#         # Consider if returning curve1 or empty is more appropriate
-#         return curve1_segs_arr.copy() 
-
-#     mix_factor = np.clip(mix_factor, 0.0, 1.0) # Ensure mix factor is valid [0, 1]
-
-#     # --- Direct Array Interpolation --- 
-#     # Leverage NumPy's vectorized operations for efficiency
-#     mixed_segments_arr = (1.0 - mix_factor) * curve1_segs_arr + mix_factor * curve2_segs_arr
-                 
-#     return mixed_segments_arr
+    return mixed_segments

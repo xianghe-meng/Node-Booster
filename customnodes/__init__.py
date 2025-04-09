@@ -81,17 +81,26 @@ from . interpolation.interpolationremap import (
         NODEBOOSTER_NG_SH_InterpolationRemap,
         NODEBOOSTER_NG_CP_InterpolationRemap,
         )
-from .interpolation.twodimensionalcurvepreview import (
+from .interpolation.spline2dpreview import (
         NODEBOOSTER_PT_InterpolationOptions,
         NODEBOOSTER_ND_2DCurvePreview,
         )
-from . interpolation.twodimensionalcurveinput import (
+from . interpolation.spline2dinput import (
         NODEBOOSTER_ND_2DCurveInput,
         )
-from . interpolation.twodimensionalcurvesubd import (
+from . interpolation.spline2dsubd import (
         NODEBOOSTER_ND_2DCurveSubdiv,
         )
-from . interpolation.monotonicinterpolation import (
+from . interpolation.spline2dextend import (
+        NODEBOOSTER_ND_2DCurveExtend,
+        )
+from . interpolation.spline2dmatch import (
+        NODEBOOSTER_ND_2DCurvesMatch,
+        )
+from . interpolation.spline2dmix import (
+        NODEBOOSTER_ND_2DCurvesMix,
+        )
+from . interpolation.spline2dmonotonic import (
         NODEBOOSTER_ND_EnsureMonotonicity,
         )
 
@@ -125,8 +134,11 @@ GN_CustomNodes = (
             NODEBOOSTER_ND_2DCurvePreview,
             NODEBOOSTER_ND_2DCurveInput,
             NODEBOOSTER_ND_2DCurveSubdiv,
+            NODEBOOSTER_ND_2DCurveExtend,
+            NODEBOOSTER_ND_2DCurvesMix,
             NODEBOOSTER_ND_EnsureMonotonicity,
-            # NODEBOOSTER_ND_CustomSocketUtility, #dev utility.
+            # NODEBOOSTER_ND_2DCurvesMatch, #dev utility, debugging purpose.
+            # NODEBOOSTER_ND_CustomSocketUtility, #dev utility. for creating ng with custom sockets manually.
             ),
         ),
     )
@@ -155,8 +167,11 @@ SH_CustomNodes = (
             NODEBOOSTER_ND_2DCurvePreview,
             NODEBOOSTER_ND_2DCurveInput,
             NODEBOOSTER_ND_2DCurveSubdiv,
+            NODEBOOSTER_ND_2DCurveExtend,
+            NODEBOOSTER_ND_2DCurvesMix,
             NODEBOOSTER_ND_EnsureMonotonicity,
-            # NODEBOOSTER_ND_CustomSocketUtility, #dev utility.
+            # NODEBOOSTER_ND_2DCurvesMatch, #dev utility, debugging purpose.
+            # NODEBOOSTER_ND_CustomSocketUtility, #dev utility. for creating ng with custom sockets manually.
             ),
         ), 
     )
@@ -185,8 +200,11 @@ CP_CustomNodes = (
             NODEBOOSTER_ND_2DCurvePreview,
             NODEBOOSTER_ND_2DCurveInput,
             NODEBOOSTER_ND_2DCurveSubdiv,
+            NODEBOOSTER_ND_2DCurveExtend,
+            NODEBOOSTER_ND_2DCurvesMix,
             NODEBOOSTER_ND_EnsureMonotonicity,
-            # NODEBOOSTER_ND_CustomSocketUtility, #dev utility.
+            # NODEBOOSTER_ND_2DCurvesMatch, #dev utility, debugging purpose.
+            # NODEBOOSTER_ND_CustomSocketUtility, #dev utility. for creating ng with custom sockets manually.
             ),
         ), 
     )
@@ -243,6 +261,9 @@ classes = (
     NODEBOOSTER_OT_interpolation_input_update,
     NODEBOOSTER_ND_2DCurveInput,
     NODEBOOSTER_ND_2DCurveSubdiv,
+    NODEBOOSTER_ND_2DCurveExtend,
+    NODEBOOSTER_ND_2DCurvesMatch,
+    NODEBOOSTER_ND_2DCurvesMix,
     NODEBOOSTER_ND_EnsureMonotonicity,
     )
 

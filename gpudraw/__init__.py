@@ -6,7 +6,7 @@ import bpy
 import gpu
 from gpu_extras.batch import batch_for_shader
 from ..utils.draw_utils import get_dpifac
-from ..customnodes.interpolation.twodimensionalcurvepreview import draw_interpolation_preview
+from ..customnodes.interpolation.spline2dpreview import draw_interpolation_preview
 
 
 def draw_nodeeditor_overlay():

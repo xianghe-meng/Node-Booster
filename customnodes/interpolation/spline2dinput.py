@@ -16,7 +16,7 @@ from ...utils.node_utils import (
 class NODEBOOSTER_ND_2DCurveInput(bpy.types.Node):
 
     bl_idname = "NodeBooster2DCurveInput" 
-    bl_label = "2D Curve"
+    bl_label = "2D Curve Input"
     bl_description = "Generates 2D curve data from a 3D Curve Object's axis."
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
