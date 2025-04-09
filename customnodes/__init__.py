@@ -76,6 +76,11 @@ from . interpolation.interpolationmap import (
         NODEBOOSTER_NG_SH_InterpolationMap,
         NODEBOOSTER_NG_CP_InterpolationMap,
         )
+from . interpolation.interpolationremap import (
+        NODEBOOSTER_NG_GN_InterpolationRemap,
+        NODEBOOSTER_NG_SH_InterpolationRemap,
+        NODEBOOSTER_NG_CP_InterpolationRemap,
+        )
 from . interpolation.interpolationpreview import (
         NODEBOOSTER_PT_InterpolationOptions,
         NODEBOOSTER_NG_GN_InterpolationPreview,
@@ -114,6 +119,7 @@ GN_CustomNodes = (
     ('Experimental',(
         NODEBOOSTER_NG_GN_InterpolationInput,
         NODEBOOSTER_NG_GN_InterpolationMap,
+        NODEBOOSTER_NG_GN_InterpolationRemap,
         NODEBOOSTER_NG_GN_InterpolationPreview,
         NODEBOOSTER_NG_GN_2DCurve,
         NODEBOOSTER_ND_EnsureMonotonicity,
@@ -140,6 +146,7 @@ SH_CustomNodes = (
     ('Experimental',(
         NODEBOOSTER_NG_SH_InterpolationInput,
         NODEBOOSTER_NG_SH_InterpolationMap,
+        NODEBOOSTER_NG_SH_InterpolationRemap,
         NODEBOOSTER_NG_SH_InterpolationPreview,
         NODEBOOSTER_NG_SH_2DCurve,
         NODEBOOSTER_ND_EnsureMonotonicity,
@@ -166,6 +173,7 @@ CP_CustomNodes = (
     ('Experimental',(
         NODEBOOSTER_NG_CP_InterpolationInput,
         NODEBOOSTER_NG_CP_InterpolationMap,
+        NODEBOOSTER_NG_CP_InterpolationRemap,
         NODEBOOSTER_NG_CP_InterpolationPreview,
         NODEBOOSTER_NG_CP_2DCurve,
         NODEBOOSTER_ND_EnsureMonotonicity,
@@ -217,6 +225,9 @@ classes = (
     NODEBOOSTER_NG_GN_InterpolationMap,
     NODEBOOSTER_NG_SH_InterpolationMap,
     NODEBOOSTER_NG_CP_InterpolationMap,
+    NODEBOOSTER_NG_GN_InterpolationRemap,
+    NODEBOOSTER_NG_SH_InterpolationRemap,
+    NODEBOOSTER_NG_CP_InterpolationRemap,
     NODEBOOSTER_PT_InterpolationOptions,
     NODEBOOSTER_NG_GN_InterpolationPreview,
     NODEBOOSTER_NG_SH_InterpolationPreview,

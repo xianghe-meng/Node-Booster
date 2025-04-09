@@ -29,14 +29,12 @@ from ...utils.node_utils import (
 
 class Base():
 
-    bl_idname = "NodeBoosterInterpolationMap"
-    bl_label = "Interpolation Map"
-    bl_description = """Map a value to an interpolation curve. Similar to the 'Curve Mapping' node."""
+    bl_idname = "NodeBoosterInterpolationRemap"
+    bl_label = "Interpolation Remap"
+    bl_description = """Remap a value from a chosen interpolation curve."""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
 
-    # NOTE this node is the end of the line for our a socket type, 
-    # it has a special evaluator responsability for socket.nodebooster_socket_type == 'INTERPOLATION'.
     evaluator_properties = {'INTERPOLATION_OUTPUT',}
 
     mode : bpy.props.EnumProperty(
@@ -44,7 +42,6 @@ class Base():
         description="Which kind of data do we process ?",
         default='FLOAT',
         items=(('FLOAT', "Float", "Float interpolation"),
-               ('COLOR', "Color", "Color interpolation"),
                ('VECTOR', "Vector", "Vector interpolation"),),
         update= lambda self, context: self.evaluator(),
         )
@@ -90,7 +87,7 @@ class Base():
     def update(self):
         """generic update function"""
         
-        print("DEBUG: InterpolationMap Evaluator update")
+        print("DEBUG: InterpolationRemap Evaluator update")
         self.evaluator()
         
         return None
@@ -122,17 +119,19 @@ class Base():
                 set_node_socketattr(self, socket_name="Interpolation X", attribute='enabled', value=False, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Interpolation Y", attribute='enabled', value=False, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Interpolation Z", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation C", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation R", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation G", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation B", attribute='enabled', value=False, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Float", attribute='enabled', value=True, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Float", attribute='enabled', value=True, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Vector", attribute='enabled', value=False, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Vector", attribute='enabled', value=False, in_out='OUTPUT',)
-                set_node_socketattr(self, socket_name="Color", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Color", attribute='enabled', value=False, in_out='OUTPUT',)
-
+                self.inputs[6].enabled = True
+                self.inputs[7].enabled = True
+                self.inputs[8].enabled = True
+                self.inputs[9].enabled = True
+                self.inputs[11].enabled = False
+                self.inputs[12].enabled = False
+                self.inputs[13].enabled = False
+                self.inputs[14].enabled = False
+                
                 sock_to_evaluate = {
                     'Interpolation':self.node_tree.nodes['float_map'].mapping.curves[0],
                     }
@@ -142,53 +141,24 @@ class Base():
                 set_node_socketattr(self, socket_name="Interpolation X", attribute='enabled', value=True, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Interpolation Y", attribute='enabled', value=True, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Interpolation Z", attribute='enabled', value=True, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation C", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation R", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation G", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation B", attribute='enabled', value=False, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Float", attribute='enabled', value=False, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Float", attribute='enabled', value=False, in_out='OUTPUT',)
                 set_node_socketattr(self, socket_name="Vector", attribute='enabled', value=True, in_out='INPUT',)
                 set_node_socketattr(self, socket_name="Vector", attribute='enabled', value=True, in_out='OUTPUT',)
-                set_node_socketattr(self, socket_name="Color", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Color", attribute='enabled', value=False, in_out='OUTPUT',)
-
+                self.inputs[6].enabled = False
+                self.inputs[7].enabled = False
+                self.inputs[8].enabled = False
+                self.inputs[9].enabled = False
+                self.inputs[11].enabled = True
+                self.inputs[12].enabled = True
+                self.inputs[13].enabled = True
+                self.inputs[14].enabled = True
+            
                 sock_to_evaluate = {
                     'Interpolation X':self.node_tree.nodes['vector_map'].mapping.curves[0],
                     'Interpolation Y':self.node_tree.nodes['vector_map'].mapping.curves[1],
                     'Interpolation Z':self.node_tree.nodes['vector_map'].mapping.curves[2],
                     }
-
-            case "COLOR":
-                set_node_socketattr(self, socket_name="Interpolation", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation X", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation Y", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation Z", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation C", attribute='enabled', value=True, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation R", attribute='enabled', value=True, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation G", attribute='enabled', value=True, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Interpolation B", attribute='enabled', value=True, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Float", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Float", attribute='enabled', value=False, in_out='OUTPUT',)
-                set_node_socketattr(self, socket_name="Vector", attribute='enabled', value=False, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Vector", attribute='enabled', value=False, in_out='OUTPUT',)
-                set_node_socketattr(self, socket_name="Color", attribute='enabled', value=True, in_out='INPUT',)
-                set_node_socketattr(self, socket_name="Color", attribute='enabled', value=True, in_out='OUTPUT',)
-
-                sock_to_evaluate = {
-                    'Interpolation C':self.node_tree.nodes['color_map'].mapping.curves[3],
-                    'Interpolation R':self.node_tree.nodes['color_map'].mapping.curves[0],
-                    'Interpolation G':self.node_tree.nodes['color_map'].mapping.curves[1],
-                    'Interpolation B':self.node_tree.nodes['color_map'].mapping.curves[2],
-                    }
-
-        #2: Nodetree evaluator logic:
-        # NOTE This node is the final output of a series of our custom interpolation datatype. 
-        # we need to evaluate the values upstream consecutively.
-        # Therefore we need to navigate upsteam to to and evaluate the nodes we collide with, for each of our sockets.
-        
-        #NOTE sock_to_evaluate rerpresents the name of the our custom interpolation socket types.
-        # and the equivalent node.mapping.curve that needs to be updated.
 
         #get all nodes connected to the value socket
         cache = {}
@@ -211,7 +181,7 @@ class Base():
         # NOTE unfortunately python API for curve mapping is meh..
         # we need to send an update trigger. Maybe there's a solution for this?.
         for nd in self.node_tree.nodes:
-            if nd.name in {'float_map', 'vector_map', 'color_map'}:
+            if nd.name in {'float_map', 'vector_map'}:
                 #send a hard refresh trigger. 
                 nd.mapping.update()
                 nd.mute = not nd.mute
@@ -267,14 +237,14 @@ class Base():
 #Per Node-Editor Children:
 #Respect _NG_ + _GN_/_SH_/_CP_ nomenclature
 
-class NODEBOOSTER_NG_GN_InterpolationMap(Base, bpy.types.GeometryNodeCustomGroup):
+class NODEBOOSTER_NG_GN_InterpolationRemap(Base, bpy.types.GeometryNodeCustomGroup):
     tree_type = "GeometryNodeTree"
-    bl_idname = "GeometryNodeNodeBoosterInterpolationMap"
+    bl_idname = "GeometryNodeNodeBoosterInterpolationRemap"
 
-class NODEBOOSTER_NG_SH_InterpolationMap(Base, bpy.types.ShaderNodeCustomGroup):
+class NODEBOOSTER_NG_SH_InterpolationRemap(Base, bpy.types.ShaderNodeCustomGroup):
     tree_type = "ShaderNodeTree"
-    bl_idname = "ShaderNodeNodeBoosterInterpolationMap"
+    bl_idname = "ShaderNodeNodeBoosterInterpolationRemap"
 
-class NODEBOOSTER_NG_CP_InterpolationMap(Base, bpy.types.CompositorNodeCustomGroup):
+class NODEBOOSTER_NG_CP_InterpolationRemap(Base, bpy.types.CompositorNodeCustomGroup):
     tree_type = "CompositorNodeTree"
-    bl_idname = "CompositorNodeNodeBoosterInterpolationMap"
+    bl_idname = "CompositorNodeNodeBoosterInterpolationRemap"
