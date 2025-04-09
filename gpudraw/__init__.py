@@ -6,11 +6,10 @@ import bpy
 import gpu
 from gpu_extras.batch import batch_for_shader
 from ..utils.draw_utils import get_dpifac
-from ..customnodes.interpolation.interpolationpreview import draw_interpolation_preview
+from ..customnodes.interpolation.twodimensionalcurvepreview import draw_interpolation_preview
 
 
 def draw_nodeeditor_overlay():
-    """Draw transparent black box on InterpolationPreview nodes"""
     
     # Exit early if we don't have proper context
     if not bpy.context:

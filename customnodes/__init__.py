@@ -81,16 +81,15 @@ from . interpolation.interpolationremap import (
         NODEBOOSTER_NG_SH_InterpolationRemap,
         NODEBOOSTER_NG_CP_InterpolationRemap,
         )
-from . interpolation.interpolationpreview import (
+from .interpolation.twodimensionalcurvepreview import (
         NODEBOOSTER_PT_InterpolationOptions,
-        NODEBOOSTER_NG_GN_InterpolationPreview,
-        NODEBOOSTER_NG_SH_InterpolationPreview,
-        NODEBOOSTER_NG_CP_InterpolationPreview,
+        NODEBOOSTER_ND_2DCurvePreview,
         )
-from . interpolation.curveinput import (
-        NODEBOOSTER_NG_GN_2DCurve,
-        NODEBOOSTER_NG_SH_2DCurve,
-        NODEBOOSTER_NG_CP_2DCurve,
+from . interpolation.twodimensionalcurveinput import (
+        NODEBOOSTER_ND_2DCurveInput,
+        )
+from . interpolation.twodimensionalcurvesubd import (
+        NODEBOOSTER_ND_2DCurveSubdiv,
         )
 from . interpolation.monotonicinterpolation import (
         NODEBOOSTER_ND_EnsureMonotonicity,
@@ -98,87 +97,98 @@ from . interpolation.monotonicinterpolation import (
 
 # For menus, in order of appearance
 # NOTE Redudancy. Perhaps menus.py could be refactored to use the _GN_, _SH_, _CP_ notations.
+# perhaps we could make use of the poll classmethod to avoid rendundancy.
 
 GN_CustomNodes = (
-    ('Inputs',(
-        NODEBOOSTER_NG_GN_RNAInfo,
-        NODEBOOSTER_NG_GN_LightInfo,
-        NODEBOOSTER_NG_GN_SceneInfo,
-        NODEBOOSTER_NG_GN_RenderInfo,
-        NODEBOOSTER_NG_GN_CameraInfo,
-        NODEBOOSTER_NG_GN_ObjectVelocity,
-        NODEBOOSTER_NG_GN_DeviceInput,
-        NODEBOOSTER_NG_GN_IsRenderedView, #this one doesn't make sense in other editors.
-        NODEBOOSTER_NG_GN_SequencerSound, ),
-    ),
-    ('Expressions',(
-        NODEBOOSTER_NG_GN_MathExpression,
-        NODEBOOSTER_NG_GN_PyExpression,
-        NODEBOOSTER_NG_GN_PyNexScript, ),
-    ),
-    ('Experimental',(
-        NODEBOOSTER_NG_GN_InterpolationInput,
-        NODEBOOSTER_NG_GN_InterpolationMap,
-        NODEBOOSTER_NG_GN_InterpolationRemap,
-        NODEBOOSTER_NG_GN_InterpolationPreview,
-        NODEBOOSTER_NG_GN_2DCurve,
-        NODEBOOSTER_ND_EnsureMonotonicity,
-        NODEBOOSTER_ND_CustomSocketUtility, ), #dev utility.
-    ),
+        ('Inputs',(
+            NODEBOOSTER_NG_GN_RNAInfo,
+            NODEBOOSTER_NG_GN_LightInfo,
+            NODEBOOSTER_NG_GN_SceneInfo,
+            NODEBOOSTER_NG_GN_RenderInfo,
+            NODEBOOSTER_NG_GN_CameraInfo,
+            NODEBOOSTER_NG_GN_ObjectVelocity,
+            NODEBOOSTER_NG_GN_DeviceInput,
+            NODEBOOSTER_NG_GN_IsRenderedView, #this one doesn't make sense in other editors.
+            NODEBOOSTER_NG_GN_SequencerSound,
+            ),
+        ),
+        ('Expressions',(
+            NODEBOOSTER_NG_GN_MathExpression,
+            NODEBOOSTER_NG_GN_PyExpression,
+            NODEBOOSTER_NG_GN_PyNexScript,
+            ),
+        ),
+        ('Interpolation(Experimental)',(
+            NODEBOOSTER_NG_GN_InterpolationInput,
+            NODEBOOSTER_NG_GN_InterpolationMap,
+            NODEBOOSTER_NG_GN_InterpolationRemap,
+            NODEBOOSTER_ND_2DCurvePreview,
+            NODEBOOSTER_ND_2DCurveInput,
+            NODEBOOSTER_ND_2DCurveSubdiv,
+            NODEBOOSTER_ND_EnsureMonotonicity,
+            # NODEBOOSTER_ND_CustomSocketUtility, #dev utility.
+            ),
+        ),
     )
-
 SH_CustomNodes = (
-    ('Inputs',(
-        NODEBOOSTER_NG_SH_RNAInfo,
-        NODEBOOSTER_NG_SH_LightInfo,
-        NODEBOOSTER_NG_SH_SceneInfo,
-        NODEBOOSTER_NG_SH_RenderInfo,
-        NODEBOOSTER_NG_SH_CameraInfo,
-        NODEBOOSTER_NG_SH_ObjectVelocity,
-        NODEBOOSTER_NG_SH_DeviceInput,
-        NODEBOOSTER_NG_SH_SequencerSound, ),
-    ),
-    ('Expressions',(
-        NODEBOOSTER_NG_SH_MathExpression,
-        NODEBOOSTER_NG_SH_PyExpression,
-        NODEBOOSTER_NG_SH_PyNexScript, ),
-    ),
-    ('Experimental',(
-        NODEBOOSTER_NG_SH_InterpolationInput,
-        NODEBOOSTER_NG_SH_InterpolationMap,
-        NODEBOOSTER_NG_SH_InterpolationRemap,
-        NODEBOOSTER_NG_SH_InterpolationPreview,
-        NODEBOOSTER_NG_SH_2DCurve,
-        NODEBOOSTER_ND_EnsureMonotonicity,
-        NODEBOOSTER_ND_CustomSocketUtility, ), #dev utility.    
-    ), 
+        ('Inputs',(
+            NODEBOOSTER_NG_SH_RNAInfo,
+            NODEBOOSTER_NG_SH_LightInfo,
+            NODEBOOSTER_NG_SH_SceneInfo,
+            NODEBOOSTER_NG_SH_RenderInfo,
+            NODEBOOSTER_NG_SH_CameraInfo,
+            NODEBOOSTER_NG_SH_ObjectVelocity,
+            NODEBOOSTER_NG_SH_DeviceInput,
+            NODEBOOSTER_NG_SH_SequencerSound,
+            ),
+        ),
+        ('Expressions',(
+            NODEBOOSTER_NG_SH_MathExpression,
+            NODEBOOSTER_NG_SH_PyExpression,
+            NODEBOOSTER_NG_SH_PyNexScript,
+            ),
+        ),
+        ('Interpolation(Experimental)',(
+            NODEBOOSTER_NG_SH_InterpolationInput,
+            NODEBOOSTER_NG_SH_InterpolationMap,
+            NODEBOOSTER_NG_SH_InterpolationRemap,
+            NODEBOOSTER_ND_2DCurvePreview,
+            NODEBOOSTER_ND_2DCurveInput,
+            NODEBOOSTER_ND_2DCurveSubdiv,
+            NODEBOOSTER_ND_EnsureMonotonicity,
+            # NODEBOOSTER_ND_CustomSocketUtility, #dev utility.
+            ),
+        ), 
     )
-
 CP_CustomNodes = (
-    ('Inputs',(
-        NODEBOOSTER_NG_CP_RNAInfo,
-        NODEBOOSTER_NG_CP_LightInfo,
-        NODEBOOSTER_NG_CP_SceneInfo,
-        NODEBOOSTER_NG_CP_RenderInfo,
-        NODEBOOSTER_NG_CP_CameraInfo,
-        NODEBOOSTER_NG_CP_ObjectVelocity,
-        NODEBOOSTER_NG_CP_DeviceInput,
-        NODEBOOSTER_NG_CP_SequencerSound, ),
-    ),
-    ('Expressions',(
-        NODEBOOSTER_NG_CP_MathExpression,
-        NODEBOOSTER_NG_CP_PyExpression,
-        NODEBOOSTER_NG_CP_PyNexScript, ),
-    ),
-    ('Experimental',(
-        NODEBOOSTER_NG_CP_InterpolationInput,
-        NODEBOOSTER_NG_CP_InterpolationMap,
-        NODEBOOSTER_NG_CP_InterpolationRemap,
-        NODEBOOSTER_NG_CP_InterpolationPreview,
-        NODEBOOSTER_NG_CP_2DCurve,
-        NODEBOOSTER_ND_EnsureMonotonicity,
-        NODEBOOSTER_ND_CustomSocketUtility, ), #dev utility.
-    ), 
+        ('Inputs',(
+            NODEBOOSTER_NG_CP_RNAInfo,
+            NODEBOOSTER_NG_CP_LightInfo,
+            NODEBOOSTER_NG_CP_SceneInfo,
+            NODEBOOSTER_NG_CP_RenderInfo,
+            NODEBOOSTER_NG_CP_CameraInfo,
+            NODEBOOSTER_NG_CP_ObjectVelocity,
+            NODEBOOSTER_NG_CP_DeviceInput,
+            NODEBOOSTER_NG_CP_SequencerSound,
+            ),
+        ),
+        ('Expressions',(
+            NODEBOOSTER_NG_CP_MathExpression,
+            NODEBOOSTER_NG_CP_PyExpression,
+            NODEBOOSTER_NG_CP_PyNexScript,
+            ),
+        ),
+        ('Interpolation(Experimental)',(
+            NODEBOOSTER_NG_CP_InterpolationInput,
+            NODEBOOSTER_NG_CP_InterpolationMap,
+            NODEBOOSTER_NG_CP_InterpolationRemap,
+            NODEBOOSTER_ND_2DCurvePreview,
+            NODEBOOSTER_ND_2DCurveInput,
+            NODEBOOSTER_ND_2DCurveSubdiv,
+            NODEBOOSTER_ND_EnsureMonotonicity,
+            # NODEBOOSTER_ND_CustomSocketUtility, #dev utility.
+            ),
+        ), 
     )
 
 # for registration
@@ -229,13 +239,10 @@ classes = (
     NODEBOOSTER_NG_SH_InterpolationRemap,
     NODEBOOSTER_NG_CP_InterpolationRemap,
     NODEBOOSTER_PT_InterpolationOptions,
-    NODEBOOSTER_NG_GN_InterpolationPreview,
-    NODEBOOSTER_NG_SH_InterpolationPreview,
-    NODEBOOSTER_NG_CP_InterpolationPreview,
+    NODEBOOSTER_ND_2DCurvePreview,
     NODEBOOSTER_OT_interpolation_input_update,
-    NODEBOOSTER_NG_GN_2DCurve,
-    NODEBOOSTER_NG_SH_2DCurve,
-    NODEBOOSTER_NG_CP_2DCurve,
+    NODEBOOSTER_ND_2DCurveInput,
+    NODEBOOSTER_ND_2DCurveSubdiv,
     NODEBOOSTER_ND_EnsureMonotonicity,
     )
 

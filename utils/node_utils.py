@@ -84,6 +84,29 @@ def get_all_nodes(ignore_ng_name:str="NodeBooster", approxmatch_idnames:str="", 
     return nodes
 
 
+def send_refresh_signal(socket):
+    """lazy trick to send a refresh signal to the nodetree"""
+
+    if (not socket.links):
+        return None
+
+    node_tree = socket.id_data 
+    
+    links_data = []
+    for link in socket.links:
+        links_data.append((link.to_socket, link.to_node))
+    
+    # Perform unlink/relink
+    links_to_remove = list(socket.links)
+    for link in links_to_remove:
+        node_tree.links.remove(link)
+    
+    for to_socket, to_node in links_data:
+        node_tree.links.new(socket, to_socket)
+    
+    return None
+
+
 def parcour_node_tree(socket, direction:str='LEFT',):
     """ parcour a nodetree and return all sockets connected to the passed socket.
     - important information about parcouring nodetrees: https://www.youtube.com/watch?v=FuqVCBlgJTo
@@ -92,9 +115,8 @@ def parcour_node_tree(socket, direction:str='LEFT',):
     """
 
     #TODO add support for muted node or links. 
-    # - should stop parcouring if muted links.
-    # - should continue parcouring if muted node, and respect internal links system.
-    
+    # - should skip parcouring if muted node, and respect internal links system.
+
     result = {}  # Will store final sockets and their links
     visited_sockets = set()  # To avoid feedback loops
     visited_links = []  # Store all visited links
@@ -114,6 +136,11 @@ def parcour_node_tree(socket, direction:str='LEFT',):
                 links = [link for link in current_socket.links if link.from_socket == current_socket]
 
         for link in links:
+            
+            # ignore muted links
+            if (link.is_muted):
+                continue
+            
             # Add link to visited links
             visited_links.append(link)
 
@@ -130,23 +157,39 @@ def parcour_node_tree(socket, direction:str='LEFT',):
 
             # If it's a reroute node, continue traversing
             if (next_node.bl_idname == 'NodeReroute'):
-
                 # For reroute, add the socket to process
                 next_socket_to_process = next_node.inputs[0] if (direction == 'LEFT') else next_node.outputs[0]
-
                 # Check if this reroute leads nowhere (colliding reroute)
                 if (not next_socket_to_process.links):
-                    # This is a dead end reroute, add its socket as a result
-                    if next_socket not in result:
+                    # This is a dead end
+                    if (next_socket not in result):
                         result[next_socket] = []
                     result[next_socket].append(link)
                 else:
                     sockets_to_process.append(next_socket_to_process)
-            else:
-                # For non-reroute nodes, add the socket to result
-                if next_socket not in result:
-                    result[next_socket] = []
-                result[next_socket].append(link)
+                continue
+            
+            # if the node is muted, we need to follow the internal link, skip it..
+            if (next_node.mute):
+                if (not next_node.internal_links):
+                    continue
+                internal_link = next_node.internal_links[0]
+                # For reroute, add the socket to process
+                next_socket_to_process = internal_link.from_socket if (direction == 'LEFT') else internal_link.to_socket
+                # Check if this reroute leads nowhere (colliding reroute)
+                if (not next_socket_to_process.links):
+                    # This is a dead end
+                    if (next_socket not in result):
+                        result[next_socket] = []
+                    result[next_socket].append(link)
+                else:
+                    sockets_to_process.append(next_socket_to_process)
+                continue
+
+            # For non-reroute nodes, add the socket to result
+            if (next_socket not in result):
+                result[next_socket] = []
+            result[next_socket].append(link)
 
     return result
 

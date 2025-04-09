@@ -6,15 +6,16 @@ import bpy
 import os
 import numpy as np
 
-from ...utils.interpolation_utils import reverseengineer_curvemapping_to_bezsegs
+from ...utils.bezier2d_utils import reverseengineer_curvemapping_to_bezsegs
 from ...utils.str_utils import word_wrap # Added for draw_panel
 from ...utils.node_utils import (
-    import_new_nodegroup,
+    send_refresh_signal,
     )
 
-class Base():
 
-    bl_idname = "NodeBoosterInterpolationCurveObject" 
+class NODEBOOSTER_ND_2DCurveInput(bpy.types.Node):
+
+    bl_idname = "NodeBooster2DCurveInput" 
     bl_label = "2D Curve"
     bl_description = "Generates 2D curve data from a 3D Curve Object's axis."
     auto_update = {'NONE',}
@@ -65,65 +66,26 @@ class Base():
     def init(self, context):
         """this fct run when appending the node for the first time"""
 
-        name = f".{self.bl_idname}"
-
-        ng = bpy.data.node_groups.get(name)
-        if (ng is None):
-
-            # NOTE we cannot create a new ng with custom socket types for now unfortunately.
-            # it's possible to do it with the link_drag operator on a socketcustom to the grey 
-            # input/output sockets of a ng, but not via the python API.
-            # see notes in 'node_utils.create_ng_socket'. This solution is a workaround, hopefully, temporary..
-            blendfile = os.path.join(os.path.dirname(__file__), "interpolation_nodegroups.blend")
-            ng = import_new_nodegroup(blendpath=blendfile, ngname=self.bl_idname,)
-
-            # set the name of the ng
-            ng.name = name
-        
-        ng = ng.copy() #always using a copy of the original ng
-
-        self.node_tree = ng
-        self.width = 150
+        self.outputs.new('NodeBoosterCustomSocketInterpolation', "2D Curve")
         self.label = self.bl_label
+        self.width = 150
 
         return None
 
     def copy(self, node):
         """fct run when dupplicating the node"""
-        
-        self.node_tree = node.node_tree.copy()
-        
+
         return None
 
     def update(self):
         """generic update function"""
-
+    
         return None
 
     def update_trigger(self,):
-        """send an update trigger by unlinking and relinking"""
+        """send an update trigger to the whole node_tree"""
 
-        out = self.outputs[0]
-        if (not out.links):
-            return {'FINISHED'} 
-
-        links_data = []
-        for link in out.links:
-            links_data.append((link.to_socket, link.to_node))
-        
-        # Get the node tree the node belongs to
-        node_tree = self.id_data 
-        if not hasattr(node_tree, 'links'):
-             print(f"Error: Could not access links from {type(node_tree)}")
-             return None
-        
-        # Perform unlink/relink
-        links_to_remove = list(out.links)
-        for link in links_to_remove:
-            node_tree.links.remove(link)
-        
-        for to_socket, to_node in links_data:
-            node_tree.links.new(out, to_socket)
+        send_refresh_signal(self.outputs[0])
 
         return None
 
@@ -218,18 +180,3 @@ class Base():
              return None
         return np.array(bezsegs_list, dtype=float)
 
-
-#Per Node-Editor Children:
-#Respect _NG_ + _GN_/_SH_/_CP_ nomenclature
-
-class NODEBOOSTER_NG_GN_2DCurve(Base, bpy.types.GeometryNodeCustomGroup):
-    tree_type = "GeometryNodeTree"
-    bl_idname = "GeometryNodeNodeBooster2DCurve"
-
-class NODEBOOSTER_NG_SH_2DCurve(Base, bpy.types.ShaderNodeCustomGroup):
-    tree_type = "ShaderNodeTree"
-    bl_idname = "ShaderNodeNodeBooster2DCurve"
-
-class NODEBOOSTER_NG_CP_2DCurve(Base, bpy.types.CompositorNodeCustomGroup):
-    tree_type = "CompositorNodeTree"
-    bl_idname = "CompositorNodeNodeBooster2DCurve"

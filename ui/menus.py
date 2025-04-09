@@ -7,8 +7,12 @@ import bpy
 
 import os
 
-#NOTE we automatically register the submenus from that list below.
-# we could use the _GN_, _SH_, _CP_ notations perhaps.
+
+# NOTE we automatically register the submenus from that list below.
+# TODO auto registration of submenus could be improved
+# - we could use the _GN_, _SH_, _CP_ notations perhaps.
+# - we could use an attribute per node class for submenu appartenance.
+# - we could also use the poll classmethod to avoid rendundancy.
 
 from ..customnodes import (
     GN_CustomNodes,

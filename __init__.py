@@ -50,6 +50,15 @@
 
 # ---------------------------------------------------------------------------------------------
 
+# TODO To Improve:
+# - CustomSocket Evalation system:
+#   - Better update management system for the evaluator system (custom node socket types)
+#   - timer that check is_dirty flag of all evaluator nodes and update the output when dirty.
+#   - curve 2d input and interpolation input need a way to check if the data is modified.
+#   - check for muted status as well? doesn't send a native update signal it seems.
+
+# ---------------------------------------------------------------------------------------------
+
 # TODO Ideas:
 #
 # Generic Functionalities Ideas:

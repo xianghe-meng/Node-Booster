@@ -8,9 +8,10 @@ import os
 
 from ...__init__ import get_addon_prefs
 from ...utils.str_utils import word_wrap
-from ...utils.interpolation_utils import reverseengineer_curvemapping_to_bezsegs
+from ...utils.bezier2d_utils import reverseengineer_curvemapping_to_bezsegs
 from ...utils.node_utils import (
     import_new_nodegroup, 
+    send_refresh_signal,
 )
 
 # TODO
@@ -166,22 +167,10 @@ class Base():
         return None
 
     def update_trigger(self,):
-        """send an update trigger by unlinking and relinking"""
+        """send an update trigger to the whole node_tree"""
 
-        out = self.outputs[0]
-        if (not out.links):
-            return {'FINISHED'} 
+        send_refresh_signal(self.outputs[0])
 
-        links_data = []
-        for link in out.links:
-            links_data.append((link.to_socket, link.to_node))
-        
-        for link in out.links:
-            self.id_data.links.remove(link)
-        
-        for to_socket, to_node in links_data:
-            self.id_data.links.new(out, to_socket)
-    
         return None
 
     def evaluator(self, socket_output)->list: 

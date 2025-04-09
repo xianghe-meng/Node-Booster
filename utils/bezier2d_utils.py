@@ -418,142 +418,459 @@ def ensure_bezsegs_monotonic(segments:np.ndarray)->np.ndarray:
     return sorted_segments
 
 
-def evaluate_cubic_bezseg(segment:np.ndarray, t:float):
-    """
-    Evaluate a cubic Bézier segment at parameter t.
-    evaluate segment as (np.ndarray): An (N-1) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y]
-    """
-    # Ensure segment is a numpy array
-    try:
-        # Extract points
-        segment_arr = np.asarray(segment)
-        if segment_arr.shape != (8,):
-            raise ValueError(f"Expected segment shape (8,), got {segment_arr.shape}")
-        P0 = segment_arr[0:2]
-        P1 = segment_arr[2:4]
-        P2 = segment_arr[4:6]
-        P3 = segment_arr[6:8]
+# def evaluate_cubic_bezseg(segment:np.ndarray, t:float):
+#     """
+#     Evaluate a cubic Bézier segment at parameter t.
+#     evaluate segment as (np.ndarray): An (N-1) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y]
+#     """
+#     # Ensure segment is a numpy array
+#     try:
+#         # Extract points
+#         segment_arr = np.asarray(segment)
+#         if segment_arr.shape != (8,):
+#             raise ValueError(f"Expected segment shape (8,), got {segment_arr.shape}")
+#         P0 = segment_arr[0:2]
+#         P1 = segment_arr[2:4]
+#         P2 = segment_arr[4:6]
+#         P3 = segment_arr[6:8]
 
-    except (ValueError, TypeError) as e:
-        print(f"Error processing segment data in evaluate: {e}")
-        print(f"Segment data: {segment}")
-        return np.array([0.0, 0.0]) # Fallback
+#     except (ValueError, TypeError) as e:
+#         print(f"Error processing segment data in evaluate: {e}")
+#         print(f"Segment data: {segment}")
+#         return np.array([0.0, 0.0]) # Fallback
 
-    # Calculate point on curve
+#     # Calculate point on curve
+#     omt = 1.0 - t
+#     omt2 = omt * omt
+#     omt3 = omt2 * omt
+#     t2 = t * t
+#     t3 = t2 * t
+
+#     return (P0 * omt3) + (P1 * 3.0 * omt2 * t) + (P2 * 3.0 * omt * t2) + (P3 * t3)
+
+
+def sample_bezsegs(segments: np.ndarray, sampling_rate: int):
+    """Generate points from the segments numpy array using vectorized operations.
+    segments (np.ndarray): An (N) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
+    sampling_rate (int): Number of steps *between* points per segment (e.g., 1 gives start/end, 2 gives start/mid/end).
+    Returns a NumPy array of shape (N * sampling_rate + 1, 2) with the calculated points.
+    """
+
+    if segments is None or segments.size == 0:
+        return np.empty((0, 2), dtype=segments.dtype if segments is not None else float)
+    if sampling_rate < 1:
+        raise ValueError("sampling_rate must be at least 1")
+
+    num_segments = segments.shape[0]
+    num_points_per_segment = sampling_rate + 1
+
+    # Extract control points for all segments
+    # Reshape to (num_segments, 4, 2) for easier access
+    control_points = segments.reshape(num_segments, 4, 2)
+    P0 = control_points[:, 0, :][:, np.newaxis, :] # Shape (N, 1, 2)
+    P1 = control_points[:, 1, :][:, np.newaxis, :] # Shape (N, 1, 2)
+    P2 = control_points[:, 2, :][:, np.newaxis, :] # Shape (N, 1, 2)
+    P3 = control_points[:, 3, :][:, np.newaxis, :] # Shape (N, 1, 2)
+
+    # Generate t values (parameterization)
+    # Shape (1, num_points_per_segment, 1) to broadcast correctly with points
+    t = np.linspace(0, 1, num_points_per_segment).reshape(1, num_points_per_segment, 1)
+
+    # Calculate powers of t and (1-t)
     omt = 1.0 - t
     omt2 = omt * omt
     omt3 = omt2 * omt
     t2 = t * t
     t3 = t2 * t
 
-    return (P0 * omt3) + (P1 * 3.0 * omt2 * t) + (P2 * 3.0 * omt * t2) + (P3 * t3)
+    # Calculate points using the Bezier formula with broadcasting
+    # Result shape: (num_segments, num_points_per_segment, 2)
+    points = (P0 * omt3) + (P1 * 3.0 * omt2 * t) + (P2 * 3.0 * omt * t2) + (P3 * t3)
+
+    # Reshape to a 2D array: (num_segments * num_points_per_segment, 2)
+    all_points = points.reshape(-1, 2)
+
+    # Remove duplicate points at segment junctions
+    # Keep the first point (t=0) of the first segment.
+    # Keep points from t=1/sampling_rate to t=1 for all segments.
+    # Create indices to keep: 0 (start of first seg), and then 1 to sampling_rate+1 for each segment
+    indices_to_keep = [0] # Keep the very first point
+    for i in range(num_segments):
+        start = i * num_points_per_segment + 1
+        end = start + sampling_rate # +1 for num_points, -1 because index starts at 1
+        indices_to_keep.extend(range(start, end + 1))
+
+    # Ensure indices are within bounds (handles cases like sampling_rate=1 correctly)
+    indices_to_keep = [idx for idx in indices_to_keep if idx < all_points.shape[0]]
+    sampled_points = all_points[indices_to_keep]
+
+    return sampled_points
 
 
-def sample_bezsegs(segments:np.ndarray, sampling_rate:int):
-    """generate points from the the segments numpy array.
-    segments (np.ndarray): An (N-1) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y]."""
+def sample_bezsegs_with_t(segments: np.ndarray, sampling_rate: int):
+    """Generate points and their corresponding t-values per segment using vectorized operations.
+    Args:
+        segments (np.ndarray): An (N) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
+        sampling_rate (int): Number of steps *between* points per segment (e.g., 1 gives start/end, 2 gives start/mid/end).
+                             Results in sampling_rate + 1 points per segment.
 
-    curvepts = []
+    Returns:
+        tuple[list[np.ndarray], list[np.ndarray]]:
+            - points_per_segment: List where each element is a NumPy array (sampling_rate + 1, 2)
+                                   containing the calculated points for one segment.
+            - t_values_per_segment: List where each element is a NumPy array (sampling_rate + 1,)
+                                     containing the t-values corresponding to the points in the
+                                     points_per_segment list at the same index.
+    """
 
-    for i in range(segments.shape[0]):
-        start_idx = 1 if (i > 0) else 0
+    if segments is None or segments.size == 0:
+        return [], [] # Return empty lists
+    if sampling_rate < 1:
+        raise ValueError("sampling_rate must be at least 1")
 
-        for j in range(start_idx, sampling_rate + 1):
+    num_segments = segments.shape[0]
+    num_points_per_segment = sampling_rate + 1
+    original_dtype = segments.dtype
 
-            t = j / sampling_rate
-            pt = evaluate_cubic_bezseg(segments[i], t)
+    # Extract control points for all segments
+    control_points = segments.reshape(num_segments, 4, 2)
+    P0 = control_points[:, 0, :][:, np.newaxis, :] # Shape (N, 1, 2)
+    P1 = control_points[:, 1, :][:, np.newaxis, :] # Shape (N, 1, 2)
+    P2 = control_points[:, 2, :][:, np.newaxis, :] # Shape (N, 1, 2)
+    P3 = control_points[:, 3, :][:, np.newaxis, :] # Shape (N, 1, 2)
 
-            # we don't want to draw the same point twice.
-            if (curvepts and np.allclose(pt, curvepts[-1])):
-                continue
+    # Generate t values (parameterization)
+    t_1d = np.linspace(0, 1, num_points_per_segment, dtype=np.float64) # Use float64 for precision
+    # Reshape for broadcasting calculation
+    t = t_1d.reshape(1, num_points_per_segment, 1)
 
-            curvepts.append(pt)
-            continue
+    # Calculate powers of t and (1-t)
+    omt = 1.0 - t
+    omt2 = omt * omt
+    omt3 = omt2 * omt
+    t2 = t * t
+    t3 = t2 * t
 
-        continue
+    # Calculate points using the Bezier formula with broadcasting
+    # Result shape: (num_segments, num_points_per_segment, 2)
+    # Ensure calculation uses float64, then potentially cast back if needed
+    points = (P0.astype(np.float64) * omt3) + \
+             (P1.astype(np.float64) * 3.0 * omt2 * t) + \
+             (P2.astype(np.float64) * 3.0 * omt * t2) + \
+             (P3.astype(np.float64) * t3)
+    
+    # Convert result back to original dtype if it was float32 or similar
+    if original_dtype != np.float64:
+        points = points.astype(original_dtype)
 
-    return curvepts
+    # Populate lists using list comprehensions
+    # points_per_segment will be a list of (num_points_per_segment, 2) arrays
+    points_per_segment = [points[i] for i in range(num_segments)]
+    # t_values_per_segment will be a list of (num_points_per_segment,) arrays (all identical)
+    t_values_per_segment = [t_1d for _ in range(num_segments)]
+
+    return points_per_segment, t_values_per_segment
 
 
-# def casteljau_subdiv_bezseg(segment, t):
+def casteljau_subdiv_bezsegs(segments:np.ndarray, t_values:np.ndarray, tol:float=1e-6):
+    """
+    Batch subdivide Bézier segments and return a combined array.
+    Subdivides segments where the corresponding t_value is between tol and 1-tol.
+    Segments not subdivided are kept as is.
+    Args:
+        segments (np.ndarray): An (N, 8) NumPy array of Bézier segments
+                               [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
+        t_values (np.ndarray): An (N,) NumPy array of parameter values (0.0 to 1.0)
+                                corresponding to each segment for subdivision.
+        tol (float): Tolerance to treat t-values near 0 or 1 as non-subdividing.
+    Returns:
+        np.ndarray: A new NumPy array containing all resulting segments.
+    """
+
+    # --- Input Validation ---
+    if not isinstance(segments, np.ndarray) or segments.ndim != 2 or segments.shape[1] != 8:
+        raise ValueError(f"Input segments must be an (N, 8) NumPy array, got shape {segments.shape}")
+    num_segments = segments.shape[0]
+    if not isinstance(t_values, np.ndarray) or t_values.shape != (num_segments,):
+        raise ValueError(f"Input t_values must be an (N,) NumPy array, got shape {t_values.shape}")
+    if num_segments == 0:
+        return np.empty((0, 8), dtype=segments.dtype)
+
+    # --- Perform Vectorized Calculation (same as before) ---
+    t = np.clip(t_values, 0.0, 1.0).reshape(-1, 1)
+    omt = 1.0 - t
+    control_points = segments.reshape(num_segments, 4, 2)
+    P0, P1, P2, P3 = control_points[:, 0, :], control_points[:, 1, :], control_points[:, 2, :], control_points[:, 3, :]
+    Q0 = P0 * omt + P1 * t
+    Q1 = P1 * omt + P2 * t
+    Q2 = P2 * omt + P3 * t
+    R0 = Q0 * omt + Q1 * t
+    R1 = Q1 * omt + Q2 * t
+    S = R0 * omt + R1 * t
+
+    # --- Construct Potential Sub-segments ---
+    # These arrays hold the potential results IF subdivision happens
+    potential_seg1 = np.concatenate((P0, Q0, R0, S), axis=1)
+    potential_seg2 = np.concatenate((S, R1, Q2, P3), axis=1)
+
+    # --- Identify Segments to Subdivide ---
+    subdivide_mask = (t_values > tol) & (t_values < 1.0 - tol) # Use original t_values for mask
+
+    # --- Assemble the Output Array ---
+    output_segments_list = []
+    for i in range(num_segments):
+        if subdivide_mask[i]:
+            output_segments_list.append(potential_seg1[i])
+            output_segments_list.append(potential_seg2[i])
+        else:
+            output_segments_list.append(segments[i])
+
+    if (not output_segments_list):
+        return np.empty((0, 8), dtype=segments.dtype)
+
+    # Determine appropriate dtype (original or float if potential_seg2 was involved)
+    result_dtype = np.promote_types(segments.dtype, potential_seg2.dtype)
+    return np.array(output_segments_list, dtype=result_dtype)
+
+
+def cut_bezsegs(segments:np.ndarray, xlocation:float, sampling_rate:int=50, tolerance=1e-6,):
+    """
+    Subdivides Bézier segments at a given x-location by estimating the subdivision
+    parameter 't' from pre-sampled points.
+    Args:
+        segments (np.ndarray): An (N, 8) NumPy array of Bézier segments
+                               [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
+        xlocation (float): The target x-coordinate for subdivision.
+        sampling_rate (int): The density used by sample_bezsegs_with_t to
+                             generate points for estimating 't'. Higher values
+                             increase accuracy but cost more computation upfront.
+    Returns:
+        np.ndarray: A new NumPy array containing all resulting segments after
+                    subdivision. Shape will be (M, 8) where N <= M <= 2*N.
+                    Returns the original array if no subdivisions occur.
+    """
+
+    if segments is None or segments.size == 0:
+        return np.empty((0, 8), dtype=segments.dtype if segments is not None else float)
+    if sampling_rate < 1:
+        raise ValueError("sampling_rate must be at least 1")
+
+    num_segments = segments.shape[0]
+
+    # 1. Sample points and t-values for estimation
+    try:
+        points_per_segment, t_values_per_segment = sample_bezsegs_with_t(segments, sampling_rate)
+    except Exception as e:
+        print(f"Error during sampling in cut_bezsegs: {e}")
+        return segments.copy()
+
+    if len(points_per_segment) != num_segments or len(t_values_per_segment) != num_segments:
+        print(f"Warning: Mismatch between segment count and sampling results. Returning original.")
+        return segments.copy()
+
+    # 2. Initialize the t-map for subdivision
+    t_map = np.zeros(num_segments, dtype=np.float64)
+    subdivide_mask = np.zeros(num_segments, dtype=bool) # Track which segments to subdivide
+
+    # 3. Loop through segments to find estimated t-values
+    for i in range(num_segments):
+        P0x = segments[i, 0]
+        P3x = segments[i, 6]
+        is_within = (P0x < xlocation < P3x) or (P3x < xlocation < P0x)
+
+        if is_within:
+            sampled_pts = points_per_segment[i]
+            sampled_ts = t_values_per_segment[i]
+            if sampled_pts.size == 0 or sampled_ts.size == 0: continue
+
+            try:
+                idx = np.argmin(np.abs(sampled_pts[:, 0] - xlocation))
+                estimated_t = sampled_ts[idx]
+                # Only mark for subdivision if estimated t is not too close to ends
+                if tolerance < estimated_t < 1.0 - tolerance:
+                     t_map[i] = estimated_t
+                     subdivide_mask[i] = True
+                # else: leave t_map[i] as 0.0, subdivide_mask[i] as False
+            except Exception as e:
+                print(f"Warning: Error finding nearest t for segment {i}: {e}. Skipping.")
+
+    # 4. Call the batch subdivision function
+    try:
+        # Use the t_map where subdivision is needed, otherwise t=0 (no split)
+        subdivided_segments = casteljau_subdiv_bezsegs(segments, t_map, tol=tolerance)
+    except Exception as e:
+        print(f"Error during batch subdivision in cut_bezsegs: {e}")
+        return segments.copy()
+
+    # 5. Adjust x-coordinate of the new anchor points
+    # Ensure we modify a float array copy
+    modified_segments = subdivided_segments.astype(float, copy=True)
+    output_idx = 0
+    for i in range(num_segments):
+        if subdivide_mask[i]: # Check if this original segment *was* actually split
+            # Adjust P3x of first child segment
+            modified_segments[output_idx, 6] = xlocation
+            # Adjust P0x of second child segment
+            modified_segments[output_idx + 1, 0] = xlocation
+            # Move output index past the two children
+            output_idx += 2
+        else:
+            # Move output index past the single original segment
+            output_idx += 1
+
+    return modified_segments
+
+
+# def casteljau_subdiv_bezseg(segment_arr: np.ndarray, t: float | None = None, xloc: float | None = None, tol: float = 1e-6):
 #     """
-#     Subdivide a cubic Bézier segment at parameter t using De Casteljau's algorithm.
-#     Returns two new segments: (seg1, seg2)
+#     Subdivide a cubic Bézier segment using De Casteljau's algorithm.
+
+#     Can subdivide either at a specific parameter `t` or at a specific x-location `xloc`.
+#     If `t` is provided, it takes precedence.
+#     If only `xloc` is provided, the cubic equation for x(t) = xloc is solved to find `t`.
+
+#     Args:
+#         segment_arr (np.ndarray): An 8-element NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
+#         t (float | None): The parameter (0.0 to 1.0) for subdivision. Defaults to None.
+#         xloc (float | None): The target x-coordinate for subdivision. Used if t is None. Defaults to None.
+#         tol (float): Tolerance used for comparing t values to 0 and 1 and for filtering roots.
+
+#     Returns:
+#         tuple[np.ndarray, np.ndarray | None]: 
+#             - (seg1_arr, seg2_arr) if subdivision occurs.
+#             - (original_segment_arr, None) if subdivision does not occur.
 #     """
 #     try:
-#         P0, P1, P2, P3 = [np.array(pt, dtype=float) for pt in segment]
-#     except Exception as e:
-#         print(f"Error converting segment points to numpy array in subdivide: {e}")
-#         print(f"Segment data: {segment}")
-#         # Return original segment split into two identical points? Or raise error?
-#         fallback_pt = np.array([0.0, 0.0]) 
-#         return (fallback_pt, fallback_pt, fallback_pt, fallback_pt), (fallback_pt, fallback_pt, fallback_pt, fallback_pt)
-        
-#     # De Casteljau calculation
-#     Q0 = (1-t)*P0 + t*P1
-#     Q1 = (1-t)*P1 + t*P2
-#     Q2 = (1-t)*P2 + t*P3
-#     R0 = (1-t)*Q0 + t*Q1
-#     R1 = (1-t)*Q1 + t*Q2
-#     S = (1-t)*R0 + t*R1
-#     seg1 = (P0, Q0, R0, S)
-#     seg2 = (S, R1, Q2, P3)
-#     return seg1, seg2
+#         # --- Input Validation and Parameter Determination --- 
+#         if not isinstance(segment_arr, np.ndarray) or segment_arr.shape != (8,):
+#             raise ValueError(f"Expected segment_arr shape (8,), got {segment_arr.shape}")
 
-# def subdivide_segment(segment, x_target, tol=1e-5, max_iter=50):
-#     """
-#     Subdivide a segment at the x-coordinate x_target.
-#     Assumes the segment is monotonic in x for reliable binary search.
-#     Uses a binary search to find t such that the x component of evaluate(segment, t) is x_target.
-#     Returns two segments.
-#     """
-#     # Basic validation
-#     if not segment or len(segment) != 4:
-#         print(f"Invalid segment received in subdivide_segment: {segment}")
-#         fallback_pt = np.array([0.0, 0.0]) 
-#         return (fallback_pt, fallback_pt, fallback_pt, fallback_pt), (fallback_pt, fallback_pt, fallback_pt, fallback_pt)
-        
-#     P0_x = segment[0][0]
-#     P3_x = segment[3][0]
-    
-#     # Handle edge cases where x_target is outside or at the segment boundaries
-#     if x_target <= P0_x + tol: return casteljau_subdiv_bezseg(segment, 0.0)
-#     if x_target >= P3_x - tol: return casteljau_subdiv_bezseg(segment, 1.0)
-#     # Check for non-monotonicity (basic check, might not catch all cases)
-#     if (P0_x > P3_x): 
-#         print(f"Warning: Segment might be non-monotonic in X ({P0_x} -> {P3_x}). Subdivision might be unreliable.")
-#         # Allow proceeding, but be aware results might be wrong if curve reverses in X
+#         P0x, P1x, P2x, P3x = segment_arr[0], segment_arr[2], segment_arr[4], segment_arr[6]
+#         final_t = -1.0 # Sentinel for t not yet determined
 
-#     t_low, t_high = 0.0, 1.0
-#     t_mid = 0.5 # Initialize t_mid
-    
-#     for _ in range(max_iter):
-#         t_mid = (t_low + t_high) / 2
+#         if t is not None:
+#             final_t = np.clip(float(t), 0.0, 1.0)
+#         elif xloc is not None:
+#             # Check endpoints first (within tolerance)
+#             if abs(xloc - P0x) < tol:
+#                 final_t = 0.0
+#             elif abs(xloc - P3x) < tol:
+#                 final_t = 1.0
+#             else:
+#                 # --- Solve the cubic equation x(t) - xloc = 0 --- 
+#                 # Coefficients of the cubic polynomial in t: At^3 + Bt^2 + Ct + D = 0
+#                 # Where x(t) = (1-t)^3*P0x + 3(1-t)^2*t*P1x + 3(1-t)*t^2*P2x + t^3*P3x
+#                 # Rearranging x(t) - xloc = 0 gives:
+#                 A = P3x - 3*P2x + 3*P1x - P0x
+#                 B = 3*P2x - 6*P1x + 3*P0x
+#                 C = 3*P1x - 3*P0x
+#                 D = P0x - xloc
+
+#                 # Find the roots using numpy
+#                 # Note: np.roots expects coefficients from highest power to lowest
+#                 # Handle the near-zero coefficient case for A (reduces to quadratic/linear)
+#                 if abs(A) < tol:
+#                     if abs(B) < tol: # Linear case: Ct + D = 0
+#                         if abs(C) > tol:
+#                             roots = [-D / C]
+#                         else: # Constant case D = 0 (means xloc = P0x, handled above)
+#                             roots = [] 
+#                     else: # Quadratic case: Bt^2 + Ct + D = 0
+#                          roots = np.roots([B, C, D])
+#                 else: # Cubic case: At^3 + Bt^2 + Ct + D = 0
+#                      roots = np.roots([A, B, C, D])
+
+#                 # Filter roots: keep only real roots within [0 - tol, 1 + tol]
+#                 valid_roots = []
+#                 for r in roots:
+#                     if abs(np.imag(r)) < tol: # Check if root is real (within tolerance)
+#                          real_r = np.real(r)
+#                          if (0.0 - tol) <= real_r <= (1.0 + tol):
+#                              valid_roots.append(np.clip(real_r, 0.0, 1.0)) # Clip to exact [0,1]
+                
+#                 if len(valid_roots) == 1:
+#                     final_t = valid_roots[0]
+#                 elif len(valid_roots) > 1:
+#                     # Multiple valid roots means curve crosses xloc multiple times.
+#                     # Defaulting to the smallest valid t (first crossing from P0).
+#                     final_t = min(valid_roots)
+#                     # print(f"Warning: Multiple valid t values found for xloc={xloc}. Using smallest t={final_t:.4f}.")
+#                 # If len(valid_roots) == 0, final_t remains -1.0 (no subdivision)
+
+#         else:
+#             raise ValueError("Either t or xloc must be provided for subdivision.")
+
+#         # --- Perform Subdivision if t was determined --- 
+#         if final_t >= 0.0:
+#             P0, P1, P2, P3 = segment_arr[0:2], segment_arr[2:4], segment_arr[4:6], segment_arr[6:8]
+            
+#             omt = 1.0 - final_t
+#             Q0 = P0 * omt + P1 * final_t
+#             Q1 = P1 * omt + P2 * final_t
+#             Q2 = P2 * omt + P3 * final_t
+#             R0 = Q0 * omt + Q1 * final_t
+#             R1 = Q1 * omt + Q2 * final_t
+#             S = R0 * omt + R1 * final_t
+
+#             seg1_arr = np.concatenate((P0, Q0, R0, S))
+#             seg2_arr = np.concatenate((S, R1, Q2, P3))
+
+#             return seg1_arr, seg2_arr
+#         else:
+#             # No valid t found or needed, return original segment and None
+#             return segment_arr, None
+
+#     except (ValueError, TypeError) as e:
+#         print(f"Error processing segment data in casteljau_subdiv_bezseg: {e}")
+#         print(f"Input segment_arr: {segment_arr}, t: {t}, xloc: {xloc}")
+#         return segment_arr, None # Return original segment and None on error
+
+
+# def casteljau_subdiv_bezsegs(segments: np.ndarray, xloc: float):
+#     """
+#     Subdivide segments in a NumPy array where the curve passes through a specific x-location.
+
+#     Calls `casteljau_subdiv_bezseg` for each segment, providing the `xloc`.
+#     `casteljau_subdiv_bezseg` handles the logic of checking the range and finding `t`.
+
+#     Args:
+#         segments (np.ndarray): An N x 8 NumPy array of Bézier segments.
+#         xloc (float): The target x-coordinate for subdivision.
+
+#     Returns:
+#         np.ndarray: A new NumPy array containing the original and subdivided segments.
+#                     The number of rows may be greater than N if subdivisions occurred.
+#     """
+
+#     if (segments is None) or (segments.size == 0):
+#         return np.empty((0, 8), dtype=segments.dtype if segments is not None else float)
+
+#     output_segments_list = []
+#     original_dtype = segments.dtype # Preserve original dtype
+
+#     for segment_row in segments:
 #         try:
-#             pt = evaluate_cubic_bezseg(segment, t_mid)
-#             x_val = pt[0] 
+#             # Call the modified function, providing only xloc
+#             # It returns (seg1, seg2) if split, or (original, None) if not split
+#             seg1, seg2_or_none = casteljau_subdiv_bezseg(segment_row, xloc=xloc)
+
+#             # Append the result(s)
+#             output_segments_list.append(seg1) # Always append the first returned segment
+#             if seg2_or_none is not None:
+#                 output_segments_list.append(seg2_or_none) # Append the second if subdivision happened
+
 #         except Exception as e:
-#             print(f"Error evaluating bezier segment during subdivision at t={t_mid}: {e}")
-#             # Cannot proceed reliably, maybe return original segment split at t=0.5?
-#             return casteljau_subdiv_bezseg(segment, 0.5)
-            
-#         if abs(x_val - x_target) < tol:
-#             break # Found target t
-            
-#         # Adjust search range based on monotonicity assumption
-#         if P0_x < P3_x: # Increasing X
-#             if x_val < x_target:
-#                 t_low = t_mid
-#             else:
-#                 t_high = t_mid
-#         else: # Decreasing X (or potentially non-monotonic)
-#             if x_val > x_target:
-#                  t_low = t_mid
-#             else:
-#                  t_high = t_mid
-                 
-#     # Use the final t_mid for subdivision
-#     return casteljau_subdiv_bezseg(segment, t_mid)
+#             print(f"Error processing segment during casteljau_subdiv_bezsegs: {e}")
+#             # Add the original segment back on error during the call
+#             output_segments_list.append(segment_row)
+#         continue
+
+#     # Reassemble the segments array 
+#     if not output_segments_list:
+#          return np.empty((0, 8), dtype=original_dtype)
+
+#     return np.array(output_segments_list, dtype=original_dtype)
+
 
 # def extended_seg(segment, goal_xy):
 #     """
@@ -584,6 +901,7 @@ def sample_bezsegs(segments:np.ndarray, sampling_rate:int):
 #     new_P2 = new_P3 - vec_P3_newP3 / 3.0 # Simplistic estimate
     
 #     return (new_P0, new_P1, new_P2, new_P3)
+
 
 # def match_curves(curve1_segs_arr: np.ndarray, curve2_segs_arr: np.ndarray, x_bounds):
 #     """
@@ -693,6 +1011,7 @@ def sample_bezsegs(segments:np.ndarray, sampling_rate:int):
 #     new_curve2_arr = segment_list_to_array(new_curve2_list)
     
 #     return new_curve1_arr, new_curve2_arr
+
 
 # def mix_bezsegs(curve1_segs_arr: np.ndarray, curve2_segs_arr: np.ndarray, mix_factor):
 #     """

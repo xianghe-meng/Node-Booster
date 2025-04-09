@@ -10,9 +10,9 @@ from gpu_extras.batch import batch_for_shader
 import numpy as np
 import math # Add math import for calculations
 
-from ...__init__ import get_addon_prefs
+from ... import get_addon_prefs
 from ...utils.str_utils import word_wrap
-from ...utils.interpolation_utils import (
+from ...utils.bezier2d_utils import (
     hash_bezsegs,
     sample_bezsegs,
 )
@@ -49,9 +49,9 @@ from ...utils.node_utils import (
 # dict keys will be the node name.
 PREVIEW_DATA = {}
 
-class Base():
+class NODEBOOSTER_ND_2DCurvePreview(bpy.types.Node):
 
-    bl_idname = "NodeBoosterInterpolationPreview"
+    bl_idname = "NodeBooster2DCurvePreview"
     bl_label = "2D Curve Preview"
     bl_description = """Preview the result of a 2D curve."""
     bl_width_min = 157
@@ -146,36 +146,21 @@ class Base():
     def init(self, context):
         """this fct run when appending the node for the first time"""
 
-        name = f".{self.bl_idname}"
-
-        ng = bpy.data.node_groups.get(name)
-        if (ng is None):
-            # Assume nodegroup exists in the blend file
-            blendfile = os.path.join(os.path.dirname(__file__), "interpolation_nodegroups.blend")
-            ng = import_new_nodegroup(blendpath=blendfile, ngname=self.bl_idname,)
-
-            # set the name of the ng
-            ng.name = name
-
-        ng = ng.copy() # always using a copy of the original ng
-
-        self.node_tree = ng
-        self.width = 240
+        self.inputs.new('NodeBoosterCustomSocketInterpolation', "2D Curve")
         self.label = self.bl_label
+        self.width = 240
 
         return None
 
     def copy(self, node):
         """fct run when dupplicating the node"""
 
-        self.node_tree = node.node_tree.copy()
-
         return None
 
     def update(self):
         """generic update function"""
         
-        print("DEBUG: InterpolationPreview update")
+        print("DEBUG: 2DcurvePreview update")
         self.evaluator()
         print("evaluator done")
 
@@ -193,7 +178,6 @@ class Base():
             match_evaluator_properties={'INTERPOLATION_NODE',},
             set_link_invalid=True,
             )
-        
 
         # Find the bounds of the curve data to fit it in the view. Store this info in the node properties.
         if (result is not None) and (isinstance(result, np.ndarray)) and (result.size > 0):
@@ -258,14 +242,14 @@ class Base():
                 )
             panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
 
-        header, panel = layout.panel("dev_panelid", default_closed=True,)
-        header.label(text="Development",)
-        if (panel):
-            panel.active = False
+        # header, panel = layout.panel("dev_panelid", default_closed=True,)
+        # header.label(text="Development",)
+        # if (panel):
+        #     panel.active = False
 
-            col = panel.column(align=True)
-            col.label(text="NodeTree:")
-            col.template_ID(n, "node_tree")
+        #     col = panel.column(align=True)
+        #     col.label(text="NodeTree:")
+        #     col.template_ID(n, "node_tree")
 
         return None
 
@@ -303,7 +287,7 @@ class NODEBOOSTER_PT_InterpolationOptions(bpy.types.Panel):
         col = layout.column(heading="Bounds")
         col.use_property_split = True
         col.use_property_decorate = False
-        col.prop(node, 'preview_scale',)
+        col.prop(node, 'preview_scale', expand=True,)
 
         match node.preview_scale:
             case 'CUSTOM': data = 'bounds_custom'   ; enabled = True
@@ -464,6 +448,7 @@ def draw_rectangle(shader, view2d, location, dimensions,
 
     return vertices
 
+
 def draw_bezpoints(shader, recverts, bezsegs,
     bounds=((0.0,0.0),(1.0,1.0)),
     anchor_color=(0.2, 0.2, 0.2, 0.8), anchor_size=40,
@@ -570,11 +555,15 @@ def draw_bezpoints(shader, recverts, bezsegs,
 
     return None
 
+
 def draw_curve_fill(shader, recverts, preview_data, bounds, fill_color, num_steps=20):
     """Draws the filled area under the bezier curve, extending with tangents."""
     
-    # NOTE this is AI generated slop. It works tho.
-    # TODO needs a big clean up. Also need f.CACHE optimization like in draw_bezcurve.
+    # NOTE this function is AI generated slop.
+    # TODO 
+    # - needs a big clean up. 
+    # - need to make use of sample_bezsegs and calculate it in local space.
+    # - need f.CACHE optimization like in draw_bezcurve, store local space pts in there. evaluate_segment need to go..
 
     if (fill_color is None) \
         or (preview_data is None) \
@@ -814,9 +803,9 @@ def draw_bezcurve(
     return None
 
 def draw_interpolation_preview(node_tree, view2d, dpi, zoom):
-    """Draw transparent black box on InterpolationPreview nodes with custom margins"""
+    """Draw transparent black box on preview nodes with custom margins"""
 
-    nd_to_draw = [n for n in node_tree.nodes if (not n.hide) and ('NodeBoosterInterpolationPreview' in n.bl_idname)]
+    nd_to_draw = [n for n in node_tree.nodes if (not n.hide) and ('NodeBooster2DCurvePreview' in n.bl_idname)]
     if (not nd_to_draw):
         return None
 
@@ -863,6 +852,12 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom):
             case 'CUSTOM': data_bounds = ((node.bounds_custom[0], node.bounds_custom[1]), (node.bounds_custom[2], node.bounds_custom[3]))
             case 'FIT':    data_bounds = ((node.bounds_fitcurve[0], node.bounds_fitcurve[1]), (node.bounds_fitcurve[2], node.bounds_fitcurve[3]))
 
+        # get the data to draw the bezier curve and anchors/handles ect..
+        preview_data = PREVIEW_DATA.get(f"Preview{node.name}")
+        is_valid = (preview_data is not None) and (not node.mute)
+        if (not is_valid):
+            data_bounds = ((0,0), (0,0))
+
         # draw a background rectangle and get screen origin
         recverts = draw_rectangle(shader, view2d, (locx, loxy), (dimx, dimy),
             bounds=data_bounds, tick_interval=node.grid_tick,
@@ -871,11 +866,8 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom):
             border_color=(0.0, 0.0, 0.0, 0.6), border_width=1.0,
             draw_grid=node.draw_grid, dpi=dpi, zoom=zoom,
             )
-        
-        # get the data to draw the bezier curve and anchors/handles ect..
-        preview_data = PREVIEW_DATA.get(f"Preview{node.name}")
 
-        if (preview_data is not None):
+        if (is_valid):
 
             # NOTE Scissor for Clipping out of preview area
             # in case the drawing below goes out of bounds..
@@ -939,18 +931,3 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom):
     
     return None
 
-
-#Per Node-Editor Children:
-#Respect _NG_ + _GN_/_SH_/_CP_ nomenclature
-
-class NODEBOOSTER_NG_GN_InterpolationPreview(Base, bpy.types.GeometryNodeCustomGroup):
-    tree_type = "GeometryNodeTree"
-    bl_idname = "GeometryNodeNodeBoosterInterpolationPreview"
-
-class NODEBOOSTER_NG_SH_InterpolationPreview(Base, bpy.types.ShaderNodeCustomGroup):
-    tree_type = "ShaderNodeTree"
-    bl_idname = "ShaderNodeNodeBoosterInterpolationPreview"
-
-class NODEBOOSTER_NG_CP_InterpolationPreview(Base, bpy.types.CompositorNodeCustomGroup):
-    tree_type = "CompositorNodeTree"
-    bl_idname = "CompositorNodeNodeBoosterInterpolationPreview"

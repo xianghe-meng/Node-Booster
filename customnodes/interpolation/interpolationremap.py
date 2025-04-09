@@ -8,7 +8,7 @@ import os
 
 from ...__init__ import get_addon_prefs
 from ...utils.str_utils import word_wrap
-from ...utils.interpolation_utils import bezsegs_to_curvemapping, reset_curvemapping
+from ...utils.bezier2d_utils import bezsegs_to_curvemapping, reset_curvemapping
 from ..evaluator import evaluate_upstream_value
 from ...utils.node_utils import (
     import_new_nodegroup, 
