@@ -28,7 +28,7 @@ class NODEBOOSTER_ND_2DCurvesMix(bpy.types.Node):
 
     bl_idname = "NodeBooster2DCurvesMix"
     bl_label = "Mix 2D Curves"
-    bl_description = """Mix two 2D curves linearly."""
+    bl_description = """Mix two 2D curves linearly. Ideally the numbers of segments should be similar. If not, we'll try to match them by adding more segments at ideal locations."""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
 

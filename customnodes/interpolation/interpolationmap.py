@@ -31,7 +31,7 @@ class Base():
 
     bl_idname = "NodeBoosterInterpolationMap"
     bl_label = "Interpolation Map"
-    bl_description = """Map a value to an interpolation curve. Similar to the 'Curve Mapping' node."""
+    bl_description = """Map values to an interpolation curve. Similar to the 'Float Curve' node."""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
 

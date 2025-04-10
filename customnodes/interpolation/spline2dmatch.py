@@ -28,7 +28,7 @@ class NODEBOOSTER_ND_2DCurvesMatch(bpy.types.Node):
 
     bl_idname = "NodeBooster2DCurvesMatch"
     bl_label = "Match 2D Curves (Dev)"
-    bl_description = """Match two 2D curves so they obtain the same number of segments at same X locations."""
+    bl_description = """Match two 2D curves so they obtain the same number of segments at same X locations and have the same start/end anchors."""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
 

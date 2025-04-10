@@ -17,7 +17,7 @@ class NODEBOOSTER_ND_2DCurveInput(bpy.types.Node):
 
     bl_idname = "NodeBooster2DCurveInput" 
     bl_label = "2D Curve Input"
-    bl_description = "Generates 2D curve data from a 3D Curve Object's axis."
+    bl_description = "Interpret a spline of a 3D curve object into a 2D curve depending on the chosen axis."
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
 

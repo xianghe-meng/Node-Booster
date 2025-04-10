@@ -419,7 +419,40 @@ def ensure_bezsegs_monotonic(segments:np.ndarray) -> np.ndarray:
 
     sorted_segments[:, 2] = np.where(crossover_mask, x_split, x1_clamped)
     sorted_segments[:, 4] = np.where(crossover_mask, x_split, x2_clamped)
+    
+    # 5. in rare case, we might have start/end anchors aligned with their respective handles
+    # we don't want aligned handles, the lasts handles are important for curves extensions
+    tolerance_align = 1e-7 # Tolerance for checking exact alignment
+    epsilon_push = 1e-6     # Small amount to push away
 
+    # Check start handle (P1 of first segment)
+    # Indices: P0.x=0, P1.x=2, P3.x=6 for segment 0
+    p0x_start = sorted_segments[0, 0]
+    p1x_start = sorted_segments[0, 2]
+    p3x_start = sorted_segments[0, 6] # Needed for push direction and clipping range
+    if abs(p1x_start - p0x_start) < tolerance_align:
+        # Determine push direction (towards P3)
+        push_dir = np.sign(p3x_start - p0x_start)
+        if push_dir == 0: push_dir = 1 # Handle zero length segment case, push right arbitrarily
+        sorted_segments[0, 2] += epsilon_push * push_dir
+        # Re-clip just this handle within its segment's bounds
+        min_seg0_x, max_seg0_x = min(p0x_start, p3x_start), max(p0x_start, p3x_start)
+        sorted_segments[0, 2] = np.clip(sorted_segments[0, 2], min_seg0_x, max_seg0_x)
+
+    # Check end handle (P2 of last segment)
+    # Indices: P0.x=0, P2.x=4, P3.x=6 for segment -1
+    p0x_end = sorted_segments[-1, 0] # Needed for push direction and clipping range
+    p2x_end = sorted_segments[-1, 4]
+    p3x_end = sorted_segments[-1, 6]
+    if abs(p2x_end - p3x_end) < tolerance_align:
+            # Determine push direction (towards P0)
+            push_dir = np.sign(p0x_end - p3x_end)
+            if push_dir == 0: push_dir = -1 # Handle zero length segment case, push left arbitrarily
+            sorted_segments[-1, 4] += epsilon_push * push_dir
+            # Re-clip just this handle within its segment's bounds
+            min_segN_x, max_segN_x = min(p0x_end, p3x_end), max(p0x_end, p3x_end)
+            sorted_segments[-1, 4] = np.clip(sorted_segments[-1, 4], min_segN_x, max_segN_x)
+             
     return sorted_segments
 
 

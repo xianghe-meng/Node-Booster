@@ -53,7 +53,7 @@ class NODEBOOSTER_ND_2DCurvePreview(bpy.types.Node):
 
     bl_idname = "NodeBooster2DCurvePreview"
     bl_label = "2D Curve Preview"
-    bl_description = """Preview the result of a 2D curve."""
+    bl_description = """Preview a 2D curve."""
     bl_width_min = 157
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
@@ -896,7 +896,7 @@ def draw_interpolation_preview(node_tree, view2d, dpi, zoom):
             # Draw the fill first
             if (node.draw_fill):
                 draw_curve_fill(shader, recverts, preview_data,
-                    bounds=data_bounds, fill_color=(0, 0, 0, 0.185), num_steps=20,
+                    bounds=data_bounds, fill_color=(0, 0, 0, 0.25), num_steps=20,
                     )
             # Then draw the curve line
             if (node.draw_curve):
