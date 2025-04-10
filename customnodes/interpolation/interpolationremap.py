@@ -43,7 +43,7 @@ class Base():
         default='FLOAT',
         items=(('FLOAT', "Float", "Float interpolation"),
                ('VECTOR', "Vector", "Vector interpolation"),),
-        update= lambda self, context: self.evaluator(),
+        update= lambda self, context: self.update(),
         )
 
     @classmethod
@@ -86,7 +86,6 @@ class Base():
     def update(self):
         """generic update function"""
         
-        print("DEBUG: InterpolationRemap Evaluator update")
         self.evaluator()
         
         return None

@@ -82,8 +82,11 @@ from . interpolation.interpolationremap import (
         NODEBOOSTER_NG_CP_InterpolationRemap,
         )
 from .interpolation.spline2dpreview import (
-        NODEBOOSTER_PT_InterpolationOptions,
+        NODEBOOSTER_PT_2DCurvePreviewOptions,
         NODEBOOSTER_ND_2DCurvePreview,
+        )
+from . interpolation.interpolationloop import (
+        NODEBOOSTER_ND_2DCurveLoop,
         )
 from . interpolation.spline2dinput import (
         NODEBOOSTER_ND_2DCurveInput,
@@ -131,6 +134,7 @@ GN_CustomNodes = (
             NODEBOOSTER_NG_GN_InterpolationInput,
             NODEBOOSTER_NG_GN_InterpolationMap,
             NODEBOOSTER_NG_GN_InterpolationRemap,
+            NODEBOOSTER_ND_2DCurveLoop,
             NODEBOOSTER_ND_2DCurvePreview,
             NODEBOOSTER_ND_2DCurveInput,
             NODEBOOSTER_ND_2DCurveSubdiv,
@@ -164,6 +168,7 @@ SH_CustomNodes = (
             NODEBOOSTER_NG_SH_InterpolationInput,
             NODEBOOSTER_NG_SH_InterpolationMap,
             NODEBOOSTER_NG_SH_InterpolationRemap,
+            NODEBOOSTER_ND_2DCurveLoop,
             NODEBOOSTER_ND_2DCurvePreview,
             NODEBOOSTER_ND_2DCurveInput,
             NODEBOOSTER_ND_2DCurveSubdiv,
@@ -197,6 +202,7 @@ CP_CustomNodes = (
             NODEBOOSTER_NG_CP_InterpolationInput,
             NODEBOOSTER_NG_CP_InterpolationMap,
             NODEBOOSTER_NG_CP_InterpolationRemap,
+            NODEBOOSTER_ND_2DCurveLoop,
             NODEBOOSTER_ND_2DCurvePreview,
             NODEBOOSTER_ND_2DCurveInput,
             NODEBOOSTER_ND_2DCurveSubdiv,
@@ -256,8 +262,8 @@ classes = (
     NODEBOOSTER_NG_GN_InterpolationRemap,
     NODEBOOSTER_NG_SH_InterpolationRemap,
     NODEBOOSTER_NG_CP_InterpolationRemap,
-    NODEBOOSTER_PT_InterpolationOptions,
     NODEBOOSTER_ND_2DCurvePreview,
+    NODEBOOSTER_PT_2DCurvePreviewOptions,
     NODEBOOSTER_OT_interpolation_input_update,
     NODEBOOSTER_ND_2DCurveInput,
     NODEBOOSTER_ND_2DCurveSubdiv,
@@ -265,6 +271,7 @@ classes = (
     NODEBOOSTER_ND_2DCurvesMatch,
     NODEBOOSTER_ND_2DCurvesMix,
     NODEBOOSTER_ND_EnsureMonotonicity,
+    NODEBOOSTER_ND_2DCurveLoop,
     )
 
 #for utility. handlers.py module will use this list.

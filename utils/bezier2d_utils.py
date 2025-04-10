@@ -2,9 +2,14 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# NOTE this is a numpy library for working with 2D bezier curves and interpolation.
+# NOTE 
+# this is a numpy library for working with 2D bezier curves and interpolation.
 # heavily related to blender mapping.curve API.
-# gemini 2.5 helped heavily here. Very good with numpy math.
+
+# NOTE 
+# about AI
+# gemini 2.5 helped heavily here. Very good with numpy math. incredible. 
+# Make sure you observe if his logic is valid tho..
 
 
 import numpy as np
@@ -350,7 +355,16 @@ def hash_bezsegs(segments:np.ndarray) -> str:
     return hashlib.md5(segments.tobytes()).hexdigest()
 
 
-def ensure_bezsegs_monotonic(segments:np.ndarray) -> np.ndarray:
+def is_bezsegs_monotonic(segments:np.ndarray, sample_rate:int=500) -> bool:
+    """Check if the segments represent a curve monotonic in x.
+    segments (np.ndarray): An (N) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
+    Returns True if the segments are monotonic in x, False otherwise.
+    """
+    points = sample_bezsegs(segments, sample_rate)
+    return np.all(np.diff(points[:,0]) >= 0)
+
+
+def ensure_monotonic_bezsegs(segments:np.ndarray) -> np.ndarray:
     """Ensure the segments represent a curve monotonic in x.
     This involves sorting anchor points by x-coordinate and then adjusting handles.
     Monotonicity is important for interpolation, preventing the curve from backtracking on the X axis.
@@ -358,8 +372,9 @@ def ensure_bezsegs_monotonic(segments:np.ndarray) -> np.ndarray:
     Returns a *new* NumPy array with the sorted and adjusted segments.
     """
 
-    if (segments is None) or (segments.size == 0):
-        return np.empty((0, 8), dtype=segments.dtype if segments is not None else float) # Return empty array
+    # we don't need to do anything if the curve is already monotonic
+    if is_bezsegs_monotonic(segments):
+        return segments
 
     num_segments = segments.shape[0]
     num_points = num_segments + 1
@@ -487,7 +502,7 @@ def ensure_bezsegs_monotonic(segments:np.ndarray) -> np.ndarray:
 #     return (P0 * omt3) + (P1 * 3.0 * omt2 * t) + (P2 * 3.0 * omt * t2) + (P3 * t3)
 
 
-def sample_bezsegs(segments:np.ndarray, sampling_rate:int) -> list:
+def sample_bezsegs(segments:np.ndarray, sampling_rate:int) -> np.ndarray:
     """Generate points from the segments numpy array using vectorized operations.
     segments (np.ndarray): An (N) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
     sampling_rate (int): Number of steps *between* points per segment (e.g., 1 gives start/end, 2 gives start/mid/end).
@@ -1160,3 +1175,105 @@ def lerp_bezsegs(segsA:np.ndarray, segsB:np.ndarray, mixfac:float, cut_precision
         return None
 
     return mixed_segments
+
+
+def looped_offset_bezsegs(segments: np.ndarray, offset: float, cut_precision:int=100, tolerance:float=1e-6) -> np.ndarray:
+    """
+    Offsets a monotonic Bézier curve segment array horizontally, wrapping the curve
+    around its original x-range.
+
+    Args:
+        segments (np.ndarray): The Bézier curve segments to offset. Expected to
+                               be monotonic on the X axis. (N, 8) array.
+        offset (float): The amount to offset the curve horizontally. Positive shifts
+                        right, negative shifts left.
+        cut_precision (int): The sampling rate precision used by cut_bezsegs.
+        tolerance (float): Tolerance for float comparisons and cutting.
+
+    Returns:
+        np.ndarray: The looped and offset Bézier curve segments. Shape might
+                    differ from input due to cutting. Returns None on error or
+                    if segments are invalid.
+    """
+
+    # ensure our segments are monotonic
+    mono_segments = ensure_monotonic_bezsegs(segments)
+
+    # if offset is 0.0, we don't need to loop or cut anything
+    if offset == 0.0:
+        return mono_segments
+
+    # --- Calculate Range and Effective Offset ---
+    start_xloc = mono_segments[0, 0]
+    end_xloc = mono_segments[-1, 6]
+    distance = end_xloc - start_xloc
+
+    if distance <= tolerance:
+        print("Warning: Curve has zero or negligible width. Cannot loop.")
+        return mono_segments # Return the monotonic version
+
+    # Calculate the effective offset within the curve's width
+    # fmod is generally better for float modulo
+    effective_offset = np.fmod(offset, distance)
+
+    # Determine the location where the cut needs to happen in the *original* monotonic curve
+    cut_location = start_xloc + effective_offset
+    # Adjust cut location if negative offset wrapped around
+    if cut_location < start_xloc:
+        cut_location += distance
+    elif cut_location >= end_xloc: # Should ideally not happen due to fmod, but safety
+        cut_location -= distance
+
+    # 1. Cut the original monotonic curve
+    cut_segments = cut_bezsegs(mono_segments, cut_location, cut_precision, tolerance)
+
+    # 2. Find the cutted segments
+    split_idx = None
+    for i in range(cut_segments.shape[0]):
+        # Check if the end point of segment i is the cut location
+        if (abs(cut_segments[i, 6] - cut_location) <= tolerance):
+            split_idx = i + 1
+            break
+        # Also check if start point of segment i is the cut (if cut landed on knot)
+        if (abs(cut_segments[i, 0] - cut_location) <= tolerance and (i > 0)):
+             split_idx = i
+             break
+    # 2.5 if no cut found, it means the segment was not cut, and we use an existing segment
+    if (split_idx is None):
+        # TODO
+        # here, if the split_idx is none, it means the segment was not cut (likely at an existing knot)
+        # so we need to find the segments which anchor end or start matches the cut location, depending on the offset direction
+        return None
+
+    # 3. Move the cutted segments to start/end
+    part1 = cut_segments[:split_idx].astype(float, copy=True) # Part before cut
+    part2 = cut_segments[split_idx:].astype(float, copy=True) # Part after cut
+
+    # Create translation vector (only affects X)
+    if effective_offset > 0:
+        # Part 1 (before cut) moves to the end, shifted right by distance
+        part1[:, 0] += distance # P0x
+        part1[:, 2] += distance # P1x
+        part1[:, 4] += distance # P2x
+        part1[:, 6] += distance # P3x
+        # Combine: part2 followed by translated part1
+        final_segments = np.vstack([part2, part1])
+
+    else: # effective_offset < 0
+        # Part 2 (after cut) moves to the beginning, shifted left by distance
+        part2[:, 0] -= distance # P0x
+        part2[:, 2] -= distance # P1x
+        part2[:, 4] -= distance # P2x
+        part2[:, 6] -= distance # P3x
+        # Combine: translated part2 followed by part1
+        final_segments = np.vstack([part2, part1])
+
+    # 4. Ensure original Start location  ---
+    new_start  = final_segments[0, 0]
+    distance = new_start - start_xloc
+    final_segments[:, 0] -= distance # P0x
+    final_segments[:, 2] -= distance # P1x
+    final_segments[:, 4] -= distance # P2x
+    final_segments[:, 6] -= distance # P3x
+
+    return final_segments

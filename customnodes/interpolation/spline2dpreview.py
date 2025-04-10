@@ -77,7 +77,6 @@ class NODEBOOSTER_ND_2DCurvePreview(bpy.types.Node):
             ('CUSTOM', "Custom", "Graph will use the custom bounds"),
             ),
         default='FIT',
-        update= lambda self, context: self.evaluator(),
         )
     draw_handles : bpy.props.BoolProperty(
         name="Handles",
@@ -160,9 +159,7 @@ class NODEBOOSTER_ND_2DCurvePreview(bpy.types.Node):
     def update(self):
         """generic update function"""
         
-        print("DEBUG: 2DcurvePreview update")
         self.evaluator()
-        print("evaluator done")
 
         return None
 
@@ -224,7 +221,7 @@ class NODEBOOSTER_ND_2DCurvePreview(bpy.types.Node):
         roww = row.row(align=True)
         roww.alignment = 'RIGHT'
         roww.context_pointer_set("pass_nodecontext", self)
-        roww.popover("NODEBOOSTER_PT_InterpolationOptions", text="", icon='OPTIONS')
+        roww.popover("NODEBOOSTER_PT_2DCurvePreviewOptions", text="", icon='OPTIONS')
         roww.prop(self, 'preview_scale', text="",)
         roww.prop(self, 'preview_lock', text="", icon='LOCKED' if self.preview_lock else 'UNLOCKED')
 
@@ -257,9 +254,9 @@ class NODEBOOSTER_ND_2DCurvePreview(bpy.types.Node):
         return None
 
 
-class NODEBOOSTER_PT_InterpolationOptions(bpy.types.Panel):
+class NODEBOOSTER_PT_2DCurvePreviewOptions(bpy.types.Panel):
 
-    bl_idname      = "NODEBOOSTER_PT_InterpolationOptions"
+    bl_idname      = "NODEBOOSTER_PT_2DCurvePreviewOptions"
     bl_label       = "Draw Preferences"
     bl_description = "Choose how to draw your preview"
     bl_category    = ""

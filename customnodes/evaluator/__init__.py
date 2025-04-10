@@ -32,11 +32,11 @@ def evaluate_upstream_value(sock, match_evaluator_properties:set=None, set_link_
     #get colliding nodes upstream, on the left in {socket:links}
     #return a dictionary of {colliding_socket:parcoured_links[]}
     parcour_info = parcour_node_tree(sock, direction='LEFT')
-    print(f"DEBUG: parcour_info: {parcour_info}, len: {len(parcour_info)}")
+    # print(f"DEBUG: parcour_info: {parcour_info}, len: {len(parcour_info)}")
 
     #nothing hit?
     if (not parcour_info):
-        print("DEBUG: no parcour info.")
+        # print("DEBUG: no parcour info.")
         return None
 
     #get our colliding socket. when parcouring right to left, we expect only one collision.
@@ -52,7 +52,8 @@ def evaluate_upstream_value(sock, match_evaluator_properties:set=None, set_link_
     if (not hasattr(colliding_node,'evaluator_properties')) \
         or (not hasattr(colliding_node,'evaluator')) \
         or (not match_evaluator_properties.intersection(colliding_node.evaluator_properties)):
-        print(f"DEBUG: parcour not successful.\n{colliding_node}")
+        
+        # print(f"DEBUG: parcour not successful.\n{colliding_node}")
         if (set_link_invalid and parcoured_links):
             first_link = parcoured_links[0]
             first_link.is_valid = False

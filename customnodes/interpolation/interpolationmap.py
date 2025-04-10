@@ -46,7 +46,7 @@ class Base():
         items=(('FLOAT', "Float", "Float interpolation"),
                ('COLOR', "Color", "Color interpolation"),
                ('VECTOR', "Vector", "Vector interpolation"),),
-        update= lambda self, context: self.evaluator(),
+        update= lambda self, context: self.update(),
         )
 
     @classmethod
@@ -89,7 +89,6 @@ class Base():
     def update(self):
         """generic update function"""
         
-        print("DEBUG: InterpolationMap Evaluator update")
         self.evaluator()
         
         return None
