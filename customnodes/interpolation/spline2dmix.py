@@ -28,7 +28,7 @@ class NODEBOOSTER_ND_2DCurvesMix(bpy.types.Node):
 
     bl_idname = "NodeBooster2DCurvesMix"
     bl_label = "Mix 2D Curves"
-    bl_description = """Mix two 2D curves linearly. Ideally the numbers of segments should be similar. If not, we'll try to match them by adding more segments at ideal locations."""
+    bl_description = """Mix two 2D curves linearly. Ideally the numbers of segments should be similar. If not, we'll try to match them by subdividing more segments at projected locations."""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
 
@@ -95,7 +95,12 @@ class NODEBOOSTER_ND_2DCurvesMix(bpy.types.Node):
         if (val1 is None) or (val2 is None):
             return None
 
-        return lerp_bezsegs(val1, val2, self.mixfac)
+        match self.mixfac:
+            case 0.0: final = val1
+            case 1.0: final = val2
+            case _:   final = lerp_bezsegs(val1, val2, self.mixfac)
+            
+        return final
 
     def draw_buttons(self, context, layout):
         """node interface drawing"""

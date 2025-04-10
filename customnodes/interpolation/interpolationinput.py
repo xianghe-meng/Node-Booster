@@ -180,7 +180,7 @@ class Base():
         # but here, there's only one output..(simpler)
 
         result = reverseengineer_curvemapping_to_bezsegs(self.node_tree.nodes[self.graph_type].mapping.curves[0])
-        print("OUT:", result)
+
         return result
 
 #Per Node-Editor Children:

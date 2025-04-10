@@ -9,7 +9,7 @@ import numpy as np
 
 from ... import get_addon_prefs
 from ...utils.str_utils import word_wrap
-from ...utils.bezier2d_utils import casteljau_subdiv_bezsegs, cut_bezsegs
+from ...utils.bezier2d_utils import casteljau_subdiv_bezsegs, cut_bezsegs, subdiv_project_bezsegs
 from ..evaluator import evaluate_upstream_value
 from ...utils.node_utils import (
     send_refresh_signal,
@@ -39,7 +39,8 @@ class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
         description="Subdivide a 2D curve with the given methods",
         items=(('CUT', 'Cut', 'Cut the curve at the X location'),
                ('SUBDIV', 'Subdivide', 'Subdivide the curve at N subdivisions levels'),
-              ),
+               ('PROJECT', 'Project', 'Subdivide the chosen curve for every projected anchor of the reference curve'),
+               ),
         default='SUBDIV',
         update=lambda self, context: self.update_trigger()
         )
@@ -71,6 +72,9 @@ class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
         self.inputs.new('NodeBoosterCustomSocketInterpolation', "2D Curve")
         self.outputs.new('NodeBoosterCustomSocketInterpolation', "2D Curve")
 
+        self.inputs.new('NodeBoosterCustomSocketInterpolation', "Reference Curve")
+        self.inputs[1].enabled = False
+
         return None
 
     def copy(self, node):
@@ -87,14 +91,20 @@ class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
         """node label"""
         if (self.label==''):
             match self.mode:
-                case 'SUBDIV':
-                    return 'Subdivide'
-                case 'CUT':
-                    return 'Cut'
+                case 'SUBDIV':  return 'Subdivide'
+                case 'CUT':     return 'Cut'
+                case 'PROJECT': return 'Project-Subdiv'
         return self.label
 
     def update_trigger(self,):
         """send an update trigger to the whole node_tree"""
+
+        if (self.mode in {'SUBDIV', 'CUT'}):
+            self.inputs[0].name = '2D Curve'
+            self.inputs[1].enabled = False
+        elif (self.mode == 'PROJECT'):
+            self.inputs[0].name = 'To Subdivide'
+            self.inputs[1].enabled = True
 
         send_refresh_signal(self.outputs[0])
 
@@ -103,33 +113,56 @@ class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
     def evaluator(self, socket_output)->None:
         """evaluator the node required for the output evaluator"""
 
-        val = evaluate_upstream_value(self.inputs[0],
-            match_evaluator_properties={'INTERPOLATION_NODE',},
-            set_link_invalid=True,
-            )
-        if (val is None):
-            return None
-        
-        match self.mode:
+        if (self.mode in {'SUBDIV', 'CUT'}):
 
-            case 'SUBDIV':
-                for _ in range(self.subdiv_level):
-                    t_map = np.full(len(val), 0.5)
-                    val = casteljau_subdiv_bezsegs(val, t_map)
-                    continue
+            val = evaluate_upstream_value(self.inputs[0],
+                match_evaluator_properties={'INTERPOLATION_NODE',},
+                set_link_invalid=True,
+                )
 
-            case 'CUT':
-                val = cut_bezsegs(val, self.xloc, sampling_rate=100,)
+            if (val is None):
+                return None
 
-        return val
+            match self.mode:
+
+                case 'SUBDIV':
+                    for _ in range(self.subdiv_level):
+                        t_map = np.full(len(val), 0.5)
+                        val = casteljau_subdiv_bezsegs(val, t_map)
+                        continue
+                    return val
+
+                case 'CUT':
+                    return cut_bezsegs(val, self.xloc, sampling_rate=100,)
+
+        elif (self.mode == 'PROJECT'):
+            
+            val1 = evaluate_upstream_value(self.inputs[0],
+                match_evaluator_properties={'INTERPOLATION_NODE',},
+                set_link_invalid=True,
+                )
+            val2 = evaluate_upstream_value(self.inputs[1],
+                match_evaluator_properties={'INTERPOLATION_NODE',},
+                set_link_invalid=True,
+                )
+            if (val1 is None) or (val2 is None):
+                return None
+
+            return subdiv_project_bezsegs(val1, val2)
+
+        return None
 
     def draw_buttons(self, context, layout):
         """node interface drawing"""
 
         layout.prop(self, "mode", text="",)
-        if (self.mode == 'CUT'):
-              layout.prop(self, "xloc")
-        else: layout.prop(self, "subdiv_level")
+        match self.mode:
+            case 'CUT':
+                layout.prop(self, "xloc")
+            case 'SUBDIV':
+                layout.prop(self, "subdiv_level")
+            case 'PROJECT':
+                pass
 
         return None
 
