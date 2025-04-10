@@ -4,6 +4,8 @@
 
 # NOTE this is a numpy library for working with 2D bezier curves and interpolation.
 # heavily related to blender mapping.curve API.
+# gemini 2.5 helped heavily here. Very good with numpy math.
+
 
 import numpy as np
 import hashlib
@@ -20,7 +22,7 @@ def reverseengineer_curvemapping_to_bezsegs(curve) -> np.ndarray:
     # NOTE
     # a blender curvemapping bezier has a lot of logic to it with the handles.
     # this function tries to reverse engineer that logic into a list of cubic beziers segments.
-    # it's AI generated slop from gemini 2.5, far from perfect, could be largly improved and cleaned up.
+    # could be largly improved and cleaned up.
 
     def _guess_handles(current_pt, prev_pt, next_pt):
         """Calculates handle positions mimicking Blender C function calchandle_curvemap."""
@@ -223,7 +225,7 @@ def reverseengineer_curvemapping_to_bezsegs(curve) -> np.ndarray:
 
         if (np.any(np.isnan(P0)) or np.any(np.isnan(P1)) or \
             np.any(np.isnan(P2)) or np.any(np.isnan(P3))):
-            print(f"Warning: NaN detected in segment {i}. Skipping.")
+            print(f"WARNING: NaN detected in segment {i}. Skipping.")
             continue
 
         segment_row = np.concatenate((P0, P1, P2, P3))
@@ -334,7 +336,7 @@ def reset_curvemapping(curve) -> None:
     return None
 
 
-def hash_bezsegs(segments:np.ndarray)->str:
+def hash_bezsegs(segments:np.ndarray) -> str:
     """Generate a string hash value for a numpy array containing bezier curve data.
     segments (np.ndarray): An (N-1) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y]."""
 
@@ -348,7 +350,7 @@ def hash_bezsegs(segments:np.ndarray)->str:
     return hashlib.md5(segments.tobytes()).hexdigest()
 
 
-def ensure_bezsegs_monotonic(segments:np.ndarray)->np.ndarray:
+def ensure_bezsegs_monotonic(segments:np.ndarray) -> np.ndarray:
     """Ensure the segments represent a curve monotonic in x.
     This involves sorting anchor points by x-coordinate and then adjusting handles.
     Monotonicity is important for interpolation, preventing the curve from backtracking on the X axis.
@@ -421,7 +423,7 @@ def ensure_bezsegs_monotonic(segments:np.ndarray)->np.ndarray:
     return sorted_segments
 
 
-# def evaluate_cubic_bezseg(segment:np.ndarray, t:float):
+# def evaluate_cubic_bezseg(segment:np.ndarray, t:float) -> float:
 #     """
 #     Evaluate a cubic Bézier segment at parameter t.
 #     evaluate segment as (np.ndarray): An (N-1) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y]
@@ -452,7 +454,7 @@ def ensure_bezsegs_monotonic(segments:np.ndarray)->np.ndarray:
 #     return (P0 * omt3) + (P1 * 3.0 * omt2 * t) + (P2 * 3.0 * omt * t2) + (P3 * t3)
 
 
-def sample_bezsegs(segments: np.ndarray, sampling_rate: int):
+def sample_bezsegs(segments:np.ndarray, sampling_rate:int) -> list:
     """Generate points from the segments numpy array using vectorized operations.
     segments (np.ndarray): An (N) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
     sampling_rate (int): Number of steps *between* points per segment (e.g., 1 gives start/end, 2 gives start/mid/end).
@@ -502,15 +504,16 @@ def sample_bezsegs(segments: np.ndarray, sampling_rate: int):
         start = i * num_points_per_segment + 1
         end = start + sampling_rate # +1 for num_points, -1 because index starts at 1
         indices_to_keep.extend(range(start, end + 1))
+        continue
 
     # Ensure indices are within bounds (handles cases like sampling_rate=1 correctly)
-    indices_to_keep = [idx for idx in indices_to_keep if idx < all_points.shape[0]]
+    indices_to_keep = [idx for idx in indices_to_keep if (idx < all_points.shape[0])]
     sampled_points = all_points[indices_to_keep]
 
     return sampled_points
 
 
-def sample_bezsegs_with_t(segments: np.ndarray, sampling_rate: int):
+def sample_bezsegs_with_t(segments:np.ndarray, sampling_rate:int) -> tuple[list, list]:
     """Generate points and their corresponding t-values per segment using vectorized operations.
     Args:
         segments (np.ndarray): An (N) x 8 NumPy array [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
@@ -526,9 +529,9 @@ def sample_bezsegs_with_t(segments: np.ndarray, sampling_rate: int):
                                      points_per_segment list at the same index.
     """
 
-    if segments is None or segments.size == 0:
+    if (segments is None) or (segments.size == 0):
         return [], [] # Return empty lists
-    if sampling_rate < 1:
+    if (sampling_rate < 1):
         raise ValueError("sampling_rate must be at least 1")
 
     num_segments = segments.shape[0]
@@ -563,7 +566,7 @@ def sample_bezsegs_with_t(segments: np.ndarray, sampling_rate: int):
              (P3.astype(np.float64) * t3)
     
     # Convert result back to original dtype if it was float32 or similar
-    if original_dtype != np.float64:
+    if (original_dtype != np.float64):
         points = points.astype(original_dtype)
 
     # Populate lists using list comprehensions
@@ -575,32 +578,31 @@ def sample_bezsegs_with_t(segments: np.ndarray, sampling_rate: int):
     return points_per_segment, t_values_per_segment
 
 
-def casteljau_subdiv_bezsegs(segments:np.ndarray, t_values:np.ndarray, tol:float=1e-6):
+def casteljau_subdiv_bezsegs(segments:np.ndarray, t_map:np.ndarray, tolerance:float=1e-6) -> np.ndarray:
     """
-    Batch subdivide Bézier segments and return a combined array.
-    Subdivides segments where the corresponding t_value is between tol and 1-tol.
-    Segments not subdivided are kept as is.
+    Batch subdivide Bézier segments at t-values.
     Args:
         segments (np.ndarray): An (N, 8) NumPy array of Bézier segments
                                [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
-        t_values (np.ndarray): An (N,) NumPy array of parameter values (0.0 to 1.0)
-                                corresponding to each segment for subdivision.
-        tol (float): Tolerance to treat t-values near 0 or 1 as non-subdividing.
+        t_map (np.ndarray): An (N,) NumPy array of parameter values (0.0 to 1.0)
+                             corresponding to each segment for subdivision. length should match segments length.
+                             use 0 values for segments that should not be subdivided.
+        tolerance (float): Tolerance to treat t-values near 0 or 1 as non-subdividing.
     Returns:
         np.ndarray: A new NumPy array containing all resulting segments.
     """
 
-    # --- Input Validation ---
+    # Input Validation
     if not isinstance(segments, np.ndarray) or segments.ndim != 2 or segments.shape[1] != 8:
         raise ValueError(f"Input segments must be an (N, 8) NumPy array, got shape {segments.shape}")
     num_segments = segments.shape[0]
-    if not isinstance(t_values, np.ndarray) or t_values.shape != (num_segments,):
-        raise ValueError(f"Input t_values must be an (N,) NumPy array, got shape {t_values.shape}")
+    if not isinstance(t_map, np.ndarray) or t_map.shape != (num_segments,):
+        raise ValueError(f"Input t_map must be an (N,) NumPy array, got shape {t_map.shape}")
     if num_segments == 0:
         return np.empty((0, 8), dtype=segments.dtype)
 
-    # --- Perform Vectorized Calculation (same as before) ---
-    t = np.clip(t_values, 0.0, 1.0).reshape(-1, 1)
+    # Perform Vectorized Calculation (same as before)
+    t = np.clip(t_map, 0.0, 1.0).reshape(-1, 1)
     omt = 1.0 - t
     control_points = segments.reshape(num_segments, 4, 2)
     P0, P1, P2, P3 = control_points[:, 0, :], control_points[:, 1, :], control_points[:, 2, :], control_points[:, 3, :]
@@ -611,15 +613,15 @@ def casteljau_subdiv_bezsegs(segments:np.ndarray, t_values:np.ndarray, tol:float
     R1 = Q1 * omt + Q2 * t
     S = R0 * omt + R1 * t
 
-    # --- Construct Potential Sub-segments ---
+    # Construct Potential Sub-segments
     # These arrays hold the potential results IF subdivision happens
     potential_seg1 = np.concatenate((P0, Q0, R0, S), axis=1)
     potential_seg2 = np.concatenate((S, R1, Q2, P3), axis=1)
 
-    # --- Identify Segments to Subdivide ---
-    subdivide_mask = (t_values > tol) & (t_values < 1.0 - tol) # Use original t_values for mask
+    # Identify Segments to Subdivide
+    subdivide_mask = (t_map > tolerance) & (t_map < 1.0 - tolerance) # Use original t_map for mask
 
-    # --- Assemble the Output Array ---
+    # Assemble the Output Array
     output_segments_list = []
     for i in range(num_segments):
         if subdivide_mask[i]:
@@ -636,7 +638,7 @@ def casteljau_subdiv_bezsegs(segments:np.ndarray, t_values:np.ndarray, tol:float
     return np.array(output_segments_list, dtype=result_dtype)
 
 
-def cut_bezsegs(segments:np.ndarray, xlocation:float, sampling_rate:int=50, tolerance=1e-6,):
+def cut_bezsegs(segments:np.ndarray, xlocation:float, sampling_rate:int=50, tolerance:float=1e-6,) -> np.ndarray:
     """
     Subdivides Bézier segments at a given x-location by estimating the subdivision
     parameter 't' from pre-sampled points.
@@ -664,12 +666,12 @@ def cut_bezsegs(segments:np.ndarray, xlocation:float, sampling_rate:int=50, tole
     try:
         points_per_segment, t_values_per_segment = sample_bezsegs_with_t(segments, sampling_rate)
     except Exception as e:
-        print(f"Error during sampling in cut_bezsegs: {e}")
-        return segments.copy()
+        print(f"ERROR: during sampling in cut_bezsegs: {e}")
+        return segments
 
     if len(points_per_segment) != num_segments or len(t_values_per_segment) != num_segments:
-        print(f"Warning: Mismatch between segment count and sampling results. Returning original.")
-        return segments.copy()
+        print(f"WARNING: Mismatch between segment count and sampling results. Returning original.")
+        return segments
 
     # 2. Initialize the t-map for subdivision
     t_map = np.zeros(num_segments, dtype=np.float64)
@@ -677,33 +679,36 @@ def cut_bezsegs(segments:np.ndarray, xlocation:float, sampling_rate:int=50, tole
 
     # 3. Loop through segments to find estimated t-values
     for i in range(num_segments):
-        P0x = segments[i, 0]
-        P3x = segments[i, 6]
-        is_within = (P0x < xlocation < P3x) or (P3x < xlocation < P0x)
+        P0x, P3x = segments[i, 0], segments[i, 6]
 
-        if is_within:
-            sampled_pts = points_per_segment[i]
-            sampled_ts = t_values_per_segment[i]
-            if sampled_pts.size == 0 or sampled_ts.size == 0: continue
+        # check if the X location is within the segment range
+        if not ((P0x < xlocation < P3x) or (P3x < xlocation < P0x)):
+            continue
 
-            try:
-                idx = np.argmin(np.abs(sampled_pts[:, 0] - xlocation))
-                estimated_t = sampled_ts[idx]
-                # Only mark for subdivision if estimated t is not too close to ends
-                if tolerance < estimated_t < 1.0 - tolerance:
-                     t_map[i] = estimated_t
-                     subdivide_mask[i] = True
-                # else: leave t_map[i] as 0.0, subdivide_mask[i] as False
-            except Exception as e:
-                print(f"Warning: Error finding nearest t for segment {i}: {e}. Skipping.")
+        sampled_pts, sampled_ts = points_per_segment[i], t_values_per_segment[i]
+        if ((sampled_pts.size == 0) or (sampled_ts.size == 0)):
+            continue
+
+        try:
+            idx = np.argmin(np.abs(sampled_pts[:, 0] - xlocation))
+            estimated_t = sampled_ts[idx]
+            # Only mark for subdivision if estimated t is not too close to ends
+            if (tolerance < estimated_t < (1.0 - tolerance)):
+                t_map[i] = estimated_t
+                subdivide_mask[i] = True
+            # else: leave t_map[i] as 0.0, subdivide_mask[i] as False
+        except Exception as e:
+            print(f"WARNING: Error finding nearest t for segment {i}: {e}. Skipping.")
+
+        continue
 
     # 4. Call the batch subdivision function
     try:
         # Use the t_map where subdivision is needed, otherwise t=0 (no split)
-        subdivided_segments = casteljau_subdiv_bezsegs(segments, t_map, tol=tolerance)
+        subdivided_segments = casteljau_subdiv_bezsegs(segments, t_map, tolerance=tolerance)
     except Exception as e:
-        print(f"Error during batch subdivision in cut_bezsegs: {e}")
-        return segments.copy()
+        print(f"ERROR: during batch subdivision in cut_bezsegs: {e}")
+        return segments
 
     # 5. Adjust x-coordinate of the new anchor points
     # Ensure we modify a float array copy
@@ -720,11 +725,12 @@ def cut_bezsegs(segments:np.ndarray, xlocation:float, sampling_rate:int=50, tole
         else:
             # Move output index past the single original segment
             output_idx += 1
+        continue
 
     return modified_segments
 
 
-def extend_bezsegs(segments:np.ndarray, xlocation:float, mode:str='HANDLE', tol:float=1e-6,):
+def extend_bezsegs(segments:np.ndarray, xlocation:float, mode:str='HANDLE', tolerance:float=1e-6,):
     """
     Extends a sequence of Bézier segments to a target xlocation,
     if the xlocation is outside the current range of the segments.
@@ -734,7 +740,7 @@ def extend_bezsegs(segments:np.ndarray, xlocation:float, mode:str='HANDLE', tol:
                                Assumed to be generally ordered by x for range check.
         xlocation (float): The target x-coordinate to extend to.
         mode (str): The extension mode. Must be 'HANDLE' or 'HORIZONTAL'.
-        tol (float): Tolerance for checking if tangent x-component is near zero.
+        tolerance (float): Tolerance for checking if tangent x-component is near zero.
 
     Returns:
         np.ndarray: A new NumPy array containing the original segments plus
@@ -743,18 +749,18 @@ def extend_bezsegs(segments:np.ndarray, xlocation:float, mode:str='HANDLE', tol:
                     if no extension is needed.
     """
 
-    # --- Input Validation ---
+    # Input Validation
     if not isinstance(segments, np.ndarray) or segments.ndim != 2 or segments.shape[1] != 8:
         raise ValueError(f"Input segments must be an (N, 8) NumPy array, got shape {segments.shape}")
     if segments.size == 0:
-        print("Warning: Input segments array is empty. Cannot extend.")
+        print("WARNING: Input segments array is empty. Cannot extend.")
         return np.empty((0, 8), dtype=segments.dtype)
 
     mode = mode.upper()
     if mode not in ['HANDLE', 'HORIZONTAL']:
         raise ValueError(f"Invalid mode '{mode}'. Must be 'HANDLE' or 'HORIZONTAL'.")
 
-    # --- Determine Current Range and Endpoints ---
+    # Determine Current Range and Endpoints
     P0_orig = segments[0, 0:2].astype(float)
     P1_orig = segments[0, 2:4].astype(float)
     P2_orig = segments[-1, 4:6].astype(float)
@@ -764,11 +770,11 @@ def extend_bezsegs(segments:np.ndarray, xlocation:float, mode:str='HANDLE', tol:
     original_dtype = segments.dtype
     float_dtype = np.promote_types(original_dtype, float)
 
-    # --- Check if Extension is Needed ---
-    if (min_x - tol) <= xlocation <= (max_x + tol):
-        return segments.copy()
+    # Check if Extension is Needed
+    if (min_x - tolerance) <= xlocation <= (max_x + tolerance):
+        return segments
 
-    # --- Calculate New Segment Anchors and Handles ---
+    # Calculate New Segment Anchors and Handles
     new_segment_row = np.zeros(8, dtype=float_dtype)
     needs_extension = True
 
@@ -787,8 +793,8 @@ def extend_bezsegs(segments:np.ndarray, xlocation:float, mode:str='HANDLE', tol:
                 tangent_vec = anchor_point - connecting_handle # P0 - P1
                 Tx = tangent_vec[0]
                 Ty = tangent_vec[1]
-                if (abs(Tx) < tol):
-                    print("Warning: Tangent x-component near zero when extending left. Using horizontal Y.")
+                if (abs(Tx) < tolerance):
+                    print("WARNING: Tangent x-component near zero when extending left. Using horizontal Y.")
                     new_y = anchor_point[1]
                 else:
                     dx = xlocation - anchor_point[0] # Target x - start x (negative)
@@ -821,8 +827,8 @@ def extend_bezsegs(segments:np.ndarray, xlocation:float, mode:str='HANDLE', tol:
                 tangent_vec = anchor_point - connecting_handle # P3 - P2
                 Tx = tangent_vec[0]
                 Ty = tangent_vec[1]
-                if (abs(Tx) < tol):
-                    print("Warning: Tangent x-component near zero when extending right. Using horizontal Y.")
+                if (abs(Tx) < tolerance):
+                    print("WARNING: Tangent x-component near zero when extending right. Using horizontal Y.")
                     new_y = anchor_point[1]
                 else:
                     dx = xlocation - anchor_point[0] # Target x - start x (positive)
@@ -852,228 +858,219 @@ def extend_bezsegs(segments:np.ndarray, xlocation:float, mode:str='HANDLE', tol:
         return combined_segments.astype(original_dtype, copy=False)
 
 
-def mirror_bezsegs(segments: np.ndarray):
+# def mirror_bezsegs(segments: np.ndarray):
+#     """
+#     Mirrors Bézier segments horizontally across the y-axis (x=0).
+
+#     Args:
+#         segments (np.ndarray): An (N, 8) NumPy array of Bézier segments
+#                                [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
+
+#     Returns:
+#         np.ndarray: A new (N, 8) NumPy array containing the mirrored segments.
+#                     The order of the points within each segment (P0..P3) is
+#                     maintained, only their x-coordinates are negated.
+#     """
+#     # Input Validation
+#     if not isinstance(segments, np.ndarray) or segments.ndim != 2 or segments.shape[1] != 8:
+#         raise ValueError(f"Input segments must be an (N, 8) NumPy array, got shape {segments.shape}")
+#     if segments.size == 0:
+#         return np.empty((0, 8), dtype=segments.dtype)
+
+#     # Create a float copy for modification
+#     # This prevents modifying the original and handles potential integer inputs
+#     mirrored_segments = segments.astype(float, copy=True)
+
+#     # Negate all X coordinates
+#     # X coordinates are at columns 0, 2, 4, 6
+#     mirrored_segments[:, 0] *= -1.0 # P0x
+#     mirrored_segments[:, 2] *= -1.0 # P1x
+#     mirrored_segments[:, 4] *= -1.0 # P2x
+#     mirrored_segments[:, 6] *= -1.0 # P3x
+
+#     # Y coordinates (columns 1, 3, 5, 7) remain unchanged
+
+#     # Return mirrored segments (cast back if original was not float?)
+#     # Usually returning float is fine, but we can try to preserve original type if needed
+#     try:
+#         # Attempt to cast back to original type if it makes sense (e.g., if original was int)
+#         # Note: This might lose precision if the original was int and negation created non-ints
+#         # For geometric operations, float is usually preferred anyway.
+#         if np.can_cast(mirrored_segments, segments.dtype, casting='same_kind'):
+#              return mirrored_segments.astype(segments.dtype, copy=False)
+#         else:
+#              return mirrored_segments # Return as float if casting back is unsafe/lossy
+#     except:
+#         # Fallback to returning the float array
+#          return mirrored_segments
+
+
+def match_bezsegs(segsA:np.ndarray, segsB:np.ndarray, cut_precision:int=50, tolerance:float=1e-6,):
     """
-    Mirrors Bézier segments horizontally across the y-axis (x=0).
-
-    Args:
-        segments (np.ndarray): An (N, 8) NumPy array of Bézier segments
-                               [P0x, P0y, P1x, P1y, P2x, P2y, P3x, P3y].
-
-    Returns:
-        np.ndarray: A new (N, 8) NumPy array containing the mirrored segments.
-                    The order of the points within each segment (P0..P3) is
-                    maintained, only their x-coordinates are negated.
-    """
-    # --- Input Validation ---
-    if not isinstance(segments, np.ndarray) or segments.ndim != 2 or segments.shape[1] != 8:
-        raise ValueError(f"Input segments must be an (N, 8) NumPy array, got shape {segments.shape}")
-    if segments.size == 0:
-        return np.empty((0, 8), dtype=segments.dtype)
-
-    # --- Create a float copy for modification ---
-    # This prevents modifying the original and handles potential integer inputs
-    mirrored_segments = segments.astype(float, copy=True)
-
-    # --- Negate all X coordinates ---
-    # X coordinates are at columns 0, 2, 4, 6
-    mirrored_segments[:, 0] *= -1.0 # P0x
-    mirrored_segments[:, 2] *= -1.0 # P1x
-    mirrored_segments[:, 4] *= -1.0 # P2x
-    mirrored_segments[:, 6] *= -1.0 # P3x
-
-    # Y coordinates (columns 1, 3, 5, 7) remain unchanged
-
-    # --- Return mirrored segments (cast back if original was not float?) ---
-    # Usually returning float is fine, but we can try to preserve original type if needed
-    try:
-        # Attempt to cast back to original type if it makes sense (e.g., if original was int)
-        # Note: This might lose precision if the original was int and negation created non-ints
-        # For geometric operations, float is usually preferred anyway.
-        if np.can_cast(mirrored_segments, segments.dtype, casting='same_kind'):
-             return mirrored_segments.astype(segments.dtype, copy=False)
-        else:
-             return mirrored_segments # Return as float if casting back is unsafe/lossy
-    except:
-        # Fallback to returning the float array
-         return mirrored_segments
-
-
-def match_bezsegs(segsA:np.ndarray, segsB:np.ndarray, cut_precision:int=50, tol:float=1e-6,):
-    """
-    Matches two Bézier curve segment arrays to have the same x-range and
-    aligned knots (anchor points) at all combined original knot locations.
+    Matches two Bézier curve segment arrays to have the same x-range and aligned anchors.
     Args:
         segsA (np.ndarray): First curve as an (N, 8) NumPy array.
         segsB (np.ndarray): Second curve as an (M, 8) NumPy array.
-        extend_mode (str): Mode used by extend_bezsegs ('HORIZONTAL' or 'HANDLE').
-                           Defaults to 'HORIZONTAL'.
         cut_precision (int): Sampling rate used by cut_bezsegs for 't' estimation.
-        tol (float): Tolerance for floating point comparisons.
+        tolerance (float): Tolerance for floating point comparisons.
     Returns:
         tuple[np.ndarray, np.ndarray]: The matched segment arrays (matched_A, matched_B).
                                        Shapes will likely differ from input due to subdivisions.
     """
 
-    # --- Handle Empty Inputs ---
+    # Handle Empty Inputs
     if (segsA is None) or (segsA.size == 0):
-        print("Warning: segsA is empty.")
-        return segsA, segsB # Return originals or potentially empty arrays
+        print("WARNING: match_bezsegs(): segsA is empty.")
+        return None
     if (segsB is None) or (segsB.size == 0):
-        print("Warning: segsB is empty.")
-        return segsA, segsB
+        print("WARNING: match_bezsegs(): segsB is empty.")
+        return None
 
-    # --- Ensure Float for Calculations ---
-    # Work with copies to avoid modifying originals
-    current_segsA = segsA.astype(float, copy=True)
-    current_segsB = segsB.astype(float, copy=True)
+    # Ensure Float for Calculations
+    segsA = segsA.astype(float)
+    segsB = segsB.astype(float)
 
-    # --- 1. Find Global X-Range ---
-    min_xA = current_segsA[0, 0]
-    max_xA = current_segsA[-1, 6]
-    min_xB = current_segsB[0, 0]
-    max_xB = current_segsB[-1, 6]
+    # 1. Find Global X-Range
+    min_xA = segsA[0, 0]
+    max_xA = segsA[-1, 6]
+    min_xB = segsB[0, 0]
+    max_xB = segsB[-1, 6]
 
     global_min_x = min(min_xA, min_xB)
     global_max_x = max(max_xA, max_xB)
 
-    # --- 2. Extend Curves ---
+    # 2. Extend Curves
     try:
         # Extend A Start
-        if (min_xA > (global_min_x+tol)): current_segsA = extend_bezsegs(current_segsA, global_min_x, 'HANDLE', tol)
+        if (min_xA > (global_min_x+tolerance)): segsA = extend_bezsegs(segsA, global_min_x, 'HANDLE', tolerance)
         # Extend A End
-        if (max_xA < (global_max_x-tol)): current_segsA = extend_bezsegs(current_segsA, global_max_x, 'HANDLE', tol)
+        if (max_xA < (global_max_x-tolerance)): segsA = extend_bezsegs(segsA, global_max_x, 'HANDLE', tolerance)
         # Extend B Start
-        if (min_xB > (global_min_x+tol)): current_segsB = extend_bezsegs(current_segsB, global_min_x, 'HANDLE', tol)
+        if (min_xB > (global_min_x+tolerance)): segsB = extend_bezsegs(segsB, global_min_x, 'HANDLE', tolerance)
         # Extend B End
-        if (max_xB < (global_max_x-tol)): current_segsB = extend_bezsegs(current_segsB, global_max_x, 'HANDLE', tol)
+        if (max_xB < (global_max_x-tolerance)): segsB = extend_bezsegs(segsB, global_max_x, 'HANDLE', tolerance)
     except Exception as e:
-        print(f"Error during curve extension: {e}. Returning potentially unextended curves.")
+        print(f"ERROR: during curve extension: {e}. Returning potentially unextended curves.")
         # Return current state before subdivision attempt
-        return current_segsA, current_segsB
+        return segsA, segsB
 
-    # --- 3. Collect All Knot X-Coordinates ---
-    knots_A_x = np.concatenate(([current_segsA[0, 0]], current_segsA[:, 6]))
-    knots_B_x = np.concatenate(([current_segsB[0, 0]], current_segsB[:, 6]))
-    all_knots_x = np.unique(np.concatenate((knots_A_x, knots_B_x)))
+    # 3. Collect All Knot X-Coordinates
+    knots_A_x = np.concatenate(([segsA[0, 0]], segsA[:, 6]))
+    knots_B_x = np.concatenate(([segsB[0, 0]], segsB[:, 6]))
+    all_knots_x = np.concatenate((knots_A_x, knots_B_x))
 
-    # --- 4 & 5. Iterative Subdivision ---
-    final_segsA = current_segsA
-    final_segsB = current_segsB
-
+    # 4 & 5. Iterative Subdivision
     for x_knot in all_knots_x:
         # Skip subdividing exactly at the global boundaries
-        if abs(x_knot - global_min_x) < tol or abs(x_knot - global_max_x) < tol:
+        if abs(x_knot - global_min_x) < tolerance or abs(x_knot - global_max_x) < tolerance:
             continue
         try:
             # Subdivide A at this x-location
-            final_segsA = cut_bezsegs(final_segsA, x_knot, cut_precision)
+            segsA = cut_bezsegs(segsA, x_knot, cut_precision)
             # Subdivide B at this x-location
-            final_segsB = cut_bezsegs(final_segsB, x_knot, cut_precision)
+            segsB = cut_bezsegs(segsB, x_knot, cut_precision)
 
         except Exception as e:
-            print(f"Error during subdivision at x={x_knot}: {e}. Stopping subdivision process.")
+            print(f"ERROR: during subdivision at x={x_knot}: {e}. Stopping subdivision process.")
             # Return the segments as they were before the error
-            return final_segsA, final_segsB
+            return segsA, segsB
 
         continue
 
-    # Debug Print x locations for debugging
-    # print("X locations A:", final_segsA[:, [0,6]])
-    # print("X locations B:", final_segsB[:, [0,6]])
+    # NOTE known issue
+    # if the curve has two anchors at the same X location, we fail to match them.
+    if (segsA.shape[0] != segsB.shape[0]):
+        print(f"ERROR: match_bezsegs failed to return arrays of the same length. Cannot mix. len {segsA.shape[0]} != {segsB.shape[0]}")
+        print("Are some of your knots on the exact same X location? we need to handle that case yet..")
+        print("X locations A:", segsA[:, [0,6]])
+        print("X locations B:", segsB[:, [0,6]])
+        print("")
+        return None
 
-    return final_segsA, final_segsB
+    return segsA, segsB
 
 
-def match_bounds(segments_to_modify:np.ndarray, reference_segments:np.ndarray, tol:float=1e-6):
+def match_bounds(segsMod:np.ndarray, segsRef:np.ndarray, rescale_x:bool=True, rescale_y:bool=False, tolerance:float=1e-6):
     """
-    Transforms (translates and scales) segments_to_modify so its overall start
-    and end points match those of reference_segments.
-
+    Transforms (translates and scales) segsMod so its overall start and end points match those of segsRef.
     Applies independent scaling and translation to X and Y coordinates.
-
     Args:
-        segments_to_modify (np.ndarray): Curve segments to transform (B). (M, 8) array.
-        reference_segments (np.ndarray): Curve segments defining target bounds (A). (N, 8) array.
-        tol (float): Tolerance for checking zero span.
-
+        segsMod (np.ndarray): Curve segments to transform (B). (M, 8) array.
+        segsRef (np.ndarray): Curve segments defining target bounds (A). (N, 8) array.
+        tolerance (float): Tolerance for checking zero span.
+        rescale_x, rescale_y (bool): Whether to rescale the X and Y coordinates.
     Returns:
-        np.ndarray: The transformed segments_to_modify array (M, 8) with bounds matching
-                    reference_segments. Returns a copy of the input if modification
+        np.ndarray: The transformed segsMod array (M, 8) with bounds matching
+                    segsRef. Returns a copy of the input if modification
                     is not possible (e.g., empty input, zero span).
     """
-    if segments_to_modify is None or segments_to_modify.size == 0:
-        print("Warning: segments_to_modify is empty in match_bounds.")
-        return segments_to_modify # Return original/empty
+    if (segsMod is None) or (segsMod.size==0):
+        print("ERROR: match_bounds(segsMod) is empty in match_bounds.")
+        return None
+    if (segsRef is None) or (segsRef.size==0):
+        print("ERROR: match_bounds(segsRef) is empty in match_bounds. Cannot match.")
+        return None
 
-    if reference_segments is None or reference_segments.size == 0:
-        print("Warning: reference_segments is empty in match_bounds. Cannot match.")
-        return segments_to_modify.copy() # Return copy of original B
+    # Extract Bounds
+    P0A = segsRef[0, 0:2].astype(float)
+    P3A = segsRef[-1, 6:8].astype(float)
+    P0B = segsMod[0, 0:2].astype(float)
+    P3B = segsMod[-1, 6:8].astype(float)
 
-    # --- Extract Bounds ---
-    P0A = reference_segments[0, 0:2].astype(float)
-    P3A = reference_segments[-1, 6:8].astype(float)
-    P0B = segments_to_modify[0, 0:2].astype(float)
-    P3B = segments_to_modify[-1, 6:8].astype(float)
+    # Calculate Spans
+    spanXA = abs(P3A[0] - P0A[0])
+    spanYA = abs(P3A[1] - P0A[1])
+    spanXB = abs(P3B[0] - P0B[0])
+    spanYB = abs(P3B[1] - P0B[1])
 
-    # --- Calculate Spans ---
-    spanXA = P3A[0] - P0A[0]
-    spanYA = P3A[1] - P0A[1]
-    spanXB = P3B[0] - P0B[0]
-    spanYB = P3B[1] - P0B[1]
-
-    # --- Calculate Scale Factors (handle zero span) ---
+    # Calculate Scale Factors
     scale_x = 1.0
-    if abs(spanXB) > tol:
+    if (spanXB > tolerance):
         scale_x = spanXA / spanXB
-    elif abs(spanXA) > tol:
-        # B has zero width, A does not. Cannot map non-zero width to zero.
-        # What's the desired behavior? Let's default to scale=1 (translation only)
-        # Or maybe scale=0? Let's use scale=1 for now.
-        print("Warning: Cannot scale zero-width curve B to match non-zero width curve A. Using scale_x=1.")
+    elif (spanXA > tolerance):
+        # NOTE how do we handle case where start/end of B are at the same X location?
         scale_x = 1.0
 
     scale_y = 1.0
-    if abs(spanYB) > tol:
+    if (spanYB > tolerance):
         scale_y = spanYA / spanYB
-    elif abs(spanYA) > tol:
-        print("Warning: Cannot scale zero-height curve B to match non-zero height curve A. Using scale_y=1.")
+    elif (spanYA > tolerance):
+        # NOTE how do we handle case where start/end of B are at the same Y location?
         scale_y = 1.0
 
-    # --- Apply Transformation ---
-    # Work on a float copy
-    transformed_segsB = segments_to_modify.astype(float, copy=True)
+    # Apply Transformation..
+    
+    # ensure our array is of floats
+    segsMod = segsMod.astype(float)
 
     # Reshape to access points easily: (num_segments * 4, 2)
-    num_b_segments = transformed_segsB.shape[0]
-    points_b = transformed_segsB.reshape(-1, 2) # Reshapes to (N*4, 2)
+    num_b_segments = segsMod.shape[0]
+    points_b = segsMod.reshape(-1, 2) # Reshapes to (N*4, 2)
 
     # Translate B so P0B is at origin
     points_b -= P0B
 
-    # Scale B
-    points_b[:, 0] *= abs(scale_x) # Scale x coordinates
-    points_b[:, 1] *= abs(scale_y) # Scale y coordinates
+    # Rescaling
+    if (rescale_x): points_b[:, 0] *= abs(scale_x) # Scale x coordinates
+    if (rescale_y): points_b[:, 1] *= abs(scale_y) # Scale y coordinates
 
     # Translate B so the (now scaled) P0B' lands on P0A
     points_b += P0A
 
     # Reshape back to (N, 8)
-    transformed_segsB = points_b.reshape(num_b_segments, 8)
+    segsMod = points_b.reshape(num_b_segments, 8)
 
     # Ensure final array has a compatible dtype with original
-    final_dtype = np.promote_types(segments_to_modify.dtype, float)
-    return transformed_segsB.astype(final_dtype, copy=False)
+    dtype = np.promote_types(segsMod.dtype, float)
+    segsMod = segsMod.astype(dtype,)
+    
+    return segsMod
 
 
-def lerp_bezsegs(segsA: np.ndarray, segsB: np.ndarray, mixfac:float, cut_precision:int=50, tol:float=1e-6):
+def lerp_bezsegs(segsA:np.ndarray, segsB:np.ndarray, mixfac:float, cut_precision:int=50, tolerance:float=1e-6):
     """
     Mixes (interpolates) between two Bézier curve segment arrays.
-
-    If the number of segments differs, it first aligns the curves using
-    match_bezsegs before interpolating. If the segments already have the
-    same length, it assumes they are aligned and interpolates directly.
-
+    If the number of segments differs, new segments will be added at similar X locations.
     Args:
         segsA (np.ndarray): First curve as an (N, 8) NumPy array.
         segsB (np.ndarray): Second curve as an (M, 8) NumPy array.
@@ -1082,9 +1079,8 @@ def lerp_bezsegs(segsA: np.ndarray, segsB: np.ndarray, mixfac:float, cut_precisi
                            Defaults to 'HORIZONTAL'.
         cut_precision (int): Sampling rate used by match_bezsegs if alignment is needed.
                                  Defaults to 50.
-        tol (float): Tolerance for comparing mixfac to 0 and 1, and used internally
+        tolerance (float): Tolerance for comparing mixfac to 0 and 1, and used internally
                      by match_bezsegs.
-
     Returns:
         np.ndarray: The resulting mixed Bézier curve as an (L, 8) NumPy array.
                     L will be the length of segsA/segsB after potential matching.
@@ -1093,46 +1089,41 @@ def lerp_bezsegs(segsA: np.ndarray, segsB: np.ndarray, mixfac:float, cut_precisi
     # Clamp mixfac just in case it's slightly outside [0, 1] after tolerance check
     mixfac = np.clip(mixfac, 0.0, 1.0)
 
-    # --- move and rescape curve B to curve A to match start/end bounds ---
-    segsB = match_bounds(segsB, segsA)
-    
-    # --- Ensure Curves are Matching (if needed) ---
-    if segsA.shape[0] != segsB.shape[0]:
-        print(f"Segment counts differ ({segsA.shape[0]} vs {segsB.shape[0]}). Running match_bezsegs...")
+    # Ensure Curves have the same numbers of segments, subdivide in place if needed
+    if (segsA.shape[0] != segsB.shape[0]):
         try:
+            # we move B to segs A in order to match A start/end bounds
+            newsB = match_bounds(segsB, segsA, rescale_x=True, rescale_y=False)
             # Call match_bezsegs to get aligned versions
-            segsA, segsB = match_bezsegs(segsA, segsB, cut_precision=cut_precision, tol=tol,)
+            segsA, newsB = match_bezsegs(segsA, newsB, cut_precision=cut_precision, tolerance=tolerance,)
             # Verify matching worked (should have same length now)
-            if segsA.shape[0] != segsB.shape[0]:
-                 print("CRITICAL ERROR: match_bezsegs failed to return arrays of the same length. Cannot mix.")
+            if (segsA.shape[0] != newsB.shape[0]):
+                 print(f"ERROR: internal match_bezsegs() failed to return segments of same knots length. Cannot mix. len{segsA.shape[0]} with len{newsB.shape[0]}")
                  return None
-            print(f"Matching complete. New segment count: {segsA.shape[0]}")
+            # move b back to it's original position after the subdivision
+            segsB = match_bounds(newsB, segsB, rescale_x=True, rescale_y=False)
+
         except Exception as e:
-            print(f"Error during match_bezsegs in lerp_bezsegs: {e}. Returning original segsA.")
+            print(f"ERROR: during match_bezsegs in lerp_bezsegs: {e}.")
             return None
 
-    # --- Handle Edge Cases for mixfac ---
-    if (abs(mixfac - 0.0) < tol):
+    # Handle Edge Cases for mixfac
+    if (abs(mixfac - 0.0) < tolerance):
         return segsA
-    if (abs(mixfac - 1.0) < tol):
+    if (abs(mixfac - 1.0) < tolerance):
         return segsB
 
     # Check for empty arrays after potential matching
-    if segsA.size == 0 or segsB.size == 0:
-         print("Warning: One or both segment arrays are empty after matching. Returning empty.")
+    if (segsA.size == 0) or (segsB.size == 0):
+         print("WARNING: One or both segment arrays are empty after matching. Returning empty.")
          return None
 
-    # --- Perform Optimized NumPy Lerp ---
-    # Ensure calculation uses float for the interpolation math
+    # Perform Optimized NumPy Lerp
     try:
-        float_A = segsA.astype(float, copy=False)
-        float_B = segsB.astype(float, copy=False)
-
-        # Linear interpolation: result = A * (1 - factor) + B * factor
-        mixed_segments = float_A * (1.0 - mixfac) + float_B * mixfac
-
+        # Linear interpolation: result = A * (1 - factor) + B * factor. Ensure float.
+        mixed_segments = segsA.astype(float) * (1.0 - mixfac) + segsB.astype(float) * mixfac
     except Exception as e:
-        print(f"Error during segment interpolation: {e}. Returning first segment array (potentially matched).")
+        print(f"ERROR: during segment interpolation: {e}.")
         return None
 
     return mixed_segments
