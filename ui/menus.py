@@ -34,25 +34,19 @@ class DynaMenu():
 
         for item in self.node_items:
 
-            # Handle different item formats
+            # Case ['Submenu', (NodeClass1, NodeClass2, ...)]
             if isinstance(item, tuple) or isinstance(item, list):
-                if len(item) > 0:
-
-                    # Case [NodeClass]
-                    if hasattr(item[0], 'bl_label') and hasattr(item[0], 'bl_idname'):
-                        node_cls = item[0]
-                        op = layout.operator("node.add_node", text=node_cls.bl_label)
-                        op.type = node_cls.bl_idname
-                        op.use_transform = True
-
-                    # Case ['Submenu', (NodeClass1, NodeClass2, ...)]
-                    elif isinstance(item[0], str) and len(item) > 1 and isinstance(item[1], tuple):
-                        submenu_name = item[0]
-                        submenu_id = f"NODEBOOSTER_MT_{submenu_name}" + self.tree_type
-                        
-                        if (submenu_id not in been_drawn):
-                            layout.menu(submenu_id)
-                            been_drawn.append(submenu_id)
+                if (len(item) > 1) and isinstance(item[0], str) and isinstance(item[1], tuple):
+                    submenu_name = item[0]
+                    submenu_id = f"NODEBOOSTER_MT_{submenu_name}" + self.tree_type
+                    
+                    if (submenu_id not in been_drawn):
+                        layout.menu(submenu_id)
+                        been_drawn.append(submenu_id)
+            
+            # Case separator
+            elif item is None:
+                layout.separator()
 
             # Case NodeClass
             elif hasattr(item, 'bl_label') and hasattr(item, 'bl_idname'):

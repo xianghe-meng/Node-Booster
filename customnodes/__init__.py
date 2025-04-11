@@ -86,7 +86,7 @@ from .interpolation.spline2dpreview import (
         NODEBOOSTER_ND_2DCurvePreview,
         )
 from . interpolation.interpolationloop import (
-        NODEBOOSTER_ND_2DCurveLoop,
+        NODEBOOSTER_ND_InterpolationLoop,
         )
 from . interpolation.spline2dinput import (
         NODEBOOSTER_ND_2DCurveInput,
@@ -115,6 +115,7 @@ GN_CustomNodes = (
             NODEBOOSTER_NG_GN_SceneInfo,
             NODEBOOSTER_NG_GN_RenderInfo,
             NODEBOOSTER_NG_GN_CameraInfo,
+            None, #separator
             NODEBOOSTER_NG_GN_ObjectVelocity,
             NODEBOOSTER_NG_GN_DeviceInput,
             NODEBOOSTER_NG_GN_IsRenderedView, #this one doesn't make sense in other editors.
@@ -131,7 +132,8 @@ GN_CustomNodes = (
             NODEBOOSTER_NG_GN_InterpolationInput,
             NODEBOOSTER_NG_GN_InterpolationMap,
             NODEBOOSTER_NG_GN_InterpolationRemap,
-            NODEBOOSTER_ND_2DCurveLoop,
+            NODEBOOSTER_ND_InterpolationLoop,
+            None, #separator
             NODEBOOSTER_ND_2DCurvePreview,
             NODEBOOSTER_ND_2DCurveInput,
             NODEBOOSTER_ND_2DCurveExtend,
@@ -149,6 +151,7 @@ SH_CustomNodes = (
             NODEBOOSTER_NG_SH_SceneInfo,
             NODEBOOSTER_NG_SH_RenderInfo,
             NODEBOOSTER_NG_SH_CameraInfo,
+            None, #separator
             NODEBOOSTER_NG_SH_ObjectVelocity,
             NODEBOOSTER_NG_SH_DeviceInput,
             NODEBOOSTER_NG_SH_SequencerSound,
@@ -164,7 +167,8 @@ SH_CustomNodes = (
             NODEBOOSTER_NG_SH_InterpolationInput,
             NODEBOOSTER_NG_SH_InterpolationMap,
             NODEBOOSTER_NG_SH_InterpolationRemap,
-            NODEBOOSTER_ND_2DCurveLoop,
+            NODEBOOSTER_ND_InterpolationLoop,
+            None, #separator
             NODEBOOSTER_ND_2DCurvePreview,
             NODEBOOSTER_ND_2DCurveInput,
             NODEBOOSTER_ND_2DCurveExtend,
@@ -182,6 +186,7 @@ CP_CustomNodes = (
             NODEBOOSTER_NG_CP_SceneInfo,
             NODEBOOSTER_NG_CP_RenderInfo,
             NODEBOOSTER_NG_CP_CameraInfo,
+            None, #separator
             NODEBOOSTER_NG_CP_ObjectVelocity,
             NODEBOOSTER_NG_CP_DeviceInput,
             NODEBOOSTER_NG_CP_SequencerSound,
@@ -197,7 +202,8 @@ CP_CustomNodes = (
             NODEBOOSTER_NG_CP_InterpolationInput,
             NODEBOOSTER_NG_CP_InterpolationMap,
             NODEBOOSTER_NG_CP_InterpolationRemap,
-            NODEBOOSTER_ND_2DCurveLoop,
+            NODEBOOSTER_ND_InterpolationLoop,
+            None, #separator
             NODEBOOSTER_ND_2DCurvePreview,
             NODEBOOSTER_ND_2DCurveInput,
             NODEBOOSTER_ND_2DCurveExtend,
@@ -264,7 +270,7 @@ classes = (
     NODEBOOSTER_ND_2DCurveExtend,
     NODEBOOSTER_ND_2DCurvesMix,
     NODEBOOSTER_ND_EnsureMonotonicity,
-    NODEBOOSTER_ND_2DCurveLoop,
+    NODEBOOSTER_ND_InterpolationLoop,
     )
 
 #for utility. handlers.py module will use this list.

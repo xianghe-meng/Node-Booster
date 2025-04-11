@@ -37,14 +37,14 @@ class NODEBOOSTER_ND_2DCurveExtend(bpy.types.Node):
     mode : bpy.props.EnumProperty(
         name="Mode",
         description="The mode to use for the extension",
-        items=(('HANDLE', 'Segment', 'Extend the curve as the continuation of the last segment'),
+        items=(('HANDLE', 'Handle', 'Extend the curve as the continuation of the last segment'),
                ('HORIZONTAL', 'Horizontal', 'Extend the curve horizontally'),
               ),
         default='HANDLE',
         update=lambda self, context: self.update_trigger()
         )
     xloc : bpy.props.FloatProperty(
-        name="Location",
+        name="X Location",
         description="The X location to cut the curve at",
         default=0.0,
         soft_min=-2.0,
@@ -62,6 +62,8 @@ class NODEBOOSTER_ND_2DCurveExtend(bpy.types.Node):
 
         self.inputs.new('NodeBoosterCustomSocketInterpolation', "2D Curve")
         self.outputs.new('NodeBoosterCustomSocketInterpolation', "2D Curve")
+
+        self.width = 145
 
         return None
 

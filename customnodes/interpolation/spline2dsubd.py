@@ -53,7 +53,7 @@ class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
         update=lambda self, context: self.update_trigger()
         )
     xloc : bpy.props.FloatProperty(
-        name="Location",
+        name="X Location",
         description="The X location to cut the curve at",
         default=0.0,
         soft_min=-2.0,
@@ -75,6 +75,8 @@ class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
         self.inputs.new('NodeBoosterCustomSocketInterpolation', "Reference Curve")
         self.inputs[1].enabled = False
 
+        self.width = 145
+
         return None
 
     def copy(self, node):
@@ -92,8 +94,8 @@ class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
         if (self.label==''):
             match self.mode:
                 case 'SUBDIV':  return 'Subdivide'
-                case 'CUT':     return 'Cut'
-                case 'PROJECT': return 'Project-Subdiv'
+                case 'CUT':     return 'Subdivide Cut'
+                case 'PROJECT': return 'Subdivide Project'
         return self.label
 
     def update_trigger(self,):

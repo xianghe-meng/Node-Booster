@@ -29,7 +29,7 @@ from ...utils.node_utils import (
 # o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
 
 
-class NODEBOOSTER_ND_2DCurveLoop(bpy.types.Node):
+class NODEBOOSTER_ND_InterpolationLoop(bpy.types.Node):
 
     bl_idname = "NodeBooster2DCurveLoop"
     bl_label = "Loop Interpolation"
