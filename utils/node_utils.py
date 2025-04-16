@@ -107,11 +107,12 @@ def send_refresh_signal(socket):
     return None
 
 
-def parcour_node_tree(socket, direction:str='LEFT',):
-    """ parcour a nodetree and return all sockets connected to the passed socket.
-    - important information about parcouring nodetrees: https://www.youtube.com/watch?v=FuqVCBlgJTo
+def socket_intersections(socket, direction:str='LEFT',) -> dict:
+    """ parcour a nodetree from a given socket with given direction. 
+    Will return a dictionary of colliding sockets and their links route.
+    Reroutes and muted nodes sockets are ignored along the way, except for dead end reroutes.
     - direction: 'LEFT' or 'RIGHT'
-    - the function will return a dictionary of {socket: links}.
+    - return function will return a dictionary of {socket: links}.
     """
 
     #TODO add support for muted node or links. 
@@ -226,7 +227,7 @@ def get_node_absolute_location(node) -> Vector:
     return Vector((x,y))
 
 
-def get_node_absolute_bounds(node) -> tuple[Vector, Vector]:
+def get_node_bounds(node) -> tuple[Vector, Vector]:
     """find the absolute bounds of the node in global space.
     will return the node bottom left and top right bounding 2d coords"""
 
@@ -832,20 +833,27 @@ def get_nearest_node_at_position(nodes:list|set, context, event, position=None, 
     return target_node
 
 
-def get_farest_node(node_tree):
+def get_farest_node(node_tree, mode='BOTTOM_RIGHT',):
     """find the lowest/rightest node in nodetree"""
     
     assert node_tree and node_tree.nodes, "Nodetree given is empty?"
 
     # Initialize to extreme values; adjust if you expect nodes to have negative positions.
-    max_x, min_y = -1e6, 1e6
     farest = None
 
-    for node in node_tree.nodes:
-        x, y = node.location
-        if ((x > max_x) or \
-           ((x == max_x) and (y < min_y))):
-            farest = node
-            max_x, min_y = x, y
+    match mode:
+        case 'RIGHT'|'LEFT'|'TOP'|'BOTTOM':
+            axis = 0 if (mode in {'RIGHT','LEFT'}) else 1
+            func = max if (mode in {'TOP','RIGHT'}) else min
+            farest = func(node_tree.nodes[:], key=lambda n: n.location[axis])
+
+        case 'BOTTOM_RIGHT':
+            max_x, min_y = -1e6, 1e6
+            for node in node_tree.nodes:
+                x, y = node.location
+                if ((x > max_x) or \
+                ((x == max_x) and (y < min_y))):
+                    farest = node
+                    max_x, min_y = x, y
 
     return farest

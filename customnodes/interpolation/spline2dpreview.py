@@ -21,7 +21,7 @@ from ...utils.node_utils import (
     import_new_nodegroup, 
     set_node_socketattr,
     get_node_socket_by_name,
-    parcour_node_tree,
+    socket_intersections,
 )
 
 # TODO Interpolation graph:

@@ -28,7 +28,7 @@ class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
 
     bl_idname = "NodeBooster2DCurveSubdiv"
     bl_label = "Subdivide 2D Curve"
-    bl_description = """Subdivide a 2D curve. Either by a specific number of subdivisions or at a specific X location."""
+    bl_description = """Subdivide a 2D curve. Either by a specific number of subdivisions, or at a specific X location, or by projecting the curve along the reference curve tangent space."""
     auto_update = {'NONE',}
     tree_type = "*ChildrenDefined*"
 
@@ -39,7 +39,7 @@ class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
         description="Subdivide a 2D curve with the given methods",
         items=(('CUT', 'Cut', 'Cut the curve at the X location'),
                ('SUBDIV', 'Subdivide', 'Subdivide the curve at N subdivisions levels'),
-               ('PROJECT', 'Project', 'Subdivide the chosen curve for every projected anchor of the reference curve'),
+               ('PROJECT', 'Project', "Subdivide the chosen curve for every projected anchor of the reference curve along their relative tangent distance"),
                ),
         default='SUBDIV',
         update=lambda self, context: self.update_trigger()

@@ -15,7 +15,7 @@
 
 
 import bpy
-from ...utils.node_utils import parcour_node_tree
+from ...utils.node_utils import socket_intersections
 
 
 def evaluate_upstream_value(sock, match_evaluator_properties:set=None, set_link_invalid:bool=False, cached_values:dict=None):
@@ -31,7 +31,7 @@ def evaluate_upstream_value(sock, match_evaluator_properties:set=None, set_link_
 
     #get colliding nodes upstream, on the left in {socket:links}
     #return a dictionary of {colliding_socket:parcoured_links[]}
-    parcour_info = parcour_node_tree(sock, direction='LEFT')
+    parcour_info = socket_intersections(sock, direction='LEFT')
     # print(f"DEBUG: parcour_info: {parcour_info}, len: {len(parcour_info)}")
 
     #nothing hit?

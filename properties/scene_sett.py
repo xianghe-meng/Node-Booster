@@ -153,7 +153,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         size=4,
         )
     minimap_border_radius : bpy.props.FloatProperty(
-        default=20,
+        default=15,
         name="Border Radius",
         min=0,
         soft_max=100,

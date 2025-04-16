@@ -11,7 +11,7 @@ from math import sin, cos, pi
 
 from ..utils.node_utils import (
     get_node_absolute_location,
-    get_node_absolute_bounds,
+    get_node_bounds,
 )
 
 #Global dict of minimap bounds being draw, key is the area as_pointer() memory adress as str
@@ -151,7 +151,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     #rassemble all nodes bounds
     node_pts = []
     for node in node_tree.nodes:
-        node_pts.extend(get_node_absolute_bounds(node))
+        node_pts.extend(get_node_bounds(node))
         continue
 
     #find the minimap bounds
@@ -160,7 +160,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     max_x = max(vec.x for vec in node_pts)
     max_y = max(vec.y for vec in node_pts)
     
-    bound_nodetree_bottomleft =Vector((min_x, min_y))
+    bound_nodetree_bottomleft = Vector((min_x, min_y))
     bound_nodetree_topright = Vector((max_x, max_y))
     node_tree_width = bound_nodetree_topright.x - bound_nodetree_bottomleft.x
     node_tree_height = bound_nodetree_topright.y - bound_nodetree_bottomleft.y

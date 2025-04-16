@@ -52,8 +52,6 @@ class NODEBOOSTER_ND_InterpolationLoop(bpy.types.Node):
         name="Offset",
         description="The offset to loop the curve by",
         default=0.0,
-        soft_min=-3.0,
-        soft_max=3.0,
         update=lambda self, context: self.update_trigger()
         )
     speed : bpy.props.FloatProperty(

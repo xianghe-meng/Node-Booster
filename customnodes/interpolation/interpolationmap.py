@@ -13,9 +13,7 @@ from ..evaluator import evaluate_upstream_value
 from ...utils.node_utils import (
     import_new_nodegroup, 
     set_node_socketattr,
-    get_node_socket_by_name,
     set_node_socketattr,
-    parcour_node_tree,
 )
 
 

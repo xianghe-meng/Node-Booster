@@ -1146,24 +1146,35 @@ def looped_offset_bezsegs(segments:np.ndarray, offset:float, cut_precision:int=1
         cut_location -= distance
 
     # 1. Cut the original monotonic curve
-    cut_segments = cut_bezsegs(mono_segments, cut_location, cut_precision, tolerance)
+    cut_segments = cut_bezsegs(mono_segments, cut_location, cut_precision, 0)
+    did_cut = (mono_segments.shape[0] != cut_segments.shape[0])
 
     # 2. Find the cutted segments
     split_idx = None
     for i in range(cut_segments.shape[0]):
-        # Check if the end point of segment i is the cut location
-        if (abs(cut_segments[i, 6] - cut_location) <= tolerance):
-            split_idx = i + 1
-            break
-        # Also check if start point of segment i is the cut (if cut landed on knot)
-        if (abs(cut_segments[i, 0] - cut_location) <= tolerance and (i > 0)):
-             split_idx = i
-             break
+        start_x, end_x = cut_segments[i, 0], cut_segments[i, 6]
+        if (did_cut):
+            # Check if the end point of segment i is the cut location
+            if (abs(end_x - cut_location) <= tolerance):
+                split_idx = i + 1
+                break
+            # Also check if start point of segment i is the cut (if cut landed on knot)
+            if (abs(start_x - cut_location) <= tolerance and (i > 0)):
+                split_idx = i
+                break
+        else:
+            if (start_x+tolerance <= cut_location): #HERE fix me
+                split_idx = i
+                break
+            
+        continue
     # 2.5 if no cut found, it means the segment was not cut, and we use an existing segment
     if (split_idx is None):
         # TODO
         # here, if the split_idx is none, it means the segment was not cut (likely at an existing knot)
         # so we need to find the segments which anchor end or start matches the cut location, depending on the offset direction
+        print(f"did_cut: {did_cut}")
+        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! (BugHuntingWIP)')
         return None
 
     # 3. Move the cutted segments to start/end
