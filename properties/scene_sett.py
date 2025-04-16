@@ -12,6 +12,7 @@ from ..operators.palette import palette_active_upd
 class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup): 
     """sett_scene = bpy.context.scene.nodebooster"""
 
+    #frame tool
     frame_use_custom_color : bpy.props.BoolProperty(
         default=False,
         name="Frame Color")
@@ -36,6 +37,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         name="Label Size",
         )
 
+    #palette tool
     palette_active : bpy.props.FloatVectorProperty(
         default=(0,0,0),
         subtype='COLOR',
@@ -59,6 +61,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         max=1,
         )
 
+    #search tool
     search_keywords : bpy.props.StringProperty(
         default=" ",
         name="Keywords",
@@ -108,7 +111,61 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         default=0,
         )
 
+    #favorite tool
     favorite_index  : bpy.props.IntProperty(
         default=0,
         description="prop used to take track the the current user favorite",
         )
+    
+    #minimap
+    minimap_show : bpy.props.BoolProperty(
+        default=True,
+        name="Show",
+        )
+    minimap_width_percentage : bpy.props.FloatVectorProperty(
+        default=(0.25,0.50),
+        name="Minimap Size",
+        # subtype="PERCENTAGE",
+        description="Set the max size of your minimap, in percentage of the editor area",
+        min=0,
+        max=1,
+        size=2,
+        )
+    minimap_fill_color : bpy.props.FloatVectorProperty(
+        default=(0.15, 0.15, 0.15, 0.9),
+        subtype="COLOR",
+        name="Fill Color",
+        min=0,
+        max=1,
+        size=4,
+        )
+    minimap_outline_width : bpy.props.FloatProperty(
+        default=1.5,
+        name="Outline Width",
+        min=0,
+        )
+    minimap_outline_color : bpy.props.FloatVectorProperty(
+        default=(0.8, 0.8, 0.8, 0.02),
+        subtype="COLOR",
+        name="Outline Color",
+        min=0,
+        max=1,
+        size=4,
+        )
+    minimap_border_radius : bpy.props.FloatProperty(
+        default=20,
+        name="Border Radius",
+        min=0,
+        soft_max=100,
+        )
+    minimap_padding : bpy.props.IntProperty(
+        default=20,
+        name="Padding",
+        subtype="PIXEL",
+        min=0,
+        )
+
+    # minimap_emplacement : bpy.props.EnumProperty(
+    #     items=[("BOTTOM_LEFT","Bottom Left","Bottom Left"),("TOP_LEFT","Top Left","Top Left"),("TOP_RIGHT","Top Right","Top Right"),("BOTTOM_RIGHT","Bottom Right","Bottom Right")],
+    #     name="Emplacement",
+    #     )

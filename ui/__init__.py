@@ -16,6 +16,7 @@ from .panels import (
     NODEBOOSTER_PT_tool_search,
     NODEBOOSTER_PT_tool_color_palette,
     NODEBOOSTER_PT_tool_frame,
+    NODEBOOSTER_PT_minimap,
     NODEBOOSTER_PT_shortcuts_memo,
     NODEBOOSTER_PT_active_node,
 
@@ -30,6 +31,7 @@ classes = (
     NODEBOOSTER_PT_tool_color_palette,
     NODEBOOSTER_PT_shortcuts_memo,
     NODEBOOSTER_PT_tool_frame,
+    NODEBOOSTER_PT_minimap,
     NODEBOOSTER_PT_active_node,
 
     )

@@ -172,6 +172,43 @@ class NODEBOOSTER_PT_tool_frame(bpy.types.Panel):
         return None
 
 
+class NODEBOOSTER_PT_minimap(bpy.types.Panel):
+
+    bl_idname = "NODEBOOSTER_PT_minimap"
+    bl_label = ""
+    bl_category = "Node Booster"
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+    bl_order = 4
+
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.nodebooster,"minimap_show", text="Minimap",)
+        return None
+
+    def draw(self, context):
+        sett_scene = context.scene.nodebooster
+
+        layout = self.layout
+        
+        col = layout.column()
+        col.use_property_split = True
+        col.use_property_decorate = False
+
+        col.prop(sett_scene,"minimap_fill_color", text="Main Color",)
+        col.prop(sett_scene,"minimap_width_percentage", index=0, slider=True, text="Max Width",)
+        col.prop(sett_scene,"minimap_width_percentage", index=1, slider=True, text="Max Height",)
+        col.prop(sett_scene,"minimap_outline_width", text="Line Width",)
+        col.prop(sett_scene,"minimap_outline_color", text="Line Color",)
+        col.prop(sett_scene,"minimap_border_radius", text="Bevel",)
+        col.prop(sett_scene,"minimap_padding", text="Padding",)
+
+        return None
+
+
 class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
 
     bl_idname = "NODEBOOSTER_PT_shortcuts_memo"

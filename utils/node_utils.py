@@ -213,7 +213,7 @@ def get_node_absolute_location(node) -> Vector:
 
     if (node.parent is None):
         return node.location
-    
+
     #if there's a frame, then the location is false
     x,y = node.location
 
@@ -224,6 +224,14 @@ def get_node_absolute_location(node) -> Vector:
         continue
 
     return Vector((x,y))
+
+
+def get_node_absolute_bounds(node) -> tuple[Vector, Vector]:
+    """find the absolute bounds of the node in global space.
+    will return the node bottom left and top right bounding 2d coords"""
+
+    loc, dim = get_node_absolute_location(node), node.dimensions
+    return Vector((loc.x, loc.y - dim.y)), Vector((loc.x + dim.x, loc.y))
 
 
 def get_node_socket_by_name(node, in_out:str='OUTPUT', socket_name:str="",):
