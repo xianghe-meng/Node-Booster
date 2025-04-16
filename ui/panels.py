@@ -194,17 +194,32 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
 
         layout = self.layout
         
-        col = layout.column()
-        col.use_property_split = True
-        col.use_property_decorate = False
+        header, panel = layout.panel("minimap_params", default_closed=False,)
+        header.label(text="Map Theme",)
+        if (panel):
 
-        col.prop(sett_scene,"minimap_fill_color", text="Main Color",)
-        col.prop(sett_scene,"minimap_width_percentage", index=0, slider=True, text="Max Width",)
-        col.prop(sett_scene,"minimap_width_percentage", index=1, slider=True, text="Max Height",)
-        col.prop(sett_scene,"minimap_outline_width", text="Line Width",)
-        col.prop(sett_scene,"minimap_outline_color", text="Line Color",)
-        col.prop(sett_scene,"minimap_border_radius", text="Bevel",)
-        col.prop(sett_scene,"minimap_padding", text="Padding",)
+            col = panel.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+
+            col.prop(sett_scene,"minimap_fill_color", text="Main Color",)
+            col.prop(sett_scene,"minimap_width_percentage", slider=True, text="Size %",)
+            col.prop(sett_scene,"minimap_outline_width", text="Line Width",)
+            col.prop(sett_scene,"minimap_outline_color", text="Line Color",)
+            col.prop(sett_scene,"minimap_border_radius", text="Bevel",)
+            col.prop(sett_scene,"minimap_padding", text="Padding",)
+            # col.prop(sett_scene,"minimap_draw_type", text="Draw Type",)
+
+        header, panel = layout.panel("minimap_params", default_closed=False,)
+        header.label(text="Nodes Theme",)
+        if (panel):
+
+            col = panel.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+            
+            col.prop(sett_scene,"minimap_node_outline_width", text="Line Width",)
+            # col.prop(sett_scene,"minimap_node_border_radius", text="Bevel",)
 
         return None
 

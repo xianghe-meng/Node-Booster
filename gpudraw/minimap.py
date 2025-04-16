@@ -6,45 +6,89 @@
 import bpy
 import gpu
 from gpu_extras.batch import batch_for_shader
+import numpy as np
 from mathutils import Vector
 from math import sin, cos, pi
 
+from ..utils.nbr_utils import map_positions
 from ..utils.node_utils import (
     get_node_absolute_location,
     get_node_bounds,
+    get_nodes_bounds,
 )
 
 #Global dict of minimap bounds being draw, key is the area as_pointer() memory adress as str
 MINIMAP_BOUNDS = {}
 
+COLOR_TAG_TO_THEME_API = {
+    'NONE':'group_socket_node',
+    'ATTRIBUTE':'attribute_node',
+    'COLOR':'color_node',
+    'CONVERTER':'converter_node',
+    'DISTORT':'distor_node',
+    'FILTER':'filter_node',
+    'GEOMETRY':'geometry_node',
+    'INPUT':'input_node',
+    'MATTE':'matte_node',
+    'OUTPUT':'output_node',
+    'SCRIPT':'script_node',
+    'SHADER':'shader_node',
+    'TEXTURE':'texture_node',
+    'VECTOR':'vector_node',
+    'PATTERN':'pattern_node',
+    'INTERFACE':'group_socket_node',
+    'GROUP':'group_node',
+    #'FOREACH':
+    #'SIMULATION':
+    #'REPEAT':
+}
 
-def draw_full_rectangle(
-    bottom_left_pos,
-    top_right_pos,
+def get_theme_color(node):
+    """get the color of the node from the theme"""
+
+    user_theme = bpy.context.preferences.themes.get('Default')
+    node_theme = user_theme.node_editor
+
+    color = tuple(getattr(node_theme, COLOR_TAG_TO_THEME_API[node.color_tag]))
+    if len(color) == 3:
+        color = (*color, 1.0)
+
+    return color
+
+# ooooooooo.                           .                                    oooo            
+# `888   `Y88.                       .o8                                    `888            
+#  888   .d88'  .ooooo.   .ooooo.  .o888oo  .oooo.   ooo. .oo.    .oooooooo  888   .ooooo.  
+#  888ooo88P'  d88' `88b d88' `"Y8   888   `P  )88b  `888P"Y88b  888' `88b   888  d88' `88b 
+#  888`88b.    888ooo888 888         888    .oP"888   888   888  888   888   888  888ooo888 
+#  888  `88b.  888    .o 888   .o8   888 . d8(  888   888   888  `88bod8P'   888  888    .o 
+# o888o  o888o `Y8bod8P' `Y8bod8P'   "888" `Y888""8o o888o o888o `8oooooo.  o888o `Y8bod8P' 
+#                                                                d"     YD                  
+#                                                                "Y88888P'                  
+
+def draw_full_rectangle(bounds,
     fill_color=(0.1, 0.1, 0.1, 0.8),
     outline_color=(1.0, 1.0, 1.0, 0.5),
-    outline_width=1,
-    border_radius=5,
+    outline_width=0,
+    border_radius=0,
     border_sides='AUTO',
     ):
-    """Draw a filled rectangle an optional outline and border radius"""
+    """Draw a filled rectangle an optional outline and border radius. expected a bound in locaiton bottom left and top right"""
 
     original_blend = gpu.state.blend_get()
     gpu.state.blend_set('ALPHA')
 
-    x1, y1 = bottom_left_pos
-    x2, y2 = top_right_pos
-    width = x2 - x1
-    height = y2 - y1
+    x1, y1 = bounds[0]
+    x2, y2 = bounds[1]
+    width, height = x2 - x1, y2 - y1
 
-    if width <= 0 or height <= 0:
+    if ((width <= 0) or (height <= 0)):
         return # Cannot draw zero or negative size rectangle
 
     shader = gpu.shader.from_builtin('UNIFORM_COLOR')
 
     # --- Draw Simple Rectangle (No Radius or radius too large) ---
-    if border_radius <= 0 or border_radius * 2 > min(width, height):
-        
+    if (border_radius <= 0) or (border_radius * 2 > min(width, height)):
+
         # Fill
         vertices = ((x1, y1), (x2, y1), (x1, y2), (x2, y2),)
         indices = ((0, 1, 2), (1, 3, 2),)
@@ -53,7 +97,7 @@ def draw_full_rectangle(
         batch.draw(shader)
 
         # Outline?
-        if outline_color and outline_width > 0:
+        if (outline_color and (outline_width > 0)):
 
             # Note: Simple line drawing, width isn't accurate pixel width
             gpu.state.line_width_set(outline_width)
@@ -80,10 +124,10 @@ def draw_full_rectangle(
 
         # Calculate vertices for the rounded corners and straight edges
         corners = [
-            (x1 + radius, y1 + radius, pi, 3 * pi / 2),        # Bottom Left
-            (x2 - radius, y1 + radius, 3 * pi / 2, 2 * pi),    # Bottom Right
-            (x2 - radius, y2 - radius, 0, pi / 2),           # Top Right
-            (x1 + radius, y2 - radius, pi / 2, pi)            # Top Left
+            (x1 + radius, y1 + radius, pi, 3 * pi / 2),     # Bottom Left
+            (x2 - radius, y1 + radius, 3 * pi / 2, 2 * pi), # Bottom Right
+            (x2 - radius, y2 - radius, 0, pi / 2),          # Top Right
+            (x1 + radius, y2 - radius, pi / 2, pi)          # Top Left
             ]
 
         for cx, cy, start_angle, end_angle in corners:
@@ -112,12 +156,12 @@ def draw_full_rectangle(
         batch_fill.draw(shader)
 
         # Outline?
-        if outline_color and outline_width > 0:
+        if (outline_color and (outline_width > 0)):
             
             gpu.state.line_width_set(outline_width)
 
             # Close the outline loop
-            if outline_verts:
+            if (outline_verts):
                 outline_verts.append(outline_verts[0])
 
             shader.uniform_float("color", outline_color)
@@ -125,13 +169,24 @@ def draw_full_rectangle(
             batch_outline.draw(shader)
             gpu.state.line_width_set(1.0) # Reset line width
 
-    # --- Restore State ---
+    # Restore State
     gpu.state.blend_set(original_blend)
 
     return None
 
+# ooo        ooooo  o8o               o8o                                         
+# `88.       .888'  `"'               `"'                                         
+#  888b     d'888  oooo  ooo. .oo.   oooo  ooo. .oo.  .oo.    .oooo.   oo.ooooo.  
+#  8 Y88. .P  888  `888  `888P"Y88b  `888  `888P"Y88bP"Y88b  `P  )88b   888' `88b 
+#  8  `888'   888   888   888   888   888   888   888   888   .oP"888   888   888 
+#  8    Y     888   888   888   888   888   888   888   888  d8(  888   888   888 
+# o8o        o888o o888o o888o o888o o888o o888o o888o o888o `Y888""8o  888bod8P' 
+#                                                                       888       
+#                                                                      o888o      
+
+
 def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom, 
-    mode='BOTTOM_LEFT', padding=20,):
+    mode='BOTTOM_LEFT',):
     """draw a minimap of the node_tree in the node_editor area"""
 
     # Do we even have some nodes to draw?
@@ -149,34 +204,23 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     # 1. Find the minimap bounds from the nodetree.nodes
 
     #rassemble all nodes bounds
-    node_pts = []
-    for node in node_tree.nodes:
-        node_pts.extend(get_node_bounds(node))
-        continue
-
-    #find the minimap bounds
-    min_x = min(vec.x for vec in node_pts)
-    min_y = min(vec.y for vec in node_pts)
-    max_x = max(vec.x for vec in node_pts)
-    max_y = max(vec.y for vec in node_pts)
-    
-    bound_nodetree_bottomleft = Vector((min_x, min_y))
-    bound_nodetree_topright = Vector((max_x, max_y))
+    bounds_nodetree = get_nodes_bounds(node_tree.nodes)
+    bound_nodetree_bottomleft, bound_nodetree_topright = bounds_nodetree
     node_tree_width = bound_nodetree_topright.x - bound_nodetree_bottomleft.x
     node_tree_height = bound_nodetree_topright.y - bound_nodetree_bottomleft.y
 
-    #zero width/height? that's an error..
+    #zero width/height? must be error..
     if ((node_tree_width <= 0) or (node_tree_height <= 0)):
         print(f"ERROR: draw_minimap(): node_tree_width or node_tree_height is less than 0: {node_tree_width}, {node_tree_height}")
         return None
 
     #calculate the minimap aspect ratio
-    nodesbounds_aspect_ratio = node_tree_width / node_tree_height
+    aspect_ratio = node_tree_width / node_tree_height
 
     # 2. Calculate Available View Area (in pixels, accounting for panels)
 
-    view_width, view_height = window_region.width, window_region.height
     view_bottom, view_left = 0, 0
+    view_width, view_height = window_region.width, window_region.height
 
     # Subtract panel widths if they are visible
     # if (space.show_region_toolbar):
@@ -192,28 +236,28 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     # Calculate Minimap Dimensions and Position in Pixel Space
     # --- Calculate Minimap Dimensions based on Width and Max Height Percentages ---
     target_width = view_width * width_percentage
-    target_height = target_width / nodesbounds_aspect_ratio
+    target_height = target_width / aspect_ratio
 
     max_allowed_height = view_height * height_percentage_max
 
-    if target_height <= max_allowed_height:
+    if (target_height <= max_allowed_height):
         # Height constraint is met, use target width and calculated height
         minimap_pixel_width = target_width
         minimap_pixel_height = target_height
     else:
         # Height constraint exceeded, clamp height and recalculate width
         minimap_pixel_height = max_allowed_height
-        minimap_pixel_width = minimap_pixel_height * nodesbounds_aspect_ratio
+        minimap_pixel_width = minimap_pixel_height * aspect_ratio
 
     # Ensure width doesn't exceed available view width (safety clamp)
-    minimap_pixel_width = min(minimap_pixel_width, view_width - 2 * padding)
-    minimap_pixel_height = minimap_pixel_width / nodesbounds_aspect_ratio # Recalculate height if width was clamped
+    minimap_pixel_width = min(minimap_pixel_width, view_width - 2 * padding[0])
+    minimap_pixel_height = minimap_pixel_width / aspect_ratio # Recalculate height if width was clamped
 
     match mode:
         case 'BOTTOM_LEFT':
             #bound bottom left
-            x = view_left + padding
-            y = view_bottom + padding
+            x = view_left + padding[0]
+            y = view_bottom + padding[1]
             pixel_bottom_left_bound = Vector((x, y))
             #bound top right
             x = pixel_bottom_left_bound.x + minimap_pixel_width
@@ -234,25 +278,82 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
             # pixel_bottom_left_y = view_bottom + padding
 
     # 4. Draw the Minimap Background Rectangle
+    bounds_area = (pixel_bottom_left_bound, pixel_top_right_bound)
     draw_full_rectangle(
-        pixel_bottom_left_bound,
-        pixel_top_right_bound,
+        bounds_area,
         fill_color=scene_sett.minimap_fill_color,
         outline_color=scene_sett.minimap_outline_color,
         outline_width=scene_sett.minimap_outline_width,
         border_radius=scene_sett.minimap_border_radius,
         )
 
-    # TODO draw nodes within minimap
-    # This requires scaling node positions from pixel_bottom_left_boundn, pixel_top_right_bound space to minimap pixel space.
+    # 5. draw nodes within minimap
 
-    # TODO Draw Viewport Rectangle within Minimap
-    # This requires getting view2d bounds, converting to node space, then scaling to minimap space.
-    # Example (Conceptual - Needs correct view coordinate mapping):
-    # view_rect_nodespace = view2d.view_to_region(...) # Get view bounds in region coords, map to node coords
-    # view_rect_minimap_bl_x = pixel_bottom_left_x + (view_rect_nodespace.min_x - min_x) / nodespace_width * minimap_pixel_width
-    # ... similar for other corners ...
-    # draw_full_rectangle(view_rect_minimap_bl, view_rect_minimap_tr, fill_color=(0,0,0,0), outline_color=(1,1,0,0.8), outline_width=1)
+    all_nodes = node_tree.nodes[:]
+
+    # gather all nodes types for header color
+    user_theme = bpy.context.preferences.themes.get('Default')
+    node_theme = user_theme.node_editor
+    active_theme = node_theme.node_active[:3] + (1,)
+    select_theme = node_theme.node_selected[:3] + (1,)
+    all_colors = [get_theme_color(n) for n in all_nodes]
+
+    # gather select states
+    all_select_states = [n.select for n in all_nodes]
+    all_active_states = [n == node_tree.nodes.active for n in all_nodes]
+
+    # we add padding to the bounds
+    bounds_area = (
+        Vector((bounds_area[0].x + padding[0], bounds_area[0].y + padding[1])),
+        Vector((bounds_area[1].x - padding[0], bounds_area[1].y - padding[1]))
+        )
+    
+    # gather positions and map them
+    all_bounds = [loc for node in all_nodes for loc in get_node_bounds(node)] #flatten. will be 2x the length
+    all_positions = map_positions(np.array(all_bounds), bounds_nodetree, bounds_area,)
+
+    # sort the element we are going to draw arranged with their draw args as well..
+    frame_to_draw, node_to_draw = [], []
+    for i in range(len(all_nodes)):
+        
+        node = all_nodes[i]
+        node_color = all_colors[i]
+        
+        #special color if muted
+        if (node.mute):
+            node_color = (*node_color[:3], 0.15)
+        #special color for frame, their alpha is faded..
+        if (node.type == 'FRAME'):
+            node_color = (*node_color[:3], 0.4)
+        
+        select = all_select_states[i]
+        active = all_active_states[i]
+        
+        node_bounds = all_positions[i*2], all_positions[i*2+1]
+        
+        outline_width = scene_sett.minimap_node_outline_width if (select) else 0
+        outline_color = active_theme if (active) else select_theme if (select) else None
+        
+        item = [i, node, node_color, node_bounds, outline_width, outline_color,]
+        if (node.type == 'FRAME'):
+            frame_to_draw.append(item)
+            continue
+        
+        node_to_draw.append(item)
+        continue
+    
+    #draw node and frame elements
+    for item in frame_to_draw + node_to_draw:
+        #[i, node, node_color, node_bounds, outline_width, outline_color,]
+        # 0   1       2            3            4               5
+        draw_full_rectangle(
+            item[3],
+            fill_color=item[2],
+            outline_color=item[5],
+            outline_width=item[4],
+            border_radius=scene_sett.minimap_node_border_radius,
+            border_sides=4,
+            )
 
     # NOTE store the minimap bounds in a global dict. 
     # might need to be accessed by other tools..

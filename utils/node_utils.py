@@ -215,7 +215,7 @@ def get_node_absolute_location(node) -> Vector:
     if (node.parent is None):
         return node.location
 
-    #if there's a frame, then the location is false
+    #if there's a frame, then the API is false
     x,y = node.location
 
     while (node.parent is not None):
@@ -231,8 +231,36 @@ def get_node_bounds(node) -> tuple[Vector, Vector]:
     """find the absolute bounds of the node in global space.
     will return the node bottom left and top right bounding 2d coords"""
 
-    loc, dim = get_node_absolute_location(node), node.dimensions
+    # #shrinked frame dimension info are not correct in API..
+    # if (node.type == 'FRAME') and (node.shrink):
+    #     a,b = get_nodes_bounds(get_frame_children(node))
+    #     #also they got a little padding..
+    #     pad = 40
+    #     a.x -=pad; a.y -=pad ; b.x +=pad; b.y +=pad
+    #     return a,b
+    # ..disregard above. seems that width/height are correct.
+    loc = get_node_absolute_location(node)
+    if (node.type == 'FRAME'):
+          dim = Vector((node.width, node.height))
+          dim.x += 40 ; dim.y += 20
+    else: dim = node.dimensions
     return Vector((loc.x, loc.y - dim.y)), Vector((loc.x + dim.x, loc.y))
+
+
+def get_nodes_bounds(nodes) -> tuple[Vector, Vector]:
+    """find the top right and bottom left bounds location a list of nodes"""
+
+    locs = [loc for node in nodes for loc in get_node_bounds(node)]
+    min_x, min_y = min(vec.x for vec in locs), min(vec.y for vec in locs)
+    max_x, max_y = max(vec.x for vec in locs), max(vec.y for vec in locs)
+
+    return Vector((min_x, min_y)), Vector((max_x, max_y))
+
+
+def get_frame_children(frame) -> list:
+    """get all children of a frame node"""
+    assert frame.type == 'FRAME', "get_frame_children(): frame node expected"
+    return [n for n in frame.id_data.nodes if (n.parent == frame)]
 
 
 def get_node_socket_by_name(node, in_out:str='OUTPUT', socket_name:str="",):

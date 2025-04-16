@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "nodebooster"
-name = "Node Booster"
+name = "Node-Booster"
 version = "1.0.0"
 tagline = "Extra Nodes and Functionalities for NodeEditors"
 maintainer = "bd3d"
