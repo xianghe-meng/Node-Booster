@@ -254,3 +254,20 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         name="Border Radius",
         min=0,
         )
+    #cursor
+    # minimap_cursor_show : bpy.props.BoolProperty(
+    #     default=True,
+    #     name="Show",
+    #     )
+    # minimap_cursor_radius : bpy.props.FloatProperty(
+    #     default=4,
+    #     name="Radius",
+    #     )
+    # minimap_cursor_color : bpy.props.FloatVectorProperty(
+    #     default=(0.296174, 0.040511, 0.027817, 0.0),
+    #     subtype="COLOR",
+    #     name="Color",
+    #     min=0,
+    #     max=1,
+    #     size=4,
+    #     )

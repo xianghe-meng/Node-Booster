@@ -2,6 +2,22 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# TODO important
+# - BUGFIX view bounds is buggy and i'm unsure why.. API region_to_view is problematic?
+# - take into cons panels sides, find why sometimes they are visible sometimes not in theme settings. see the impact on the minimap.
+# - navigation system, click to automatically transport view. 
+#   implement it via a special shortcut operator?? or a modal. so we detect if touching, automatically? 
+#   could even change mouse look on hover, or change side with corner.
+# - stress test, optimize code if needed.
+
+# TODO bonus
+# - per area properties? could use a global dict of properties based on area.as_pointer() id. some settings would be per area then (padding size..)
+# - support Y favorite star system. draw little stars.
+# - support zone repeat/foreach/simulation nodes. API is a mess..
+# - per area size! and should be able to resize it by hovering on top/right or corner
+# - choose between the 4 locations. minimap_emplacement
+# - draw the cursor location in the minimap, as a red point.
+
 
 import bpy
 import gpu
@@ -16,11 +32,6 @@ from ..utils.node_utils import (
     get_node_bounds,
     get_nodes_bounds,
 )
-
-# TODO bonus
-# - support Y favorite star. 
-# - per area size! and should be able to resize it by hovering on top/right or corner
-# - choose between the 4 locations. minimap_emplacement
 
 
 #Global dict of minimap bounds being draw, key is the area as_pointer() memory adress as str
@@ -234,6 +245,27 @@ def draw_simple_rectangle(bounds,
     gpu.state.blend_set(original_blend)
 
     return None
+
+def draw_circle(center_pos, radius, color, segments=16):
+    
+    original_blend = gpu.state.blend_get()
+    gpu.state.blend_set('ALPHA')
+
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+
+    verts = [center_pos]
+    for i in range(segments + 1):
+        angle = 2 * pi * i / segments
+        verts.append((center_pos[0] + cos(angle) * radius, center_pos[1] + sin(angle) * radius))
+
+    shader.uniform_float("color", color)
+    batch = batch_for_shader(shader, 'TRI_FAN', {"pos": verts})
+    batch.draw(shader)
+
+    gpu.state.blend_set(original_blend)
+
+    return None
+
 
 # ooo        ooooo  o8o               o8o                                         
 # `88.       .888'  `"'               `"'                                         
@@ -570,5 +602,30 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     # NOTE store the minimap bounds in a global dict. 
     # might need to be accessed by other tools..
     MINIMAP_BOUNDS[str(area.as_pointer())] = (pixel_bottom_left_bound, pixel_top_right_bound)
+    
+    # # 7. Draw Cursor Indicator
+    # TODO later, need to find the API to get the cursor location in node space..
+    # if scene_sett.minimap_cursor_show:
+    
+    #     win_mouse_x = bpy.context.window.mouse_x
+    #     win_mouse_y = bpy.context.window.mouse_y
+    #     mouse_region_x = win_mouse_x - window_region.x
+    #     mouse_region_y = win_mouse_y - window_region.y
+
+    #     map_min_x, map_min_y = bounds_area[0]
+    #     map_max_x, map_max_y = bounds_area[1]
+
+    #     # Check if mouse coords are valid and inside the minimap bounds
+    #     is_valid = mouse_region_x >= 0 and mouse_region_y >= 0
+    #     is_inside = is_valid and (map_min_x <= mouse_region_x <= map_max_x and
+    #                                map_min_y <= mouse_region_y <= map_max_y)
+
+    #     if is_inside:
+    #         draw_circle(
+    #             center_pos=(mouse_region_x, mouse_region_y),
+    #             radius=scene_sett.minimap_cursor_radius,
+    #             color=scene_sett.minimap_cursor_color,
+    #             segments=12 # Lower segment count for small circle
+    #         )
     
     return None
