@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # TODO important
-# - BUGFIX view bounds is buggy and i'm unsure why.. API region_to_view is problematic?
 # - take into cons panels sides, find why sometimes they are visible sometimes not in theme settings. see the impact on the minimap.
 # - navigation system, click to automatically transport view. 
 #   implement it via a special shortcut operator?? or a modal. so we detect if touching, automatically? 
@@ -11,6 +10,7 @@
 # - stress test, optimize code if needed.
 
 # TODO bonus
+# - BUG dpi scaling is not perfect. if ui_scale is above 1.35 it starts to jump. unsure why.
 # - per area properties? could use a global dict of properties based on area.as_pointer() id. some settings would be per area then (padding size..)
 # - support Y favorite star system. draw little stars.
 # - support zone repeat/foreach/simulation nodes. API is a mess..
@@ -26,6 +26,7 @@ import numpy as np
 from mathutils import Vector
 from math import sin, cos, pi
 
+from ..__init__ import get_addon_prefs
 from ..utils.nbr_utils import map_positions
 from ..utils.node_utils import (
     get_node_absolute_location,
@@ -278,8 +279,7 @@ def draw_circle(center_pos, radius, color, segments=16):
 #                                                                      o888o      
 
 
-def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom, 
-    mode='BOTTOM_LEFT',):
+def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
     """draw a minimap of the node_tree in the node_editor area"""
 
     # Do we even have some nodes to draw?
@@ -292,6 +292,8 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
 
     # do we even want to show the minimap?
     if (not scene_sett.minimap_show):
+        return None
+    if (scene_sett.minimap_auto_tool_panel_collapse) and (not space.show_region_toolbar):
         return None
 
     # 1. Find the minimap bounds from the nodetree.nodes
@@ -356,6 +358,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     minimap_pixel_height = minimap_pixel_width / aspect_ratio
 
     # 2.2 place the minimap on cornets
+    mode = 'BOTTOM_LEFT'
     match mode:
         case 'BOTTOM_LEFT':
             #bound bottom left

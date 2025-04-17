@@ -122,6 +122,11 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         default=True,
         name="Show",
         )
+    minimap_auto_tool_panel_collapse : bpy.props.BoolProperty(
+        default=True,
+        name="Auto Collapse",
+        description="Automatically collapse the Tool panel when the minimap is enabled.",
+        )
     minimap_draw_type : bpy.props.EnumProperty(
         name="DrawType",
         description="Choose whenever this drawing is done on the background or on the foreground of the node editor space, either as an underlay or an overlay.",

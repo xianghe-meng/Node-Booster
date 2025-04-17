@@ -193,7 +193,19 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
         sett_scene = context.scene.nodebooster
 
         layout = self.layout
-        
+
+
+        header, panel = layout.panel("minimap_sh_params", default_closed=False,)
+        header.label(text="Behaviors",)
+        if (panel):
+
+            col = panel.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+
+            subcol = col.column(heading="Panel",)
+            subcol.prop(sett_scene,"minimap_auto_tool_panel_collapse", text="Auto Collapse",)
+
         header, panel = layout.panel("minimap_map_params", default_closed=True,)
         header.label(text="Map Theme",)
         if (panel):

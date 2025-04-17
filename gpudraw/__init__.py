@@ -57,13 +57,13 @@ def get_draw_function_handler(mode='OVERLAY'):
 
                 #draw our minimap
                 if (context.scene.nodebooster.minimap_draw_type == 'OVERLAY'):
-                    draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom)
+                    draw_minimap(node_tree, area, window_region, view2d, space_data, dpi_fac, zoom)
             
             case 'UNDERLAY':
 
                 #draw our minimap
                 if (context.scene.nodebooster.minimap_draw_type == 'UNDERLAY'):
-                    draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom)
+                    draw_minimap(node_tree, area, window_region, view2d, space_data, dpi_fac, zoom)
 
         return None
 
