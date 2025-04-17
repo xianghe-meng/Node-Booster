@@ -14,6 +14,9 @@ from .chamfer import NODEBOOSTER_OT_chamfer
 from .palette import NODEBOOSTER_OT_setcolor, NODEBOOSTER_OT_palette_reset_color, NODEBOOSTER_OT_initalize_palette
 from .codetemplates import NODEBOOSTER_OT_text_templates
 
+from ..gpudraw.minimap import NODEBOOSTER_OT_MinimapInteraction
+
+
 classes = (
 
     NODEBOOSTER_OT_draw_route,
@@ -27,6 +30,7 @@ classes = (
     NODEBOOSTER_OT_palette_reset_color,
     NODEBOOSTER_OT_initalize_palette,
     NODEBOOSTER_OT_text_templates,
+    NODEBOOSTER_OT_MinimapInteraction,
 
     )
 

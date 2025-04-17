@@ -21,10 +21,11 @@
 
 import bpy
 import gpu
-from gpu_extras.batch import batch_for_shader
+import time
 import numpy as np
 from mathutils import Vector
 from math import sin, cos, pi
+from gpu_extras.batch import batch_for_shader
 
 from ..__init__ import get_addon_prefs
 from ..utils.nbr_utils import map_positions
@@ -284,6 +285,7 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 
     # Do we even have some nodes to draw?
     if ((not node_tree) or (not node_tree.nodes)):
+        MINIMAP_BOUNDS[str(area.as_pointer())] = (Vector((0,0)), Vector((0,0)))
         return None
 
     scene_sett = bpy.context.scene.nodebooster
@@ -292,8 +294,10 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 
     # do we even want to show the minimap?
     if (not scene_sett.minimap_show):
+        MINIMAP_BOUNDS[str(area.as_pointer())] = (Vector((0,0)), Vector((0,0)))
         return None
     if (scene_sett.minimap_auto_tool_panel_collapse) and (not space.show_region_toolbar):
+        MINIMAP_BOUNDS[str(area.as_pointer())] = (Vector((0,0)), Vector((0,0)))
         return None
 
     # 1. Find the minimap bounds from the nodetree.nodes
@@ -660,3 +664,195 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
     #         )
     
     return None
+
+
+# ooooo      ooo                        o8o                           .    o8o                        
+# `888b.     `8'                        `"'                         .o8    `"'                        
+#  8 `88b.    8   .oooo.   oooo    ooo oooo   .oooooooo  .oooo.   .o888oo oooo   .ooooo.  ooo. .oo.   
+#  8   `88b.  8  `P  )88b   `88.  .8'  `888  888' `88b  `P  )88b    888   `888  d88' `88b `888P"Y88b  
+#  8     `88b.8   .oP"888    `88..8'    888  888   888   .oP"888    888    888  888   888  888   888  
+#  8       `888  d8(  888     `888'     888  `88bod8P'  d8(  888    888 .  888  888   888  888   888  
+# o8o        `8  `Y888""8o     `8'     o888o `8oooooo.  `Y888""8o   "888" o888o `Y8bod8P' o888o o888o 
+#                                            d"     YD                                                
+#                                            "Y88888P'                                                
+
+
+class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
+    """Handles mouse interaction within the minimap area."""
+
+    bl_idname = "nodebooster.minimap_interaction"
+    bl_label = "Node Booster Minimap Interaction"
+    bl_options = {'REGISTER', 'INTERNAL'} # Internal prevents it showing in search
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._timer = None
+        self._cursor_modified = None
+
+    def find_region_under_mouse(self, context, event):
+
+        found_area, found_region, region_mouse_x, region_mouse_y = None, None, 0, 0
+
+        for area in context.window.screen.areas:
+
+            # Is mouse within this area's bounds?
+            if (area.x <= event.mouse_x < area.x + area.width and
+                area.y <= event.mouse_y < area.y + area.height):
+
+                # Is it a Node Editor?
+                if (area.type == 'NODE_EDITOR'):
+                    for region in area.regions:
+
+                        # Is mouse within this region's bounds?
+                        if (region.x <= event.mouse_x < region.x + region.width and
+                            region.y <= event.mouse_y < region.y + region.height):
+                            
+                            # Is it the main Window region?
+                            if (region.type == 'WINDOW'):
+                                found_area = area
+                                found_region = region
+                                region_mouse_x = event.mouse_x - region.x
+                                region_mouse_y = event.mouse_y - region.y
+                                # Found the correct region in this area
+                                break
+
+                    # Found the correct area and region
+                    if (found_region):
+                        break
+
+        return found_area, found_region, region_mouse_x, region_mouse_y
+                        
+                        
+    def restore_cursor(self, context):
+        if (self._cursor_modified is not None):
+            context.window.cursor_modal_restore()
+            self._cursor_modified = None
+        return None
+
+    def modal(self, context, event):
+
+        sett_win = context.window_manager.nodebooster
+
+        # Stop condition, we ONLY do that when this boolean is toggled off. 
+        # this modal is always active, except if the user manually disables it.
+
+        if (not sett_win.minimap_modal_operator_is_active):
+            self.cancel(context)
+            print("Minimap interaction modal stopped.")
+            return {'CANCELLED'}
+
+        # deduce region and area from window mouse position.
+        area, region, mouse_x, mouse_y = self.find_region_under_mouse(context, event)
+        if (area is None or region is None):
+            self.restore_cursor(context)
+            return {'PASS_THROUGH'}
+
+        #check if the cursor is hovering
+
+        is_on_edge = None
+        is_over_minimap = False
+
+        area_key = str(area.as_pointer())
+        if (area_key in MINIMAP_BOUNDS):
+            min_b, max_b = MINIMAP_BOUNDS[area_key]
+
+            # hovering on the minimap?
+            is_over_minimap = (min_b.x <= mouse_x <= max_b.x and
+                               min_b.y <= mouse_y <= max_b.y)
+            # hovering on it's corner?
+            # Check top-right corner
+            if ((-5.5 <= max_b.y - mouse_y <= 5.5) and (min_b.x<=mouse_x<=max_b.x)):
+                is_on_edge = 'TOP'
+            elif ((-5.5 <= max_b.x - mouse_x <= 5.5) and (min_b.y<=mouse_y<=max_b.y)):
+                is_on_edge = 'RIGHT'
+            # elif ((-5.5 <= mouse_x - min_b.x <= 5.5) and (min_b.y<=mouse_y<=max_b.y)):
+            #     is_on_edge = 'LEFT'
+            # elif ((-5.5 <= mouse_y - min_b.y <= 5.5) and (min_b.x<=mouse_x<=max_b.x)):
+            #     is_on_edge = 'BOTTOM'
+
+        # Update Cursor style
+        
+        if (is_on_edge in {'TOP', 'BOTTOM'}):
+            if (self._cursor_modified != 'MOVE_Y'):
+                context.window.cursor_modal_set('MOVE_Y')
+                self._cursor_modified = 'MOVE_Y'
+        
+        elif (is_on_edge in {'LEFT', 'RIGHT'}):
+            if (self._cursor_modified != 'MOVE_X'):
+                context.window.cursor_modal_set('MOVE_X')
+                self._cursor_modified = 'MOVE_X'
+        
+        elif (is_over_minimap):
+            if (self._cursor_modified != 'HAND'):
+                context.window.cursor_modal_set('HAND')
+                self._cursor_modified = 'HAND'
+        else:
+            self.restore_cursor(context)
+
+        # Initiate or launch an action from events..
+
+        if (is_on_edge):
+
+            # rescaling the minimap?
+            if (event.type == 'LEFTMOUSE' and event.value == 'PRESS'):
+                print("User want to resize the minimap.")
+                    
+            return {'RUNNING_MODAL'}
+
+        elif (is_over_minimap):
+
+            # Ignore middle mouse button and scroll wheel events
+            if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
+                
+    
+                return {'PASS_THROUGH'}
+            
+            #Click event
+            if (event.type == 'LEFTMOUSE' and event.value == 'PRESS'):
+                # TODO implement moving the view to the clicked position.
+                print("Minimap clicked.")
+            
+            #Double click event
+            if (event.type == 'LEFTMOUSE' and event.value == 'PRESS'):
+                # Check for double click by measuring time between clicks
+                current_time = time.time()
+                if hasattr(self, '_last_click_time') and (current_time - self._last_click_time) < 0.25:  # 250ms threshold for double click
+                    # Handle double click action
+                    print("Double click detected on minimap")
+                    # TODO implement double click behavior (e.g., zoom to fit, center view, etc.)
+                    self._last_click_time = 0  # Reset to prevent triple-click detection
+                else:
+                    self._last_click_time = current_time
+            
+            return {'RUNNING_MODAL'}
+
+        # Allow other events (keyboard shortcuts, etc.) to pass through if not handled above
+        return {'PASS_THROUGH'}
+
+    def invoke(self, context, event):
+            
+        # Initialize cursor state flag
+        self._cursor_modified = False
+
+        # initialize a timr
+        if (self._timer is None):
+            self._timer = context.window_manager.event_timer_add(0.05, window=context.window) # Check frequently
+        context.window_manager.modal_handler_add(self)
+
+        print("Minimap interaction modal started.")
+        return {'RUNNING_MODAL'}
+
+    def cancel(self, context):
+
+        # Ensure cursor is restored on cancellation
+        self.restore_cursor(context)
+        
+        # Clean up timer when the modal stops
+        if (self._timer):
+            context.window_manager.event_timer_remove(self._timer)
+            self._timer = None
+        
+        print("Minimap interaction modal cancelled.")
+        return None
+
+
