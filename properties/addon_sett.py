@@ -32,6 +32,13 @@ class NODEBOOSTER_AddonPref(bpy.types.AddonPreferences):
         soft_max=3,
         description="ui 'word_wrap' layout funciton, max height of the lines",
         )
+    
+    #minimap
+    auto_launch_minimap_navigation : bpy.props.BoolProperty(
+        default=True,
+        name="Auto Launch",
+        description="Automatically launch the minimap navigation modal when loading the addon and loading new .blend files.",
+        )
 
     def draw(self,context):
         

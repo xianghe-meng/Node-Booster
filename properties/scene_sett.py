@@ -141,7 +141,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         default=(0.25,0.50),
         name="Minimap Size",
         description="Set the max size of your minimap, in width/height percentage of the editor area. The ratio will automatically adjust itself to fit within these max percentages.",
-        min=0,
+        min=0.01,
         max=1,
         size=2,
         )
@@ -198,12 +198,6 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         name="Outline Width",
         min=0,
         )
-    minimap_node_dimension_factor : bpy.props.FloatVectorProperty(
-        default=(0.9,0.7), #height/width
-        name="Dimension Factor",
-        description="The node dimensions might not be accurate. they might need to be adjusted with these numbers.",
-        size=2,
-        )
     minimap_node_border_radius : bpy.props.FloatProperty(
         default=3,
         name="Border Radius",
@@ -215,12 +209,12 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         name="Draw Header",
         )
     minimap_node_header_height : bpy.props.FloatProperty(
-        default=10,
+        default=12,
         name="Header Height",
         min=0,
         )
     minimap_node_header_minheight : bpy.props.FloatProperty(
-        default=2,
+        default=6,
         name="Header Min Height when zoomed out",
         min=0,
         )

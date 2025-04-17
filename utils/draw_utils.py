@@ -9,7 +9,9 @@ import bpy
 def get_dpifac():
     """get user dpi"""
     prefs = bpy.context.preferences.system
-    return prefs.dpi * prefs.pixel_size / 72
+    dpi = prefs.dpi
+    #dpi *= prefs.pixel_size
+    return dpi / 72
 
 
 def ensure_mouse_cursor(context, event):

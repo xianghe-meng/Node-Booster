@@ -323,6 +323,9 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 
     #arbitrary number between 0-1 that scales down when when dezoomed. 1 if zoom in level is ok
     dezoom_factor = min(1, (view_width / node_tree_width) /2)
+    
+    #the rescaling of the minimap based on user preferences
+    rescale_factor = sum(scene_sett.minimap_width_percentage[:])/2
 
     # Account side panel widths if they are visible?
     if False:
@@ -425,8 +428,7 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
         )
 
     # gather bounds positions and map them 2x bounds loc per node
-    all_bounds = [loc for node in all_nodes for loc in 
-                    get_node_bounds(node, dimension_factor=scene_sett.minimap_node_dimension_factor,)] 
+    all_bounds = [loc for node in all_nodes for loc in get_node_bounds(node)] 
     all_positions = map_positions(np.array(all_bounds), bounds_nodetree, bounds_area_clamp,)
 
     # sort the element we are going to draw arranged with their draw args as well..
@@ -469,7 +471,11 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
         #header drawing?
         header_height, header_color = None, None
         if ((scene_sett.minimap_node_draw_header) and (not node.hide) and (node.type!='FRAME')):
-            header_height = max(scene_sett.minimap_node_header_height * min(1, dezoom_factor), scene_sett.minimap_node_header_minheight)
+            #define header height..
+            header_height = scene_sett.minimap_node_header_height
+            header_height *= min(1, dezoom_factor) #influeced by dezoom
+            header_height *= rescale_factor
+            header_height = max(header_height, scene_sett.minimap_node_header_minheight)
             header_color = node_color
             node_color = scene_sett.minimap_node_body_color
                 
@@ -688,6 +694,8 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
         super().__init__(*args, **kwargs)
         self._timer = None
         self._cursor_modified = None
+        self._last_click_time = 0 #for double click
+        self._action_rescaling_edge = None
 
     def find_region_under_mouse(self, context, event):
 
@@ -731,12 +739,13 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
 
     def modal(self, context, event):
 
-        sett_win = context.window_manager.nodebooster
+        win_sett = context.window_manager.nodebooster
+        scene_sett = context.scene.nodebooster
 
         # Stop condition, we ONLY do that when this boolean is toggled off. 
         # this modal is always active, except if the user manually disables it.
 
-        if (not sett_win.minimap_modal_operator_is_active):
+        if (not win_sett.minimap_modal_operator_is_active):
             self.cancel(context)
             print("Minimap interaction modal stopped.")
             return {'CANCELLED'}
@@ -744,6 +753,52 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
         # deduce region and area from window mouse position.
         area, region, mouse_x, mouse_y = self.find_region_under_mouse(context, event)
         if (area is None or region is None):
+            self.restore_cursor(context)
+            return {'PASS_THROUGH'}
+        
+        #handle rescaling gesture
+        if (self._action_rescaling_edge is not None):
+            
+            #quit gesture?
+            if (event.type == 'LEFTMOUSE' and event.value == 'RELEASE'):
+                self._action_rescaling_edge = None
+                print("Rescaling finished")
+                return {'RUNNING_MODAL'}
+            
+            #get some minimap info
+            min_b, max_b = MINIMAP_BOUNDS[str(area.as_pointer())]
+            minimap_width = max_b.x - min_b.x
+            minimap_height = max_b.y - min_b.y
+            aspect_ratio = 'VERTICAL' if (minimap_width / minimap_height < 1) else 'HORIZONTAL'
+            
+            #get movement direction info and determine the movements ratio
+            direction = self._action_rescaling_edge['direction']
+            match direction:
+                case 'TOP':
+                    start_pos = self._action_rescaling_edge['start_mouse'][1]
+                    current_pos = mouse_y
+                    target_pos = MINIMAP_BOUNDS[str(area.as_pointer())][0][1]
+                    ratio = 1 - (current_pos - start_pos) / (target_pos - start_pos)
+                case 'RIGHT':
+                    start_pos = self._action_rescaling_edge['start_mouse'][0]
+                    current_pos = mouse_x
+                    target_pos = MINIMAP_BOUNDS[str(area.as_pointer())][0][0]
+                    ratio = 1 - (current_pos - start_pos) / (target_pos - start_pos)
+            
+            # assign the value depending on the aspect ratio
+            axis = 0 if (aspect_ratio=='HORIZONTAL') else 1
+            start_value = self._action_rescaling_edge['start_value'][axis]
+            new_value = start_value * ratio
+            scene_sett.minimap_width_percentage = new_value, new_value
+            
+            #give it a redraw kick
+            area.tag_redraw()
+            
+            # print(f'start_pos: {start_pos}, current_pos: {current_pos}, target_pos: {target_pos}, ratio: {ratio}')
+            return {'RUNNING_MODAL'}
+        
+        #special case for 
+        if (event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE','T','N',}):
             self.restore_cursor(context)
             return {'PASS_THROUGH'}
 
@@ -793,19 +848,19 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
 
         if (is_on_edge):
 
-            # rescaling the minimap?
+            # Click event.
             if (event.type == 'LEFTMOUSE' and event.value == 'PRESS'):
                 print("User want to resize the minimap.")
-                    
+                self._action_rescaling_edge = {
+                    'direction': is_on_edge,
+                    'start_mouse':(mouse_x, mouse_y),
+                    'start_value':scene_sett.minimap_width_percentage[:],
+                    }
+                return {'RUNNING_MODAL'}
+
             return {'RUNNING_MODAL'}
 
         elif (is_over_minimap):
-
-            # Ignore middle mouse button and scroll wheel events
-            if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
-                
-    
-                return {'PASS_THROUGH'}
             
             #Click event
             if (event.type == 'LEFTMOUSE' and event.value == 'PRESS'):
@@ -814,12 +869,11 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
             
             #Double click event
             if (event.type == 'LEFTMOUSE' and event.value == 'PRESS'):
-                # Check for double click by measuring time between clicks
+                # Check for double click by measuring time between clicks, 250ms threshold
                 current_time = time.time()
-                if hasattr(self, '_last_click_time') and (current_time - self._last_click_time) < 0.25:  # 250ms threshold for double click
-                    # Handle double click action
-                    print("Double click detected on minimap")
-                    # TODO implement double click behavior (e.g., zoom to fit, center view, etc.)
+                if (hasattr(self, '_last_click_time') and (current_time - self._last_click_time) < 0.25): 
+                    with context.temp_override(area=area, region=region):
+                        bpy.ops.node.view_all()
                     self._last_click_time = 0  # Reset to prevent triple-click detection
                 else:
                     self._last_click_time = current_time

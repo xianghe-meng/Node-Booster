@@ -190,6 +190,7 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
         return None
 
     def draw(self, context):
+        sett_addon = get_addon_prefs()
         sett_win = context.window_manager.nodebooster
         sett_scene = context.scene.nodebooster
 
@@ -205,6 +206,8 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
 
             subcol = col.column(heading="Navigate",)
             subcol.prop(sett_win,"minimap_modal_operator_is_active", text="Enabled",)
+            subcol.prop(sett_addon,"auto_launch_minimap_navigation",)
+            
             subcol = col.column(heading="Panel",)
             subcol.prop(sett_scene,"minimap_auto_tool_panel_collapse", text="Auto Collapse",)
 

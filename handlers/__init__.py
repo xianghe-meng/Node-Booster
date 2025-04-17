@@ -79,8 +79,12 @@ def on_plugin_installation():
         
         dprint(f"HANDLER: on_plugin_installation(): Loading Plugin: Running few functions..",)
         
-        
+        #register gpu drawing functions
         register_gpu_drawcalls()
+        
+        #start the minimap navigation automatically?
+        if (get_addon_prefs().auto_launch_minimap_navigation):
+            bpy.context.window_manager.nodebooster.minimap_modal_operator_is_active = True
 
         return None
 
@@ -172,8 +176,13 @@ def nodebooster_handler_loadpost(scene,desp):
     #need to add message bus on each blender load
     register_msgbusses()
 
+    #register gpu drawing functions
     register_gpu_drawcalls()
 
+    #start the minimap navigation automatically?
+    if (get_addon_prefs().auto_launch_minimap_navigation):
+        bpy.context.window_manager.nodebooster.minimap_modal_operator_is_active = True
+            
     #updates for our custom nodes
     upd_all_custom_nodes(LOADPOST_UPD_NODES)
     return None

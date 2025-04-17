@@ -227,32 +227,15 @@ def get_node_absolute_location(node) -> Vector:
     return Vector((x,y))
 
 
-def get_node_bounds(node, dimension_factor=None,) -> tuple[Vector, Vector]:
+def get_node_bounds(node) -> tuple[Vector, Vector]:
     """find the absolute bounds of the node in global space.
     will return the node bottom left and top right bounding 2d coords"""
-
-    # NOTE bit of a shit show because .dimension and .width .height API 
-    # are not consistently correct.. use height/width with frame, but dimensions with nodes.
-    # perhaps this is related to the user dpi? unsure how all this operate. not clear..
 
     loc = get_node_absolute_location(node)
     if (node.type == 'FRAME'):
           dim = Vector((node.width, node.height))
           dim.x += 40 ; dim.y += 20
-    else: dim = Vector((node.width, node.dimensions.y))
-
-    # First attempt..
-    # if (node.type == 'FRAME') and (node.shrink):
-    #     a,b = get_nodes_bounds(get_frame_children(node))
-    #     #also they got a little padding..
-    #     pad = 40
-    #     a.x -=pad; a.y -=pad ; b.x +=pad; b.y +=pad
-    #     return a,b
-    
-    # apply a dimension factor if provided.
-    if (dimension_factor is not None) and (node.type != 'FRAME'):
-        dim.x *= dimension_factor[0]
-        dim.y *= dimension_factor[1]
+    else: dim = Vector((node.width, node.dimensions.y/get_dpifac()))
 
     return Vector((loc.x, loc.y - dim.y)), Vector((loc.x + dim.x, loc.y))
 
