@@ -231,19 +231,23 @@ def get_node_bounds(node) -> tuple[Vector, Vector]:
     """find the absolute bounds of the node in global space.
     will return the node bottom left and top right bounding 2d coords"""
 
-    # #shrinked frame dimension info are not correct in API..
+    # NOTE bit of a shit show because .dimension and .width .height API 
+    # are not consistently correct.. use height/width with frame, but dimensions with nodes.
+
+    loc = get_node_absolute_location(node)
+    if (node.type == 'FRAME'):
+          dim = Vector((node.width, node.height))
+          dim.x += 40 ; dim.y += 20
+    else: dim = node.dimensions
+
+    # First attempt..
     # if (node.type == 'FRAME') and (node.shrink):
     #     a,b = get_nodes_bounds(get_frame_children(node))
     #     #also they got a little padding..
     #     pad = 40
     #     a.x -=pad; a.y -=pad ; b.x +=pad; b.y +=pad
     #     return a,b
-    # ..disregard above. seems that width/height are correct.
-    loc = get_node_absolute_location(node)
-    if (node.type == 'FRAME'):
-          dim = Vector((node.width, node.height))
-          dim.x += 40 ; dim.y += 20
-    else: dim = node.dimensions
+
     return Vector((loc.x, loc.y - dim.y)), Vector((loc.x + dim.x, loc.y))
 
 
@@ -505,6 +509,7 @@ def set_ng_socket_defvalue(ng, idx:int=None, socket=None, socket_name:str='', in
                 instancesocket.default_value = value
 
     return None
+
 
 def set_ng_socket_label(ng, idx:int=None, in_out:str='OUTPUT', label:str='', identifier:str=None,) -> None:
     """for a NodeCustomGroup: return the label of the given nodegroups output at given socket idx"""

@@ -175,6 +175,14 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         soft_max=50,
         )
     #minimap node
+    minimap_node_draw_typecolor : bpy.props.BoolProperty(
+        default=True,
+        name="Draw TypeColor",
+        )
+    minimap_node_draw_customcolor : bpy.props.BoolProperty(
+        default=True,
+        name="Draw Custom Color",
+        )
     minimap_node_outline_width : bpy.props.FloatProperty(
         default=1.5,
         name="Outline Width",
@@ -185,4 +193,21 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         name="Border Radius",
         min=0,
         soft_max=20,
+        )
+    minimap_node_draw_header : bpy.props.BoolProperty(
+        default=True,
+        name="Draw Header",
+        )
+    minimap_node_header_height : bpy.props.FloatProperty(
+        default=10,
+        name="Header Height",
+        min=0,
+        )
+    minimap_node_body_color : bpy.props.FloatVectorProperty(
+        default=(0.172937, 0.172937, 0.172937, 1.000000),
+        subtype="COLOR",
+        name="Body Color",
+        min=0,
+        max=1,
+        size=4,
         )

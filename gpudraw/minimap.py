@@ -65,14 +65,95 @@ def get_theme_color(node):
 #                                                                d"     YD                  
 #                                                                "Y88888P'                  
 
-def draw_full_rectangle(bounds,
+def draw_beveled_rectangle(bounds,
     fill_color=(0.1, 0.1, 0.1, 0.8),
-    outline_color=(1.0, 1.0, 1.0, 0.5),
+    outline_color=None,
     outline_width=0,
     border_radius=0,
     border_sides='AUTO',
     ):
-    """Draw a filled rectangle an optional outline and border radius. expected a bound in locaiton bottom left and top right"""
+    """Draw a filled rectangle an optional outline and border radius. expected a bound in location bottom left and top right"""
+    original_blend = gpu.state.blend_get()
+    gpu.state.blend_set('ALPHA')
+
+    x1, y1 = bounds[0]
+    x2, y2 = bounds[1]
+    width, height = x2 - x1, y2 - y1
+
+    if ((width <= 0) or (height <= 0)):
+        return # Cannot draw zero or negative size rectangle
+
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+
+    radius = border_radius
+    if (border_sides == 'AUTO'):
+        border_sides = max(3,int(radius/1.2))
+    segments_per_corner = max(1,border_sides // 4)
+    total_verts = (segments_per_corner + 1) * 4
+
+    fill_verts = []
+    outline_verts = []
+
+    # Calculate vertices for the rounded corners and straight edges
+    corners = [
+        (x1 + radius, y1 + radius, pi, 3 * pi / 2),     # Bottom Left
+        (x2 - radius, y1 + radius, 3 * pi / 2, 2 * pi), # Bottom Right
+        (x2 - radius, y2 - radius, 0, pi / 2),          # Top Right
+        (x1 + radius, y2 - radius, pi / 2, pi)          # Top Left
+        ]
+
+    for cx, cy, start_angle, end_angle in corners:
+        for i in range(segments_per_corner + 1):
+            angle = start_angle + (end_angle - start_angle) * i / segments_per_corner
+            vx = cx + cos(angle) * radius
+            vy = cy + sin(angle) * radius
+            fill_verts.append((vx, vy))
+            outline_verts.append((vx, vy))
+
+    # Create indices for the fill triangles (using a fan from the center)
+    center_x = (x1 + x2) / 2
+    center_y = (y1 + y2) / 2
+    fill_verts.append((center_x, center_y)) # Add center vertex
+    center_index = len(fill_verts) - 1
+
+    fill_indices = []
+    for i in range(total_verts):
+        idx1 = i
+        idx2 = (i + 1) % total_verts # Wrap around
+        fill_indices.append((center_index, idx1, idx2))
+
+    # Draw Fill
+    shader.uniform_float("color", fill_color)
+    batch_fill = batch_for_shader(shader, 'TRIS', {"pos": fill_verts}, indices=fill_indices)
+    batch_fill.draw(shader)
+
+    # Outline?
+    if (outline_color and (outline_width > 0)):
+        
+        gpu.state.line_width_set(outline_width)
+
+        # Close the outline loop
+        if (outline_verts):
+            outline_verts.append(outline_verts[0])
+
+        shader.uniform_float("color", outline_color)
+        batch_outline = batch_for_shader(shader, 'LINE_STRIP', {"pos": outline_verts})
+        batch_outline.draw(shader)
+        gpu.state.line_width_set(1.0) # Reset line width
+
+    # Restore State
+    gpu.state.blend_set(original_blend)
+    
+    return None
+
+def draw_simple_rectangle(bounds,
+    fill_color=(0.1, 0.1, 0.1, 0.8),
+    outline_color=None,
+    outline_width=0,
+    header_height=None,
+    header_color=None,
+    ):
+    """Draw a filled rectangle an optional outline and colored header. expected a bound in location bottom left and top right"""
 
     original_blend = gpu.state.blend_get()
     gpu.state.blend_set('ALPHA')
@@ -86,88 +167,34 @@ def draw_full_rectangle(bounds,
 
     shader = gpu.shader.from_builtin('UNIFORM_COLOR')
 
-    # --- Draw Simple Rectangle (No Radius or radius too large) ---
-    if (border_radius <= 0) or (border_radius * 2 > min(width, height)):
+    # Fill
+    vertices = ((x1, y1), (x2, y1), (x1, y2), (x2, y2),)
+    indices = ((0, 1, 2), (1, 3, 2),)
+    shader.uniform_float("color", fill_color)
+    batch = batch_for_shader(shader, 'TRIS', {"pos": vertices}, indices=indices)
+    batch.draw(shader)
+
+    # Header?
+    if (header_height and (header_height > 0) and header_color):
 
         # Fill
-        vertices = ((x1, y1), (x2, y1), (x1, y2), (x2, y2),)
+        header_y = y2 - header_height
+        vertices = ((x1, header_y), (x2, header_y), (x1, y2), (x2, y2),)
         indices = ((0, 1, 2), (1, 3, 2),)
-        shader.uniform_float("color", fill_color)
+        shader.uniform_float("color", header_color)
         batch = batch_for_shader(shader, 'TRIS', {"pos": vertices}, indices=indices)
         batch.draw(shader)
 
-        # Outline?
-        if (outline_color and (outline_width > 0)):
+    # Outline?
+    if (outline_color and (outline_width > 0)):
 
-            # Note: Simple line drawing, width isn't accurate pixel width
-            gpu.state.line_width_set(outline_width)
-            outline_vertices = (
-                (x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)
-            )
-            shader.uniform_float("color", outline_color)
-            batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": outline_vertices})
-            batch.draw(shader)
-            gpu.state.line_width_set(1.0) # Reset line width
-
-    # --- Draw Fancy Rounded Rectangle ---
-    else:
-        # --- Refactored Rounded Rectangle Drawing using a single TRIANGLES batch ---
-
-        radius = border_radius
-        if (border_sides == 'AUTO'):
-            border_sides = max(3,int(radius/1.2))
-        segments_per_corner = max(1,border_sides // 4)
-        total_verts = (segments_per_corner + 1) * 4
-
-        fill_verts = []
-        outline_verts = []
-
-        # Calculate vertices for the rounded corners and straight edges
-        corners = [
-            (x1 + radius, y1 + radius, pi, 3 * pi / 2),     # Bottom Left
-            (x2 - radius, y1 + radius, 3 * pi / 2, 2 * pi), # Bottom Right
-            (x2 - radius, y2 - radius, 0, pi / 2),          # Top Right
-            (x1 + radius, y2 - radius, pi / 2, pi)          # Top Left
-            ]
-
-        for cx, cy, start_angle, end_angle in corners:
-            for i in range(segments_per_corner + 1):
-                angle = start_angle + (end_angle - start_angle) * i / segments_per_corner
-                vx = cx + cos(angle) * radius
-                vy = cy + sin(angle) * radius
-                fill_verts.append((vx, vy))
-                outline_verts.append((vx, vy))
-
-        # Create indices for the fill triangles (using a fan from the center)
-        center_x = (x1 + x2) / 2
-        center_y = (y1 + y2) / 2
-        fill_verts.append((center_x, center_y)) # Add center vertex
-        center_index = len(fill_verts) - 1
-
-        fill_indices = []
-        for i in range(total_verts):
-            idx1 = i
-            idx2 = (i + 1) % total_verts # Wrap around
-            fill_indices.append((center_index, idx1, idx2))
-
-        # Draw Fill
-        shader.uniform_float("color", fill_color)
-        batch_fill = batch_for_shader(shader, 'TRIS', {"pos": fill_verts}, indices=fill_indices)
-        batch_fill.draw(shader)
-
-        # Outline?
-        if (outline_color and (outline_width > 0)):
-            
-            gpu.state.line_width_set(outline_width)
-
-            # Close the outline loop
-            if (outline_verts):
-                outline_verts.append(outline_verts[0])
-
-            shader.uniform_float("color", outline_color)
-            batch_outline = batch_for_shader(shader, 'LINE_STRIP', {"pos": outline_verts})
-            batch_outline.draw(shader)
-            gpu.state.line_width_set(1.0) # Reset line width
+        # Note: Simple line drawing, width isn't accurate pixel width
+        gpu.state.line_width_set(outline_width)
+        outline_vertices = ((x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1),)
+        shader.uniform_float("color", outline_color)
+        batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": outline_vertices})
+        batch.draw(shader)
+        gpu.state.line_width_set(1.0) # Reset line width
 
     # Restore State
     gpu.state.blend_set(original_blend)
@@ -221,6 +248,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
 
     view_bottom, view_left = 0, 0
     view_width, view_height = window_region.width, window_region.height
+    zoom_factor = view_width / node_tree_width
 
     # Subtract panel widths if they are visible
     # if (space.show_region_toolbar):
@@ -279,7 +307,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
 
     # 4. Draw the Minimap Background Rectangle
     bounds_area = (pixel_bottom_left_bound, pixel_top_right_bound)
-    draw_full_rectangle(
+    draw_beveled_rectangle(
         bounds_area,
         fill_color=scene_sett.minimap_fill_color,
         outline_color=scene_sett.minimap_outline_color,
@@ -307,52 +335,72 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
         Vector((bounds_area[0].x + padding[0], bounds_area[0].y + padding[1])),
         Vector((bounds_area[1].x - padding[0], bounds_area[1].y - padding[1]))
         )
-    
+
     # gather positions and map them
     all_bounds = [loc for node in all_nodes for loc in get_node_bounds(node)] #flatten. will be 2x the length
     all_positions = map_positions(np.array(all_bounds), bounds_nodetree, bounds_area,)
 
     # sort the element we are going to draw arranged with their draw args as well..
     frame_to_draw, node_to_draw = [], []
-    for i in range(len(all_nodes)):
-        
+
+    for i in range(len(all_nodes)):        
         node = all_nodes[i]
+
+        #get the node main color
         node_color = all_colors[i]
-        
+        # does the user allows to draw a custom color tho?
+        if (not scene_sett.minimap_node_draw_typecolor):
+            node_color = scene_sett.minimap_node_body_color
+
         #special color if muted
         if (node.mute):
             node_color = (*node_color[:3], 0.15)
         #special color for frame, their alpha is faded..
         if (node.type == 'FRAME'):
             node_color = (*node_color[:3], 0.4)
-        
+
+        #selectin states
         select = all_select_states[i]
         active = all_active_states[i]
-        
+
+        #get bounds
         node_bounds = all_positions[i*2], all_positions[i*2+1]
-        
+
+        #define outline
         outline_width = scene_sett.minimap_node_outline_width if (select) else 0
         outline_color = active_theme if (active) else select_theme if (select) else None
-        
-        item = [i, node, node_color, node_bounds, outline_width, outline_color,]
+
+        #header drawing?
+        header_height, header_color = None, None
+        if ((scene_sett.minimap_node_draw_header) and (not node.hide) and (node.type!='FRAME')):
+            header_height = scene_sett.minimap_node_header_height * max(min(1, zoom_factor/2), 0.35)
+            header_color = node_color
+            node_color = scene_sett.minimap_node_body_color
+                
+        #using custom color?
+        if (node.use_custom_color and scene_sett.minimap_node_draw_customcolor):
+            node_color = (*node.color[:3], 0.9)
+
+        #pack item
+        item = [i, node, node_color, node_bounds, outline_width, outline_color, header_height, header_color,]
+
         if (node.type == 'FRAME'):
             frame_to_draw.append(item)
             continue
-        
         node_to_draw.append(item)
         continue
-    
+
     #draw node and frame elements
     for item in frame_to_draw + node_to_draw:
-        #[i, node, node_color, node_bounds, outline_width, outline_color,]
-        # 0   1       2            3            4               5
-        draw_full_rectangle(
+        #[i, node, node_color, node_bounds, outline_width, outline_color, header_height, header_color]
+        # 0   1       2            3            4               5               6               7
+        draw_simple_rectangle(
             item[3],
             fill_color=item[2],
             outline_color=item[5],
             outline_width=item[4],
-            border_radius=scene_sett.minimap_node_border_radius,
-            border_sides=4,
+            header_height=item[6],
+            header_color=item[7],
             )
 
     # NOTE store the minimap bounds in a global dict. 

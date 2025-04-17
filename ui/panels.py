@@ -204,8 +204,8 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
 
             col.prop(sett_scene,"minimap_fill_color", text="Main Color",)
             col.prop(sett_scene,"minimap_width_percentage", slider=True, text="Size %",)
-            col.prop(sett_scene,"minimap_outline_width", text="Line Width",)
-            col.prop(sett_scene,"minimap_outline_color", text="Line Color",)
+            col.prop(sett_scene,"minimap_outline_width", text="Outline",)
+            col.prop(sett_scene,"minimap_outline_color", text=" ",)
             col.prop(sett_scene,"minimap_border_radius", text="Bevel",)
             col.prop(sett_scene,"minimap_padding", text="Padding",)
             # col.prop(sett_scene,"minimap_draw_type", text="Draw Type",)
@@ -218,8 +218,18 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             col.use_property_split = True
             col.use_property_decorate = False
             
-            col.prop(sett_scene,"minimap_node_outline_width", text="Line Width",)
+            subcol = col.column(heading='Color')
+            subcol.prop(sett_scene,"minimap_node_draw_typecolor", text="Type",)
+            subcol.prop(sett_scene,"minimap_node_draw_customcolor", text="Custom",)
+            
+            col.prop(sett_scene,"minimap_node_outline_width", text="Outline",)
             # col.prop(sett_scene,"minimap_node_border_radius", text="Bevel",)
+            subcol = col.column(heading='Header')
+            subcol.prop(sett_scene,"minimap_node_draw_header", text="Enable",)
+            childcol = subcol.column()
+            childcol.active = sett_scene.minimap_node_draw_header
+            childcol.prop(sett_scene,"minimap_node_header_height", text="Height",)
+            col.prop(sett_scene,"minimap_node_body_color", text="Node Body",)
 
         return None
 
