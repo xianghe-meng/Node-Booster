@@ -386,12 +386,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
         )
 
     # gather bounds positions and map them
-    all_bounds = [loc for node in all_nodes for loc in get_node_bounds(node)] #flatten. will be 2x the length
-    #these boundspositions might be not accurate, we scale them with a factor
-    if (scene_sett.minimap_node_dimension_factor[:]!=(0,0)):
-        for loc in all_bounds:
-            loc.x *= scene_sett.minimap_node_dimension_factor[0]
-            loc.y *= scene_sett.minimap_node_dimension_factor[1]
+    all_bounds = [loc for node in all_nodes for loc in get_node_bounds(node, dimension_factor=scene_sett.minimap_node_dimension_factor)] #flatten. will be 2x the length
     all_positions = map_positions(np.array(all_bounds), bounds_nodetree, bounds_area_clamp,)
 
     # sort the element we are going to draw arranged with their draw args as well..
@@ -559,13 +554,13 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
             y1_c, y2_c = max(min_map_y, mapped_view_min_y), min(max_map_y, mapped_view_max_y)
             x1_c, x2_c = max(min_map_x, mapped_view_min_x), min(max_map_x, mapped_view_max_x)
 
-            if (is_fully_left and y2_c > y1_c):  line = (min_map_x, y1_c), (min_map_x, y2_c)
-            if (is_fully_right and y2_c > y1_c): line = (max_map_x, y1_c), (max_map_x, y2_c)
-            if (is_fully_below and x2_c > x1_c): line = (x1_c, min_map_y), (x2_c, min_map_y)
-            if (is_fully_above and x2_c > x1_c): line = (x1_c, max_map_y), (x2_c, max_map_y)
-            else: line = None
+            lines = []
+            if (is_fully_left and y2_c > y1_c):  lines.append([(min_map_x, y1_c), (min_map_x, y2_c)])
+            if (is_fully_right and y2_c > y1_c): lines.append([(max_map_x, y1_c), (max_map_x, y2_c)])
+            if (is_fully_below and x2_c > x1_c): lines.append([(x1_c, min_map_y), (x2_c, min_map_y)])
+            if (is_fully_above and x2_c > x1_c): lines.append([(x1_c, max_map_y), (x2_c, max_map_y)])
 
-            if (line is not None):
+            for line in lines:
                 draw_line(
                     *line,
                     scene_sett.minimap_view_outline_color,

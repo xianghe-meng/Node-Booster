@@ -227,7 +227,7 @@ def get_node_absolute_location(node) -> Vector:
     return Vector((x,y))
 
 
-def get_node_bounds(node) -> tuple[Vector, Vector]:
+def get_node_bounds(node, dimension_factor=None,) -> tuple[Vector, Vector]:
     """find the absolute bounds of the node in global space.
     will return the node bottom left and top right bounding 2d coords"""
 
@@ -247,6 +247,11 @@ def get_node_bounds(node) -> tuple[Vector, Vector]:
     #     pad = 40
     #     a.x -=pad; a.y -=pad ; b.x +=pad; b.y +=pad
     #     return a,b
+    
+    # apply a dimension factor if provided.
+    if (dimension_factor is not None):
+        dim.x *= dimension_factor[0]
+        dim.y *= dimension_factor[1]
 
     return Vector((loc.x, loc.y - dim.y)), Vector((loc.x + dim.x, loc.y))
 

@@ -194,7 +194,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         min=0,
         )
     minimap_node_dimension_factor : bpy.props.FloatVectorProperty(
-        default=(0.9,0.9),
+        default=(0.9,0.65),
         name="Dimension Factor",
         description="The node dimensions might not be accurate. they might need to be adjusted with these numbers.",
         size=2,
