@@ -233,6 +233,7 @@ def get_node_bounds(node, dimension_factor=None,) -> tuple[Vector, Vector]:
 
     # NOTE bit of a shit show because .dimension and .width .height API 
     # are not consistently correct.. use height/width with frame, but dimensions with nodes.
+    # perhaps this is related to the user dpi? unsure how all this operate. not clear..
 
     loc = get_node_absolute_location(node)
     if (node.type == 'FRAME'):

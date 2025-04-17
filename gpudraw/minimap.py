@@ -417,8 +417,9 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
         Vector((bounds_area[1].x - inner_padding[0], bounds_area[1].y - inner_padding[1]))
         )
 
-    # gather bounds positions and map them
-    all_bounds = [loc for node in all_nodes for loc in get_node_bounds(node, dimension_factor=scene_sett.minimap_node_dimension_factor)] #flatten. will be 2x the length
+    # gather bounds positions and map them 2x bounds loc per node
+    all_bounds = [loc for node in all_nodes for loc in 
+                    get_node_bounds(node, dimension_factor=scene_sett.minimap_node_dimension_factor,)] 
     all_positions = map_positions(np.array(all_bounds), bounds_nodetree, bounds_area_clamp,)
 
     # sort the element we are going to draw arranged with their draw args as well..
@@ -490,20 +491,47 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
             header_height=item[6],
             header_color=item[7],
             )
-        
+    
     # 5. draw the view zone area
 
-    # Get view bounds in node space
-    view_min_x, view_min_y = view2d.region_to_view(view_left, view_bottom)
-    view_max_x, view_max_y = view2d.region_to_view(view_left + view_width, view_bottom + view_height)
-    bounds_view_nodetree = (Vector((view_min_x, view_min_y)), Vector((view_max_x, view_max_y)))
+    # 5.1 get the view zone in node space
 
+    # NOTE Getting the view zone translated into node space is complicated..
+    # .. as unfortunately the view2d is being offseted by the user resoltution scale
+    # view2d.region_to_view() cannot be trusted. We need to reproduce the offsetting behavior
+    # with the dpi scale ourselves. try to see the zoom behavior of preferences.ui_scale...
+
+    # Get the first node locations, unafacted by dpi.
+    v0_apparent = Vector(view2d.region_to_view(0, 0))
+    v1_apparent = Vector(view2d.region_to_view(view_width, view_height))
+    center_apparent = Vector(view2d.region_to_view(view_width / 2, view_height / 2))
+
+    # Calculate the apparent span
+    span_apparent_vx = v1_apparent.x - v0_apparent.x
+    span_apparent_vy = v1_apparent.y - v0_apparent.y
+
+    # Correct the center and span affected my the dpi scale factor
+    center_vx = center_apparent.x / dpi_fac
+    center_vy = center_apparent.y / dpi_fac
+    span_vx = span_apparent_vx / dpi_fac
+    span_vy = span_apparent_vy / dpi_fac
+
+    # Calculate the dpi offset.
+    view_min_x = center_vx - span_vx / 2
+    view_min_y = center_vy - span_vy / 2
+    view_max_x = center_vx + span_vx / 2
+    view_max_y = center_vy + span_vy / 2
+
+    # 5.2 we remap the view zone to fit the minimap bounds.
     # Map view bounds from node space to minimap pixel space
+    bounds_view_nodetree = (Vector((view_min_x, view_min_y)), Vector((view_max_x, view_max_y)))
     mapped_view_bounds = map_positions(
         np.array(bounds_view_nodetree), 
         bounds_nodetree,
         bounds_area,
         )
+
+    # 5.3 we draw the view zone, as a rectangle, line, or as a corner.
 
     # Check for overlap, when the view is fully within the minimap bounds..
     min_map_x, min_map_y = bounds_area[0]
