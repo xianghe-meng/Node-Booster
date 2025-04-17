@@ -222,6 +222,9 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             subcol.prop(sett_scene,"minimap_node_draw_typecolor", text="Type",)
             subcol.prop(sett_scene,"minimap_node_draw_customcolor", text="Custom",)
             
+            subcol = col.column(heading='Selection')
+            subcol.prop(sett_scene,"minimap_node_draw_selection", text="Enable",)
+
             col.prop(sett_scene,"minimap_node_outline_width", text="Outline",)
             # col.prop(sett_scene,"minimap_node_border_radius", text="Bevel",)
             subcol = col.column(heading='Header')
@@ -229,6 +232,7 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             childcol = subcol.column()
             childcol.active = sett_scene.minimap_node_draw_header
             childcol.prop(sett_scene,"minimap_node_header_height", text="Height",)
+            childcol.prop(sett_scene,"minimap_node_header_minheight", text="Min Height",)
             col.prop(sett_scene,"minimap_node_body_color", text="Body",)
 
         header, panel = layout.panel("minimap_view_params", default_closed=True,)

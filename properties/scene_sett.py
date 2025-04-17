@@ -126,7 +126,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         name="DrawType",
         description="Choose whenever this drawing is done on the background or on the foreground of the node editor space, either as an underlay or an overlay.",
         items=( ("UNDERLAY","Back",""), ("OVERLAY","Front",""),),
-        default="UNDERLAY",
+        default="OVERLAY",
         )
     # minimap_emplacement : bpy.props.EnumProperty(
     #     items=[("BOTTOM_LEFT","Bottom Left","Bottom Left"),("TOP_LEFT","Top Left","Top Left"),("TOP_RIGHT","Top Right","Top Right"),("BOTTOM_RIGHT","Bottom Right","Bottom Right")],
@@ -184,10 +184,20 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         default=True,
         name="Draw Custom Color",
         )
+    minimap_node_draw_selection : bpy.props.BoolProperty(
+        default=True,
+        name="Draw Selection",
+        )
     minimap_node_outline_width : bpy.props.FloatProperty(
         default=1.5,
         name="Outline Width",
         min=0,
+        )
+    minimap_node_dimension_factor : bpy.props.FloatVectorProperty(
+        default=(0.9,0.9),
+        name="Dimension Factor",
+        description="The node dimensions might not be accurate. they might need to be adjusted with these numbers.",
+        size=2,
         )
     minimap_node_border_radius : bpy.props.FloatProperty(
         default=3,
@@ -204,6 +214,11 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         name="Header Height",
         min=0,
         )
+    minimap_node_header_minheight : bpy.props.FloatProperty(
+        default=2,
+        name="Header Min Height when zoomed out",
+        min=0,
+        )
     minimap_node_body_color : bpy.props.FloatVectorProperty(
         default=(0.172937, 0.172937, 0.172937, 1.000000),
         subtype="COLOR",
@@ -214,7 +229,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         )
     #view outline
     minimap_view_fill_color : bpy.props.FloatVectorProperty(
-        default=(0.296174, 0.040511, 0.027817, 0.041667),
+        default=(0.296174, 0.040511, 0.027817, 0.0),
         subtype="COLOR",
         name="Fill Color",
         min=0,
@@ -222,7 +237,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         size=4,
         )
     minimap_view_outline_color : bpy.props.FloatVectorProperty(
-        default=(1.180751, 0.180751, 0.180751, 0.100000),
+        default=[1.180751, 0.180751, 0.180751, 0.395833],
         subtype="COLOR",
         name="Outline Color",
         min=0,

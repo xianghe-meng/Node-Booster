@@ -152,8 +152,10 @@ def draw_beveled_rectangle(bounds,
     
     return None
 
+
 def draw_line(point1, point2, color, width):
     """Draw a simple line between two points."""
+
     original_blend = gpu.state.blend_get()
     original_line_width = gpu.state.line_width_get()
 
@@ -170,6 +172,13 @@ def draw_line(point1, point2, color, width):
     gpu.state.blend_set(original_blend)
 
     return None
+
+
+def draw_spline(points, color, width):
+    """Draw a spline between two points."""
+
+    return None
+
 
 def draw_simple_rectangle(bounds,
     fill_color=(0.1, 0.1, 0.1, 0.8),
@@ -266,47 +275,55 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
         print(f"ERROR: draw_minimap(): node_tree_width or node_tree_height is less than 0: {node_tree_width}, {node_tree_height}")
         return None
 
-    #calculate the minimap aspect ratio
-    aspect_ratio = node_tree_width / node_tree_height
-
-    # 2. Calculate Available View Area (in pixels, accounting for panels)
+    # 2. Calculate the minimap View Area
     
     view_bottom, view_left = 0, 0
     view_width, view_height = window_region.width, window_region.height
-    zoom_factor = view_width / node_tree_width
 
-    # Subtract panel widths if they are visible
-    # TODO need to find which theme option is drawing these panels transparently or not first..
-    # if (space.show_region_toolbar):
-    #     toolbar_region = next((r for r in space.regions if r.type == 'TOOLS'), None)
-    #     if (toolbar_region):
-    #         view_left += toolbar_region.width
-    #         view_width -= toolbar_region.width
-    # if (space.show_region_ui):
-    #     ui_region = next((r for r in space.regions if r.type == 'UI'), None)
-    #     if (ui_region):
-    #         view_width -= ui_region.width # UI panel is typically on the right
+    #calculate the minimap aspect ratio
+    aspect_ratio = node_tree_width / node_tree_height
 
-    # Calculate Minimap Dimensions and Position in Pixel Space
-    # --- Calculate Minimap Dimensions based on Width and Max Height Percentages ---
-    target_width = view_width * width_percentage
-    target_height = target_width / aspect_ratio
+    #arbitrary number between 0-1 that scales down when when dezoomed. 1 if zoom in level is ok
+    dezoom_factor = min(1, (view_width / node_tree_width) /2)
 
-    max_allowed_height = view_height * height_percentage_max
+    # Account side panel widths if they are visible?
+    if False:
+        ...
+        #TODO need to find which theme option is drawing these panels transparently or not first..
+        if (space.show_region_toolbar):
+            toolbar_region = next((r for r in space.regions if r.type == 'TOOLS'), None)
+            if (toolbar_region):
+                view_left += toolbar_region.width
+                view_width -= toolbar_region.width
+        if (space.show_region_ui):
+            ui_region = next((r for r in space.regions if r.type == 'UI'), None)
+            if (ui_region):
+                view_width -= ui_region.width # UI panel is typically on the right
 
-    if (target_height <= max_allowed_height):
+    # 2.1 Calculate Minimap Dimensions and Position in Pixel Space
+
+    # minimap dimension change depending on aspect ratio..
+    # recalculate Dimensions based on Width and Max Height Percentages
+    _target_width = view_width * width_percentage
+    _target_height = _target_width / aspect_ratio
+    _max_allowed_height = view_height * height_percentage_max
+
+    if (_target_height <= _max_allowed_height):
         # Height constraint is met, use target width and calculated height
-        minimap_pixel_width = target_width
-        minimap_pixel_height = target_height
+        minimap_pixel_width = _target_width
+        minimap_pixel_height = _target_height
     else:
         # Height constraint exceeded, clamp height and recalculate width
-        minimap_pixel_height = max_allowed_height
+        minimap_pixel_height = _max_allowed_height
         minimap_pixel_width = minimap_pixel_height * aspect_ratio
 
     # Ensure width doesn't exceed available view width (safety clamp)
     minimap_pixel_width = min(minimap_pixel_width, view_width - 2 * padding[0])
-    minimap_pixel_height = minimap_pixel_width / aspect_ratio # Recalculate height if width was clamped
+    
+    # ensure height is adaptive if width was clamped..
+    minimap_pixel_height = minimap_pixel_width / aspect_ratio
 
+    # 2.2 place the minimap on cornets
     match mode:
         case 'BOTTOM_LEFT':
             #bound bottom left
@@ -317,21 +334,26 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
             x = pixel_bottom_left_bound.x + minimap_pixel_width
             y = pixel_bottom_left_bound.y + minimap_pixel_height
             pixel_top_right_bound = Vector((x, y))
-    
+
         case 'TOP_LEFT':
             pass
+            # TODO
             # pixel_bottom_left_x = view_left + padding
             # pixel_bottom_left_y = view_height - minimap_pixel_height - padding
+
         case 'TOP_RIGHT':
             pass
+            # TODO
             # pixel_bottom_left_x = view_left + view_width - minimap_pixel_width - padding
             # pixel_bottom_left_y = view_height - minimap_pixel_height - padding
+
         case 'BOTTOM_RIGHT':
             pass
+            # TODO
             # pixel_bottom_left_x = view_left + view_width - minimap_pixel_width - padding
             # pixel_bottom_left_y = view_bottom + padding
 
-    # 4. Draw the Minimap Background Rectangle
+    # 3. Draw the Minimap Background Rectangle
     bounds_area = (pixel_bottom_left_bound, pixel_top_right_bound)
     draw_beveled_rectangle(
         bounds_area,
@@ -341,7 +363,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
         border_radius=scene_sett.minimap_border_radius,
         )
 
-    # 5. draw nodes within minimap
+    # 4. draw nodes within minimap
 
     all_nodes = node_tree.nodes[:]
 
@@ -363,8 +385,13 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
         Vector((bounds_area[1].x - inner_padding[0], bounds_area[1].y - inner_padding[1]))
         )
 
-    # gather positions and map them
+    # gather bounds positions and map them
     all_bounds = [loc for node in all_nodes for loc in get_node_bounds(node)] #flatten. will be 2x the length
+    #these boundspositions might be not accurate, we scale them with a factor
+    if (scene_sett.minimap_node_dimension_factor[:]!=(0,0)):
+        for loc in all_bounds:
+            loc.x *= scene_sett.minimap_node_dimension_factor[0]
+            loc.y *= scene_sett.minimap_node_dimension_factor[1]
     all_positions = map_positions(np.array(all_bounds), bounds_nodetree, bounds_area_clamp,)
 
     # sort the element we are going to draw arranged with their draw args as well..
@@ -394,6 +421,8 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
         #selectin states
         select = all_select_states[i]
         active = all_active_states[i]
+        if (not scene_sett.minimap_node_draw_selection):
+            select = select and active
 
         #get bounds
         node_bounds = all_positions[i*2], all_positions[i*2+1]
@@ -405,7 +434,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
         #header drawing?
         header_height, header_color = None, None
         if ((scene_sett.minimap_node_draw_header) and (not node.hide) and (node.type!='FRAME')):
-            header_height = scene_sett.minimap_node_header_height * max(min(1, zoom_factor/2), 0.35)
+            header_height = max(scene_sett.minimap_node_header_height * min(1, dezoom_factor), scene_sett.minimap_node_header_minheight)
             header_color = node_color
             node_color = scene_sett.minimap_node_body_color
                 
@@ -435,7 +464,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
             header_color=item[7],
             )
         
-    # 6. draw the view zone area
+    # 5. draw the view zone area
 
     # Get view bounds in node space
     view_min_x, view_min_y = view2d.region_to_view(view_left, view_bottom)
@@ -445,23 +474,23 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     # Map view bounds from node space to minimap pixel space
     mapped_view_bounds = map_positions(
         np.array(bounds_view_nodetree), 
-        bounds_nodetree, 
+        bounds_nodetree,
         bounds_area,
         )
 
-    # Check for overlap
+    # Check for overlap, when the view is fully within the minimap bounds..
     min_map_x, min_map_y = bounds_area[0]
     max_map_x, max_map_y = bounds_area[1]
     
     mapped_view_min_x, mapped_view_min_y = mapped_view_bounds[0]
     mapped_view_max_x, mapped_view_max_y = mapped_view_bounds[1]
 
-    overlap = (mapped_view_max_x > min_map_x and
-               mapped_view_min_x < max_map_x and
-               mapped_view_max_y > min_map_y and
-               mapped_view_min_y < max_map_y)
+    #overlapping, we draw the view rectangle!
+    if (mapped_view_max_x > min_map_x and
+        mapped_view_min_x < max_map_x and
+        mapped_view_max_y > min_map_y and
+        mapped_view_min_y < max_map_y):
 
-    if overlap:
         # Clamp the mapped view bounds to the minimap area
         clamped_view_min_x = max(min_map_x, mapped_view_min_x)
         clamped_view_min_y = max(min_map_y, mapped_view_min_y)
@@ -470,11 +499,11 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
 
         # Ensure valid bounds after clamping
         if clamped_view_max_x > clamped_view_min_x and clamped_view_max_y > clamped_view_min_y:
+            
             bounds_view_minimap = (
                 (clamped_view_min_x, clamped_view_min_y),
-                (clamped_view_max_x, clamped_view_max_y)
+                (clamped_view_max_x, clamped_view_max_y),
                 )
-
             draw_beveled_rectangle(
                 bounds_view_minimap,
                 fill_color=scene_sett.minimap_view_fill_color,
@@ -485,56 +514,63 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
                 )
     else:
         # No overlap: Draw collapsed lines on the border
-        
-        view_line_color = scene_sett.minimap_view_outline_color
-        view_line_width = scene_sett.minimap_view_outline_width
 
-        # Define segment length for corner indicators (e.g., 10% of smaller dimension)
-        map_width = max_map_x - min_map_x
-        map_height = max_map_y - min_map_y
-        segment_length = min(map_width, map_height) * 0.1
-
-        is_fully_left = mapped_view_max_x <= min_map_x
+        is_fully_left  = mapped_view_max_x <= min_map_x
         is_fully_right = mapped_view_min_x >= max_map_x
         is_fully_below = mapped_view_max_y <= min_map_y
         is_fully_above = mapped_view_min_y >= max_map_y
 
-        drawn = False # Flag to avoid drawing edge lines if a corner was drawn
+        corner_lines = None
+        corner_lines_lenght = min(max_map_x - min_map_x, max_map_y - min_map_y) * 0.1 #min(map_width, map_height)
 
-        # Corner Cases
-        if is_fully_left and is_fully_above: # Top Left Corner
-            draw_line((min_map_x, max_map_y - segment_length), (min_map_x, max_map_y), view_line_color, view_line_width)
-            draw_line((min_map_x, max_map_y), (min_map_x + segment_length, max_map_y), view_line_color, view_line_width)
-            drawn = True
-        elif is_fully_right and is_fully_above: # Top Right Corner
-            draw_line((max_map_x, max_map_y - segment_length), (max_map_x, max_map_y), view_line_color, view_line_width)
-            draw_line((max_map_x - segment_length, max_map_y), (max_map_x, max_map_y), view_line_color, view_line_width)
-            drawn = True
-        elif is_fully_left and is_fully_below: # Bottom Left Corner
-            draw_line((min_map_x, min_map_y), (min_map_x, min_map_y + segment_length), view_line_color, view_line_width)
-            draw_line((min_map_x, min_map_y), (min_map_x + segment_length, min_map_y), view_line_color, view_line_width)
-            drawn = True
-        elif is_fully_right and is_fully_below: # Bottom Right Corner
-            draw_line((max_map_x, min_map_y), (max_map_x, min_map_y + segment_length), view_line_color, view_line_width)
-            draw_line((max_map_x - segment_length, min_map_y), (max_map_x, min_map_y), view_line_color, view_line_width)
-            drawn = True
+        # The bounding box is fully on corners?
+        if (is_fully_left and is_fully_above): # Top Left Corner
+            line1 = (min_map_x, max_map_y - corner_lines_lenght), (min_map_x, max_map_y)
+            line2 = (min_map_x, max_map_y), (min_map_x + corner_lines_lenght, max_map_y)
+            corner_lines = (line1, line2)
 
-        # Edge Cases (only if no corner was drawn)
-        if not drawn:
+        elif (is_fully_right and is_fully_above): # Top Right Corner
+            line1 = (max_map_x, max_map_y - corner_lines_lenght), (max_map_x, max_map_y)
+            line2 = (max_map_x - corner_lines_lenght, max_map_y), (max_map_x, max_map_y)
+            corner_lines = (line1, line2)
+
+        elif (is_fully_left and is_fully_below): # Bottom Left Corner
+            line1 = (min_map_x, min_map_y), (min_map_x, min_map_y + corner_lines_lenght)
+            line2 = (min_map_x, min_map_y), (min_map_x + corner_lines_lenght, min_map_y)
+            corner_lines = (line1, line2)
+
+        elif (is_fully_right and is_fully_below): # Bottom Right Corner
+            line1 = (max_map_x, min_map_y), (max_map_x, min_map_y + corner_lines_lenght)
+            line2 = (max_map_x - corner_lines_lenght, min_map_y), (max_map_x, min_map_y)
+            corner_lines = (line1, line2)
+        
+        if (corner_lines is not None):
+            for line in corner_lines:
+                draw_line(
+                    *line,
+                    scene_sett.minimap_view_outline_color,
+                    scene_sett.minimap_view_outline_width,
+                    )
+
+        # The view box is fully on sides?
+        if (corner_lines is None):
+
             # Clamp coordinates for line extent calculation
-            y1_c = max(min_map_y, mapped_view_min_y)
-            y2_c = min(max_map_y, mapped_view_max_y)
-            x1_c = max(min_map_x, mapped_view_min_x)
-            x2_c = min(max_map_x, mapped_view_max_x)
+            y1_c, y2_c = max(min_map_y, mapped_view_min_y), min(max_map_y, mapped_view_max_y)
+            x1_c, x2_c = max(min_map_x, mapped_view_min_x), min(max_map_x, mapped_view_max_x)
 
-            if is_fully_left and y2_c > y1_c:
-                draw_line((min_map_x, y1_c), (min_map_x, y2_c), view_line_color, view_line_width)
-            if is_fully_right and y2_c > y1_c:
-                draw_line((max_map_x, y1_c), (max_map_x, y2_c), view_line_color, view_line_width)
-            if is_fully_below and x2_c > x1_c:
-                draw_line((x1_c, min_map_y), (x2_c, min_map_y), view_line_color, view_line_width)
-            if is_fully_above and x2_c > x1_c:
-                draw_line((x1_c, max_map_y), (x2_c, max_map_y), view_line_color, view_line_width)
+            if (is_fully_left and y2_c > y1_c):  line = (min_map_x, y1_c), (min_map_x, y2_c)
+            if (is_fully_right and y2_c > y1_c): line = (max_map_x, y1_c), (max_map_x, y2_c)
+            if (is_fully_below and x2_c > x1_c): line = (x1_c, min_map_y), (x2_c, min_map_y)
+            if (is_fully_above and x2_c > x1_c): line = (x1_c, max_map_y), (x2_c, max_map_y)
+            else: line = None
+
+            if (line is not None):
+                draw_line(
+                    *line,
+                    scene_sett.minimap_view_outline_color,
+                    scene_sett.minimap_view_outline_width,
+                    )
 
     # NOTE store the minimap bounds in a global dict. 
     # might need to be accessed by other tools..
