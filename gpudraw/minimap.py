@@ -276,6 +276,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     zoom_factor = view_width / node_tree_width
 
     # Subtract panel widths if they are visible
+    # TODO need to find which theme option is drawing these panels transparently or not first..
     # if (space.show_region_toolbar):
     #     toolbar_region = next((r for r in space.regions if r.type == 'TOOLS'), None)
     #     if (toolbar_region):
@@ -356,9 +357,10 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     all_active_states = [n == node_tree.nodes.active for n in all_nodes]
 
     # we add padding to the bounds
+    inner_padding = 15,15
     bounds_area_clamp = (
-        Vector((bounds_area[0].x + padding[0], bounds_area[0].y + padding[1])),
-        Vector((bounds_area[1].x - padding[0], bounds_area[1].y - padding[1]))
+        Vector((bounds_area[0].x + inner_padding[0], bounds_area[0].y + inner_padding[1])),
+        Vector((bounds_area[1].x - inner_padding[0], bounds_area[1].y - inner_padding[1]))
         )
 
     # gather positions and map them

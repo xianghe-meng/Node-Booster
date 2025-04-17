@@ -152,6 +152,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         default=1.5,
         name="Outline Width",
         min=0,
+        soft_max=5,
         )
     minimap_outline_color : bpy.props.FloatVectorProperty(
         default=(0.180751, 0.180751, 0.180751, 0.891667),

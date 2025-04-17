@@ -206,7 +206,7 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             col.prop(sett_scene,"minimap_width_percentage", slider=True, text="Size %",)
             col.prop(sett_scene,"minimap_outline_width", text="Outline",)
             col.prop(sett_scene,"minimap_outline_color", text=" ",)
-            col.prop(sett_scene,"minimap_border_radius", text="Bevel",)
+            # col.prop(sett_scene,"minimap_border_radius", text="Bevel",)
             col.prop(sett_scene,"minimap_padding", text="Padding",)
             # col.prop(sett_scene,"minimap_draw_type", text="Draw Type",)
 
@@ -242,7 +242,7 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             col.prop(sett_scene,"minimap_view_fill_color", text="Fill",)
             col.prop(sett_scene,"minimap_view_outline_color", text="Outline",)
             col.prop(sett_scene,"minimap_view_outline_width", text="Width",)
-            col.prop(sett_scene,"minimap_view_border_radius", text="Bevel",)
+            # col.prop(sett_scene,"minimap_view_border_radius", text="Bevel",)
 
         return None
 
