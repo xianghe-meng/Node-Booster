@@ -249,7 +249,7 @@ def get_node_bounds(node, dimension_factor=None,) -> tuple[Vector, Vector]:
     #     return a,b
     
     # apply a dimension factor if provided.
-    if (dimension_factor is not None):
+    if (dimension_factor is not None) and (node.type != 'FRAME'):
         dim.x *= dimension_factor[0]
         dim.y *= dimension_factor[1]
 
