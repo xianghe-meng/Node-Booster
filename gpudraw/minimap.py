@@ -17,7 +17,7 @@
 # - per area size! and should be able to resize it by hovering on top/right or corner
 # - choose between the 4 locations. minimap_emplacement
 # - draw the cursor location in the minimap, as a red point.
-
+# - fixed size vs %, choose between minimap_width_percentage or minimap_width_pixels with a new enum
 
 import bpy
 import gpu
@@ -289,7 +289,6 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
         return None
 
     scene_sett = bpy.context.scene.nodebooster
-    width_percentage, height_percentage_max = scene_sett.minimap_width_percentage
     padding = scene_sett.minimap_padding
 
     # do we even want to show the minimap?
@@ -343,26 +342,39 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 
     # 2.1 Calculate Minimap Dimensions and Position in Pixel Space
 
-    # minimap dimension change depending on aspect ratio..
-    # recalculate Dimensions based on Width and Max Height Percentages
-    _target_width = view_width * width_percentage
-    _target_height = _target_width / aspect_ratio
-    _max_allowed_height = view_height * height_percentage_max
+    match scene_sett.minimap_auto_aspect_ratio:
 
-    if (_target_height <= _max_allowed_height):
-        # Height constraint is met, use target width and calculated height
-        minimap_pixel_width = _target_width
-        minimap_pixel_height = _target_height
-    else:
-        # Height constraint exceeded, clamp height and recalculate width
-        minimap_pixel_height = _max_allowed_height
-        minimap_pixel_width = minimap_pixel_height * aspect_ratio
+        # Auto aspect ratio: Calculate based on node bounds and clamp to max percentages
+        case True:
+            width_percentage, height_percentage_max = scene_sett.minimap_width_percentage
+            _target_width = view_width * width_percentage
+            _target_height = _target_width / aspect_ratio
+            _max_allowed_height = view_height * height_percentage_max
 
-    # Ensure width doesn't exceed available view width (safety clamp)
-    minimap_pixel_width = min(minimap_pixel_width, view_width - 2 * padding[0])
-    
-    # ensure height is adaptive if width was clamped..
-    minimap_pixel_height = minimap_pixel_width / aspect_ratio
+            if (_target_height <= _max_allowed_height):
+                # Height constraint is met, use target width and calculated height
+                minimap_pixel_width = _target_width
+                minimap_pixel_height = _target_height
+            else:
+                # Height constraint exceeded, clamp height and recalculate width
+                minimap_pixel_height = _max_allowed_height
+                minimap_pixel_width = minimap_pixel_height * aspect_ratio
+
+            # Ensure width doesn't exceed available view width (safety clamp)
+            minimap_pixel_width = min(minimap_pixel_width, view_width - 2 * padding[0])
+            
+            # ensure height is adaptive if width was clamped..
+            minimap_pixel_height = minimap_pixel_width / aspect_ratio
+
+        # Fixed aspect ratio: Use width/height percentages directly
+        case False:
+            width_percentage, height_percentage = scene_sett.minimap_width_percentage
+            minimap_pixel_width = view_width * width_percentage
+            minimap_pixel_height = view_height * height_percentage
+
+            # Clamp to available view space minus padding
+            minimap_pixel_width = min(minimap_pixel_width, view_width - 2 * padding[0])
+            minimap_pixel_height = min(minimap_pixel_height, view_height - 2 * padding[1])
 
     # 2.2 place the minimap on cornets
     mode = 'BOTTOM_LEFT'
@@ -376,33 +388,58 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
             x = pixel_bottom_left_bound.x + minimap_pixel_width
             y = pixel_bottom_left_bound.y + minimap_pixel_height
             pixel_top_right_bound = Vector((x, y))
-
-        case 'TOP_LEFT':
-            pass
-            # TODO
-            # pixel_bottom_left_x = view_left + padding
-            # pixel_bottom_left_y = view_height - minimap_pixel_height - padding
-
-        case 'TOP_RIGHT':
-            pass
-            # TODO
-            # pixel_bottom_left_x = view_left + view_width - minimap_pixel_width - padding
-            # pixel_bottom_left_y = view_height - minimap_pixel_height - padding
-
-        case 'BOTTOM_RIGHT':
-            pass
-            # TODO
-            # pixel_bottom_left_x = view_left + view_width - minimap_pixel_width - padding
-            # pixel_bottom_left_y = view_bottom + padding
+        # case 'TOP_LEFT':
+        #     pass
+        # case 'TOP_RIGHT':
+        #     pass
+        # case 'BOTTOM_RIGHT':
+        #     pass
 
     # 3. Draw the Minimap Background Rectangle
-    bounds_area = (pixel_bottom_left_bound, pixel_top_right_bound)
+
+    bounds_minimap_background = (pixel_bottom_left_bound, pixel_top_right_bound)
     draw_beveled_rectangle(
-        bounds_area,
+        bounds_minimap_background,
         fill_color=scene_sett.minimap_fill_color,
         outline_color=scene_sett.minimap_outline_color,
         outline_width=scene_sett.minimap_outline_width,
         border_radius=scene_sett.minimap_border_radius,
+        )
+
+    # 3.1 Also get the bouds of the nodetree zone of the minimap 
+    # (might not be the same as the minimap bounds if the crop aspect ration is enabled)
+    
+    bounds_mapping_target = bounds_minimap_background
+    
+    if (scene_sett.minimap_auto_aspect_ratio==False):
+
+        minimap_aspect = minimap_pixel_width / minimap_pixel_height if minimap_pixel_height > 0 else 1
+        nodetree_aspect = node_tree_width / node_tree_height if node_tree_height > 0 else 1
+
+        map_min_x, map_min_y = bounds_minimap_background[0]
+        map_max_x, map_max_y = bounds_minimap_background[1]
+        target_min_x, target_min_y = map_min_x, map_min_y
+        target_max_x, target_max_y = map_max_x, map_max_y
+
+        if abs(minimap_aspect - nodetree_aspect) > 1e-5: # Check if aspect ratios differ significantly
+            if minimap_aspect > nodetree_aspect: # Minimap wider than node tree
+                target_width = minimap_pixel_height * nodetree_aspect
+                offset_x = (minimap_pixel_width - target_width) / 2
+                target_min_x = map_min_x + offset_x
+                target_max_x = map_max_x - offset_x
+            else: # Minimap taller than node tree
+                target_height = minimap_pixel_width / nodetree_aspect
+                offset_y = (minimap_pixel_height - target_height) / 2
+                target_min_y = map_min_y + offset_y
+                target_max_y = map_max_y - offset_y
+            
+            bounds_mapping_target = (Vector((target_min_x, target_min_y)), Vector((target_max_x, target_max_y)))
+
+    # we add padding to the mapping target bounds
+    inner_padding = 15,15
+    bounds_minimap_nodetree = (
+        Vector((bounds_mapping_target[0].x + inner_padding[0], bounds_mapping_target[0].y + inner_padding[1])),
+        Vector((bounds_mapping_target[1].x - inner_padding[0], bounds_mapping_target[1].y - inner_padding[1]))
         )
 
     # 4. draw nodes within minimap
@@ -420,16 +457,9 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
     all_select_states = [n.select for n in all_nodes]
     all_active_states = [n == node_tree.nodes.active for n in all_nodes]
 
-    # we add padding to the bounds
-    inner_padding = 15,15
-    bounds_area_clamp = (
-        Vector((bounds_area[0].x + inner_padding[0], bounds_area[0].y + inner_padding[1])),
-        Vector((bounds_area[1].x - inner_padding[0], bounds_area[1].y - inner_padding[1]))
-        )
-
     # gather bounds positions and map them 2x bounds loc per node
     all_bounds = [loc for node in all_nodes for loc in get_node_bounds(node)] 
-    all_positions = map_positions(np.array(all_bounds), bounds_nodetree, bounds_area_clamp,)
+    all_positions = map_positions(np.array(all_bounds), bounds_nodetree, bounds_minimap_nodetree,)
 
     # sort the element we are going to draw arranged with their draw args as well..
     frame_to_draw, node_to_draw = [], []
@@ -484,8 +514,8 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
             node_color = (*node.color[:3], 0.9)
 
         #pack item
+        #       0   1        2            3            4               5              6              7
         item = [i, node, node_color, node_bounds, outline_width, outline_color, header_height, header_color,]
-
         if (node.type == 'FRAME'):
             frame_to_draw.append(item)
             continue
@@ -494,8 +524,6 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 
     #draw node and frame elements
     for item in frame_to_draw + node_to_draw:
-        #[i, node, node_color, node_bounds, outline_width, outline_color, header_height, header_color]
-        # 0   1       2            3            4               5               6               7
         draw_simple_rectangle(
             item[3],
             fill_color=item[2],
@@ -541,14 +569,14 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
     mapped_view_bounds = map_positions(
         np.array(bounds_view_nodetree), 
         bounds_nodetree,
-        bounds_area,
+        bounds_minimap_nodetree,
         )
 
     # 5.3 we draw the view zone, as a rectangle, line, or as a corner.
 
     # Check for overlap, when the view is fully within the minimap bounds..
-    min_map_x, min_map_y = bounds_area[0]
-    max_map_x, max_map_y = bounds_area[1]
+    min_map_x, min_map_y = bounds_minimap_background[0]
+    max_map_x, max_map_y = bounds_minimap_background[1]
     
     mapped_view_min_x, mapped_view_min_y = mapped_view_bounds[0]
     mapped_view_max_x, mapped_view_max_y = mapped_view_bounds[1]
@@ -582,7 +610,6 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
                 )
     else:
         # No overlap: Draw collapsed lines on the border
-
         is_fully_left  = mapped_view_max_x <= min_map_x
         is_fully_right = mapped_view_min_x >= max_map_x
         is_fully_below = mapped_view_max_y <= min_map_y
@@ -642,32 +669,34 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 
     # NOTE store the minimap bounds in a global dict. 
     # might need to be accessed by other tools..
-    MINIMAP_BOUNDS[str(area.as_pointer())] = (pixel_bottom_left_bound, pixel_top_right_bound)
+    MINIMAP_BOUNDS[str(area.as_pointer())] = bounds_minimap_background
     
     # # 7. Draw Cursor Indicator
-    # TODO later, need to find the API to get the cursor location in node space..
-    # if scene_sett.minimap_cursor_show:
-    
-    #     win_mouse_x = bpy.context.window.mouse_x
-    #     win_mouse_y = bpy.context.window.mouse_y
-    #     mouse_region_x = win_mouse_x - window_region.x
-    #     mouse_region_y = win_mouse_y - window_region.y
+    if False:
+        ...
+        #TODO later, need to find the API to get the cursor location in node space..
+        if scene_sett.minimap_cursor_show:
+        
+            win_mouse_x = bpy.context.window.mouse_x
+            win_mouse_y = bpy.context.window.mouse_y
+            mouse_region_x = win_mouse_x - window_region.x
+            mouse_region_y = win_mouse_y - window_region.y
 
-    #     map_min_x, map_min_y = bounds_area[0]
-    #     map_max_x, map_max_y = bounds_area[1]
+            map_min_x, map_min_y = bounds_minimap_background[0]
+            map_max_x, map_max_y = bounds_minimap_background[1]
 
-    #     # Check if mouse coords are valid and inside the minimap bounds
-    #     is_valid = mouse_region_x >= 0 and mouse_region_y >= 0
-    #     is_inside = is_valid and (map_min_x <= mouse_region_x <= map_max_x and
-    #                                map_min_y <= mouse_region_y <= map_max_y)
+            # Check if mouse coords are valid and inside the minimap bounds
+            is_valid = mouse_region_x >= 0 and mouse_region_y >= 0
+            is_inside = is_valid and (map_min_x <= mouse_region_x <= map_max_x and
+                                    map_min_y <= mouse_region_y <= map_max_y)
 
-    #     if is_inside:
-    #         draw_circle(
-    #             center_pos=(mouse_region_x, mouse_region_y),
-    #             radius=scene_sett.minimap_cursor_radius,
-    #             color=scene_sett.minimap_cursor_color,
-    #             segments=12 # Lower segment count for small circle
-    #         )
+            if is_inside:
+                draw_circle(
+                    center_pos=(mouse_region_x, mouse_region_y),
+                    radius=scene_sett.minimap_cursor_radius,
+                    color=scene_sett.minimap_cursor_color,
+                    segments=12 # Lower segment count for small circle
+                    )
     
     return None
 
@@ -772,24 +801,32 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
             aspect_ratio = 'VERTICAL' if (minimap_width / minimap_height < 1) else 'HORIZONTAL'
             
             #get movement direction info and determine the movements ratio
+
             direction = self._action_rescaling_edge['direction']
             match direction:
                 case 'TOP':
+                    axis = 1
                     start_pos = self._action_rescaling_edge['start_mouse'][1]
                     current_pos = mouse_y
                     target_pos = MINIMAP_BOUNDS[str(area.as_pointer())][0][1]
                     ratio = 1 - (current_pos - start_pos) / (target_pos - start_pos)
                 case 'RIGHT':
+                    axis = 0
                     start_pos = self._action_rescaling_edge['start_mouse'][0]
                     current_pos = mouse_x
                     target_pos = MINIMAP_BOUNDS[str(area.as_pointer())][0][0]
                     ratio = 1 - (current_pos - start_pos) / (target_pos - start_pos)
             
             # assign the value depending on the aspect ratio
-            axis = 0 if (aspect_ratio=='HORIZONTAL') else 1
+
+            if (scene_sett.minimap_auto_aspect_ratio):
+                axis = 0 if (aspect_ratio=='HORIZONTAL') else 1
             start_value = self._action_rescaling_edge['start_value'][axis]
             new_value = start_value * ratio
-            scene_sett.minimap_width_percentage = new_value, new_value
+
+            if (scene_sett.minimap_auto_aspect_ratio):
+                  scene_sett.minimap_width_percentage = new_value, new_value
+            else: scene_sett.minimap_width_percentage[axis] = new_value
             
             #give it a redraw kick
             area.tag_redraw()

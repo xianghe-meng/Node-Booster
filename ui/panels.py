@@ -195,6 +195,7 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
         sett_scene = context.scene.nodebooster
 
         layout = self.layout
+        layout.active = sett_scene.minimap_show
 
         header, panel = layout.panel("minimap_sh_params", default_closed=False,)
         header.label(text="Behaviors",)
@@ -208,6 +209,10 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             subcol.prop(sett_win,"minimap_modal_operator_is_active", text="Enabled",)
             subcol.prop(sett_addon,"auto_launch_minimap_navigation",)
             
+            subcol = col.column()
+            subcol.prop(sett_scene,"minimap_width_percentage", slider=True, text="Size")
+            subcol.prop(sett_scene,"minimap_auto_aspect_ratio", text="Crop",)
+            
             subcol = col.column(heading="Panel",)
             subcol.prop(sett_scene,"minimap_auto_tool_panel_collapse", text="Auto Collapse",)
 
@@ -220,7 +225,6 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             col.use_property_decorate = False
 
             col.prop(sett_scene,"minimap_fill_color", text="Fill",)
-            col.prop(sett_scene,"minimap_width_percentage", slider=True, text="Size %",)
             col.prop(sett_scene,"minimap_outline_width", text="Outline",)
             col.prop(sett_scene,"minimap_outline_color", text=" ",)
             # col.prop(sett_scene,"minimap_border_radius", text="Bevel",)

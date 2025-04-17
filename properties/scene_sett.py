@@ -127,6 +127,11 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         name="Auto Collapse",
         description="Automatically collapse the Tool panel when the minimap is enabled.",
         )
+    minimap_auto_aspect_ratio : bpy.props.BoolProperty(
+        default=True,
+        name="Auto Aspect Ratio",
+        description="Automatically adjust the aspect ratio of the minimap to fit all nodes. If disabled, use Size X/Y percentages directly.",
+        )
     minimap_draw_type : bpy.props.EnumProperty(
         name="DrawType",
         description="Choose whenever this drawing is done on the background or on the foreground of the node editor space, either as an underlay or an overlay.",
@@ -137,6 +142,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
     #     items=[("BOTTOM_LEFT","Bottom Left","Bottom Left"),("TOP_LEFT","Top Left","Top Left"),("TOP_RIGHT","Top Right","Top Right"),("BOTTOM_RIGHT","Bottom Right","Bottom Right")],
     #     name="Emplacement",
     #     )
+    # minimap_width_pixels : bpy.props.IntVectorProperty(
     minimap_width_percentage : bpy.props.FloatVectorProperty(
         default=(0.25,0.50),
         name="Minimap Size",
