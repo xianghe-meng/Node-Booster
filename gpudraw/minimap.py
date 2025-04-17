@@ -484,24 +484,55 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     else:
         # No overlap: Draw collapsed lines on the border
         
-        # Clamp coordinates for line extent calculation
-        y1_c = max(min_map_y, mapped_view_min_y)
-        y2_c = min(max_map_y, mapped_view_max_y)
-        x1_c = max(min_map_x, mapped_view_min_x)
-        x2_c = min(max_map_x, mapped_view_max_x)
+        view_line_color = scene_sett.minimap_view_outline_color
+        view_line_width = scene_sett.minimap_view_outline_width
 
-        # Draw lines on relevant borders
-        if mapped_view_max_x <= min_map_x and y2_c > y1_c: # Fully Left
-            draw_line((min_map_x, y1_c), (min_map_x, y2_c), scene_sett.minimap_view_outline_color, scene_sett.minimap_view_outline_width)
+        # Define segment length for corner indicators (e.g., 10% of smaller dimension)
+        map_width = max_map_x - min_map_x
+        map_height = max_map_y - min_map_y
+        segment_length = min(map_width, map_height) * 0.1
 
-        if mapped_view_min_x >= max_map_x and y2_c > y1_c: # Fully Right
-            draw_line((max_map_x, y1_c), (max_map_x, y2_c), scene_sett.minimap_view_outline_color, scene_sett.minimap_view_outline_width)
+        is_fully_left = mapped_view_max_x <= min_map_x
+        is_fully_right = mapped_view_min_x >= max_map_x
+        is_fully_below = mapped_view_max_y <= min_map_y
+        is_fully_above = mapped_view_min_y >= max_map_y
 
-        if mapped_view_max_y <= min_map_y and x2_c > x1_c: # Fully Below
-            draw_line((x1_c, min_map_y), (x2_c, min_map_y), scene_sett.minimap_view_outline_color, scene_sett.minimap_view_outline_width)
+        drawn = False # Flag to avoid drawing edge lines if a corner was drawn
 
-        if mapped_view_min_y >= max_map_y and x2_c > x1_c: # Fully Above
-            draw_line((x1_c, max_map_y), (x2_c, max_map_y), scene_sett.minimap_view_outline_color, scene_sett.minimap_view_outline_width)
+        # Corner Cases
+        if is_fully_left and is_fully_above: # Top Left Corner
+            draw_line((min_map_x, max_map_y - segment_length), (min_map_x, max_map_y), view_line_color, view_line_width)
+            draw_line((min_map_x, max_map_y), (min_map_x + segment_length, max_map_y), view_line_color, view_line_width)
+            drawn = True
+        elif is_fully_right and is_fully_above: # Top Right Corner
+            draw_line((max_map_x, max_map_y - segment_length), (max_map_x, max_map_y), view_line_color, view_line_width)
+            draw_line((max_map_x - segment_length, max_map_y), (max_map_x, max_map_y), view_line_color, view_line_width)
+            drawn = True
+        elif is_fully_left and is_fully_below: # Bottom Left Corner
+            draw_line((min_map_x, min_map_y), (min_map_x, min_map_y + segment_length), view_line_color, view_line_width)
+            draw_line((min_map_x, min_map_y), (min_map_x + segment_length, min_map_y), view_line_color, view_line_width)
+            drawn = True
+        elif is_fully_right and is_fully_below: # Bottom Right Corner
+            draw_line((max_map_x, min_map_y), (max_map_x, min_map_y + segment_length), view_line_color, view_line_width)
+            draw_line((max_map_x - segment_length, min_map_y), (max_map_x, min_map_y), view_line_color, view_line_width)
+            drawn = True
+
+        # Edge Cases (only if no corner was drawn)
+        if not drawn:
+            # Clamp coordinates for line extent calculation
+            y1_c = max(min_map_y, mapped_view_min_y)
+            y2_c = min(max_map_y, mapped_view_max_y)
+            x1_c = max(min_map_x, mapped_view_min_x)
+            x2_c = min(max_map_x, mapped_view_max_x)
+
+            if is_fully_left and y2_c > y1_c:
+                draw_line((min_map_x, y1_c), (min_map_x, y2_c), view_line_color, view_line_width)
+            if is_fully_right and y2_c > y1_c:
+                draw_line((max_map_x, y1_c), (max_map_x, y2_c), view_line_color, view_line_width)
+            if is_fully_below and x2_c > x1_c:
+                draw_line((x1_c, min_map_y), (x2_c, min_map_y), view_line_color, view_line_width)
+            if is_fully_above and x2_c > x1_c:
+                draw_line((x1_c, max_map_y), (x2_c, max_map_y), view_line_color, view_line_width)
 
     # NOTE store the minimap bounds in a global dict. 
     # might need to be accessed by other tools..
