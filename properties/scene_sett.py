@@ -141,7 +141,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         size=2,
         )
     minimap_fill_color : bpy.props.FloatVectorProperty(
-        default=(0.120647, 0.120647, 0.120647, 0.891667),
+        default=(0.120647, 0.120647, 0.120647, 0.990),
         subtype="COLOR",
         name="Fill Color",
         min=0,
@@ -210,4 +210,31 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         min=0,
         max=1,
         size=4,
+        )
+    #view outline
+    minimap_view_fill_color : bpy.props.FloatVectorProperty(
+        default=(0.296174, 0.040511, 0.027817, 0.041667),
+        subtype="COLOR",
+        name="Fill Color",
+        min=0,
+        max=1,
+        size=4,
+        )
+    minimap_view_outline_color : bpy.props.FloatVectorProperty(
+        default=(1.180751, 0.180751, 0.180751, 0.100000),
+        subtype="COLOR",
+        name="Outline Color",
+        min=0,
+        max=1,
+        size=4,
+        )
+    minimap_view_outline_width : bpy.props.FloatProperty(
+        default=1.0,
+        name="Outline Width",
+        min=0,
+        )
+    minimap_view_border_radius : bpy.props.FloatProperty(
+        default=4,
+        name="Border Radius",
+        min=0,
         )

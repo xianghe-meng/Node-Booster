@@ -66,7 +66,10 @@
 #  - Could have an operator for quickly editing a frame description?  Either full custom python editor, or popup a new small window.
 #  - Could implement background reference image. there's even a special drawing method for that in the API.
 #  - could implement a tab switch in the header for quickly switching between different the big 3 editors?
-#  - favorite system  could take a snapshot of the view location and zoom level.
+#  - favorite system improvements:
+#     - could take a snapshot of the view location and zoom level.
+#     - could have a global list of favorites, and directly change nodetree or editor to reach it from one click!!!!! cross editor/ng favorites that way from Npanel..
+#    
 # Nodes Ideas:
 # - Could design portal node. There are ways to hide sockets, even from user CTRL+H, this node could simply pass hidden sockets around? 
 #   Do some tests. Note: would only be nice if we draw a heavy 'portal line' effect from node A to node B. Bonus: animation of the direction.

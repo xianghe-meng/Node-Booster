@@ -194,7 +194,7 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
 
         layout = self.layout
         
-        header, panel = layout.panel("minimap_params", default_closed=False,)
+        header, panel = layout.panel("minimap_map_params", default_closed=True,)
         header.label(text="Map Theme",)
         if (panel):
 
@@ -202,7 +202,7 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             col.use_property_split = True
             col.use_property_decorate = False
 
-            col.prop(sett_scene,"minimap_fill_color", text="Main Color",)
+            col.prop(sett_scene,"minimap_fill_color", text="Fill",)
             col.prop(sett_scene,"minimap_width_percentage", slider=True, text="Size %",)
             col.prop(sett_scene,"minimap_outline_width", text="Outline",)
             col.prop(sett_scene,"minimap_outline_color", text=" ",)
@@ -210,7 +210,7 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             col.prop(sett_scene,"minimap_padding", text="Padding",)
             # col.prop(sett_scene,"minimap_draw_type", text="Draw Type",)
 
-        header, panel = layout.panel("minimap_params", default_closed=False,)
+        header, panel = layout.panel("minimap_node_params", default_closed=True,)
         header.label(text="Nodes Theme",)
         if (panel):
 
@@ -229,7 +229,20 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             childcol = subcol.column()
             childcol.active = sett_scene.minimap_node_draw_header
             childcol.prop(sett_scene,"minimap_node_header_height", text="Height",)
-            col.prop(sett_scene,"minimap_node_body_color", text="Node Body",)
+            col.prop(sett_scene,"minimap_node_body_color", text="Body",)
+
+        header, panel = layout.panel("minimap_view_params", default_closed=True,)
+        header.label(text="View Theme",)
+        if (panel):
+
+            col = panel.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+
+            col.prop(sett_scene,"minimap_view_fill_color", text="Fill",)
+            col.prop(sett_scene,"minimap_view_outline_color", text="Outline",)
+            col.prop(sett_scene,"minimap_view_outline_width", text="Width",)
+            col.prop(sett_scene,"minimap_view_border_radius", text="Bevel",)
 
         return None
 
@@ -241,7 +254,7 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
     bl_category = "Node Booster"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
-    bl_order = 4
+    bl_order = 5
     bl_options = {'DEFAULT_CLOSED'} 
 
     @classmethod

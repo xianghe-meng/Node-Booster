@@ -238,7 +238,7 @@ def get_node_bounds(node) -> tuple[Vector, Vector]:
     if (node.type == 'FRAME'):
           dim = Vector((node.width, node.height))
           dim.x += 40 ; dim.y += 20
-    else: dim = node.dimensions
+    else: dim = Vector((node.width, node.dimensions.y))
 
     # First attempt..
     # if (node.type == 'FRAME') and (node.shrink):

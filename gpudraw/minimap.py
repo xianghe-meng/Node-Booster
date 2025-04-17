@@ -17,6 +17,12 @@ from ..utils.node_utils import (
     get_nodes_bounds,
 )
 
+# TODO bonus
+# - support Y favorite star. 
+# - per area size! and should be able to resize it by hovering on top/right or corner
+# - choose between the 4 locations. minimap_emplacement
+
+
 #Global dict of minimap bounds being draw, key is the area as_pointer() memory adress as str
 MINIMAP_BOUNDS = {}
 
@@ -146,6 +152,25 @@ def draw_beveled_rectangle(bounds,
     
     return None
 
+def draw_line(point1, point2, color, width):
+    """Draw a simple line between two points."""
+    original_blend = gpu.state.blend_get()
+    original_line_width = gpu.state.line_width_get()
+
+    gpu.state.blend_set('ALPHA')
+    gpu.state.line_width_set(width)
+
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+    shader.uniform_float("color", color)
+    batch = batch_for_shader(shader, 'LINES', {"pos": [point1, point2]})
+    batch.draw(shader)
+
+    # Restore state
+    gpu.state.line_width_set(original_line_width)
+    gpu.state.blend_set(original_blend)
+
+    return None
+
 def draw_simple_rectangle(bounds,
     fill_color=(0.1, 0.1, 0.1, 0.8),
     outline_color=None,
@@ -227,7 +252,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     # do we even want to show the minimap?
     if (not scene_sett.minimap_show):
         return None
-    
+
     # 1. Find the minimap bounds from the nodetree.nodes
 
     #rassemble all nodes bounds
@@ -245,7 +270,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     aspect_ratio = node_tree_width / node_tree_height
 
     # 2. Calculate Available View Area (in pixels, accounting for panels)
-
+    
     view_bottom, view_left = 0, 0
     view_width, view_height = window_region.width, window_region.height
     zoom_factor = view_width / node_tree_width
@@ -291,7 +316,7 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
             x = pixel_bottom_left_bound.x + minimap_pixel_width
             y = pixel_bottom_left_bound.y + minimap_pixel_height
             pixel_top_right_bound = Vector((x, y))
-
+    
         case 'TOP_LEFT':
             pass
             # pixel_bottom_left_x = view_left + padding
@@ -331,20 +356,25 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
     all_active_states = [n == node_tree.nodes.active for n in all_nodes]
 
     # we add padding to the bounds
-    bounds_area = (
+    bounds_area_clamp = (
         Vector((bounds_area[0].x + padding[0], bounds_area[0].y + padding[1])),
         Vector((bounds_area[1].x - padding[0], bounds_area[1].y - padding[1]))
         )
 
     # gather positions and map them
     all_bounds = [loc for node in all_nodes for loc in get_node_bounds(node)] #flatten. will be 2x the length
-    all_positions = map_positions(np.array(all_bounds), bounds_nodetree, bounds_area,)
+    all_positions = map_positions(np.array(all_bounds), bounds_nodetree, bounds_area_clamp,)
 
     # sort the element we are going to draw arranged with their draw args as well..
     frame_to_draw, node_to_draw = [], []
 
     for i in range(len(all_nodes)):        
+
         node = all_nodes[i]
+
+        #we skip reroutes..
+        if (node.type =='REROUTE'):
+            continue
 
         #get the node main color
         node_color = all_colors[i]
@@ -402,6 +432,76 @@ def draw_minimap(node_tree, area, window_region, view2d, dpi_fac, zoom,
             header_height=item[6],
             header_color=item[7],
             )
+        
+    # 6. draw the view zone area
+
+    # Get view bounds in node space
+    view_min_x, view_min_y = view2d.region_to_view(view_left, view_bottom)
+    view_max_x, view_max_y = view2d.region_to_view(view_left + view_width, view_bottom + view_height)
+    bounds_view_nodetree = (Vector((view_min_x, view_min_y)), Vector((view_max_x, view_max_y)))
+
+    # Map view bounds from node space to minimap pixel space
+    mapped_view_bounds = map_positions(
+        np.array(bounds_view_nodetree), 
+        bounds_nodetree, 
+        bounds_area,
+        )
+
+    # Check for overlap
+    min_map_x, min_map_y = bounds_area[0]
+    max_map_x, max_map_y = bounds_area[1]
+    
+    mapped_view_min_x, mapped_view_min_y = mapped_view_bounds[0]
+    mapped_view_max_x, mapped_view_max_y = mapped_view_bounds[1]
+
+    overlap = (mapped_view_max_x > min_map_x and
+               mapped_view_min_x < max_map_x and
+               mapped_view_max_y > min_map_y and
+               mapped_view_min_y < max_map_y)
+
+    if overlap:
+        # Clamp the mapped view bounds to the minimap area
+        clamped_view_min_x = max(min_map_x, mapped_view_min_x)
+        clamped_view_min_y = max(min_map_y, mapped_view_min_y)
+        clamped_view_max_x = min(max_map_x, mapped_view_max_x)
+        clamped_view_max_y = min(max_map_y, mapped_view_max_y)
+
+        # Ensure valid bounds after clamping
+        if clamped_view_max_x > clamped_view_min_x and clamped_view_max_y > clamped_view_min_y:
+            bounds_view_minimap = (
+                (clamped_view_min_x, clamped_view_min_y),
+                (clamped_view_max_x, clamped_view_max_y)
+                )
+
+            draw_beveled_rectangle(
+                bounds_view_minimap,
+                fill_color=scene_sett.minimap_view_fill_color,
+                outline_color=scene_sett.minimap_view_outline_color,
+                outline_width=scene_sett.minimap_view_outline_width,
+                border_radius=scene_sett.minimap_view_border_radius,
+                border_sides=6,
+                )
+    else:
+        # No overlap: Draw collapsed lines on the border
+        
+        # Clamp coordinates for line extent calculation
+        y1_c = max(min_map_y, mapped_view_min_y)
+        y2_c = min(max_map_y, mapped_view_max_y)
+        x1_c = max(min_map_x, mapped_view_min_x)
+        x2_c = min(max_map_x, mapped_view_max_x)
+
+        # Draw lines on relevant borders
+        if mapped_view_max_x <= min_map_x and y2_c > y1_c: # Fully Left
+            draw_line((min_map_x, y1_c), (min_map_x, y2_c), scene_sett.minimap_view_outline_color, scene_sett.minimap_view_outline_width)
+
+        if mapped_view_min_x >= max_map_x and y2_c > y1_c: # Fully Right
+            draw_line((max_map_x, y1_c), (max_map_x, y2_c), scene_sett.minimap_view_outline_color, scene_sett.minimap_view_outline_width)
+
+        if mapped_view_max_y <= min_map_y and x2_c > x1_c: # Fully Below
+            draw_line((x1_c, min_map_y), (x2_c, min_map_y), scene_sett.minimap_view_outline_color, scene_sett.minimap_view_outline_width)
+
+        if mapped_view_min_y >= max_map_y and x2_c > x1_c: # Fully Above
+            draw_line((x1_c, max_map_y), (x2_c, max_map_y), scene_sett.minimap_view_outline_color, scene_sett.minimap_view_outline_width)
 
     # NOTE store the minimap bounds in a global dict. 
     # might need to be accessed by other tools..
