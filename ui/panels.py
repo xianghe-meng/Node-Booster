@@ -204,10 +204,6 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             col = panel.column()
             col.use_property_split = True
             col.use_property_decorate = False
-
-            subcol = col.column(heading="Navigate",)
-            subcol.prop(sett_win,"minimap_modal_operator_is_active", text="Enabled",)
-            subcol.prop(sett_addon,"auto_launch_minimap_navigation",)
             
             subcol = col.column()
             subcol.prop(sett_scene,"minimap_width_percentage", slider=True, text="Size")
@@ -215,6 +211,33 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             
             subcol = col.column(heading="Panel",)
             subcol.prop(sett_scene,"minimap_auto_tool_panel_collapse", text="Auto Collapse",)
+
+        header, panel = layout.panel("minimap_nav_params", default_closed=False,)
+        header.prop(sett_win,"minimap_modal_operator_is_active", text="Navigate",)
+        if (panel):
+
+            col = panel.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+            
+            subcol = col.column(heading="Startup",)
+            subcol.prop(sett_addon,"auto_launch_minimap_navigation",)
+
+            subcol = col.column(heading="Shortcuts",)
+            subcol.prop(sett_scene,"minimap_triple_click_dezoom", text="Frame All",)
+
+        header, panel = layout.panel("minimap_cursor_params", default_closed=True,)
+        header.prop(sett_scene,"minimap_cursor_show", text="Cursor",)
+        if (panel):
+
+            col = panel.column()
+            col.active = sett_scene.minimap_cursor_show
+            col.use_property_split = True
+            col.use_property_decorate = False
+
+            subcol = col.column(heading="Cursor")
+            subcol.prop(sett_scene,"minimap_cursor_radius", text="Radius",)
+            subcol.prop(sett_scene,"minimap_cursor_color", text="Color",)
 
         header, panel = layout.panel("minimap_map_params", default_closed=True,)
         header.label(text="Map Theme",)
@@ -268,18 +291,6 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             col.prop(sett_scene,"minimap_view_outline_color", text="Outline",)
             col.prop(sett_scene,"minimap_view_outline_width", text="Width",)
             # col.prop(sett_scene,"minimap_view_border_radius", text="Bevel",)
-            
-        # header, panel = layout.panel("minimap_cursor_params", default_closed=True,)
-        # header.label(text="Cursor Theme",)
-        # if (panel):
-
-        #     col = panel.column()
-        #     col.use_property_split = True
-        #     col.use_property_decorate = False
-
-        #     col.prop(sett_scene,"minimap_cursor_show", text="Show",)
-        #     col.prop(sett_scene,"minimap_cursor_radius", text="Radius",)
-        #     col.prop(sett_scene,"minimap_cursor_color", text="Color",)
 
         return None
 

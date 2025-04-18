@@ -242,7 +242,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         size=4,
         )
     minimap_view_outline_color : bpy.props.FloatVectorProperty(
-        default=[1.180751, 0.180751, 0.180751, 0.395833],
+        default=(1.0, 0.180751, 0.180751, 0.395833),
         subtype="COLOR",
         name="Outline Color",
         min=0,
@@ -260,19 +260,27 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         min=0,
         )
     #cursor
-    # minimap_cursor_show : bpy.props.BoolProperty(
-    #     default=True,
-    #     name="Show",
-    #     )
-    # minimap_cursor_radius : bpy.props.FloatProperty(
-    #     default=4,
-    #     name="Radius",
-    #     )
-    # minimap_cursor_color : bpy.props.FloatVectorProperty(
-    #     default=(0.296174, 0.040511, 0.027817, 0.0),
-    #     subtype="COLOR",
-    #     name="Color",
-    #     min=0,
-    #     max=1,
-    #     size=4,
-    #     )
+    minimap_cursor_show : bpy.props.BoolProperty(
+        default=True,
+        name="Show",
+        )
+    minimap_cursor_radius : bpy.props.FloatProperty(
+        default=1.5,
+        name="Radius",
+        min=0.5,
+        soft_max=25,
+        )
+    minimap_cursor_color : bpy.props.FloatVectorProperty(
+        default=(1.0, 0.180751, 0.180751, 1.0),
+        subtype="COLOR",
+        name="Color",
+        min=0,
+        max=1,
+        size=4,
+        )
+    #navigation shortcuts
+    minimap_triple_click_dezoom : bpy.props.BoolProperty(
+        default=True,
+        name="Quick Dezoom",
+        description="Quickly dezoom the node editor view to fit the integrity of the nodes by clicking 3 times on the minimap.",
+        )
