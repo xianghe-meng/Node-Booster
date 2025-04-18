@@ -36,7 +36,7 @@ class NODEBOOSTER_AddonPref(bpy.types.AddonPreferences):
     #minimap
     auto_launch_minimap_navigation : bpy.props.BoolProperty(
         default=True,
-        name="Auto Launch",
+        name="Auto Enable",
         description="Automatically launch the minimap navigation modal when loading the addon and loading new .blend files.",
         )
 

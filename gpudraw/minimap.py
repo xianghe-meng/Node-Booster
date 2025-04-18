@@ -38,6 +38,8 @@ from ..utils.node_utils import (
 
 #Global dict of minimap bounds being draw, key is the area as_pointer() memory adress as str
 MINIMAP_BOUNDS = {}
+MINIMAP_VIEWBOUNDS = {}
+NAVIGATION_EVENT = {'panning':False,}
 
 COLOR_TAG_TO_THEME_API = {
     'NONE':'group_socket_node',
@@ -283,20 +285,18 @@ def draw_circle(center_pos, radius, color, segments=16):
 def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
     """draw a minimap of the node_tree in the node_editor area"""
 
-    # Do we even have some nodes to draw?
-    if ((not node_tree) or (not node_tree.nodes)):
-        MINIMAP_BOUNDS[str(area.as_pointer())] = (Vector((0,0)), Vector((0,0)))
-        return None
-
+    area_key = str(area.as_pointer())
     scene_sett = bpy.context.scene.nodebooster
     padding = scene_sett.minimap_padding
 
-    # do we even want to show the minimap?
-    if (not scene_sett.minimap_show):
-        MINIMAP_BOUNDS[str(area.as_pointer())] = (Vector((0,0)), Vector((0,0)))
-        return None
-    if (scene_sett.minimap_auto_tool_panel_collapse) and (not space.show_region_toolbar):
-        MINIMAP_BOUNDS[str(area.as_pointer())] = (Vector((0,0)), Vector((0,0)))
+    # Do we even want to show the minimap?
+    if (not node_tree) or \
+       (not node_tree.nodes) or \
+       (not scene_sett.minimap_show) or \
+       (scene_sett.minimap_auto_tool_panel_collapse and (not space.show_region_toolbar)
+        ):
+        MINIMAP_BOUNDS[area_key] = (Vector((0,0)), Vector((0,0)))
+        MINIMAP_VIEWBOUNDS[area_key] = (Vector((0,0)), Vector((0,0)))
         return None
 
     # 1. Find the minimap bounds from the nodetree.nodes
@@ -405,7 +405,10 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
         outline_width=scene_sett.minimap_outline_width,
         border_radius=scene_sett.minimap_border_radius,
         )
-
+    
+    # communicate the bounds with the navigation operator
+    MINIMAP_BOUNDS[area_key] = bounds_minimap_background
+    
     # 3.1 Also get the bouds of the nodetree zone of the minimap 
     # (might not be the same as the minimap bounds if the crop aspect ration is enabled)
     
@@ -564,6 +567,7 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
     view_max_y = center_vy + span_vy / 2
 
     # 5.2 we remap the view zone to fit the minimap bounds.
+
     # Map view bounds from node space to minimap pixel space
     bounds_view_nodetree = (Vector((view_min_x, view_min_y)), Vector((view_max_x, view_max_y)))
     mapped_view_bounds = map_positions(
@@ -571,6 +575,9 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
         bounds_nodetree,
         bounds_minimap_nodetree,
         )
+
+    # communicate the bounds with the navigation operator
+    MINIMAP_VIEWBOUNDS[area_key] = (Vector(mapped_view_bounds[0]), Vector(mapped_view_bounds[1]))
 
     # 5.3 we draw the view zone, as a rectangle, line, or as a corner.
 
@@ -581,6 +588,14 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
     mapped_view_min_x, mapped_view_min_y = mapped_view_bounds[0]
     mapped_view_max_x, mapped_view_max_y = mapped_view_bounds[1]
 
+    # change minimap color if panning
+    if (NAVIGATION_EVENT['panning']==True):
+        view_fill = scene_sett.minimap_view_outline_color[:3]+(0.025,)
+        view_width = scene_sett.minimap_view_outline_width * 1.75
+    else:
+        view_fill = scene_sett.minimap_view_fill_color[:]
+        view_width = scene_sett.minimap_view_outline_width
+    
     #overlapping, we draw the view rectangle!
     if (mapped_view_max_x > min_map_x and
         mapped_view_min_x < max_map_x and
@@ -602,11 +617,11 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
                 )
             draw_beveled_rectangle(
                 bounds_view_minimap,
-                fill_color=scene_sett.minimap_view_fill_color,
+                fill_color=view_fill,
+                outline_width=view_width,
                 outline_color=scene_sett.minimap_view_outline_color,
-                outline_width=scene_sett.minimap_view_outline_width,
                 border_radius=scene_sett.minimap_view_border_radius,
-                border_sides=6,
+                border_sides=7,
                 )
     else:
         # No overlap: Draw collapsed lines on the border
@@ -666,10 +681,6 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
                     scene_sett.minimap_view_outline_color,
                     scene_sett.minimap_view_outline_width,
                     )
-
-    # NOTE store the minimap bounds in a global dict. 
-    # might need to be accessed by other tools..
-    MINIMAP_BOUNDS[str(area.as_pointer())] = bounds_minimap_background
     
     # # 7. Draw Cursor Indicator
     if False:
@@ -712,6 +723,9 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 #                                            "Y88888P'                                                
 
 
+#NOTE need to clean up this operator, it's a mess.. modals..
+
+
 class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
     """Handles mouse interaction within the minimap area."""
 
@@ -724,7 +738,12 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
         self._timer = None
         self._cursor_modified = None
         self._last_click_time = 0 #for double click
+        self._second_last_click_time = 0 # for triple click
         self._action_rescaling_edge = None
+        self._is_panning = False
+        self._pan_start_mouse = None
+        self._last_mouse_pos = None
+        self._clicks = []
 
     def find_region_under_mouse(self, context, event):
 
@@ -783,8 +802,70 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
         area, region, mouse_x, mouse_y = self.find_region_under_mouse(context, event)
         if (area is None or region is None):
             self.restore_cursor(context)
+            NAVIGATION_EVENT['panning'] = False
+            # Reset panning if mouse leaves the area
+            if self._is_panning:
+                self._is_panning = False
+                self._pan_start_mouse = None
+                self._last_mouse_pos = None
             return {'PASS_THROUGH'}
         
+        area_key = str(area.as_pointer())
+        current_mouse_pos = Vector((mouse_x, mouse_y))
+
+        # Triple click event - View All (CHECK THIS FIRST!)
+        is_third_click = False
+        if (event.type == 'LEFTMOUSE' and event.value == 'PRESS'): # Check Press again for click timing
+            current_time = time.time()
+            click_threshold = 0.2 # seconds
+            self._clicks.append(current_time)
+            if (len(self._clicks)>3):
+                if (self._clicks[-1] - self._clicks[-2] < click_threshold) and (self._clicks[-2] - self._clicks[-3] < click_threshold):
+                    is_third_click = True
+
+        # Handle Panning Gesture
+        if (self._is_panning):
+            if (event.type == 'MOUSEMOVE'):
+                if (self._last_mouse_pos and area_key in MINIMAP_VIEWBOUNDS):
+                    view_min_screen, view_max_screen = MINIMAP_VIEWBOUNDS[area_key]
+                    view_rect_width_screen = view_max_screen.x - view_min_screen.x
+                    view_rect_height_screen = view_max_screen.y - view_min_screen.y
+
+                    zoom_x = region.width / view_rect_width_screen if view_rect_width_screen > 1e-5 else 0
+                    zoom_y = region.height / view_rect_height_screen if view_rect_height_screen > 1e-5 else 0
+
+                    mouse_move_delta = current_mouse_pos - self._last_mouse_pos
+
+                    pan_delta_x = mouse_move_delta.x * zoom_x
+                    pan_delta_y = mouse_move_delta.y * zoom_y
+
+                    if abs(pan_delta_x) > 0 or abs(pan_delta_y) > 0:
+                        with context.temp_override(area=area, region=region):
+                            bpy.ops.view2d.pan(deltax=round(pan_delta_x), deltay=round(pan_delta_y))
+
+                    self._last_mouse_pos = current_mouse_pos
+                return {'RUNNING_MODAL'}
+
+            elif event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
+                self._is_panning = False
+                NAVIGATION_EVENT['panning'] = False
+                self._pan_start_mouse = None
+                self._last_mouse_pos = None
+                # Cursor restoration will be handled below based on position
+                # Force redraw to update view if needed
+                area.tag_redraw()
+                # Re-evaluate cursor state immediately after stopping pan
+                # Fall through to the cursor check logic below
+
+            elif event.type == 'ESC': # Cancel panning on ESC
+                 self._is_panning = False
+                 self._pan_start_mouse = None
+                 self._last_mouse_pos = None
+                 self.restore_cursor(context)
+                 NAVIGATION_EVENT['panning'] = False
+                 area.tag_redraw()
+                 return {'RUNNING_MODAL'}
+
         #handle rescaling gesture
         if (self._action_rescaling_edge is not None):
             
@@ -834,8 +915,8 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
             # print(f'start_pos: {start_pos}, current_pos: {current_pos}, target_pos: {target_pos}, ratio: {ratio}')
             return {'RUNNING_MODAL'}
         
-        #special case for 
-        if (event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE','T','N',}):
+        #special case for pan passthrough (if not already panning)
+        if (not self._is_panning and event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE','T','N',}):
             self.restore_cursor(context)
             return {'PASS_THROUGH'}
 
@@ -844,46 +925,39 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
         is_on_edge = None
         is_over_minimap = False
 
-        area_key = str(area.as_pointer())
         if (area_key in MINIMAP_BOUNDS):
             min_b, max_b = MINIMAP_BOUNDS[area_key]
 
             # hovering on the minimap?
             is_over_minimap = (min_b.x <= mouse_x <= max_b.x and
                                min_b.y <= mouse_y <= max_b.y)
-            # hovering on it's corner?
-            # Check top-right corner
-            if ((-5.5 <= max_b.y - mouse_y <= 5.5) and (min_b.x<=mouse_x<=max_b.x)):
-                is_on_edge = 'TOP'
-            elif ((-5.5 <= max_b.x - mouse_x <= 5.5) and (min_b.y<=mouse_y<=max_b.y)):
-                is_on_edge = 'RIGHT'
-            # elif ((-5.5 <= mouse_x - min_b.x <= 5.5) and (min_b.y<=mouse_y<=max_b.y)):
-            #     is_on_edge = 'LEFT'
-            # elif ((-5.5 <= mouse_y - min_b.y <= 5.5) and (min_b.x<=mouse_x<=max_b.x)):
-            #     is_on_edge = 'BOTTOM'
+            # hovering on it's edge (only top/right for resizing)?
+            if (is_over_minimap and not self._is_panning): # Only check edge if over and not panning
+                if ((-5.5 <= max_b.y - mouse_y <= 5.5)):
+                    is_on_edge = 'TOP'
+                elif ((-5.5 <= max_b.x - mouse_x <= 5.5)):
+                    is_on_edge = 'RIGHT'
 
-        # Update Cursor style
-        
-        if (is_on_edge in {'TOP', 'BOTTOM'}):
-            if (self._cursor_modified != 'MOVE_Y'):
-                context.window.cursor_modal_set('MOVE_Y')
-                self._cursor_modified = 'MOVE_Y'
-        
-        elif (is_on_edge in {'LEFT', 'RIGHT'}):
-            if (self._cursor_modified != 'MOVE_X'):
-                context.window.cursor_modal_set('MOVE_X')
-                self._cursor_modified = 'MOVE_X'
-        
-        elif (is_over_minimap):
-            if (self._cursor_modified != 'HAND'):
-                context.window.cursor_modal_set('HAND')
-                self._cursor_modified = 'HAND'
-        else:
-            self.restore_cursor(context)
+        # Update Cursor style (only if not panning, panning cursor is set during pan start)
+        if not self._is_panning:
+            if (is_on_edge == 'TOP'):
+                if (self._cursor_modified != 'MOVE_Y'):
+                    context.window.cursor_modal_set('MOVE_Y')
+                    self._cursor_modified = 'MOVE_Y'
+            elif (is_on_edge == 'RIGHT'):
+                if (self._cursor_modified != 'MOVE_X'):
+                    context.window.cursor_modal_set('MOVE_X')
+                    self._cursor_modified = 'MOVE_X'
+            elif (is_over_minimap):
+                if (self._cursor_modified != 'HAND'):
+                    context.window.cursor_modal_set('HAND') # Use HAND for potential pan
+                    self._cursor_modified = 'HAND'
+            else:
+                self.restore_cursor(context)
 
         # Initiate or launch an action from events..
 
-        if (is_on_edge):
+        if (is_on_edge and not self._is_panning): # Only allow resize start if not panning
 
             # Click event.
             if (event.type == 'LEFTMOUSE' and event.value == 'PRESS'):
@@ -897,24 +971,71 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
 
             return {'RUNNING_MODAL'}
 
-        elif (is_over_minimap):
-            
-            #Click event
+        elif (is_over_minimap): # Only allow pan/zoom start if not panning/resizing
+
+            if is_third_click:
+                print("Triple click detected - running view_all()")
+                with context.temp_override(area=area, region=region):
+                    bpy.ops.node.view_all()
+                # Reset click times fully to prevent immediate re-triggering
+                self._last_click_time = 0
+                self._second_last_click_time = 0
+                # Consume the event after triple click
+                return {'RUNNING_MODAL'}
+
+            # Click event - Initiate Panning (Only if not a triple click)
+            # Check press again, and ensure it wasn't just consumed by triple click logic
             if (event.type == 'LEFTMOUSE' and event.value == 'PRESS'):
-                # TODO implement moving the view to the clicked position.
-                print("Minimap clicked.")
-            
-            #Double click event
-            if (event.type == 'LEFTMOUSE' and event.value == 'PRESS'):
-                # Check for double click by measuring time between clicks, 250ms threshold
-                current_time = time.time()
-                if (hasattr(self, '_last_click_time') and (current_time - self._last_click_time) < 0.25): 
-                    with context.temp_override(area=area, region=region):
-                        bpy.ops.node.view_all()
-                    self._last_click_time = 0  # Reset to prevent triple-click detection
-                else:
-                    self._last_click_time = current_time
-            
+                # We already updated click times above, check if it was the *first* click in a potential sequence
+                # by seeing if second_last_click_time was reset by a successful triple click or is still 0
+                #is_potentially_first_click = (self._second_last_click_time == 0 and self._last_click_time != 0)
+
+                if area_key in MINIMAP_VIEWBOUNDS:
+                    view_min_screen, view_max_screen = MINIMAP_VIEWBOUNDS[area_key]
+                    view_rect_width_screen = view_max_screen.x - view_min_screen.x
+                    view_rect_height_screen = view_max_screen.y - view_min_screen.y
+
+                    # Check if view bounds are valid before starting pan
+                    if view_rect_width_screen > 1e-5 and view_rect_height_screen > 1e-5:
+                        zoom_x = region.width / view_rect_width_screen
+                        zoom_y = region.height / view_rect_height_screen
+
+                        view_center_screen = (view_min_screen + view_max_screen) / 2.0
+
+                        delta_x = (current_mouse_pos.x - view_center_screen.x) * zoom_x
+                        delta_y = (current_mouse_pos.y - view_center_screen.y) * zoom_y
+
+                        # Perform initial pan to center on the clicked point
+                        with context.temp_override(area=area, region=region):
+                            bpy.ops.view2d.pan(deltax=round(delta_x), deltay=round(delta_y))
+
+                        self._is_panning = True
+                        NAVIGATION_EVENT['panning'] = True
+                        self._pan_start_mouse = current_mouse_pos
+                        self._last_mouse_pos = current_mouse_pos
+                        context.window.cursor_modal_set('SCROLL_XY') # Set pan cursor
+                        self._cursor_modified = 'SCROLL_XY'
+                        print("Minimap panning started.")
+                        area.tag_redraw()
+                        # Reset click times because we started panning
+                        self._last_click_time = 0
+                        self._second_last_click_time = 0
+                        return {'RUNNING_MODAL'}
+                    else:
+                        print("Minimap pan failed: Invalid view bounds.")
+                        # Reset click times if pan failed
+                        self._last_click_time = 0
+                        self._second_last_click_time = 0
+                # elif is_potentially_first_click: # Failed because area_key not in MINIMAP_VIEWBOUNDS
+                #     print("Minimap pan failed: View bounds not found.")
+                #     # Reset click times if pan failed
+                #     self._last_click_time = 0
+                #     self._second_last_click_time = 0
+                # If not is_potentially_first_click, it means it was the 2nd click,
+                # or triple click logic handled it, so we don't start panning.
+
+            # If we get here, it was either not a LEFTMOUSE press, or it was handled
+            # (triple click) or failed to start panning, or was a 2nd click.
             return {'RUNNING_MODAL'}
 
         # Allow other events (keyboard shortcuts, etc.) to pass through if not handled above
@@ -938,6 +1059,11 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
         # Ensure cursor is restored on cancellation
         self.restore_cursor(context)
         
+        # Reset internal states
+        self._is_panning = False
+        NAVIGATION_EVENT['panning'] = False
+        self._action_rescaling_edge = None
+
         # Clean up timer when the modal stops
         if (self._timer):
             context.window_manager.event_timer_remove(self._timer)
