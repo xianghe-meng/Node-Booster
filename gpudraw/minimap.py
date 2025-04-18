@@ -916,7 +916,7 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
             return {'RUNNING_MODAL'}
         
         #special case for pan passthrough (if not already panning)
-        if (not self._is_panning and event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE','T','N',}):
+        if (not self._is_panning and event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE','T','N','TAB',}):
             self.restore_cursor(context)
             return {'PASS_THROUGH'}
 
