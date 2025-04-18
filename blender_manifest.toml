@@ -8,5 +8,5 @@ type = "add-on"
 tags = ["Geometry Nodes","Node"]
 blender_version_min = "4.2.0"
 license = ["SPDX:GPL-2.0-or-later"]
-website = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
+website = "https://blenderartists.org/t/node-booster-extending-blender-node-editors"
 copyright = ["2025 BD3D DIGITAL DESIGN"]

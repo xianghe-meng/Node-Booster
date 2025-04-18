@@ -2,7 +2,7 @@
 Enjoy a free collection of new nodes, and functionalities for blender NodeEditors!
 
 # Support and Documentation
-Read the documentation, or engage with other users on this [blender artist topic](https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free)
+Read the documentation, or engage with other users on this [blender artist topic](https://blenderartists.org/t/node-booster-extending-blender-node-editors)
 
 # Issues
 Report only bugs on the 'Issues' github page, no support or general questions are allowed!

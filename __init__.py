@@ -162,7 +162,7 @@ bl_info = {
     "location": "Node Editor",
     "description": "Please install this addon as a blender extension instead of a legacy addon!",
     "warning": "",
-    "doc_url": "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free",
+    "doc_url": "https://blenderartists.org/t/node-booster-extending-blender-node-editors",
     "category": "Node",
 }
 

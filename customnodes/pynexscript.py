@@ -702,7 +702,7 @@ class Base():
             word_wrap(layout=panel, alert=False, active=True, max_char='auto',
                 char_auto_sidepadding=0.9, context=context, string=n.bl_description,
                 )
-            panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-new-nodes-and-functionalities-for-node-wizards-for-free"
+            panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/node-booster-extending-blender-node-editors"
 
         header, panel = layout.panel("doc_glossid", default_closed=True,)
         header.label(text="Glossary",)
