@@ -207,7 +207,7 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             
             subcol = col.column()
             subcol.prop(sett_scene,"minimap_width_percentage", slider=True, text="Size")
-            subcol.prop(sett_scene,"minimap_auto_aspect_ratio", text="Crop",)
+            subcol.prop(sett_scene,"minimap_auto_aspect_ratio", text="Auto Crop",)
             
             subcol = col.column(heading="Panel",)
             subcol.prop(sett_scene,"minimap_auto_tool_panel_collapse", text="Auto Collapse",)

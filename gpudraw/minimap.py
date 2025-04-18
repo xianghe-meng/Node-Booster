@@ -3,10 +3,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # TODO important
+# - frames children draw order aren't taken into account well. frame in a frame in a frame will produce messy results
 # - take into cons panels sides, find why sometimes they are visible sometimes not in theme settings. see the impact on the minimap.
-# - navigation system, click to automatically transport view. 
-#   implement it via a special shortcut operator?? or a modal. so we detect if touching, automatically? 
-#   could even change mouse look on hover, or change side with corner.
 # - stress test, optimize code if needed.
 
 # TODO bonus
