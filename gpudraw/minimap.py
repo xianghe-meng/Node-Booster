@@ -4,8 +4,10 @@
 
 # TODO important
 # - frames children draw order aren't taken into account well. frame in a frame in a frame will produce messy results
+# - fix frame behavior on blender 4.3 (see bug Geo-Scatter engine.blend..)
+#   - fix slow performance..
 # - take into cons panels sides, find why sometimes they are visible sometimes not in theme settings. see the impact on the minimap.
-# - stress test, optimize code if needed.
+# - stress test, optimize code if needed (see erindale scene)
 
 # TODO bonus
 # - BUG dpi scaling is not perfect. if ui_scale is above 1.35 it starts to jump. unsure why.
@@ -68,6 +70,10 @@ def get_theme_color(node):
 
     user_theme = bpy.context.preferences.themes.get('Default')
     node_theme = user_theme.node_editor
+    
+    if (not hasattr(node, 'color_tag')):
+        print("WARNING: minimap node.color_tag API is not available in blender 4.3 or below.")
+        return (0.5, 0.5, 0.5, 0.2)
 
     color = tuple(getattr(node_theme, COLOR_TAG_TO_THEME_API[node.color_tag]))
     if len(color) == 3:

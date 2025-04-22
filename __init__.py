@@ -84,12 +84,13 @@
 # - Evaluate sequencer images? Possible to feed the sequencer render to the nodes? Hmm
 # - SoundData Info Node: Sample the sound? Generate a sound geometry curve? Evaluate Sound at time? If we work based on sound, perhaps it's for the best isn't it?
 # - See if it's possible to imitate a multi-socket like the geometry join node, in customNode, and in customNodegroup. multi math ect would be nice.
-# - IF CustomSocketTypes works with NativeSockets:
-#     - we could port the interpolation nodes from AnimationNodes?
-#       problem is: how do apply the interpolation, to what kind of data, and how?
-#         we could use Float/Vector Curve.
-#         for geometry node we can even make a curve. 
-#         problem is, what about map range?? see how it's internally calculated.
+# - Interpolation Socket:
+#     - add mirror node
+#     - fit bounds node
+#     - interpolation loop could have a mirror mode! instread or repeating from start/end it would be original/mirror/original ect..
+#     - sethandle auto/vectorized
+#     - add interpolation make noise node? or 2d curve noise with option for noise in X or Y or both directions.
+# - Custom Sockets:
 #     - We could have some sort of gamelogic nodes?
 #     - mess with multi sockets like the join node. Check if we can use a native socket with this option?? 
 #       how could we possibly do that?
