@@ -2210,6 +2210,12 @@ def NexFactory(NODEINSTANCE, ALLINPUTS=[], ALLOUTPUTS=[], CALLHISTORY=[],):
 
                 # or we simply output a default python constant value
                 case _:
+                    
+                    #check if the value may contain next type, if it's an itterable:
+                    if (type(value) in {list, set, tuple}):
+                        for v in value:
+                            if ('Nex' in type(v).__name__):
+                                raise NexError(f"NexError. Cannot assign '{type(value).__name__}' containing Sockets to an output {self.nxtydsp} '{socket_name}'.\nTip: You might want to use combixyz() (or similar combine functions) to combine Sockets together.")
 
                     # try to convert our pyvalue to a socket compatible datatype.
                     newval, _, socktype = trypy_to_Sockdata(value)
