@@ -17,12 +17,21 @@ class NODEBOOSTER_PR_scene_favorites_data(bpy.types.PropertyGroup):
     nodetree_reference : bpy.props.PointerProperty(
         type=bpy.types.NodeTree,
         )
+    material_reference : bpy.props.PointerProperty(
+        type=bpy.types.Material, #NOTE we need this in case user place a favorite to a material.node_tree, material.node_tree are special for some reasons.. can't put them in a Pointer.. 
+        )
     active : bpy.props.BoolProperty(
         default=False, #TODO replace index system with active system
         description="Informal read-only property to track the current active favorite",
         )
+    def get_ng(self):
+        if self.nodetree_reference:
+            return self.nodetree_reference
+        if self.material_reference:
+            return self.material_reference.node_tree
+        return None
     def get_node(self):
-        return self.nodetree_reference.nodes.get(self.name)
+        return self.get_ng().nodes.get(self.name)
     def get_label(self):
         return self.get_node().label
 
@@ -129,10 +138,26 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         )
 
     #favorite tool
-    favorite_index  : bpy.props.IntProperty(
+    favorites_data : bpy.props.CollectionProperty(
+        type=NODEBOOSTER_PR_scene_favorites_data,
+        name="Favorites Data",
+        )
+    favorite_show_filter : bpy.props.EnumProperty(
+        items=[
+            ("GEOMETRY,SHADER,COMPOSITOR","All","All",'SORTALPHA',0),
+            None,
+            ("GEOMETRY","Geometry","Geometry",'GEOMETRY_NODES',1),
+            ("SHADER","Shader","Shader",'NODE_MATERIAL',2),
+            ("COMPOSITOR","Compositor","Compositor",'NODE_COMPOSITING',3),
+            ],
+        default="GEOMETRY,SHADER,COMPOSITOR",
+        name="Show Filter",
+        )
+    favorite_loop_index  : bpy.props.IntProperty(
         default=0,
         description="prop used to take track the the current user favorite",
         )
+    
     
     #minimap
     minimap_show : bpy.props.BoolProperty(
@@ -302,9 +327,5 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         description="Quickly dezoom the node editor view to fit the integrity of the nodes by clicking 3 times on the minimap.",
         )
     
-    favorites_data : bpy.props.CollectionProperty(
-        type=NODEBOOSTER_PR_scene_favorites_data,
-        name="Favorites Data",
-        )
 
 
