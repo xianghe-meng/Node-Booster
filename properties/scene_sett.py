@@ -233,10 +233,6 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         soft_max=50,
         )
     #minimap node
-    minimap_node_use_fast_draw : bpy.props.BoolProperty(
-        default=True,
-        name="Fast Draw",
-        )
     minimap_node_draw_typecolor : bpy.props.BoolProperty(
         default=True,
         name="Draw TypeColor",
@@ -316,7 +312,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         size=4,
         )
     minimap_view_outline_width : bpy.props.FloatProperty(
-        default=1.0,
+        default=4.0,
         name="Outline Width",
         min=0,
         )

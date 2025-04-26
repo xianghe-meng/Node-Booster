@@ -290,11 +290,6 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             
             col.prop(sett_scene,"minimap_node_body_color", text="Body",)
 
-            col.separator(factor=1.55, type='LINE')
-
-            subcol = col.column(heading="Optimize",)
-            subcol.prop(sett_scene,"minimap_node_use_fast_draw", text="Fast Draw",)
-
 
         header, panel = layout.panel("minimap_nav_params", default_closed=False,)
         header.prop(sett_win,"minimap_modal_operator_is_active", text="Use Navigation",)

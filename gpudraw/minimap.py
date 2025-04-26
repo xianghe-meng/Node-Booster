@@ -446,9 +446,16 @@ def draw_batched_nodes_and_frames(items_to_draw):
             # Ensure outline_color is hashable (tuple) for dict key
             outline_color_tuple = tuple(outline_color)
             key = (outline_width, outline_color_tuple)
-            outline_verts = ((x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)) # Closed loop
+            # Vertices for 4 separate lines using 'LINES' mode
+            outline_verts = [
+                (x1, y1), (x2, y1),  # Bottom
+                (x2, y1), (x2, y2),  # Right
+                (x2, y2), (x1, y2),  # Top
+                (x1, y2), (x1, y1)   # Left
+            ]
             outline_batches[key]['verts'].extend(outline_verts)
-            outline_batches[key]['colors'].extend((outline_color,) * 5) # Color per vertex
+            # Need 8 color entries, one per vertex for 'LINES'
+            outline_batches[key]['colors'].extend((outline_color,) * 8)
 
 
     # --- Draw Batches ---
@@ -473,8 +480,7 @@ def draw_batched_nodes_and_frames(items_to_draw):
             gpu.state.line_width_set(width)
             batch_lines = batch_for_shader(
                 shader, # Can use the same shader
-                'LINE_STRIP', # Note: This draws connected segments for *each* outline separately
-                               # If we want truly independent lines, use 'LINES' and duplicate endpoints
+                'LINES', # Use LINES for separate segments
                 {"pos": data['verts'], "color": data['colors']},
             )
             batch_lines.draw(shader) # Draw this group
@@ -753,9 +759,10 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
         continue # Item processed, continue loop
 
     #draw node and frame elements (frame first) using the new batch function
-    if scene_sett.minimap_node_use_fast_draw:
+    if True:
         draw_batched_nodes_and_frames(frame_to_draw + node_to_draw)
     else:
+        #old non optimized version. Might be best to keep this for debug or reference..
         for item in frame_to_draw + node_to_draw:
             draw_simple_rectangle(
                 item[3],
