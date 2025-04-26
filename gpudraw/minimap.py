@@ -28,6 +28,8 @@ import numpy as np
 from mathutils import Vector
 from math import sin, cos, pi
 from gpu_extras.batch import batch_for_shader
+import gpu.types # Import GPUShader
+from collections import defaultdict # For grouping outlines
 
 
 from ..__init__ import get_addon_prefs
@@ -331,6 +333,157 @@ def draw_circle(center_pos, radius, color, segments=16):
 #                                                                      o888o      
 
 
+# --- Custom Shaders ---
+vertex_shader = """
+    uniform mat4 ModelViewProjectionMatrix;
+    in vec2 pos;
+    in vec4 color;
+    out vec4 fragColor;
+
+    void main()
+    {
+        gl_Position = ModelViewProjectionMatrix * vec4(pos.xy, 0.0f, 1.0f);
+        fragColor = color;
+    }
+"""
+
+fragment_shader = """
+    in vec4 fragColor; // Receive color from vertex shader
+    out vec4 outColor;
+
+    // Function to convert sRGB color component to linear
+    float srgb_to_linear(float c) {
+        if (c < 0.04045) {
+            return c * (1.0 / 12.92);
+        } else {
+            return pow((c + 0.055) * (1.0 / 1.055), 2.4);
+        }
+    }
+
+    void main()
+    {
+        // Convert incoming sRGB color to linear space
+        vec3 linear_rgb = vec3(srgb_to_linear(fragColor.r),
+                               srgb_to_linear(fragColor.g),
+                               srgb_to_linear(fragColor.b));
+
+        // Output the linear color, preserving original alpha
+        outColor = vec4(linear_rgb, fragColor.a);
+    }
+"""
+
+# Global shader instance
+_shader = None
+def get_batch_shader():
+    """Gets or creates the custom batch shader."""
+    global _shader
+    if _shader is None:
+        _shader = gpu.types.GPUShader(vertex_shader, fragment_shader)
+    return _shader
+
+def draw_batched_nodes_and_frames(items_to_draw):
+    """
+    Draws multiple node/frame representations (fill, header, outline) efficiently using batch calls.
+    items_to_draw: List of item lists, where each item is:
+        [i, node, node_color, node_bounds, outline_width, outline_color, header_height, header_color]
+    """
+    if not items_to_draw:
+        return
+
+    shader = get_batch_shader()
+
+    # Data for Fills and Headers (Triangles)
+    tris_verts = []
+    tris_colors = []
+    tris_indices = []
+    tris_vert_offset = 0
+
+    # Data for Outlines (Lines - grouped by width and color)
+    outline_batches = defaultdict(lambda: {'verts': [], 'colors': []}) # Key: (width, color_tuple)
+
+    for item in items_to_draw:
+        node_color = item[2]
+        node_bounds = item[3]
+        outline_width = item[4]
+        outline_color = item[5]
+        header_height = item[6]
+        header_color = item[7]
+
+        x1, y1 = node_bounds[0]
+        x2, y2 = node_bounds[1]
+        width, height = x2 - x1, y2 - y1
+
+        if width <= 0 or height <= 0:
+            continue # Skip invalid bounds
+
+        # --- Prepare Fill ---
+        fill_verts = ((x1, y1), (x2, y1), (x1, y2), (x2, y2))
+        tris_verts.extend(fill_verts)
+        tris_colors.extend((node_color,) * 4)
+        tris_indices.extend((
+            (tris_vert_offset + 0, tris_vert_offset + 1, tris_vert_offset + 2),
+            (tris_vert_offset + 1, tris_vert_offset + 3, tris_vert_offset + 2),
+        ))
+        tris_vert_offset += 4
+
+        # --- Prepare Header (if applicable) ---
+        if header_height and header_height > 0 and header_color:
+            header_y = y2 - header_height
+            # Prevent header bigger than node
+            header_y = max(header_y, y1)
+            if header_y < y2: # Ensure positive height
+                header_verts = ((x1, header_y), (x2, header_y), (x1, y2), (x2, y2))
+                tris_verts.extend(header_verts)
+                tris_colors.extend((header_color,) * 4)
+                tris_indices.extend((
+                    (tris_vert_offset + 0, tris_vert_offset + 1, tris_vert_offset + 2),
+                    (tris_vert_offset + 1, tris_vert_offset + 3, tris_vert_offset + 2),
+                ))
+                tris_vert_offset += 4
+
+        # --- Prepare Outline (if applicable) ---
+        if outline_color and outline_width > 0:
+            # Ensure outline_color is hashable (tuple) for dict key
+            outline_color_tuple = tuple(outline_color)
+            key = (outline_width, outline_color_tuple)
+            outline_verts = ((x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)) # Closed loop
+            outline_batches[key]['verts'].extend(outline_verts)
+            outline_batches[key]['colors'].extend((outline_color,) * 5) # Color per vertex
+
+
+    # --- Draw Batches ---
+    original_blend = gpu.state.blend_get()
+    original_line_width = gpu.state.line_width_get()
+    gpu.state.blend_set('ALPHA')
+    shader.bind() # Bind shader once for all batches using it
+
+    # Draw Fills + Headers Batch
+    if tris_verts:
+        batch_tris = batch_for_shader(
+            shader,
+            'TRIS',
+            {"pos": tris_verts, "color": tris_colors},
+            indices=tris_indices
+        )
+        batch_tris.draw(shader)
+
+    # Draw Outline Batches (one per width/color group)
+    for (width, color_tuple), data in outline_batches.items():
+        if data['verts']:
+            gpu.state.line_width_set(width)
+            batch_lines = batch_for_shader(
+                shader, # Can use the same shader
+                'LINE_STRIP', # Note: This draws connected segments for *each* outline separately
+                               # If we want truly independent lines, use 'LINES' and duplicate endpoints
+                {"pos": data['verts'], "color": data['colors']},
+            )
+            batch_lines.draw(shader) # Draw this group
+
+    # Restore State
+    gpu.state.line_width_set(original_line_width)
+    gpu.state.blend_set(original_blend)
+
+
 def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
     """draw a minimap of the node_tree in the node_editor area"""
 
@@ -524,9 +677,10 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 
         node = all_nodes[i]
 
-        #we skip reroutes..
+        #we skip reroutes
         if (node.type =='REROUTE'):
-            #not favorite reroute tho.
+            
+            #except reroute from favorite system
             if scene_sett.minimap_fav_show:
                 if ('is_active_favorite' in node):
                     star_to_draw.append((
@@ -535,6 +689,14 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
                             scene_sett.minimap_fav_size * 1.7 if node["is_active_favorite"] else scene_sett.minimap_fav_size,
                             ))
             continue
+        
+        #skip frames ?
+        elif (node.type == 'FRAME'):
+            if (not scene_sett.minimap_node_draw_frames):
+                continue
+            if (not scene_sett.minimap_node_draw_frames_detail):
+                if (node.parent):
+                    continue
 
         #get the node main color
         node_color = all_colors[i]
@@ -564,39 +726,46 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 
         #header drawing?
         header_height, header_color = None, None
-        if ((scene_sett.minimap_node_draw_header) and (not node.hide) and (node.type!='FRAME')):
-            #define header height..
-            header_height = scene_sett.minimap_node_header_height
-            header_height *= min(1, dezoom_factor) #influeced by dezoom
-            header_height *= rescale_factor
-            header_height = max(header_height, scene_sett.minimap_node_header_minheight)
-            header_color = node_color
-            node_color = scene_sett.minimap_node_body_color
-                
-        #using custom color?
-        if (node.use_custom_color and scene_sett.minimap_node_draw_customcolor):
-            node_color = (*node.color[:3], 0.9)
+        if (node.type!='FRAME'):
+            if ((scene_sett.minimap_node_draw_header) and (not node.hide)):
+                #define header height..
+                header_height = scene_sett.minimap_node_header_height
+                header_height *= min(1, dezoom_factor) #influeced by dezoom
+                header_height *= rescale_factor
+                header_height = max(header_height, scene_sett.minimap_node_header_minheight)
+                header_color = node_color
+                node_color = scene_sett.minimap_node_body_color
+            #using custom color?
+            if (node.use_custom_color and scene_sett.minimap_node_draw_nodecustomcolor):
+                node_color = (*node.color[:3], 0.9)
+        #using custom frame color?
+        else:
+            if (node.use_custom_color and scene_sett.minimap_node_draw_framecustomcolor):
+                node_color = (*node.color[:3], 0.9)
 
         #pack item
         #       0   1        2            3            4               5              6              7
         item = [i, node, node_color, node_bounds, outline_width, outline_color, header_height, header_color,]
         if (node.type == 'FRAME'):
             frame_to_draw.append(item)
-            continue
-        node_to_draw.append(item)
-        continue
+        else:
+            node_to_draw.append(item)
+        continue # Item processed, continue loop
 
-    #draw node and frame elements (frame first)
-    for item in frame_to_draw + node_to_draw:
-        draw_simple_rectangle(
-            item[3],
-            fill_color=item[2],
-            outline_color=item[5],
-            outline_width=item[4],
-            header_height=item[6],
-            header_color=item[7],
-            )
-        
+    #draw node and frame elements (frame first) using the new batch function
+    if scene_sett.minimap_node_use_fast_draw:
+        draw_batched_nodes_and_frames(frame_to_draw + node_to_draw)
+    else:
+        for item in frame_to_draw + node_to_draw:
+            draw_simple_rectangle(
+                item[3],
+                fill_color=item[2],
+                outline_color=item[5],
+                outline_width=item[4],
+                header_height=item[6],
+                header_color=item[7],
+                )
+
     #draw star elements
     if (star_to_draw):
         for favpos,favcol,favsize in star_to_draw:
@@ -647,107 +816,109 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 
     # 5.3 we draw the view zone, as a rectangle, line, or as a corner.
 
-    # Check for overlap, when the view is fully within the minimap bounds..
-    min_map_x, min_map_y = bounds_minimap_background[0]
-    max_map_x, max_map_y = bounds_minimap_background[1]
-    
-    mapped_view_min_x, mapped_view_min_y = mapped_view_bounds[0]
-    mapped_view_max_x, mapped_view_max_y = mapped_view_bounds[1]
-
-    # change minimap color if panning
-    if (NAVIGATION_EVENT['panning']==True):
-        view_fill = scene_sett.minimap_view_outline_color[:3]+(0.025,)
-        view_width = scene_sett.minimap_view_outline_width * 1.75
-    else:
-        view_fill = scene_sett.minimap_view_fill_color[:]
-        view_width = scene_sett.minimap_view_outline_width
-    
-    #overlapping, we draw the view rectangle!
-    if (mapped_view_max_x > min_map_x and
-        mapped_view_min_x < max_map_x and
-        mapped_view_max_y > min_map_y and
-        mapped_view_min_y < max_map_y):
-
-        # Clamp the mapped view bounds to the minimap area
-        clamped_view_min_x = max(min_map_x, mapped_view_min_x)
-        clamped_view_min_y = max(min_map_y, mapped_view_min_y)
-        clamped_view_max_x = min(max_map_x, mapped_view_max_x)
-        clamped_view_max_y = min(max_map_y, mapped_view_max_y)
-
-        # Ensure valid bounds after clamping
-        if clamped_view_max_x > clamped_view_min_x and clamped_view_max_y > clamped_view_min_y:
-            
-            bounds_view_minimap = (
-                (clamped_view_min_x, clamped_view_min_y),
-                (clamped_view_max_x, clamped_view_max_y),
-                )
-            draw_beveled_rectangle(
-                bounds_view_minimap,
-                fill_color=view_fill,
-                outline_width=view_width,
-                outline_color=scene_sett.minimap_view_outline_color,
-                border_radius=scene_sett.minimap_view_border_radius,
-                border_sides=7,
-                )
-    else:
-        # No overlap: Draw collapsed lines on the border
-        is_fully_left  = mapped_view_max_x <= min_map_x
-        is_fully_right = mapped_view_min_x >= max_map_x
-        is_fully_below = mapped_view_max_y <= min_map_y
-        is_fully_above = mapped_view_min_y >= max_map_y
-
-        corner_lines = None
-        corner_lines_lenght = min(max_map_x - min_map_x, max_map_y - min_map_y) * 0.1 #min(map_width, map_height)
-
-        # The bounding box is fully on corners?
-        if (is_fully_left and is_fully_above): # Top Left Corner
-            line1 = (min_map_x, max_map_y - corner_lines_lenght), (min_map_x, max_map_y)
-            line2 = (min_map_x, max_map_y), (min_map_x + corner_lines_lenght, max_map_y)
-            corner_lines = (line1, line2)
-
-        elif (is_fully_right and is_fully_above): # Top Right Corner
-            line1 = (max_map_x, max_map_y - corner_lines_lenght), (max_map_x, max_map_y)
-            line2 = (max_map_x - corner_lines_lenght, max_map_y), (max_map_x, max_map_y)
-            corner_lines = (line1, line2)
-
-        elif (is_fully_left and is_fully_below): # Bottom Left Corner
-            line1 = (min_map_x, min_map_y), (min_map_x, min_map_y + corner_lines_lenght)
-            line2 = (min_map_x, min_map_y), (min_map_x + corner_lines_lenght, min_map_y)
-            corner_lines = (line1, line2)
-
-        elif (is_fully_right and is_fully_below): # Bottom Right Corner
-            line1 = (max_map_x, min_map_y), (max_map_x, min_map_y + corner_lines_lenght)
-            line2 = (max_map_x - corner_lines_lenght, min_map_y), (max_map_x, min_map_y)
-            corner_lines = (line1, line2)
+    if (scene_sett.minimap_view_enable):
         
-        if (corner_lines is not None):
-            for line in corner_lines:
-                draw_line(
-                    *line,
-                    scene_sett.minimap_view_outline_color,
-                    scene_sett.minimap_view_outline_width,
+        # Check for overlap, when the view is fully within the minimap bounds..
+        min_map_x, min_map_y = bounds_minimap_background[0]
+        max_map_x, max_map_y = bounds_minimap_background[1]
+
+        mapped_view_min_x, mapped_view_min_y = mapped_view_bounds[0]
+        mapped_view_max_x, mapped_view_max_y = mapped_view_bounds[1]
+
+        # change minimap color if panning
+        if (NAVIGATION_EVENT['panning']==True):
+            view_fill = scene_sett.minimap_view_outline_color[:3]+(0.025,)
+            view_width = scene_sett.minimap_view_outline_width * 1.75
+        else:
+            view_fill = scene_sett.minimap_view_fill_color[:]
+            view_width = scene_sett.minimap_view_outline_width
+        
+        #overlapping, we draw the view rectangle!
+        if (mapped_view_max_x > min_map_x and
+            mapped_view_min_x < max_map_x and
+            mapped_view_max_y > min_map_y and
+            mapped_view_min_y < max_map_y):
+
+            # Clamp the mapped view bounds to the minimap area
+            clamped_view_min_x = max(min_map_x, mapped_view_min_x)
+            clamped_view_min_y = max(min_map_y, mapped_view_min_y)
+            clamped_view_max_x = min(max_map_x, mapped_view_max_x)
+            clamped_view_max_y = min(max_map_y, mapped_view_max_y)
+
+            # Ensure valid bounds after clamping
+            if clamped_view_max_x > clamped_view_min_x and clamped_view_max_y > clamped_view_min_y:
+                
+                bounds_view_minimap = (
+                    (clamped_view_min_x, clamped_view_min_y),
+                    (clamped_view_max_x, clamped_view_max_y),
                     )
-
-        # The view box is fully on sides?
-        if (corner_lines is None):
-
-            # Clamp coordinates for line extent calculation
-            y1_c, y2_c = max(min_map_y, mapped_view_min_y), min(max_map_y, mapped_view_max_y)
-            x1_c, x2_c = max(min_map_x, mapped_view_min_x), min(max_map_x, mapped_view_max_x)
-
-            lines = []
-            if (is_fully_left and y2_c > y1_c):  lines.append([(min_map_x, y1_c), (min_map_x, y2_c)])
-            if (is_fully_right and y2_c > y1_c): lines.append([(max_map_x, y1_c), (max_map_x, y2_c)])
-            if (is_fully_below and x2_c > x1_c): lines.append([(x1_c, min_map_y), (x2_c, min_map_y)])
-            if (is_fully_above and x2_c > x1_c): lines.append([(x1_c, max_map_y), (x2_c, max_map_y)])
-
-            for line in lines:
-                draw_line(
-                    *line,
-                    scene_sett.minimap_view_outline_color,
-                    scene_sett.minimap_view_outline_width,
+                draw_beveled_rectangle(
+                    bounds_view_minimap,
+                    fill_color=view_fill,
+                    outline_width=view_width,
+                    outline_color=scene_sett.minimap_view_outline_color,
+                    border_radius=scene_sett.minimap_view_border_radius,
+                    border_sides=7,
                     )
-    
+        else:
+            # No overlap: Draw collapsed lines on the border
+            is_fully_left  = mapped_view_max_x <= min_map_x
+            is_fully_right = mapped_view_min_x >= max_map_x
+            is_fully_below = mapped_view_max_y <= min_map_y
+            is_fully_above = mapped_view_min_y >= max_map_y
+
+            corner_lines = None
+            corner_lines_lenght = min(max_map_x - min_map_x, max_map_y - min_map_y) * 0.1 #min(map_width, map_height)
+
+            # The bounding box is fully on corners?
+            if (is_fully_left and is_fully_above): # Top Left Corner
+                line1 = (min_map_x, max_map_y - corner_lines_lenght), (min_map_x, max_map_y)
+                line2 = (min_map_x, max_map_y), (min_map_x + corner_lines_lenght, max_map_y)
+                corner_lines = (line1, line2)
+
+            elif (is_fully_right and is_fully_above): # Top Right Corner
+                line1 = (max_map_x, max_map_y - corner_lines_lenght), (max_map_x, max_map_y)
+                line2 = (max_map_x - corner_lines_lenght, max_map_y), (max_map_x, max_map_y)
+                corner_lines = (line1, line2)
+
+            elif (is_fully_left and is_fully_below): # Bottom Left Corner
+                line1 = (min_map_x, min_map_y), (min_map_x, min_map_y + corner_lines_lenght)
+                line2 = (min_map_x, min_map_y), (min_map_x + corner_lines_lenght, min_map_y)
+                corner_lines = (line1, line2)
+
+            elif (is_fully_right and is_fully_below): # Bottom Right Corner
+                line1 = (max_map_x, min_map_y), (max_map_x, min_map_y + corner_lines_lenght)
+                line2 = (max_map_x - corner_lines_lenght, min_map_y), (max_map_x, min_map_y)
+                corner_lines = (line1, line2)
+            
+            if (corner_lines is not None):
+                for line in corner_lines:
+                    draw_line(
+                        *line,
+                        scene_sett.minimap_view_outline_color,
+                        scene_sett.minimap_view_outline_width,
+                        )
+
+            # The view box is fully on sides?
+            if (corner_lines is None):
+
+                # Clamp coordinates for line extent calculation
+                y1_c, y2_c = max(min_map_y, mapped_view_min_y), min(max_map_y, mapped_view_max_y)
+                x1_c, x2_c = max(min_map_x, mapped_view_min_x), min(max_map_x, mapped_view_max_x)
+
+                lines = []
+                if (is_fully_left and y2_c > y1_c):  lines.append([(min_map_x, y1_c), (min_map_x, y2_c)])
+                if (is_fully_right and y2_c > y1_c): lines.append([(max_map_x, y1_c), (max_map_x, y2_c)])
+                if (is_fully_below and x2_c > x1_c): lines.append([(x1_c, min_map_y), (x2_c, min_map_y)])
+                if (is_fully_above and x2_c > x1_c): lines.append([(x1_c, max_map_y), (x2_c, max_map_y)])
+
+                for line in lines:
+                    draw_line(
+                        *line,
+                        scene_sett.minimap_view_outline_color,
+                        scene_sett.minimap_view_outline_width,
+                        )
+        
     # 7. Draw Cursor Indicator
 
     if (scene_sett.minimap_cursor_show and win_sett.minimap_modal_operator_is_active):

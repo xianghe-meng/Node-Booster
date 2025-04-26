@@ -233,12 +233,16 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         soft_max=50,
         )
     #minimap node
+    minimap_node_use_fast_draw : bpy.props.BoolProperty(
+        default=True,
+        name="Fast Draw",
+        )
     minimap_node_draw_typecolor : bpy.props.BoolProperty(
         default=True,
         name="Draw TypeColor",
         )
-    minimap_node_draw_customcolor : bpy.props.BoolProperty(
-        default=True,
+    minimap_node_draw_nodecustomcolor : bpy.props.BoolProperty(
+        default=False,
         name="Draw Custom Color",
         )
     minimap_node_draw_selection : bpy.props.BoolProperty(
@@ -260,6 +264,18 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         default=True,
         name="Draw Header",
         )
+    minimap_node_draw_frames : bpy.props.BoolProperty(
+        default=True,
+        name="Draw Frames",
+        )
+    minimap_node_draw_framecustomcolor : bpy.props.BoolProperty(
+        default=True,
+        name="Draw Frame Custom Color",
+        )
+    minimap_node_draw_frames_detail : bpy.props.BoolProperty(
+        default=False,
+        name="Draw Frames within Frames",
+        )
     minimap_node_header_height : bpy.props.FloatProperty(
         default=12,
         name="Header Height",
@@ -279,6 +295,10 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         size=4,
         )
     #view outline
+    minimap_view_enable : bpy.props.BoolProperty(
+        default=True,
+        name="Enable",
+        )
     minimap_view_fill_color : bpy.props.FloatVectorProperty(
         default=(0.296174, 0.040511, 0.027817, 0.0),
         subtype="COLOR",
@@ -307,7 +327,7 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         )
     #cursor
     minimap_cursor_show : bpy.props.BoolProperty(
-        default=True,
+        default=False,
         name="Show",
         )
     minimap_cursor_radius : bpy.props.FloatProperty(

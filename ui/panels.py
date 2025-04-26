@@ -198,22 +198,106 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
         layout.active = sett_scene.minimap_show
 
         header, panel = layout.panel("minimap_sh_params", default_closed=False,)
-        header.label(text="Behaviors",)
+        header.label(text="Shape",)
+        if (panel):
+
+            col = panel.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+
+            subcol = col.column()
+            subcol.prop(sett_scene,"minimap_width_percentage", slider=True, text="Size")
+            subcol.prop(sett_scene,"minimap_auto_aspect_ratio", text="Auto Crop",)
+
+            col.separator(factor=1.55, type='LINE')
+
+            subcol = col.column(heading="T Panel",)
+            subcol.prop(sett_scene,"minimap_auto_tool_panel_collapse", text="Auto Collapse",)
+
+        header, panel = layout.panel("minimap_map_params", default_closed=True,)
+        header.label(text="Theme",)
+        if (panel):
+
+            col = panel.column()
+            col.use_property_split = True
+            col.use_property_decorate = False
+
+            col.prop(sett_scene,"minimap_fill_color", text="Fill",)
+            
+            col.separator(factor=1.55, type='LINE')
+            
+            col.prop(sett_scene,"minimap_outline_width", text="Outline",)
+            col.prop(sett_scene,"minimap_outline_color", text=" ",)
+            # col.prop(sett_scene,"minimap_border_radius", text="Bevel",)
+            
+            col.separator(factor=1.55, type='LINE')
+
+            col.prop(sett_scene,"minimap_padding", text="Padding",)
+            # col.prop(sett_scene,"minimap_draw_type", text="Draw Type",)
+
+            col.separator(factor=1.55, type='LINE')
+
+            col = panel.column(heading='View',)
+            col.use_property_split = True
+            col.use_property_decorate = False
+            col.prop(sett_scene,"minimap_view_enable", text="Show",)
+            subcol = col.column()
+            subcol.active = sett_scene.minimap_view_enable
+            subcol.prop(sett_scene,"minimap_view_fill_color", text="Fill",)
+            subcol.prop(sett_scene,"minimap_view_outline_color", text="Outline",)
+            subcol.prop(sett_scene,"minimap_view_outline_width", text="Width",)
+            # col.prop(sett_scene,"minimap_view_border_radius", text="Bevel",)
+
+        header, panel = layout.panel("minimap_node_params", default_closed=True,)
+        header.label(text="Node Detail",)
         if (panel):
 
             col = panel.column()
             col.use_property_split = True
             col.use_property_decorate = False
             
-            subcol = col.column()
-            subcol.prop(sett_scene,"minimap_width_percentage", slider=True, text="Size")
-            subcol.prop(sett_scene,"minimap_auto_aspect_ratio", text="Auto Crop",)
+            subcol = col.column(heading='Color')
+            subcol.prop(sett_scene,"minimap_node_draw_typecolor", text="Type",)
+            subcol.prop(sett_scene,"minimap_node_draw_nodecustomcolor", text="Custom",)
             
-            subcol = col.column(heading="Panel",)
-            subcol.prop(sett_scene,"minimap_auto_tool_panel_collapse", text="Auto Collapse",)
+            col.separator(factor=1.55, type='LINE')
+
+            subcol = col.column(heading='Selection')
+            subcol.prop(sett_scene,"minimap_node_draw_selection", text="Show",)
+
+            col.prop(sett_scene,"minimap_node_outline_width", text="Outline",)
+            # col.prop(sett_scene,"minimap_node_border_radius", text="Bevel",)
+
+            col.separator(factor=1.55, type='LINE')
+
+            subcol = col.column(heading='Header')
+            subcol.prop(sett_scene,"minimap_node_draw_header", text="Show",)
+            childcol = subcol.column()
+            childcol.active = sett_scene.minimap_node_draw_header
+            childcol.prop(sett_scene,"minimap_node_header_height", text="Height",)
+            childcol.prop(sett_scene,"minimap_node_header_minheight", text="Min Height",)
+            
+            col.separator(factor=1.55, type='LINE')
+            
+            subcol = col.column(heading='Frames')
+            subcol.prop(sett_scene,"minimap_node_draw_frames", text="Show",)
+            childcol = subcol.column()
+            childcol.active = sett_scene.minimap_node_draw_frames
+            childcol.prop(sett_scene,"minimap_node_draw_framecustomcolor", text="Color",)
+            childcol.prop(sett_scene,"minimap_node_draw_frames_detail", text="Detail",)
+            
+            col.separator(factor=1.55, type='LINE')
+            
+            col.prop(sett_scene,"minimap_node_body_color", text="Body",)
+
+            col.separator(factor=1.55, type='LINE')
+
+            subcol = col.column(heading="Optimize",)
+            subcol.prop(sett_scene,"minimap_node_use_fast_draw", text="Fast Draw",)
+
 
         header, panel = layout.panel("minimap_nav_params", default_closed=False,)
-        header.prop(sett_win,"minimap_modal_operator_is_active", text="Navigate",)
+        header.prop(sett_win,"minimap_modal_operator_is_active", text="Use Navigation",)
         if (panel):
 
             col = panel.column()
@@ -226,21 +310,8 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             subcol = col.column(heading="Shortcuts",)
             subcol.prop(sett_scene,"minimap_triple_click_dezoom", text="Frame All",)
 
-        header, panel = layout.panel("minimap_cursor_params", default_closed=True,)
-        header.prop(sett_scene,"minimap_cursor_show", text="Cursor",)
-        if (panel):
-
-            col = panel.column()
-            col.active = sett_scene.minimap_cursor_show
-            col.use_property_split = True
-            col.use_property_decorate = False
-
-            subcol = col.column(heading="Cursor")
-            subcol.prop(sett_scene,"minimap_cursor_radius", text="Radius",)
-            subcol.prop(sett_scene,"minimap_cursor_color", text="Color",)
-
         header, panel = layout.panel("minimap_star_params", default_closed=True,)
-        header.prop(sett_scene,"minimap_fav_show", text="Favorites",)
+        header.prop(sett_scene,"minimap_fav_show", text="Show Favorites",)
         if (panel):
 
             col = panel.column()
@@ -251,58 +322,18 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             subcol = col.column(heading="Star")
             subcol.prop(sett_scene,"minimap_fav_size", text="Size",)
 
-        header, panel = layout.panel("minimap_map_params", default_closed=True,)
-        header.label(text="Map Theme",)
+        header, panel = layout.panel("minimap_cursor_params", default_closed=True,)
+        header.prop(sett_scene,"minimap_cursor_show", text="Show Cursor",)
         if (panel):
 
             col = panel.column()
+            col.active = sett_scene.minimap_cursor_show
             col.use_property_split = True
             col.use_property_decorate = False
 
-            col.prop(sett_scene,"minimap_fill_color", text="Fill",)
-            col.prop(sett_scene,"minimap_outline_width", text="Outline",)
-            col.prop(sett_scene,"minimap_outline_color", text=" ",)
-            # col.prop(sett_scene,"minimap_border_radius", text="Bevel",)
-            col.prop(sett_scene,"minimap_padding", text="Padding",)
-            # col.prop(sett_scene,"minimap_draw_type", text="Draw Type",)
-
-        header, panel = layout.panel("minimap_node_params", default_closed=True,)
-        header.label(text="Nodes Theme",)
-        if (panel):
-
-            col = panel.column()
-            col.use_property_split = True
-            col.use_property_decorate = False
-            
-            subcol = col.column(heading='Color')
-            subcol.prop(sett_scene,"minimap_node_draw_typecolor", text="Type",)
-            subcol.prop(sett_scene,"minimap_node_draw_customcolor", text="Custom",)
-            
-            subcol = col.column(heading='Selection')
-            subcol.prop(sett_scene,"minimap_node_draw_selection", text="Enable",)
-
-            col.prop(sett_scene,"minimap_node_outline_width", text="Outline",)
-            # col.prop(sett_scene,"minimap_node_border_radius", text="Bevel",)
-            subcol = col.column(heading='Header')
-            subcol.prop(sett_scene,"minimap_node_draw_header", text="Enable",)
-            childcol = subcol.column()
-            childcol.active = sett_scene.minimap_node_draw_header
-            childcol.prop(sett_scene,"minimap_node_header_height", text="Height",)
-            childcol.prop(sett_scene,"minimap_node_header_minheight", text="Min Height",)
-            col.prop(sett_scene,"minimap_node_body_color", text="Body",)
-
-        header, panel = layout.panel("minimap_view_params", default_closed=True,)
-        header.label(text="View Theme",)
-        if (panel):
-
-            col = panel.column()
-            col.use_property_split = True
-            col.use_property_decorate = False
-
-            col.prop(sett_scene,"minimap_view_fill_color", text="Fill",)
-            col.prop(sett_scene,"minimap_view_outline_color", text="Outline",)
-            col.prop(sett_scene,"minimap_view_outline_width", text="Width",)
-            # col.prop(sett_scene,"minimap_view_border_radius", text="Bevel",)
+            subcol = col.column(heading="Cursor")
+            subcol.prop(sett_scene,"minimap_cursor_radius", text="Radius",)
+            subcol.prop(sett_scene,"minimap_cursor_color", text="Color",)
 
         return None
 
