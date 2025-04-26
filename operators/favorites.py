@@ -238,9 +238,9 @@ class NODEBOOSTER_OT_favorite_remove(bpy.types.Operator):
             ],
         default="GEOMETRY",
         )
-    ng_name : bpy.props.StringProperty(
+    ngmat_name : bpy.props.StringProperty(
         name="Node Group Name",
-        description="Node Group Name",
+        description="Node Group or Material name",
         default="",
         )
 
@@ -250,14 +250,16 @@ class NODEBOOSTER_OT_favorite_remove(bpy.types.Operator):
         match self.editor_type:
             #NOTE do we need different behavior per types??
             case "SHADER":
-                ng = bpy.data.node_groups.get(self.ng_name)
+                if self.ngmat_name.startswith('MATERIAL:'):
+                      ng = bpy.data.materials.get(self.ngmat_name.replace('MATERIAL:','')).node_tree
+                else: ng = bpy.data.node_groups.get(self.ngmat_name)
             case "GEOMETRY":
-                ng = bpy.data.node_groups.get(self.ng_name)
+                ng = bpy.data.node_groups.get(self.ngmat_name)
             case "COMPOSITOR":
-                ng = bpy.data.node_groups.get(self.ng_name)
+                ng = bpy.data.node_groups.get(self.ngmat_name)
 
         if not ng:
-            self.report({'WARNING'}, f"Node group '{self.ng_name}' not found")
+            self.report({'WARNING'}, f"Nodegroup or material '{self.ngmat_name}' not found")
             return {"CANCELLED"}
 
         # Find the node with matching label and delete it
@@ -294,7 +296,7 @@ class NODEBOOSTER_PT_favorites_popover(bpy.types.Panel):
 
         if (not favorites):
             col = layout.column(align=True)
-            word_wrap(layout=col, alignment="CENTER", max_char=35, active=True, scale_y=1.0,
+            word_wrap(layout=col, alignment="CENTER", max_char=35, active=True, scale_y=1.0, icon='INFO',
                       string="No favorites added yet.\n*SEPARATOR_LINE*\nUse the shortcut 'CTRL+Y' to add a new favorite.\n*SEPARATOR_LINE*\nUse the shortcut 'Y' to loop through your favorites.",)
             return None
 
@@ -407,7 +409,7 @@ class NODEBOOSTER_PT_favorites_popover(bpy.types.Panel):
                 op = fav_op.operator(
                     NODEBOOSTER_OT_favorite_remove.bl_idname, text="", icon='TRASH', **depress_state)
                 op.favorite_name = fav.name
-                op.ng_name = ng.name
+                op.ngmat_name = 'MATERIAL:'+material.name if material else ng.name
                 op.editor_type = ngtype
                 continue
             
