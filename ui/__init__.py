@@ -33,7 +33,7 @@ classes = (
 
 
 from .menus import append_menus, remove_menus
-from ..operators.favorites import draw_favorites_popover_button
+from ..operators.favorites import favorite_popover_draw_header
 
 def load_ui():
 
@@ -41,7 +41,7 @@ def load_ui():
     append_menus()
 
     #add the favorite popover
-    bpy.types.NODE_HT_header.append(draw_favorites_popover_button)
+    bpy.types.NODE_HT_header.append(favorite_popover_draw_header)
 
     return None
 
@@ -51,6 +51,6 @@ def unload_ui():
     remove_menus()
 
     #remove the favorite popover
-    bpy.types.NODE_HT_header.remove(draw_favorites_popover_button)
+    bpy.types.NODE_HT_header.remove(favorite_popover_draw_header)
 
     return None

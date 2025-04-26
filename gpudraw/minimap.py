@@ -29,7 +29,9 @@ from mathutils import Vector
 from math import sin, cos, pi
 from gpu_extras.batch import batch_for_shader
 
+
 from ..__init__ import get_addon_prefs
+from .. operators.favorites import FAVORITEUNICODE
 from ..utils.nbr_utils import map_positions
 from ..utils.node_utils import (
     get_node_absolute_location,
@@ -196,8 +198,48 @@ def draw_line(point1, point2, color, width):
     return None
 
 
-def draw_spline(points, color, width):
-    """Draw a spline between two points."""
+def draw_star(center_pos, color, size):
+    """Draw a star at the given position with the given color and size."""
+
+    original_blend = gpu.state.blend_get()
+    gpu.state.blend_set('ALPHA')
+
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
+    shader.uniform_float("color", color)
+
+    center_x, center_y = center_pos
+    num_points = 5
+    outer_radius = size / 2.0
+    inner_radius = outer_radius * 0.4 # Adjust for star pointiness
+
+    verts = []
+    for i in range(num_points * 2):
+        angle = pi / 2 - i * pi / num_points # Start from top
+        radius = outer_radius if i % 2 == 0 else inner_radius
+        verts.append((center_x + cos(angle) * radius, center_y + sin(angle) * radius))
+
+    # Create indices for triangle fan
+    indices = []
+    for i in range(1, num_points * 2 - 1):
+        indices.append((0, i, i + 1))
+    # Close the fan
+    indices.append((0, num_points * 2 - 1, 1)) 
+    
+    # Re-arrange verts for TRI_FAN (center point first)
+    fan_verts = [center_pos] + verts
+    
+    # Create indices for TRI_FAN
+    fan_indices = []
+    for i in range(1, len(fan_verts)):
+        idx1 = i
+        idx2 = (i % (len(fan_verts) - 1)) + 1 # wrap around, starting from index 1
+        fan_indices.append((0, idx1, idx2))
+
+
+    batch = batch_for_shader(shader, 'TRIS', {"pos": fan_verts}, indices=fan_indices)
+    batch.draw(shader)
+
+    gpu.state.blend_set(original_blend)
 
     return None
 
@@ -401,6 +443,7 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
             x = pixel_bottom_left_bound.x + minimap_pixel_width
             y = pixel_bottom_left_bound.y + minimap_pixel_height
             pixel_top_right_bound = Vector((x, y))
+        # TODO support later for minimap emplacement
         # case 'TOP_LEFT':
         #     pass
         # case 'TOP_RIGHT':
@@ -475,7 +518,7 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
     all_positions = map_positions(np.array(all_nodes_bounds), bounds_nodetree, bounds_minimap_nodetree,)
 
     # sort the element we are going to draw arranged with their draw args as well..
-    frame_to_draw, node_to_draw = [], []
+    frame_to_draw, node_to_draw, star_to_draw = [], [], []
 
     for i in range(len(all_nodes)):        
 
@@ -483,6 +526,13 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 
         #we skip reroutes..
         if (node.type =='REROUTE'):
+            #not favorite reroute tho.
+            if scene_sett.minimap_fav_show:
+                if ('is_active_favorite' in node):
+                    star_to_draw.append((
+                            all_positions[i*2],
+                            [0.1, 0.80, 0.50, 1.00] if node["is_active_favorite"] else [0.98, 0.80, 0.00, 1.00],
+                            ))
             continue
 
         #get the node main color
@@ -535,7 +585,7 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
         node_to_draw.append(item)
         continue
 
-    #draw node and frame elements
+    #draw node and frame elements (frame first)
     for item in frame_to_draw + node_to_draw:
         draw_simple_rectangle(
             item[3],
@@ -545,7 +595,12 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
             header_height=item[6],
             header_color=item[7],
             )
-    
+        
+    #draw star elements
+    if star_to_draw:
+        for favpos,favcol in star_to_draw:
+            draw_star(favpos, favcol, scene_sett.minimap_fav_size,)
+
     # 5. draw the view zone area
 
     # 5.1 get the view zone in node space

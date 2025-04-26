@@ -239,6 +239,18 @@ class NODEBOOSTER_PT_minimap(bpy.types.Panel):
             subcol.prop(sett_scene,"minimap_cursor_radius", text="Radius",)
             subcol.prop(sett_scene,"minimap_cursor_color", text="Color",)
 
+        header, panel = layout.panel("minimap_star_params", default_closed=True,)
+        header.prop(sett_scene,"minimap_fav_show", text="Favorites",)
+        if (panel):
+
+            col = panel.column()
+            col.active = sett_scene.minimap_fav_show
+            col.use_property_split = True
+            col.use_property_decorate = False
+
+            subcol = col.column(heading="Star")
+            subcol.prop(sett_scene,"minimap_fav_size", text="Size",)
+
         header, panel = layout.panel("minimap_map_params", default_closed=True,)
         header.label(text="Map Theme",)
         if (panel):

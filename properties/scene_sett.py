@@ -24,16 +24,25 @@ class NODEBOOSTER_PR_scene_favorites_data(bpy.types.PropertyGroup):
         default=False, #TODO replace index system with active system
         description="Informal read-only property to track the current active favorite",
         )
+
     def get_ng(self):
-        if self.nodetree_reference:
+        if (self.nodetree_reference):
             return self.nodetree_reference
-        if self.material_reference:
+        if (self.material_reference):
             return self.material_reference.node_tree
         return None
+
     def get_node(self):
-        return self.get_ng().nodes.get(self.name)
+        ng = self.get_ng()
+        if (ng is None):
+            return None
+        return ng.nodes.get(self.name)
+
     def get_label(self):
-        return self.get_node().label
+        nd = self.get_node()
+        if (nd is None):
+            return 'Deleted?'
+        return nd.label
 
 class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup): 
     """sett_scene = bpy.context.scene.nodebooster"""
@@ -153,11 +162,6 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         default="GEOMETRY,SHADER,COMPOSITOR",
         name="Show Filter",
         )
-    favorite_loop_index  : bpy.props.IntProperty(
-        default=0,
-        description="prop used to take track the the current user favorite",
-        )
-    
     
     #minimap
     minimap_show : bpy.props.BoolProperty(
@@ -319,6 +323,15 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         min=0,
         max=1,
         size=4,
+        )
+    #favorites
+    minimap_fav_show : bpy.props.BoolProperty(
+        default=True,
+        name="Show",
+        )
+    minimap_fav_size : bpy.props.FloatProperty(
+        default=20,
+        name="Size",
         )
     #navigation shortcuts
     minimap_triple_click_dezoom : bpy.props.BoolProperty(

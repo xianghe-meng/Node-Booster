@@ -9,8 +9,7 @@ from ..utils.draw_utils import ensure_mouse_cursor, popup_menu
 from ..utils.str_utils import word_wrap
 
 
-#NOTE perhaps favorite_loop_index could be replaced by favorites_data[].active?
-#NOTE also see  properties/scene_sett.py/NODEBOOSTER_PR_scene_favorites_data
+#NOTE more of this module: see properties/scene_sett.py/NODEBOOSTER_PR_scene_favorites_data
 #NOTE perhaps we shoudln't work with Reroutes anymore, but store a 2D location instead, and draw a custom star with the gpu module?
 
 
@@ -139,19 +138,30 @@ class NODEBOOSTER_OT_favorite_teleport(bpy.types.Operator):
 
             case 'LOOP':
                 
-                #gather our favorites in this tree
-                favs = get_favorites(ng)
-                if (not favs):
+                all_favorites = [n for n in ng.nodes if n.name.startswith(FAVORITEUNICODE)]
+                if (not all_favorites):
                     self.report({'INFO'}, "No Favorites Found")
                     return {"CANCELLED"}
 
-                # We reset to 0 if reach the end
-                if (sett_scene.favorite_loop_index >= (len(favs)-1)):
-                      sett_scene.favorite_loop_index = 0
-                else: sett_scene.favorite_loop_index += 1
+                #sort alphabetically
+                all_favorites.sort(key=lambda e:e.name)
+
+                #get the current active favorite
+                current_active = None
+                for fav in all_favorites:
+                    if ("is_active_favorite" in fav) and (fav["is_active_favorite"]):
+                        current_active = fav
+                        break
+                
+                #if there's no active favorites here, we start from scratch..
+                if current_active is None:
+                    current_active = all_favorites[0]
+                else:
+                    #else we get the next element of the list, loop back to first if is at end of the list
+                    current_active = all_favorites[(all_favorites.index(current_active)+1)%len(all_favorites)]
 
                 #get the next favorite in the loop
-                nodetoteleport = get_favorites(ng, at_index=sett_scene.favorite_loop_index)
+                nodetoteleport = current_active
 
             case 'TELEPORT':
 
@@ -210,7 +220,11 @@ class NODEBOOSTER_OT_favorite_teleport(bpy.types.Operator):
         #change the .active prop
         for favdata in sett_scene.favorites_data:
             favdata.active = favdata.name == nodetoteleport.name and favdata.get_ng() == ng
-        
+        #also custom proeprty, handy..
+        for n in ng.nodes:
+            if n.name.startswith(FAVORITEUNICODE):
+                n["is_active_favorite"] = n==nodetoteleport
+
         self.report({'INFO'}, f"Teleporting to Favorite '{nodetoteleport.label}'")
 
         return {"FINISHED"}
@@ -262,18 +276,18 @@ class NODEBOOSTER_OT_favorite_remove(bpy.types.Operator):
             self.report({'WARNING'}, f"Nodegroup or material '{self.ngmat_name}' not found")
             return {"CANCELLED"}
 
-        # Find the node with matching label and delete it
-        rr = ng.nodes.get(self.favorite_name)
-        if not rr:
-            self.report({'WARNING'}, f"Favorite '{self.favorite_name}' not found in node group")
-            return {"CANCELLED"}
-
         # Remove the favorite from the scene settings
         sett_scene = context.scene.nodebooster
         for i, fav in enumerate(sett_scene.favorites_data):
             if fav.name == self.favorite_name and fav.get_ng() == ng:
                 sett_scene.favorites_data.remove(i)
                 break
+
+        # Find the node with matching label and delete it
+        rr = ng.nodes.get(self.favorite_name)
+        if not rr:
+            self.report({'WARNING'}, f"Favorite '{self.favorite_name}' not found in node group")
+            return {"CANCELLED"}
 
         ng.nodes.remove(rr)
         self.report({'INFO'}, f"Removed Favorite '{self.favorite_name}'",)
@@ -290,14 +304,16 @@ class NODEBOOSTER_PT_favorites_popover(bpy.types.Panel):
     bl_ui_units_x = 12
 
     def draw(self, context):
+
         layout = self.layout
         sett_scene = context.scene.nodebooster
         favorites = sett_scene.favorites_data
 
         if (not favorites):
-            col = layout.column(align=True)
-            word_wrap(layout=col, alignment="CENTER", max_char=35, active=True, scale_y=1.0, icon='INFO',
-                      string="No favorites added yet.\n*SEPARATOR_LINE*\nUse the shortcut 'CTRL+Y' to add a new favorite.\n*SEPARATOR_LINE*\nUse the shortcut 'Y' to loop through your favorites.",)
+            word_wrap(layout=layout, alignment="CENTER", max_char=35, active=True, scale_y=1.0, icon='INFO',
+                      string="No Favorites Found.",)
+            word_wrap(layout=layout.box(), alignment="CENTER", max_char=35, active=True, scale_y=1.0,
+                      string="Use the default shortcut 'CTRL+Y' to add a new favorite.\n*SEPARATOR_LINE*\nUse the default shortcut 'Y' to loop through your favorites.",)
             return None
 
         # Group favorites by nodetree
@@ -314,12 +330,12 @@ class NODEBOOSTER_PT_favorites_popover(bpy.types.Panel):
         allowed_ng_types = sett_scene.favorite_show_filter.split(',')
         sorted_nodetrees = [ng for ng in sorted_nodetrees if (ng.type in allowed_ng_types)]
 
+        #draw the filter prop & icon..
+        
         filter_row = layout.row(align=True)
-        filter_row.label(text=" ")
-        filter_row.separator_spacer()
         filter_props = filter_row.row(align=True)
         filter_props.alignment = 'RIGHT'
-        # filter_props.label(text="", icon='FILTER')
+
         match sett_scene.favorite_show_filter:
             case 'SHADER':
                 icon = 'NODE_MATERIAL'
@@ -332,11 +348,15 @@ class NODEBOOSTER_PT_favorites_popover(bpy.types.Panel):
                 filter_props.label(text='', icon='FILTER')
             case _:
                 icon = 'FILTER'
+
         filter_props.prop(sett_scene, "favorite_show_filter", text="", icon=icon, icon_only=True,)
+
+        #draw the favorite list
 
         # NOTE UI list would be nice, instead of that longboi of a layout..
         # it's a pain to implement tho. 
         # would be nice to have some sort API like layout.scrollbox(height=10, use_ative_row_system=False).. would be really nice..
+
         ui_list = layout.box().column()
 
         ngidx = None
@@ -347,6 +367,7 @@ class NODEBOOSTER_PT_favorites_popover(bpy.types.Panel):
                 continue
 
             # Determine nodetree type and icon
+
             match ng.bl_idname.split('NodeTree')[0]:
 
                 case 'Shader':
@@ -375,6 +396,7 @@ class NODEBOOSTER_PT_favorites_popover(bpy.types.Panel):
                     headername = ng.name
 
             # Draw Nodetree Header
+
             headercol = ui_list.column(align=True)
             if (ngidx>0):
                 headercol.separator(type='LINE')
@@ -383,8 +405,10 @@ class NODEBOOSTER_PT_favorites_popover(bpy.types.Panel):
             headercol.separator(type='LINE')
 
             # Draw Favorites for this Nodetree
+
             for favidx,fav in enumerate(favs):
                 favidx += 1
+
                 fav_row = ui_list.row(align=True)
                 fav_row.separator(factor=2.0)
 
@@ -392,10 +416,13 @@ class NODEBOOSTER_PT_favorites_popover(bpy.types.Panel):
 
                 # Teleport Button
                 for i,string in enumerate((fav.name, fav.get_label(),)):
+                    
                     fav_op = fav_row.row(align=True)
+
                     if (i==0):
                         fav_op.scale_x = 0.35
                         string = f"{favidx:02}"
+                    
                     op = fav_op.operator(
                         NODEBOOSTER_OT_favorite_teleport.bl_idname, text=string, **depress_state)
                     op.mode = 'TELEPORT'
@@ -422,7 +449,7 @@ class NODEBOOSTER_PT_favorites_popover(bpy.types.Panel):
         return None
 
 
-def draw_favorites_popover_button(self, context):
+def favorite_popover_draw_header(self, context):
 
     if (context.space_data.type == 'NODE_EDITOR'
         and context.space_data.node_tree is not None
