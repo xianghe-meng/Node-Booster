@@ -195,6 +195,10 @@ class NODEBOOSTER_OT_favorite_teleport(bpy.types.Operator):
                     self.report({'WARNING'}, f"Node '{self.teleport_node_name}' not found in node group")
                     return {"CANCELLED"}
 
+        # NOTE we are saving all select state across all nodes..
+        # it's very slow. There should be a better way to do this.
+        # but how? the view2d API is very bad. forced to use operators..
+
         #save current state
         save_active = ng.nodes.active
         save_selected = [n for n in ng.nodes if n.select]
@@ -203,9 +207,11 @@ class NODEBOOSTER_OT_favorite_teleport(bpy.types.Operator):
         for n in save_selected:
             n.select = False
 
-        #teleport view
+        #set up selection
         ng.nodes.active = nodetoteleport
         nodetoteleport.select = True
+
+        #teleport view
         match self.mode:
             case 'LOOP':
                 bpy.ops.node.view_selected()
