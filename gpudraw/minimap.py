@@ -14,7 +14,9 @@
 # - per area properties? could use a global dict of properties based on area.as_pointer() id. some settings would be per area then (padding size..)
 # - support Y favorite star system. draw little stars.
 # - support zone repeat/foreach/simulation nodes. API is a mess..
-# - per area size! and should be able to resize it by hovering on top/right or corner
+# - properties:
+#   - per area size, changing the size of the minimap should be per arae.
+#   - per nodetrees draw options! that way bigger nodetrees could be strip down of information if needed.
 # - choose between the 4 locations. minimap_emplacement
 # - draw the cursor location in the minimap, as a red point.
 # - fixed size vs %, choose between minimap_width_percentage or minimap_width_pixels with a new enum
@@ -70,14 +72,14 @@ def get_theme_color(node):
 
     user_theme = bpy.context.preferences.themes.get('Default')
     node_theme = user_theme.node_editor
-    
-    if (not hasattr(node, 'color_tag')):
-        print("WARNING: minimap node.color_tag API is not available in blender 4.3 or below.")
-        return (0.5, 0.5, 0.5, 0.2)
 
-    color = tuple(getattr(node_theme, COLOR_TAG_TO_THEME_API[node.color_tag]))
-    if len(color) == 3:
-        color = (*color, 1.0)
+    try:
+        color = tuple(getattr(node_theme, COLOR_TAG_TO_THEME_API[node.color_tag]))
+        if (len(color) == 3):
+            color += (1.0,)
+    except:
+        print("WARNING: minimap node.color_tag API is not available in blender 4.3 or below.")
+        color = (0.5, 0.5, 0.5, 0.2)
 
     return color
 
@@ -306,10 +308,13 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
         MINIMAP_VIEWBOUNDS[area_key] = (Vector((0,0)), Vector((0,0)))
         return None
 
+    all_nodes = node_tree.nodes
+    all_nodes_bounds = [loc for node in all_nodes for loc in get_node_bounds(node)] 
+
     # 1. Find the minimap bounds from the nodetree.nodes
 
     #rassemble all nodes bounds
-    bounds_nodetree = get_nodes_bounds(node_tree.nodes)
+    bounds_nodetree = get_nodes_bounds(node_tree.nodes, mode='PASSED_DATA', passed_locs=all_nodes_bounds,)
     bound_nodetree_bottomleft, bound_nodetree_topright = bounds_nodetree
     node_tree_width = bound_nodetree_topright.x - bound_nodetree_bottomleft.x
     node_tree_height = bound_nodetree_topright.y - bound_nodetree_bottomleft.y
@@ -455,8 +460,6 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 
     # 4. draw nodes within minimap
 
-    all_nodes = node_tree.nodes[:]
-
     # gather all nodes types for header color
     user_theme = bpy.context.preferences.themes.get('Default')
     node_theme = user_theme.node_editor
@@ -469,8 +472,7 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
     all_active_states = [n == node_tree.nodes.active for n in all_nodes]
 
     # gather bounds positions and map them 2x bounds loc per node
-    all_bounds = [loc for node in all_nodes for loc in get_node_bounds(node)] 
-    all_positions = map_positions(np.array(all_bounds), bounds_nodetree, bounds_minimap_nodetree,)
+    all_positions = map_positions(np.array(all_nodes_bounds), bounds_nodetree, bounds_minimap_nodetree,)
 
     # sort the element we are going to draw arranged with their draw args as well..
     frame_to_draw, node_to_draw = [], []

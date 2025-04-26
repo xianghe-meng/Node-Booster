@@ -13,6 +13,7 @@
 
 import bpy 
 
+import numpy as np
 from math import hypot
 from mathutils import Vector, Matrix, Quaternion
 
@@ -213,37 +214,45 @@ def get_node_absolute_location(node) -> Vector:
     """find the location of the node in global space"""
 
     if (node.parent is None):
-        return node.location
+        return node.location.copy()
 
     #if there's a frame, then the API is false
-    x,y = node.location
+    loc = node.location.copy()
 
     while (node.parent is not None):
-        x += node.parent.location.x
-        y += node.parent.location.y
+        loc += node.parent.location
         node = node.parent
         continue
 
-    return Vector((x,y))
+    return loc
 
 
 def get_node_bounds(node) -> tuple[Vector, Vector]:
-    """find the absolute bounds of the node in global space.
-    will return the node bottom left and top right bounding 2d coords"""
+    """Find the absolute bounds of a node or nodes in global space."""
 
     loc = get_node_absolute_location(node)
-    if (node.type == 'FRAME'):
-          dim = Vector((node.width, node.height))
-          dim.x += 40 ; dim.y += 20
-    else: dim = Vector((node.width, node.dimensions.y/get_dpifac()))
+    match node.type:
+        case 'FRAME':
+            dim = Vector((node.width + 40, node.height + 20))
+        case _:
+            dim = Vector((node.width, node.dimensions.y/get_dpifac()))
 
     return Vector((loc.x, loc.y - dim.y)), Vector((loc.x + dim.x, loc.y))
 
 
-def get_nodes_bounds(nodes) -> tuple[Vector, Vector]:
+def get_nodes_bounds(nodes, mode:str='BOUND_PRECISE', passed_locs:tuple[Vector]=None) -> tuple[Vector, Vector]:
     """find the top right and bottom left bounds location a list of nodes"""
 
-    locs = [loc for node in nodes for loc in get_node_bounds(node)]
+    #calling get_node_bounds() for every single node is slow
+    # so we have a few shortcuts, for optimization sake.
+    match mode:
+        case 'BOUND_PRECISE':
+            locs = [loc for node in nodes for loc in get_node_bounds(node)]
+        case 'LOC_FAST':
+            locs = [node.location for node in nodes]
+        case 'PASSED_DATA':
+            locs = passed_locs
+
     min_x, min_y = min(vec.x for vec in locs), min(vec.y for vec in locs)
     max_x, max_y = max(vec.x for vec in locs), max(vec.y for vec in locs)
 
