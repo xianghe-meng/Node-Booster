@@ -9,6 +9,23 @@ from ..operators.search import search_upd
 from ..operators.palette import palette_active_upd
 
 
+class NODEBOOSTER_PR_scene_favorites_data(bpy.types.PropertyGroup):
+    """favorites_data = bpy.context.scene.nodebooster.favorites_data"""
+
+    name : bpy.props.StringProperty(
+        )
+    nodetree_reference : bpy.props.PointerProperty(
+        type=bpy.types.NodeTree,
+        )
+    active : bpy.props.BoolProperty(
+        default=False, #TODO replace index system with active system
+        description="Informal read-only property to track the current active favorite",
+        )
+    def get_node(self):
+        return self.nodetree_reference.nodes.get(self.name)
+    def get_label(self):
+        return self.get_node().label
+
 class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup): 
     """sett_scene = bpy.context.scene.nodebooster"""
 
@@ -284,3 +301,10 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
         name="Quick Dezoom",
         description="Quickly dezoom the node editor view to fit the integrity of the nodes by clicking 3 times on the minimap.",
         )
+    
+    favorites_data : bpy.props.CollectionProperty(
+        type=NODEBOOSTER_PR_scene_favorites_data,
+        name="Favorites Data",
+        )
+
+

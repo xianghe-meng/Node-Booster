@@ -6,13 +6,14 @@
 import bpy
 
 from .addon_sett import NODEBOOSTER_AddonPref
-from .scene_sett import NODEBOOSTER_PR_scene
+from .scene_sett import NODEBOOSTER_PR_scene, NODEBOOSTER_PR_scene_favorites_data
 from .windows_sett import NODEBOOSTER_PR_Window
 
 
 classes = (
 
     NODEBOOSTER_AddonPref,
+    NODEBOOSTER_PR_scene_favorites_data,
     NODEBOOSTER_PR_scene,
     NODEBOOSTER_PR_Window,
 

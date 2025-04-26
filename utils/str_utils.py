@@ -126,6 +126,10 @@ def word_wrap(string="", layout=None, alignment="CENTER", max_char=70, char_auto
 
         for i,l in enumerate(wrapped.split("\n")):
 
+            if (l=='*SEPARATOR_LINE*'):
+                lbl.separator(type='LINE')
+                continue
+
             if (alignment):
                   line = lbl.row()
                   line.alignment = alignment
