@@ -65,6 +65,7 @@ class NODEBOOSTER_OT_favorite_add(bpy.types.Operator):
         rr.name = rr.label = name
         ensure_mouse_cursor(context, event)
         rr.location = context.space_data.cursor_location
+        rr["is_active_favorite"] = False
 
         #add to favorites reference list
         favdat = sett_scene.favorites_data.add()

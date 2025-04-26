@@ -531,7 +531,8 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
                 if ('is_active_favorite' in node):
                     star_to_draw.append((
                             all_positions[i*2],
-                            [0.1, 0.80, 0.50, 1.00] if node["is_active_favorite"] else [0.98, 0.80, 0.00, 1.00],
+                            [1, 0.9, 0.8, 1] if node["is_active_favorite"] else [0.98, 0.8, 0, 1],
+                            scene_sett.minimap_fav_size * 1.7 if node["is_active_favorite"] else scene_sett.minimap_fav_size,
                             ))
             continue
 
@@ -597,9 +598,9 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
             )
         
     #draw star elements
-    if star_to_draw:
-        for favpos,favcol in star_to_draw:
-            draw_star(favpos, favcol, scene_sett.minimap_fav_size,)
+    if (star_to_draw):
+        for favpos,favcol,favsize in star_to_draw:
+            draw_star(favpos, favcol, favsize,)
 
     # 5. draw the view zone area
 
