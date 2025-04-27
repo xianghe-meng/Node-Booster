@@ -961,11 +961,17 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 #                                            "Y88888P'                                                
 
 
-#NOTE need to clean up this operator, it's a mess.. modals..
+# NOTE need to clean up this operator, it's a mess.. modals..
 
-#NOTE per window:
-# modal ops are tied per window. This navigation tool, (if user enabled it) must works cross windows
-# therefore we invoke it once attach per window.
+# NOTE activating this modal operator is done via a window manager property.
+# see minimap_modal_operator_is_active. It is automatically called on session start, file load.
+# also when a new window is opened, or when a window is closed (see comment below)
+
+# NOTE per window:
+# modal ops are tied per window. This navigation tool, it MUST works cross windows!
+# therefore: when we invoke this op via minimap_modal_operator_is_active, we invoke it for all wm.windows
+# when a window is closed, or when a new one is opening, we need to restart.
+
 
 class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
     """Handles mouse interaction within the minimap area."""

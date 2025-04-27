@@ -161,10 +161,13 @@ def nodebooster_handler_depspost(scene,desp):
 
     if (get_addon_prefs().debug_depsgraph):
         print("nodebooster_handler_depspost(): depsgraph signal")
-    
+
     if (get_addon_prefs().auto_launch_minimap_navigation):
         if (has_new_window_opened()):
             win_sett = bpy.context.window_manager.nodebooster
+            # we are forced to restart the modal navigation when a window is opened.
+            # a modal op is tied per window, so if we need to support our nav widget
+            # for this window, we need to relaunch our multi window modal.
             win_sett.minimap_modal_operator_is_active = False
             win_sett.minimap_modal_operator_is_active = True
 
@@ -200,7 +203,7 @@ def nodebooster_handler_loadpost(scene,desp):
     #register gpu drawing functions
     register_gpu_drawcalls()
 
-    #start the minimap navigation automatically?
+    #start the minimap navigation automatically? only if the user enabled it.
     if (get_addon_prefs().auto_launch_minimap_navigation):
         bpy.context.window_manager.nodebooster.minimap_modal_operator_is_active = True
             

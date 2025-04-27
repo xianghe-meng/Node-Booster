@@ -18,6 +18,7 @@ class NODEBOOSTER_PR_Window(bpy.types.PropertyGroup):
         )
 
     #for minimap modal navitation
+    
     def launch_minimap_modal_operator(self, context):
         """lauch a modal navigation operator on each window"""
 
