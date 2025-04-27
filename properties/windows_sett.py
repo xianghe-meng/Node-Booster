@@ -19,8 +19,14 @@ class NODEBOOSTER_PR_Window(bpy.types.PropertyGroup):
 
     #for minimap modal navitation
     def launch_minimap_modal_operator(self, context):
+        """lauch a modal navigation operator on each window"""
+
         if (self.minimap_modal_operator_is_active):
-            bpy.ops.nodebooster.minimap_interaction('INVOKE_DEFAULT')
+            wm = context.window_manager
+            for win in wm.windows:
+                with context.temp_override(window=win, screen=win.screen):
+                    bpy.ops.nodebooster.minimap_interaction('INVOKE_DEFAULT',) #modal are tied per windows.
+
         return None
 
     minimap_modal_operator_is_active : bpy.props.BoolProperty(

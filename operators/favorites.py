@@ -9,6 +9,18 @@ from ..utils.draw_utils import ensure_mouse_cursor, popup_menu
 from ..utils.str_utils import word_wrap
 
 
+#TODO:
+# - the pin system is a bit annoying..
+#   Observation:
+#   - user expect to 'go out' of a nodetree and escale one level below, can't do that if pinned.
+#   - GN & other viewer system won't work if pinned..
+#   How to sove?
+#   - Should found a way to save the full path of the node ex: obj/GNMod/ng/innerng/innerinnerng/ect.. 
+#     and restablish the same path.. same for material/ng/ng/... & compositor..
+#     problem is that: makes things complex to deal with. as a ng can change name and blender has no uuid system.. 
+#     somehow need an indefinite array of pointer to save such path.. Or maybe there's a smarter solution..
+#
+
 #NOTE more of this module: see properties/scene_sett.py/NODEBOOSTER_PR_scene_favorites_data
 #NOTE perhaps we shoudln't work with Reroutes anymore, but store a 2D location instead, and draw a custom star with the gpu module?
 

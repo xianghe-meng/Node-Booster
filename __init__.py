@@ -69,7 +69,9 @@
 #  - favorite system improvements:
 #     - could take a snapshot of the view location and zoom level.
 #     - could have a global list of favorites, and directly change nodetree or editor to reach it from one click!!!!! cross editor/ng favorites that way from Npanel..
-#    
+#  - node suggestions: depending on what's selected, propose a new node with a gpu draw transparent preview hint. user would click ESC to confirm and create it. maybe use arrows to swap proposal types ect..
+#  - replace a node with anohter, keep links at same place if possible, same for default values.
+
 # Nodes Ideas:
 # - Could design portal node. There are ways to hide sockets, even from user CTRL+H, this node could simply pass hidden sockets around? 
 #   Do some tests. Note: would only be nice if we draw a heavy 'portal line' effect from node A to node B. Bonus: animation of the direction.

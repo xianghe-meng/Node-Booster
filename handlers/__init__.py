@@ -102,6 +102,21 @@ def on_plugin_installation():
 # o888o   o888o `Y888""8o o888o o888o `Y8bod88P" o888o `Y8bod8P' d888b    8""888P' 
                                                                                  
 
+def has_new_window_opened():
+    """check if a new window has been opened"""
+
+    wincount = len(bpy.context.window_manager.windows)
+    _f = has_new_window_opened
+    if not hasattr(_f, 'wincount'):
+        _f.wincount = wincount
+
+    if wincount!=_f.wincount:
+        _f.wincount = wincount
+        return True
+
+    return False
+
+
 def upd_all_custom_nodes(classes:list):
     """automatically run the update_all() function of all custom nodes passed"""
 
@@ -146,6 +161,12 @@ def nodebooster_handler_depspost(scene,desp):
 
     if (get_addon_prefs().debug_depsgraph):
         print("nodebooster_handler_depspost(): depsgraph signal")
+    
+    if (get_addon_prefs().auto_launch_minimap_navigation):
+        if (has_new_window_opened()):
+            win_sett = bpy.context.window_manager.nodebooster
+            win_sett.minimap_modal_operator_is_active = False
+            win_sett.minimap_modal_operator_is_active = True
 
     #updates for our custom nodes
     upd_all_custom_nodes(DEPSPOST_UPD_NODES)

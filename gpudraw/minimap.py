@@ -963,6 +963,10 @@ def draw_minimap(node_tree, area, window_region, view2d, space, dpi_fac, zoom,):
 
 #NOTE need to clean up this operator, it's a mess.. modals..
 
+#NOTE per window:
+# modal ops are tied per window. This navigation tool, (if user enabled it) must works cross windows
+# therefore we invoke it once attach per window.
+
 class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
     """Handles mouse interaction within the minimap area."""
 
@@ -1016,8 +1020,7 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
         CURSOR_POSITION['y'] = region_mouse_y
                                 
         return found_area, found_region, region_mouse_x, region_mouse_y
-                        
-                        
+
     def restore_cursor(self, context):
         if (self._cursor_modified is not None):
             context.window.cursor_modal_restore()
@@ -1250,6 +1253,8 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
         if (self._timer is None):
             self._timer = context.window_manager.event_timer_add(0.05, window=context.window) # Check frequently
 
+        self.window_count_tracker = len(context.window_manager.windows)
+        
         context.window_manager.modal_handler_add(self)
 
         # print("Minimap interaction modal started.")
@@ -1259,7 +1264,7 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
 
         # Ensure cursor is restored on cancellation
         self.restore_cursor(context)
-        
+
         # Reset internal states
         self._is_panning = False
         NAVIGATION_EVENT['panning'] = False
@@ -1269,11 +1274,17 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
         if (self._timer):
             context.window_manager.event_timer_remove(self._timer)
             self._timer = None
-        
-        #make sure the modal is deactivated
-        context.window_manager.nodebooster.minimap_modal_operator_is_active = False
 
-        print("Minimap interaction modal cancelled.")
+        #make sure the modal is deactivated
+        win_sett = context.window_manager.nodebooster
+        win_sett.minimap_modal_operator_is_active = False
+
+        if (len(context.window_manager.windows)<self.window_count_tracker):
+            if (get_addon_prefs().auto_launch_minimap_navigation):
+                win_sett.minimap_modal_operator_is_active = False
+                # print("Noticed the window count changed, the modal mus've de activate because a window was closed! we relaunch.")
+            
+        # print("Minimap interaction modal cancelled.")
         return None
 
 
