@@ -102,19 +102,17 @@ def on_plugin_installation():
 # o888o   o888o `Y888""8o o888o o888o `Y8bod88P" o888o `Y8bod8P' d888b    8""888P' 
                                                                                  
 
-def has_new_window_opened():
+def windows_changed():
     """check if a new window has been opened"""
 
     wincount = len(bpy.context.window_manager.windows)
-    _f = has_new_window_opened
-    if not hasattr(_f, 'wincount'):
+    _f = windows_changed
+    if (not hasattr(_f, 'wincount')):
         _f.wincount = wincount
 
-    if wincount!=_f.wincount:
-        _f.wincount = wincount
-        return True
-
-    return False
+    state = wincount!=_f.wincount
+    _f.wincount = wincount
+    return state
 
 
 def upd_all_custom_nodes(classes:list):
@@ -163,7 +161,7 @@ def nodebooster_handler_depspost(scene,desp):
         print("nodebooster_handler_depspost(): depsgraph signal")
 
     if (get_addon_prefs().auto_launch_minimap_navigation):
-        if (has_new_window_opened()):
+        if (windows_changed()):
             win_sett = bpy.context.window_manager.nodebooster
             # we are forced to restart the modal navigation when a window is opened.
             # a modal op is tied per window, so if we need to support our nav widget

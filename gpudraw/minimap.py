@@ -1259,8 +1259,6 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
         if (self._timer is None):
             self._timer = context.window_manager.event_timer_add(0.05, window=context.window) # Check frequently
 
-        self.window_count_tracker = len(context.window_manager.windows)
-        
         context.window_manager.modal_handler_add(self)
 
         # print("Minimap interaction modal started.")
@@ -1285,11 +1283,6 @@ class NODEBOOSTER_OT_MinimapInteraction(bpy.types.Operator):
         win_sett = context.window_manager.nodebooster
         win_sett.minimap_modal_operator_is_active = False
 
-        if (len(context.window_manager.windows)<self.window_count_tracker):
-            if (get_addon_prefs().auto_launch_minimap_navigation):
-                win_sett.minimap_modal_operator_is_active = False
-                # print("Noticed the window count changed, the modal mus've de activate because a window was closed! we relaunch.")
-            
         # print("Minimap interaction modal cancelled.")
         return None
 
