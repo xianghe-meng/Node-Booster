@@ -117,6 +117,8 @@ def nodebooster_templatemenu_append(self, context):
 
 def nodebooster_addmenu_append(self, context,):
     tree_type = context.space_data.tree_type
+    if (tree_type not in {'GeometryNodeTree','ShaderNodeTree','CompositorNodeTree',}):
+        return None
     menu_id = f"NODEBOOSTER_MT_{tree_type}"
     self.layout.menu(menu_id)
     return None
