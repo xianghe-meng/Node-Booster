@@ -58,6 +58,8 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
         
         super().__init__(*args, **kwargs)
         
+        self._timer = None
+        
         #We only store blender data here when the operator is active, we should be totally fine!
         self.node_tree = None
         self.init_type = None #Type of the noodle?
@@ -122,7 +124,11 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
 
         #store init mouse location
         ensure_mouse_cursor(context, event)
-        self.init_click = context.space_data.cursor_location.copy()  
+        self.init_click = context.space_data.cursor_location.copy()
+        
+        # initialize modal timer
+        if (self._timer is None):
+            self._timer = context.window_manager.event_timer_add(0.05, window=context.window) # Check frequently
 
         #add an initial reroute
         self.add_reroute(context,event)
@@ -198,8 +204,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
         ng.links.new(outp,inp)
 
         #reset selection for visual cue
-        for n in self.node_tree.nodes:
-            n.select = False
+        for n in [n for n in self.node_tree.nodes if n.select]: n.select = False
         rr2.select = True
 
         return None 
@@ -239,17 +244,13 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
         return None 
 
     def modal(self, context, event):     
-        """main state machine"""
-
         try:
-
             #make sure message is correct
             if (self.footer_active!='main'):
                 context.workspace.status_text_set_internal(self.footer_main)
                 self.footer_active = 'main'
 
             #if user is holding shift, that means he want to finalize and connect to input, entering a sub modal state.
-
             if (event.shift):
 
                 #make sure message is correct
@@ -276,14 +277,20 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                     self.node_tree.links.remove(self.out_link)
                     self.out_link = None
 
-                #always reset selection
-                for n in self.node_tree.nodes:
-                    n.select = False
                 
                 #get nearest node
                 ensure_mouse_cursor(context, event)                
-                nearest = get_nearest_node_at_position(self.node_tree.nodes, context, event,
-                    position=context.space_data.cursor_location, forbidden=[self.from_active]+self.created_rr,)
+                nearest = get_nearest_node_at_position(
+                    nodes=self.node_tree.nodes,
+                    position=context.space_data.cursor_location,
+                    forbidden=[self.from_active]+self.created_rr,
+                    )
+
+                #always reset selection
+                for n in [n for n in self.node_tree.nodes if n.select]: n.select = False
+                #reset selection for visual cue
+                self.node_tree.nodes.active = nearest
+                nearest.select = True
 
                 #if switched to a new nearest node:
                 if (self.nearest != nearest):
@@ -300,21 +307,16 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
 
                 #use wheel to loop to other sockets
                 match event.type:
-                    case 'WHEELDOWNMOUSE':
-                        self.wheel_out = 0 if (self.wheel_out>=socklen-1) else self.wheel_out+1
-                    case 'WHEELUPMOUSE':
-                        self.wheel_out = socklen-1 if (self.wheel_out<=0) else self.wheel_out-1
+                    case 'WHEELDOWNMOUSE': self.wheel_out = 0 if (self.wheel_out>=socklen-1) else self.wheel_out+1
+                    case 'WHEELUPMOUSE':   self.wheel_out = socklen-1 if (self.wheel_out<=0) else self.wheel_out-1
 
-                #reset selection for visual cue
-                self.node_tree.nodes.active = nearest
-                nearest.select = True
 
                 #find out sockets
                 outp = nearest.inputs[availsock[self.wheel_out]]
                 
                 #find input socket, depends if user using initially reroute or active
                 if (self.new_rr is not None):
-                    inp = self.new_rr.outputs[0] 
+                      inp = self.new_rr.outputs[0] 
                 else: inp = self.from_active.outputs[self.wheel_inp]
 
                 #create the link
@@ -328,7 +330,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
 
                 #detect if we created a new group output by doing this check
                 if (out_link!=self.node_tree.links[-1]):
-                    self.out_link = self.node_tree.links[-1] #forced to do so, creating link to output type is an illusion, two links are created in this special case
+                      self.out_link = self.node_tree.links[-1] #forced to do so, creating link to output type is an illusion, two links are created in this special case
                 else: self.out_link = out_link
 
                 if (event.type=="RET") or ((event.type=="LEFTMOUSE") and (event.value=="PRESS")):
@@ -388,7 +390,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                     for l in rr_socket.links:
                         if (l.from_socket.type!=current_sock and l.from_socket.type=='CUSTOM'):
                             self.node_tree.links.remove(l)
-                    
+
                 #make the link
                 self.node_tree.links.new(new_sock, rr_socket,)
                 return {'RUNNING_MODAL'}
@@ -427,14 +429,15 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
             if (event.ctrl):
                 #y constraint?
                 if abs(self.last_click.x-cursor.x)<abs(self.last_click.y-cursor.y):
-                    cursor.x = self.last_click.x
+                      cursor.x = self.last_click.x
                 else: cursor.y = self.last_click.y
 
             rr = self.new_rr
             rr.location = cursor
+            print(f"DrawRoute modal running...... {rr.location}")
         
         except Exception as e:
-            print(e)
+            print(f"Error in DrawRoute modal: '{e}'")
             self.cancel(context)
             self.report({'ERROR'},"An Error Occured during DrawRoute modal")
             return {'CANCELLED'}
@@ -492,11 +495,14 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
             self.node_tree.nodes.remove(n)
 
         #reset selection and active
-        for n in self.node_tree.nodes:
-            n.select = False
+        for n in [n for n in self.node_tree.nodes if n.select]: n.select = False
         if (self.from_active):
             self.node_tree.nodes.active = self.from_active
             self.from_active.select = True
+
+        if (self._timer):
+            context.window_manager.event_timer_remove(self._timer)
+            self._timer = None
 
         context.workspace.status_text_set_internal(None)
         return None

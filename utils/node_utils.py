@@ -798,70 +798,58 @@ def frame_nodes(node_tree, *nodes, label:str="Frame",) -> None:
     return None
 
 
-def get_nearest_node_at_position(nodes:list|set, context, event, position=None, allow_reroute:bool=True, forbidden:list|set=None,):
+def get_nearest_node_at_position(
+    nodes:list|set,
+    position=None,
+    forbidden:list|set=None,
+    ):
     """get nearest node at cursor location"""
     # Function from from 'node_wrangler.py'
 
-    nodes_near_mouse = []
-    nodes_under_mouse = []
-    target_node = None
-
     x, y = position
+
+    if (forbidden is None):
+        forbidden = []
 
     # Make a list of each corner (and middle of border) for each node.
     # Will be sorted to find nearest point and thus nearest node
-    node_points_with_dist = []
+    _nodespts = []
+    
+    #filter out nodes a bit more..
+    nodes = [n for n in nodes if (n.type!='FRAME') and (n not in forbidden)]
 
     for n in nodes:
-        if (n.type == 'FRAME'):
-            continue
-        if (not allow_reroute and (n.type == 'REROUTE')):
-            continue
-        if (forbidden is not None) and (n in forbidden):
-            continue
-
         locx, locy = get_node_absolute_location(n)
         dimx, dimy = n.dimensions.x/get_dpifac(), n.dimensions.y/get_dpifac()
 
-        node_points_with_dist.append([n, hypot(x - locx, y - locy)])  # Top Left
-        node_points_with_dist.append([n, hypot(x - (locx + dimx), y - locy)])  # Top Right
-        node_points_with_dist.append([n, hypot(x - locx, y - (locy - dimy))])  # Bottom Left
-        node_points_with_dist.append([n, hypot(x - (locx + dimx), y - (locy - dimy))])  # Bottom Right
+        #check if the node is directly under the mouse, then there's no need to check for distance
+        if (locx <= x <= locx+dimx) and (locy-dimy <= y <= locy):
+            return n
 
-        node_points_with_dist.append([n, hypot(x - (locx + (dimx / 2)), y - locy)])  # Mid Top
-        node_points_with_dist.append([n, hypot(x - (locx + (dimx / 2)), y - (locy - dimy))])  # Mid Bottom
-        node_points_with_dist.append([n, hypot(x - locx, y - (locy - (dimy / 2)))])  # Mid Left
-        node_points_with_dist.append([n, hypot(x - (locx + dimx), y - (locy - (dimy / 2)))])  # Mid Right
-
+        pt_topleft  = x - locx, y - locy
+        pt_topright = x - (locx + dimx), y - locy
+        pt_bottomleft  = x - locx, y - (locy - dimy)
+        pt_bottomright = x - (locx + dimx), y - (locy - dimy)
+        _nodespts.append([n, hypot(*pt_topleft)])
+        _nodespts.append([n, hypot(*pt_topright)])
+        _nodespts.append([n, hypot(*pt_bottomleft)])
+        _nodespts.append([n, hypot(*pt_bottomright)])
+        
+        pt_midtop = x - (locx + (dimx / 2)), y - locy
+        pt_midbottom = x - (locx + (dimx / 2)), y - (locy - dimy)
+        pt_midleft = x - locx, y - (locy - (dimy / 2))
+        pt_midright = x - (locx + dimx), y - (locy - (dimy / 2))
+        _nodespts.append([n, hypot(*pt_midtop)])
+        _nodespts.append([n, hypot(*pt_midbottom)])
+        _nodespts.append([n, hypot(*pt_midleft)])
+        _nodespts.append([n, hypot(*pt_midright)])
         continue
 
-    nearest_node = sorted(node_points_with_dist, key=lambda k: k[1])[0][0]
+    if (_nodespts):
+        nearest_node = sorted(_nodespts, key=lambda k: k[1])[0][0]
+        return nearest_node
 
-    for n in nodes:
-        if (n.type == 'FRAME'):
-            continue
-        if (not allow_reroute and (n.type == 'REROUTE')):
-            continue
-        if (forbidden is not None) and (n in forbidden):
-            continue
-
-        locx, locy = get_node_absolute_location(n)
-        dimx, dimy = n.dimensions.x/get_dpifac(), n.dimensions.y/get_dpifac()
-
-        if (locx <= x <= locx+dimx) and \
-           (locy-dimy <= y <= locy):
-               nodes_under_mouse.append(n)
-        continue
-
-    if (len(nodes_under_mouse)==1):
-
-        if nodes_under_mouse[0] != nearest_node:
-              target_node = nodes_under_mouse[0]
-        else: target_node = nearest_node
-    else:
-        target_node = nearest_node
-
-    return target_node
+    return None
 
 
 def get_farest_node(node_tree, mode='BOTTOM_RIGHT',):

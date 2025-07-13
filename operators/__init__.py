@@ -34,7 +34,6 @@ from ..gpudraw.minimap import NODEBOOSTER_OT_MinimapInteraction
 
 
 classes = (
-
     NODEBOOSTER_OT_draw_route,
     NODEBOOSTER_OT_bake_customnode,
     NODEBOOSTER_OT_node_purge_unused,
@@ -49,20 +48,17 @@ classes = (
     NODEBOOSTER_OT_initalize_palette,
     NODEBOOSTER_OT_text_templates,
     NODEBOOSTER_OT_MinimapInteraction,
-
     )
 
 ADDON_KEYMAPS = []
 
 KMI_DEFS = (
-
-    # Operator.bl_idname,                         Key,         Action,  Ctrl,  Shift, Alt,   props(name,value)                         Name,                      Icon,                  Enable
-    ( NODEBOOSTER_OT_draw_route.bl_idname,        "E",         "PRESS", False, False, False, (),                                       "Draw Route",              "TRACKING",            True, ),
-    ( NODEBOOSTER_OT_favorite_add.bl_idname,      "Y",         "PRESS", True,  False, False, (),                                       "Add Favorite",            "SOLO_OFF",            True, ),
-    ( NODEBOOSTER_OT_favorite_teleport.bl_idname,     "Y",         "PRESS", False, False, False, (),                                       "Loop Favorites",          "SOLO_OFF",            True, ),
-    ( NODEBOOSTER_OT_draw_frame.bl_idname,        "J",         "PRESS", False, False, False, (),                                       "Draw Frame",              "ALIGN_TOP",           True, ),
-    ( NODEBOOSTER_OT_chamfer.bl_idname,           "B",         "PRESS", True,  False, False, (),                                       "Reroute Chamfer",         "MOD_BEVEL",           True, ),
-
+    # Operator.bl_idname,                         Key, Action,  Ctrl,  Shift, Alt,   props(name,value)  Name,   Icon,     Enable
+    ( NODEBOOSTER_OT_draw_route.bl_idname,        "E", "PRESS", False, False, False, (), "Draw Route",       "TRACKING",  True, ),
+    ( NODEBOOSTER_OT_favorite_add.bl_idname,      "Y", "PRESS", True,  False, False, (), "Add Favorite",     "SOLO_OFF",  True, ),
+    ( NODEBOOSTER_OT_favorite_teleport.bl_idname, "Y", "PRESS", False, False, False, (), "Loop Favorites",   "SOLO_OFF",  True, ),
+    ( NODEBOOSTER_OT_draw_frame.bl_idname,        "J", "PRESS", False, False, False, (), "Draw Frame",       "ALIGN_TOP", True, ),
+    ( NODEBOOSTER_OT_chamfer.bl_idname,           "B", "PRESS", True,  False, False, (), "Reroute Chamfer",  "MOD_BEVEL", True, ),
     )
 
 
