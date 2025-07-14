@@ -799,12 +799,18 @@ def frame_nodes(node_tree, *nodes, label:str="Frame",) -> None:
 
 
 def get_nearest_node_at_position(
+    context,
     nodes:list|set,
     position=None,
     forbidden:list|set=None,
+    optimize:bool=True,
     ):
-    """get nearest node at cursor location"""
-    # Function from from 'node_wrangler.py'
+    """get nearest node at cursor location
+    nodes: list of nodes to check
+    position: cursor location
+    forbidden: if None, list of nodes to exclude from the proximity
+    optimize: if True, only check nodes within a radius of 500 node distance unit from cursor..
+    """
 
     x, y = position
 
@@ -817,9 +823,24 @@ def get_nearest_node_at_position(
     
     #filter out nodes a bit more..
     nodes = [n for n in nodes if (n.type!='FRAME') and (n not in forbidden)]
+    #filter out nodes not in view region
+    if (optimize):
+        def optimize(node, cursor_radius_clipping:bool=True, view_clipping:bool=False, threshold:int=500):
+            #clip nodes too far away from cursor?
+            if (cursor_radius_clipping):
+                distx, disty = abs(x-node.location_absolute[0]), abs(y-node.location_absolute[1])
+                if (distx>threshold) or (disty>threshold):
+                    return False
+            #use view clipping optimization? might be slower 
+            if (view_clipping):
+                ptx, pty = context.region.view2d.view_to_region(*node.location_absolute, clip=False)
+                if ((ptx<-threshold) or (ptx>context.region.width+threshold) or (pty<-threshold) or (pty>context.region.height+threshold)):
+                    return False
+            return True
+        nodes = [n for n in nodes if optimize(n)]
 
     for n in nodes:
-        locx, locy = get_node_absolute_location(n)
+        locx, locy = n.location_absolute
         dimx, dimy = n.dimensions.x/get_dpifac(), n.dimensions.y/get_dpifac()
 
         #check if the node is directly under the mouse, then there's no need to check for distance

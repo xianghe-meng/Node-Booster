@@ -10,6 +10,7 @@
 # - could use shift+ctrl to replace existing link maybe?
 
 import bpy
+from mathutils import Vector
 
 from ..utils.node_utils import get_nearest_node_at_position, create_ng_socket, get_ng_socket_from_socketui
 from ..utils.draw_utils import ensure_mouse_cursor
@@ -58,8 +59,9 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
         
         super().__init__(*args, **kwargs)
         
-        self._timer = None
-        
+        # self._timer = None        
+        self.is_navigating = False
+
         #We only store blender data here when the operator is active, we should be totally fine!
         self.node_tree = None
         self.init_type = None #Type of the noodle?
@@ -126,9 +128,9 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
         ensure_mouse_cursor(context, event)
         self.init_click = context.space_data.cursor_location.copy()
         
-        # initialize modal timer
-        if (self._timer is None):
-            self._timer = context.window_manager.event_timer_add(0.05, window=context.window) # Check frequently
+        # # initialize modal timer
+        # if (self._timer is None):
+        #     self._timer = context.window_manager.event_timer_add(0.05, window=context.window) # Check frequently
 
         #add an initial reroute
         self.add_reroute(context,event)
@@ -245,203 +247,218 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
 
     def modal(self, context, event):     
         try:
+            
+            #cancel? 
+            if (event.type in {"ESC","RIGHTMOUSE"}):
+                self.cancel(context)
+                return {'CANCELLED'}
+
+            #in navigation?
+            if (event.type=="MIDDLEMOUSE" and event.value=='PRESS'):
+                self.is_navigating = True
+            elif (self.is_navigating and event.type!='TIMER'):
+                if (event.type!='MOUSEMOVE'):
+                    self.is_navigating = False
+
+            #get mouse location
+            ensure_mouse_cursor(context, event)
+            cursor = context.space_data.cursor_location
+            
             #make sure message is correct
             if (self.footer_active!='main'):
                 context.workspace.status_text_set_internal(self.footer_main)
                 self.footer_active = 'main'
 
             #if user is holding shift, that means he want to finalize and connect to input, entering a sub modal state.
-            if (event.shift):
-
-                #make sure message is correct
-                if (self.footer_active!='shift'):
-                    context.workspace.status_text_set_internal(self.footer_shift)
-                    self.footer_active = 'shift'
+            if (not self.is_navigating):
                 
-                #initiating the shift mode, when user press for the first time
-                if (event.type=="LEFT_SHIFT" and event.value=="PRESS"):
+                if (event.shift):
+
+                    #make sure message is correct
+                    if (self.footer_active!='shift'):
+                        context.workspace.status_text_set_internal(self.footer_shift)
+                        self.footer_active = 'shift'
                     
-                    #in this sub modal, we do not want reroute anymore, so we'll remove the latest one created upon entering
-                    if (self.from_active is not None) and (len(self.created_rr)==1):
-                        #this can be tricky if we only have one, if from_active we can use the stored input
-                        last = self.created_rr[-1]
-                        self.node_tree.nodes.remove(last)
-                        self.created_rr.remove(last)
-                        self.new_rr = self.old_rr = None
-                        self.last_click = self.init_click
-                    else:
-                        self.backstep(context)
+                    #initiating the shift mode, when user press for the first time
+                    if (event.type=="LEFT_SHIFT" and event.value=="PRESS"):
+                        
+                        #in this sub modal, we do not want reroute anymore, so we'll remove the latest one created upon entering
+                        if (self.from_active is not None) and (len(self.created_rr)==1):
+                            #this can be tricky if we only have one, if from_active we can use the stored input
+                            last = self.created_rr[-1]
+                            self.node_tree.nodes.remove(last)
+                            self.created_rr.remove(last)
+                            self.new_rr = self.old_rr = None
+                            self.last_click = self.init_click
+                        else:
+                            self.backstep(context)
 
-                if (self.out_link):
-                    #remove created link from previous shift loop
-                    self.node_tree.links.remove(self.out_link)
-                    self.out_link = None
+                    if (self.out_link):
+                        #remove created link from previous shift loop
+                        self.node_tree.links.remove(self.out_link)
+                        self.out_link = None
 
+                    #get nearest node
+                    nearest = get_nearest_node_at_position(
+                        context, self.node_tree.nodes,
+                        position=cursor,
+                        forbidden=[self.from_active]+self.created_rr,
+                        )
+
+                    #always reset selection
+                    # for n in [n for n in self.node_tree.nodes if n.select]: n.select = False #this cause too much slowdowns..
+                    
+                    #nothing found?
+                    if (nearest is None):
+                        return {'RUNNING_MODAL'}
+                    
+                    #reset selection for visual cue
+                    self.node_tree.nodes.active = nearest
+                    nearest.select = True
+
+                    #if switched to a new nearest node:
+                    if (self.nearest != nearest):
+                        self.nearest = nearest
+
+                        #reset wheel loop
+                        self.wheel_out = 0
+
+                    #find available sockets
+                    availsock = [i for i,s in enumerate(nearest.inputs) if (s.is_multi_input or len(s.links)==0) and s.enabled]
+                    socklen = len(availsock)
+                    if (socklen==0):
+                        return {'RUNNING_MODAL'}
+
+                    #use wheel to loop to other sockets
+                    match event.type:
+                        case 'WHEELDOWNMOUSE': self.wheel_out = 0 if (self.wheel_out>=socklen-1) else self.wheel_out+1
+                        case 'WHEELUPMOUSE':   self.wheel_out = socklen-1 if (self.wheel_out<=0) else self.wheel_out-1
+
+                    #find out sockets
+                    outp = nearest.inputs[availsock[self.wheel_out]]
+                    
+                    #find input socket, depends if user using initially reroute or active
+                    if (self.new_rr is not None):
+                        inp = self.new_rr.outputs[0] 
+                    else: inp = self.from_active.outputs[self.wheel_inp]
+
+                    #create the link
+                    out_link = self.node_tree.links.new(inp, outp,)
+                    
+                    # blender might think the link is false if the outp or inp is a CUSTOM, 
+                    # not the case, we are going to fix that later on confirm
+                    if (inp.type=='CUSTOM' or outp.type=='CUSTOM'):
+                        out_link.is_valid = True #Blender devs might put this to read only one of these days.. I hope not..
+                        # NOTE 'Invalid Link' message will still appear tho.
+
+                    #detect if we created a new group output by doing this check
+                    if (out_link!=self.node_tree.links[-1]):
+                        self.out_link = self.node_tree.links[-1] #forced to do so, creating link to output type is an illusion, two links are created in this special case
+                    else: self.out_link = out_link
+
+                    if (event.type=="RET") or ((event.type=="LEFTMOUSE") and (event.value=="PRESS")):
+                        self.confirm(context)
+                        return {'FINISHED'}
                 
-                #get nearest node
-                ensure_mouse_cursor(context, event)                
-                nearest = get_nearest_node_at_position(
-                    nodes=self.node_tree.nodes,
-                    position=context.space_data.cursor_location,
-                    forbidden=[self.from_active]+self.created_rr,
-                    )
+                    return {'RUNNING_MODAL'}
 
-                #always reset selection
-                for n in [n for n in self.node_tree.nodes if n.select]: n.select = False
-                #reset selection for visual cue
-                self.node_tree.nodes.active = nearest
-                nearest.select = True
+                #upon quitting shift event?
 
-                #if switched to a new nearest node:
-                if (self.nearest != nearest):
-                    self.nearest = nearest
+                elif (event.type=="LEFT_SHIFT" and event.value=="RELEASE"):
 
+                    #remove created link
+                    if (self.out_link):
+                        self.node_tree.links.remove(self.out_link)
+                        self.out_link = None
+                    
                     #reset wheel loop
                     self.wheel_out = 0
 
-                #find available sockets
-                availsock = [ i for i,s in enumerate(nearest.inputs) if (s.is_multi_input or len(s.links)==0) and s.enabled]
-                socklen = len(availsock)
-                if (socklen==0):
+                    #restore reroute we removed on shift init
+                    self.add_reroute(context,event)
+
                     return {'RUNNING_MODAL'}
 
-                #use wheel to loop to other sockets
-                match event.type:
-                    case 'WHEELDOWNMOUSE': self.wheel_out = 0 if (self.wheel_out>=socklen-1) else self.wheel_out+1
-                    case 'WHEELUPMOUSE':   self.wheel_out = socklen-1 if (self.wheel_out<=0) else self.wheel_out-1
+                #switch to new reroute? 
 
+                if (event.type=="LEFTMOUSE" and event.value=="PRESS"):
 
-                #find out sockets
-                outp = nearest.inputs[availsock[self.wheel_out]]
-                
-                #find input socket, depends if user using initially reroute or active
-                if (self.new_rr is not None):
-                      inp = self.new_rr.outputs[0] 
-                else: inp = self.from_active.outputs[self.wheel_inp]
+                    #from active mode with wheelie is only for the first run
+                    if (self.wheel_inp): 
+                        self.wheel_inp = None
 
-                #create the link
-                out_link = self.node_tree.links.new(inp, outp,)
-                
-                # blender might think the link is false if the outp or inp is a CUSTOM, 
-                # not the case, we are going to fix that later on confirm
-                if (inp.type=='CUSTOM' or outp.type=='CUSTOM'):
-                    out_link.is_valid = True #Blender devs might put this to read only one of these days.. I hope not..
-                    # NOTE 'Invalid Link' message will still appear tho.
+                    self.add_reroute(context,event)
+                    return {'RUNNING_MODAL'}
 
-                #detect if we created a new group output by doing this check
-                if (out_link!=self.node_tree.links[-1]):
-                      self.out_link = self.node_tree.links[-1] #forced to do so, creating link to output type is an illusion, two links are created in this special case
-                else: self.out_link = out_link
+                #swap socket of initial node the first node user used
 
-                if (event.type=="RET") or ((event.type=="LEFTMOUSE") and (event.value=="PRESS")):
+                elif (event.type in {"WHEELUPMOUSE","WHEELDOWNMOUSE"}) and (len(self.created_rr)==1):
+
+                    avail_socks = [s for s in self.from_active.outputs if not s.is_unavailable]
+                    if (not avail_socks):
+                        return {'RUNNING_MODAL'}
+
+                    rr_socket = self.new_rr.inputs[0]
+                    current_sock = rr_socket.links[0].from_socket
+
+                    #loop socket
+                    direction = 1 if (event.type=='WHEELDOWNMOUSE') else -1
+                    new_sock = get_next_itm_after_active(avail_socks, active=current_sock, step=direction,)
+
+                    #keep in track of the wheel input index
+                    self.wheel_inp = self.from_active.outputs[:].index(new_sock)
+
+                    #we need to remove previous links of cuystom outputs
+                    if (self.from_active.type=='GROUP_INPUT'):
+                        for l in rr_socket.links:
+                            if (l.from_socket.type!=current_sock and l.from_socket.type=='CUSTOM'):
+                                self.node_tree.links.remove(l)
+
+                    #make the link
+                    self.node_tree.links.new(new_sock, rr_socket,)
+                    return {'RUNNING_MODAL'}
+
+                #backstep? 
+
+                elif (event.type in {"BACK_SPACE","DEL"} or (event.type=="Z" and event.ctrl)) and (event.value=="RELEASE"):
+                    self.backstep(context)
+                    return {'RUNNING_MODAL'} 
+
+                #accept & finalize? 
+
+                elif (event.type in {"RET","SPACE"}):
+                    
+                    #we select all rr we created
+                    for n in self.created_rr:
+                        n.select = True 
+                        
+                    #just remove last non confirmed reroute
+                    self.node_tree.nodes.remove(self.new_rr)
+                    
                     self.confirm(context)
                     return {'FINISHED'}
-            
-                return {'RUNNING_MODAL'}
 
-            #upon quitting shift event?
+                #special ctrl key for 90d snap
+                if (event.ctrl):
+                    #y constraint?
+                    if abs(self.last_click.x-cursor.x)<abs(self.last_click.y-cursor.y):
+                        cursor.x = self.last_click.x
+                    else: cursor.y = self.last_click.y
 
-            elif (event.type=="LEFT_SHIFT" and event.value=="RELEASE"):
+                #we update the location of the current reroute
+                rr = self.new_rr
+                if (rr):
+                    if (rr.location_absolute[:] != cursor[:]):
+                        rr.location_absolute = cursor
 
-                #remove created link
-                if (self.out_link):
-                    self.node_tree.links.remove(self.out_link)
-                    self.out_link = None
-                
-                #reset wheel loop
-                self.wheel_out = 0
-
-                #restore reroute we removed on shift init
-                self.add_reroute(context,event)
-
-                return {'RUNNING_MODAL'}
-
-            #switch to new reroute? 
-
-            elif (event.type=="LEFTMOUSE" and event.value=="PRESS"):
-
-                #from active mode with wheelie is only for the first run
-                if (self.wheel_inp): 
-                    self.wheel_inp = None
-
-                self.add_reroute(context,event)
-                return {'RUNNING_MODAL'}           
-            
-            #swap socket of initial node the first node user used
-
-            elif (event.type in {"WHEELUPMOUSE","WHEELDOWNMOUSE"}) and (len(self.created_rr)==1):
-
-                avail_socks = [s for s in self.from_active.outputs if not s.is_unavailable]
-                if (not avail_socks):
-                    return {'RUNNING_MODAL'}
-
-                rr_socket = self.new_rr.inputs[0]
-                current_sock = rr_socket.links[0].from_socket
-
-                #loop socket
-                direction = 1 if (event.type=='WHEELDOWNMOUSE') else -1
-                new_sock = get_next_itm_after_active(avail_socks, active=current_sock, step=direction,)
-
-                #keep in track of the wheel input index
-                self.wheel_inp = self.from_active.outputs[:].index(new_sock)
-
-                #we need to remove previous links of cuystom outputs
-                if (self.from_active.type=='GROUP_INPUT'):
-                    for l in rr_socket.links:
-                        if (l.from_socket.type!=current_sock and l.from_socket.type=='CUSTOM'):
-                            self.node_tree.links.remove(l)
-
-                #make the link
-                self.node_tree.links.new(new_sock, rr_socket,)
-                return {'RUNNING_MODAL'}
-
-            #backstep? 
-
-            elif (event.type in {"BACK_SPACE","DEL"} or (event.type=="Z" and event.ctrl)) and (event.value=="RELEASE"):
-                self.backstep(context)
-                return {'RUNNING_MODAL'} 
-
-            #accept & finalize? 
-
-            elif (event.type in {"RET","SPACE"}):
-                
-                #we select all rr we created
-                for n in self.created_rr:
-                    n.select = True 
-                    
-                #just remove last non confirmed reroute
-                self.node_tree.nodes.remove(self.new_rr)
-                
-                self.confirm(context)
-                return {'FINISHED'}
-
-            #cancel? 
-
-            if (event.type in {"ESC","RIGHTMOUSE"}):
-                self.cancel(context)
-                return {'CANCELLED'}
-
-            #or move newest reroute 
-            ensure_mouse_cursor(context, event)
-            cursor = context.space_data.cursor_location
-
-            #special ctrl key for 90d snap
-            if (event.ctrl):
-                #y constraint?
-                if abs(self.last_click.x-cursor.x)<abs(self.last_click.y-cursor.y):
-                      cursor.x = self.last_click.x
-                else: cursor.y = self.last_click.y
-
-            rr = self.new_rr
-            rr.location = cursor
-            print(f"DrawRoute modal running...... {rr.location}")
-        
         except Exception as e:
             print(f"Error in DrawRoute modal: '{e}'")
             self.cancel(context)
             self.report({'ERROR'},"An Error Occured during DrawRoute modal")
             return {'CANCELLED'}
-            
+
+        if (self.is_navigating):
+            return {'PASS_THROUGH'}            
         return {'RUNNING_MODAL'}
 
     def confirm(self, context):
@@ -500,9 +517,9 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
             self.node_tree.nodes.active = self.from_active
             self.from_active.select = True
 
-        if (self._timer):
-            context.window_manager.event_timer_remove(self._timer)
-            self._timer = None
+        # if (self._timer):
+        #     context.window_manager.event_timer_remove(self._timer)
+        #     self._timer = None
 
         context.workspace.status_text_set_internal(None)
         return None
