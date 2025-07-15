@@ -78,7 +78,7 @@ class NODEBOOSTER_OT_ReloadControllers(bpy.types.Operator):
         print("=== RELOAD CONTROLLERS START ===")
         
         success = reload_controllers()
-        if success:
+        if (success):
             controller = get_active_controller()
             self.report({'INFO'}, f"Controller found: {controller.name}")
         else:
@@ -133,14 +133,12 @@ class NODEBOOSTER_OT_ControllerInputListener(bpy.types.Operator):
         CONTROLLER_STORAGE.execution_counter += 1
         
         # Process timer events
-        if event.type == 'TIMER':
+        if (event.type=='TIMER'):
             try:
                 self.update_controller_data()
                 self.pass_data_to_nodes()
             except Exception as e:
                 print(f"Error in controller processing: {e}")
-            
-            return {'PASS_THROUGH'}
         
         return {'PASS_THROUGH'}
     
