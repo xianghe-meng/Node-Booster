@@ -578,7 +578,7 @@ class Base():
         if (STORAGE.is_listening):
               animated_icon = f"W_TIME_{(STORAGE.execution_counter//4)%8}"
               row.operator("nodebooster.device_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(animated_icon),)
-        else: row.operator("nodebooster.device_input_listener", text="Start Listening", icon='PLAY')
+        else: row.operator("nodebooster.device_input_listener", text="Listen to Inputs", icon='PLAY')
 
         return None
 
@@ -646,7 +646,7 @@ class Base():
         if (STORAGE.is_listening):
               animated_icon = f"W_TIME_{(STORAGE.execution_counter//4)%8}"
               layout.operator("nodebooster.device_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(animated_icon),)
-        else: layout.operator("nodebooster.device_input_listener", text="Start Listening", icon='PLAY')
+        else: layout.operator("nodebooster.device_input_listener", text="Listen to Inputs", icon='PLAY')
         
         layout.separator(factor=0.5)
 

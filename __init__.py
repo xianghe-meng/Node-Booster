@@ -228,6 +228,9 @@ def register():
     from .customnodes.deviceinput import register_listener
     register_listener()
 
+    from .customnodes.controllerinput import register_controller_listener
+    register_controller_listener()
+
     from .handlers import load_handlers    
     load_handlers()
 
@@ -264,6 +267,9 @@ def unregister():
         
     from .customnodes.deviceinput import unregister_listener
     unregister_listener()
+    
+    from .customnodes.controllerinput import unregister_controller_listener
+    unregister_controller_listener()
     
     from .resources import unload_icons
     unload_icons() 
