@@ -160,7 +160,7 @@ import bpy
 bl_info = {
     "name": "Node Booster (Experimental 4.1+)",
     "author": "BD3D DIGITAL DESIGN (Dorian B.)",
-    "version": (0, 0, 0),
+    "version": (2, 0, 0),
     "blender": (4, 1, 0),
     "location": "Node Editor",
     "description": "Please install this addon as a blender extension instead of a legacy addon!",
