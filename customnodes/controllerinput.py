@@ -5,6 +5,7 @@
 import bpy
 import time
 import platform
+import traceback
 
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
@@ -44,27 +45,24 @@ class CONTROLLER_STORAGE:
 def get_active_controller():
     """Get the first available controller"""
     try:
-        if (devices.gamepads and len(devices.gamepads) > 0):
+        if (devices.gamepads and len(devices.gamepads)>0):
             return devices.gamepads[0]
-        return None
     except Exception as e:
-        print(f"Error getting first controller: {e}")
-        return None
+        print(f"ERROR: get_active_controller(): {e}")
+    return None
 
 def reload_controllers():
     """Reload and detect controllers"""
     try:
         # Reload devices to detect new controllers
         reload_devices()
-        global devices
         from ..utils.zethinput import devices as _devices
+        global devices
         devices = _devices
-        controller = get_active_controller()
-        return controller is not None
+        return get_active_controller() is not None
     except Exception as e:
         print(f"Error reloading devices: {e}")
         return False
-
 
 
 class NODEBOOSTER_OT_ReloadControllers(bpy.types.Operator):
@@ -75,20 +73,18 @@ class NODEBOOSTER_OT_ReloadControllers(bpy.types.Operator):
     
     def execute(self, context):
         """Reload controllers"""
-        print("=== RELOAD CONTROLLERS START ===")
-        
+
         success = reload_controllers()
         if (success):
             controller = get_active_controller()
             self.report({'INFO'}, f"Controller found: {controller.name}")
         else:
             self.report({'WARNING'}, "No controllers found")
-        
+
         # Update UI
         for area in context.screen.areas:
             area.tag_redraw()
-        
-        print("=== RELOAD CONTROLLERS END ===")
+
         return {'FINISHED'}
 
 class NODEBOOSTER_OT_ControllerInputListener(bpy.types.Operator):
@@ -115,23 +111,22 @@ class NODEBOOSTER_OT_ControllerInputListener(bpy.types.Operator):
     def pass_data_to_nodes(self):
         """Pass controller data to all controller nodes"""
         for node in get_all_nodes(exactmatch_idnames={
-            NODEBOOSTER_NG_GN_ControllerInput.bl_idname,
-            NODEBOOSTER_NG_SH_ControllerInput.bl_idname,
-            NODEBOOSTER_NG_CP_ControllerInput.bl_idname,
+            NODEBOOSTER_NG_GN_XboxPadInput.bl_idname,
+            NODEBOOSTER_NG_SH_XboxPadInput.bl_idname,
+            NODEBOOSTER_NG_CP_XboxPadInput.bl_idname,
             }):
             node.sync_controller_data(CONTROLLER_STORAGE.controller_data)
+            continue
         return None
 
     def modal(self, context, event):
         """Handle modal events"""
         # Check if we should stop the operator
-        if not CONTROLLER_STORAGE.is_listening:
+        if (not CONTROLLER_STORAGE.is_listening):
             self.cancel(context)
             return {'FINISHED'}
-        
         # Increment execution counter for UI animation
         CONTROLLER_STORAGE.execution_counter += 1
-        
         # Process timer events
         if (event.type=='TIMER'):
             try:
@@ -139,11 +134,11 @@ class NODEBOOSTER_OT_ControllerInputListener(bpy.types.Operator):
                 self.pass_data_to_nodes()
             except Exception as e:
                 print(f"Error in controller processing: {e}")
-        
+                traceback.print_exc()
         return {'PASS_THROUGH'}
     
     def execute(self, context):
-        """Execute the operator"""
+        """Execute the operator, toggle start/stop behavior"""
         # Toggle listening state
         if (CONTROLLER_STORAGE.is_listening):
             # Stop listening
@@ -185,13 +180,9 @@ class NODEBOOSTER_OT_ControllerInputListener(bpy.types.Operator):
 # o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 
 
 class Base():
-    bl_idname = "NodeBoosterControllerInput"
+    bl_idname = "NodeBoosterXboxPadInput"
     bl_label = "Xbox Controller"
-    bl_description = """Listen for Xbox controller input and provide button and joystick data.
-    • Uses local zethinput module for cross-platform support
-    • Provides button A state and left joystick vector
-    • Auto-detects first available controller
-    • No external dependencies required"""
+    bl_description = """Listen for a Xbox controller input and provide button and joystick data."""
     auto_update = {'*CUSTOM_IMPLEMENTATION*'}
     tree_type = "*ChildrenDefined*"
 
@@ -267,7 +258,7 @@ class Base():
                         'is_right_shoulder_button': False,
                         }
             controller_data = empty_dict
-        
+
         set_ng_socket_defvalue(ng, socket_name="Button A", value=controller_data['is_button_a_pushed'])
         set_ng_socket_defvalue(ng, socket_name="Button B", value=controller_data['is_button_b_pushed'])
         set_ng_socket_defvalue(ng, socket_name="Button X", value=controller_data['is_button_x_pushed'])
@@ -302,10 +293,10 @@ class Base():
         col = layout.column(align=True)
         
         controller = get_active_controller()
-        if not controller:
+        if (not controller):
             row = col.row(align=True)
             row.operator("nodebooster.reload_controllers", text="No GamePad Found", icon='FILE_REFRESH')
-            return
+            return None
 
         # Show controller info
         row = col.row(align=True)
@@ -318,17 +309,11 @@ class Base():
 
         # Listen button
         col = layout.column(align=True)
-        
         if (CONTROLLER_STORAGE.is_listening):
-            animated_icon = f"W_TIME_{(CONTROLLER_STORAGE.execution_counter//4)%8}"
-            col.operator("nodebooster.controller_input_listener", 
-                        text="Stop Listening", 
-                        depress=True,
-                        icon_value=cust_icon(animated_icon))
-        else:
-            col.operator("nodebooster.controller_input_listener", 
-                        text="Listen to Inputs", 
-                        icon='PLAY')
+              col.operator("nodebooster.controller_input_listener", text="Stop Listening",  depress=True, icon_value=cust_icon(f"W_TIME_{(CONTROLLER_STORAGE.execution_counter//4)%8}"))
+        else: col.operator("nodebooster.controller_input_listener", text="Listen to Inputs", icon='PLAY')
+
+        return None
 
     def draw_panel(self, layout, context):
         """Draw in the nodebooster N panel 'Active Node'"""
@@ -338,16 +323,26 @@ class Base():
         header.label(text="Controller Detection")
         if panel:
             controller = get_active_controller()
-            if not controller:
+            if (not controller):
                 panel.alert = True
                 panel.label(text="No controller found", icon='ERROR')
                 panel.operator("nodebooster.reload_controllers", text="Detect Controller", icon='FILE_REFRESH')
             else:
-                info_col = panel.column(align=True)
-                info_col.label(text=f"Active: {controller.name}")
-                
-                panel.operator("nodebooster.reload_controllers", text="Reload", icon='FILE_REFRESH')
+                collbl = panel.column(align=True)
+                collbl.label(text=f"Controller: {controller.name}")
+                panel.operator("nodebooster.reload_controllers", text="Reload Controller", icon='FILE_REFRESH')
 
+                # Listen button
+                panel.separator(type='LINE')
+
+                if (controller):
+                    if (CONTROLLER_STORAGE.is_listening):
+                          panel.operator("nodebooster.controller_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(f"W_TIME_{(CONTROLLER_STORAGE.execution_counter//4)%8}"))
+                    else: panel.operator("nodebooster.controller_input_listener", text="Listen to Inputs", icon='PLAY')
+                else:
+                    panel.alert = True
+                    panel.label(text="No Controller Found", icon='ERROR')
+                    
         # Controller data debug
         header, panel = layout.panel("controller_debug", default_closed=True)
         header.label(text="Controller Data")
@@ -366,23 +361,6 @@ class Base():
             word_wrap(layout=panel, alert=False, active=True, max_char='auto',
                 char_auto_sidepadding=0.9, context=context, string=self.bl_description)
 
-        # Listen button
-        layout.separator()
-        if controller:
-            if CONTROLLER_STORAGE.is_listening:
-                animated_icon = f"W_TIME_{(CONTROLLER_STORAGE.execution_counter//4)%8}"
-                layout.operator("nodebooster.controller_input_listener", 
-                               text="Stop Listening", 
-                               depress=True,
-                               icon_value=cust_icon(animated_icon))
-            else:
-                layout.operator("nodebooster.controller_input_listener", 
-                               text="Listen to Inputs", 
-                               icon='PLAY')
-        else:
-            layout.alert = True
-            layout.label(text="No Controller Active", icon='ERROR')
-
     @classmethod
     def update_all(cls, using_nodes=None, signal_from_handlers=False):
         """Update all instances of this node in all node trees"""
@@ -393,15 +371,15 @@ class Base():
 # Per Node-Editor Children:
 # Respect _NG_ + _GN_/_SH_/_CP_ nomenclature
 
-class NODEBOOSTER_NG_GN_ControllerInput(Base, bpy.types.GeometryNodeCustomGroup):
+class NODEBOOSTER_NG_GN_XboxPadInput(Base, bpy.types.GeometryNodeCustomGroup):
     tree_type = "GeometryNodeTree"
     bl_idname = "GeometryNode" + Base.bl_idname
 
-class NODEBOOSTER_NG_SH_ControllerInput(Base, bpy.types.ShaderNodeCustomGroup):
+class NODEBOOSTER_NG_SH_XboxPadInput(Base, bpy.types.ShaderNodeCustomGroup):
     tree_type = "ShaderNodeTree"
     bl_idname = "ShaderNode" + Base.bl_idname
 
-class NODEBOOSTER_NG_CP_ControllerInput(Base, bpy.types.CompositorNodeCustomGroup):
+class NODEBOOSTER_NG_CP_XboxPadInput(Base, bpy.types.CompositorNodeCustomGroup):
     tree_type = "CompositorNodeTree"
     bl_idname = "CompositorNode" + Base.bl_idname
 

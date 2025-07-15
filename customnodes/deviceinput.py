@@ -510,7 +510,7 @@ class Base():
         ng = ng.copy()  # always using a copy of the original ng
         self.node_tree = ng
 
-        self.width = 156
+        self.width = 150
 
         return None
 

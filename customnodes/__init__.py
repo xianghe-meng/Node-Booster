@@ -61,9 +61,9 @@ from . deviceinput import (
         NODEBOOSTER_NG_CP_DeviceInput,
         )
 from . controllerinput import (
-        NODEBOOSTER_NG_GN_ControllerInput,
-        NODEBOOSTER_NG_SH_ControllerInput,
-        NODEBOOSTER_NG_CP_ControllerInput,
+        NODEBOOSTER_NG_GN_XboxPadInput,
+        NODEBOOSTER_NG_SH_XboxPadInput,
+        NODEBOOSTER_NG_CP_XboxPadInput,
         )
 from . objectvelocity import (
         NODEBOOSTER_NG_GN_ObjectVelocity,
@@ -126,7 +126,7 @@ GN_CustomNodes = (
             NODEBOOSTER_NG_GN_SequencerSound,
             None, #separator
             NODEBOOSTER_NG_GN_DeviceInput,
-            NODEBOOSTER_NG_GN_ControllerInput,
+            NODEBOOSTER_NG_GN_XboxPadInput,
             ),
         ),
         ('Expressions',(
@@ -163,7 +163,7 @@ SH_CustomNodes = (
             NODEBOOSTER_NG_SH_SequencerSound,
             None, #separator
             NODEBOOSTER_NG_SH_DeviceInput,
-            NODEBOOSTER_NG_SH_ControllerInput,
+            NODEBOOSTER_NG_SH_XboxPadInput,
             ),
         ),
         ('Expressions',(
@@ -200,7 +200,7 @@ CP_CustomNodes = (
             NODEBOOSTER_NG_CP_SequencerSound,
             None, #separator
             NODEBOOSTER_NG_CP_DeviceInput,
-            NODEBOOSTER_NG_CP_ControllerInput,
+            NODEBOOSTER_NG_CP_XboxPadInput,
             ),
         ),
         ('Expressions',(
@@ -261,9 +261,9 @@ classes = (
     NODEBOOSTER_NG_GN_DeviceInput,
     NODEBOOSTER_NG_SH_DeviceInput,
     NODEBOOSTER_NG_CP_DeviceInput,
-    NODEBOOSTER_NG_GN_ControllerInput,
-    NODEBOOSTER_NG_SH_ControllerInput,
-    NODEBOOSTER_NG_CP_ControllerInput,
+    NODEBOOSTER_NG_GN_XboxPadInput,
+    NODEBOOSTER_NG_SH_XboxPadInput,
+    NODEBOOSTER_NG_CP_XboxPadInput,
     NODEBOOSTER_NG_GN_ObjectVelocity,
     NODEBOOSTER_NG_SH_ObjectVelocity,
     NODEBOOSTER_NG_CP_ObjectVelocity,
