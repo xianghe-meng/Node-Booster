@@ -293,14 +293,10 @@ class Base():
         col = layout.column(align=True)
         
         controller = get_active_controller()
-        if (not controller):
-            row = col.row(align=True)
-            row.operator("nodebooster.reload_controllers", text="No GamePad Found", icon='FILE_REFRESH')
-            return None
-
-        # Show controller info
         row = col.row(align=True)
-        row.operator("nodebooster.reload_controllers", text="GamePad Found", icon='FILE_REFRESH')
+        if (not controller):
+              row.operator("nodebooster.reload_controllers", text="No GamePad Found", icon='FILE_REFRESH')
+        else: row.operator("nodebooster.reload_controllers", text="GamePad Found", icon='FILE_REFRESH')
 
         # if os is not window, show a warning
         if (platform.system() != 'Windows'):
@@ -309,9 +305,10 @@ class Base():
 
         # Listen button
         col = layout.column(align=True)
-        if (CONTROLLER_STORAGE.is_listening):
-              col.operator("nodebooster.controller_input_listener", text="Stop Listening",  depress=True, icon_value=cust_icon(f"W_TIME_{(CONTROLLER_STORAGE.execution_counter//4)%8}"))
-        else: col.operator("nodebooster.controller_input_listener", text="Listen to Inputs", icon='PLAY')
+        if (controller or CONTROLLER_STORAGE.is_listening):
+            if (CONTROLLER_STORAGE.is_listening):
+                  col.operator("nodebooster.controller_input_listener", text="Stop Listening",  depress=True, icon_value=cust_icon(f"W_TIME_{(CONTROLLER_STORAGE.execution_counter//4)%8}"))
+            else: col.operator("nodebooster.controller_input_listener", text="Listen to Inputs", icon='PLAY')
 
         return None
 
@@ -332,9 +329,9 @@ class Base():
                 collbl.label(text=f"Controller: {controller.name}")
                 panel.operator("nodebooster.reload_controllers", text="Reload Controller", icon='FILE_REFRESH')
 
+            if (controller or CONTROLLER_STORAGE.is_listening):
                 # Listen button
                 panel.separator(type='LINE')
-
                 if (controller):
                     if (CONTROLLER_STORAGE.is_listening):
                           panel.operator("nodebooster.controller_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(f"W_TIME_{(CONTROLLER_STORAGE.execution_counter//4)%8}"))
