@@ -39,10 +39,21 @@ class NODEBOOSTER_AddonPref(bpy.types.AddonPreferences):
         name="Auto Enable",
         description="Automatically launch the minimap navigation modal when loading the addon and loading new .blend files.",
         )
+    
+    #interpolation demo
+    interpolation_demo_mode : bpy.props.BoolProperty(
+        default=False,
+        name="Interpolation Nodes Demo",
+        description="Enable interpolation demo mode.",
+        )
 
     def draw(self,context):
         
         layout = self.layout
+        
+        layout.prop(self,"interpolation_demo_mode",)
+        
+        layout.separator(type='LINE')
         
         layout.prop(self,"debug",)
         layout.prop(self,"debug_depsgraph",)

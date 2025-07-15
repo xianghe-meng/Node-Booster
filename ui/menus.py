@@ -7,6 +7,8 @@ import bpy
 
 import os
 
+from ..__init__ import get_addon_prefs
+
 
 # NOTE we automatically register the submenus from that list below.
 # TODO auto registration of submenus could be improved
@@ -29,6 +31,7 @@ class DynaMenu():
 
     def draw(self, context):
         
+        sett_addon = get_addon_prefs()
         layout = self.layout
         been_drawn = []
 
@@ -37,6 +40,12 @@ class DynaMenu():
             # Case ['Submenu', (NodeClass1, NodeClass2, ...)]
             if isinstance(item, tuple) or isinstance(item, list):
                 if (len(item) > 1) and isinstance(item[0], str) and isinstance(item[1], tuple):
+                    
+                    #hide interpolation submenu? not in demo mode?
+                    if (sett_addon.interpolation_demo_mode==False):
+                        if ("interpolation" in item[0].lower()):
+                            continue
+
                     submenu_name = item[0]
                     submenu_id = f"NODEBOOSTER_MT_{submenu_name}" + self.tree_type
                     

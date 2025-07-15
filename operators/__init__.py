@@ -6,32 +6,23 @@
 import bpy
 
 from .drawroute import NODEBOOSTER_OT_draw_route
-
 from .bake import NODEBOOSTER_OT_bake_customnode
-
 from .purge import NODEBOOSTER_OT_node_purge_unused
-
 from .favorites import (
     NODEBOOSTER_OT_favorite_add,
     NODEBOOSTER_OT_favorite_teleport,
     NODEBOOSTER_OT_favorite_remove,
     NODEBOOSTER_PT_favorites_popover,
     )
-
 from .drawframes import NODEBOOSTER_OT_draw_frame
-
 from .chamfer import NODEBOOSTER_OT_chamfer
-
 from .palette import (
     NODEBOOSTER_OT_setcolor,
     NODEBOOSTER_OT_palette_reset_color,
     NODEBOOSTER_OT_initalize_palette,
     )
-
 from .codetemplates import NODEBOOSTER_OT_text_templates
-
 from ..gpudraw.minimap import NODEBOOSTER_OT_MinimapInteraction
-
 
 classes = (
     NODEBOOSTER_OT_draw_route,
@@ -51,7 +42,6 @@ classes = (
     )
 
 ADDON_KEYMAPS = []
-
 KMI_DEFS = (
     # Operator.bl_idname,                         Key, Action,  Ctrl,  Shift, Alt,   props(name,value)  Name,   Icon,     Enable
     ( NODEBOOSTER_OT_draw_route.bl_idname,        "E", "PRESS", False, False, False, (), "Draw Route",       "TRACKING",  True, ),
@@ -60,7 +50,6 @@ KMI_DEFS = (
     ( NODEBOOSTER_OT_draw_frame.bl_idname,        "J", "PRESS", False, False, False, (), "Draw Frame",       "ALIGN_TOP", True, ),
     ( NODEBOOSTER_OT_chamfer.bl_idname,           "B", "PRESS", True,  False, False, (), "Reroute Chamfer",  "MOD_BEVEL", True, ),
     )
-
 
 def load_operators_keymaps():
 
