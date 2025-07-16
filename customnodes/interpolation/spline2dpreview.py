@@ -22,6 +22,7 @@ from ...utils.node_utils import (
     set_node_socketattr,
     get_node_socket_by_name,
     socket_intersections,
+    cache_booster_nodes_parent_tree,
 )
 
 # TODO Interpolation graph:
@@ -159,6 +160,7 @@ class NODEBOOSTER_ND_2DCurvePreview(bpy.types.Node):
     def update(self):
         """generic update function"""
         
+        cache_booster_nodes_parent_tree(self.id_data)
         self.evaluator()
 
         return None

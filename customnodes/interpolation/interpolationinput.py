@@ -12,6 +12,7 @@ from ...utils.bezier2d_utils import reverseengineer_curvemapping_to_bezsegs
 from ...utils.node_utils import (
     import_new_nodegroup, 
     send_refresh_signal,
+    cache_booster_nodes_parent_tree,
 )
 
 # TODO
@@ -107,6 +108,8 @@ class Base():
 
     def update(self):
         """generic update function"""
+
+        cache_booster_nodes_parent_tree(self.id_data)
 
         return None
 

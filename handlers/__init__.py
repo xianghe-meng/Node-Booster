@@ -10,7 +10,7 @@ from collections.abc import Iterable
 from ..gpudraw import register_gpu_drawcalls
 from ..__init__ import get_addon_prefs, dprint
 from ..operators.palette import msgbus_palette_callback
-from ..utils.node_utils import get_all_nodes
+from ..utils.node_utils import get_booster_nodes, cache_all_booster_nodes_parent_trees
 from ..customnodes import allcustomnodes
 from ..customnodes import NODEBOOSTER_NG_GN_IsRenderedView
 
@@ -86,6 +86,9 @@ def on_plugin_installation():
         if (get_addon_prefs().auto_launch_minimap_navigation):
             bpy.context.window_manager.nodebooster.minimap_modal_operator_is_active = True
 
+        #on init we find all booster nodes parent trees, to save perfs at runtime.
+        cache_all_booster_nodes_parent_trees()
+
         return None
 
     bpy.app.timers.register(wait_restrict_state_timer)
@@ -126,25 +129,18 @@ def upd_all_custom_nodes(classes:list):
     if (not classes):
         return None
 
-    sett_win = bpy.context.window_manager.nodebooster
-    has_autorization = sett_win.authorize_automatic_execution
-
     matching_blid = [cls.bl_idname for cls in classes]
-    
-    nodes = get_all_nodes(exactmatch_idnames=matching_blid,)
+    nodes = get_booster_nodes(by_idnames=matching_blid,)
     # print("upd_all_custom_nodes().nodes:", matching_blid, nodes, )
 
-    for n in nodes:
+    #cls with 'auto_update' property are eligible for automatic execution.
+    auto_update_nodes = [n for n in nodes if (hasattr(n,'update_all')) and (hasattr(n,'auto_update'))]
 
-        #cls with auto_update property are eligible for automatic execution.
-        if (not hasattr(n,'update_all')) or (not hasattr(n,'auto_update')):
+    for n in auto_update_nodes:
+        #automatic re-evaluation of the Python Expression and Python Nex Nodes, for security reasons, only if the user allows it expressively.
+        if ('AUTORIZATION_REQUIRED' in n.auto_update) and \
+           (not bpy.context.window_manager.nodebooster.authorize_automatic_execution):
             continue
-
-        #automatic re-evaluation of the Python Expression and Python Nex Nodes.
-        #for security reasons, we update only if the user allows it expressively on each blender sess.
-        if ('AUTORIZATION_REQUIRED' in n.auto_update) and (not has_autorization):
-            continue
-        
         n.update_all(signal_from_handlers=True, using_nodes=nodes)
         continue
 

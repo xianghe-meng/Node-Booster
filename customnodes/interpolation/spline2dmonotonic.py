@@ -10,7 +10,9 @@ from ...__init__ import get_addon_prefs
 from ...utils.str_utils import word_wrap
 from ...utils.bezier2d_utils import ensure_monotonic_bezsegs
 from ..evaluator import evaluate_upstream_value
-
+from ...utils.node_utils import (
+    cache_booster_nodes_parent_tree,
+)
 
 # ooooo      ooo                 .o8            
 # `888b.     `8'                "888            
@@ -52,7 +54,9 @@ class NODEBOOSTER_ND_EnsureMonotonicity(bpy.types.Node):
 
     def update(self):
         """generic update function"""
-        
+
+        cache_booster_nodes_parent_tree(self.id_data)
+
         return None
 
     def draw_label(self,):

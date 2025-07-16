@@ -14,6 +14,7 @@ from ...utils.node_utils import (
     import_new_nodegroup, 
     set_node_socketattr,
     set_node_socketattr,
+    cache_booster_nodes_parent_tree,
 )
 
 
@@ -86,9 +87,10 @@ class Base():
 
     def update(self):
         """generic update function"""
-        
+
+        cache_booster_nodes_parent_tree(self.id_data)
         self.evaluator()
-        
+
         return None
 
     def draw_label(self,):

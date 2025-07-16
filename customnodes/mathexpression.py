@@ -30,6 +30,7 @@ from ..utils.node_utils import (
     remove_ng_socket,
     link_sockets,
     create_ng_constant_node,
+    cache_booster_nodes_parent_tree,
 )
 from ..nex.nodesetter import (
     get_nodesetter_functions, 
@@ -354,7 +355,9 @@ class Base():
     
     def update(self):
         """generic update function"""
-                
+
+        cache_booster_nodes_parent_tree(self.id_data)
+
         return None
     
     def digest_user_expression(self, expression) -> str:

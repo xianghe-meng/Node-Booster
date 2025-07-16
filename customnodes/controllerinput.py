@@ -15,7 +15,8 @@ from ..utils.node_utils import (
     create_new_nodegroup,
     set_ng_socket_defvalue,
     set_ng_socket_description,
-    get_all_nodes,
+    get_booster_nodes,
+    cache_booster_nodes_parent_tree,
     create_ng_socket,
     remove_ng_socket,
 )
@@ -110,7 +111,7 @@ class NODEBOOSTER_OT_ControllerInputListener(bpy.types.Operator):
 
     def pass_data_to_nodes(self):
         """Pass controller data to all controller nodes"""
-        for node in get_all_nodes(exactmatch_idnames={
+        for node in get_booster_nodes(by_idnames={
             NODEBOOSTER_NG_GN_XboxPadInput.bl_idname,
             NODEBOOSTER_NG_SH_XboxPadInput.bl_idname,
             NODEBOOSTER_NG_CP_XboxPadInput.bl_idname,
@@ -227,11 +228,17 @@ class Base():
 
     def copy(self, node):
         """Function run when duplicating the node"""
+
         self.node_tree = node.node_tree.copy()
+        
+        return None
 
     def update(self):
         """Generic update function"""
-        pass
+
+        cache_booster_nodes_parent_tree(self.id_data)
+
+        return None
 
     def sync_controller_data(self, controller_data):
         """Update node outputs based on controller data"""

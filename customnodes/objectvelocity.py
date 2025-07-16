@@ -26,9 +26,10 @@ from ..utils.node_utils import (
     create_new_nodegroup,
     set_ng_socket_defvalue,
     set_ng_socket_description,
-    get_all_nodes,
     create_ng_socket,
     remove_ng_socket,
+    get_booster_nodes,
+    cache_booster_nodes_parent_tree,
 )
 
 DEBUG = False
@@ -204,11 +205,15 @@ class Base():
 
     def copy(self, node):
         """fct run when duplicating the node"""
+
         self.node_tree = node.node_tree.copy()
+
         return None
 
     def update(self):
         """generic update function"""
+
+        cache_booster_nodes_parent_tree(self.id_data)
 
         return None
 
@@ -421,7 +426,7 @@ class Base():
         """update all instances of this node in all node trees"""
         
         # Update all object velocity nodes
-        for node in get_all_nodes(exactmatch_idnames={
+        for node in get_booster_nodes(by_idnames={
             NODEBOOSTER_NG_GN_ObjectVelocity.bl_idname,
             NODEBOOSTER_NG_SH_ObjectVelocity.bl_idname,
             NODEBOOSTER_NG_CP_ObjectVelocity.bl_idname,

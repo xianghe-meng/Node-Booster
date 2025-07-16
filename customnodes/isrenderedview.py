@@ -7,8 +7,11 @@ import bpy
 
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
-from ..utils.node_utils import create_new_nodegroup, set_ng_socket_defvalue
-
+from ..utils.node_utils import (
+    create_new_nodegroup,
+    set_ng_socket_defvalue,
+    cache_booster_nodes_parent_tree,
+)
 
 def all_3d_viewports():
     """return generator of all 3d view space"""
@@ -73,6 +76,8 @@ class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
 
     def update(self):
         """generic update function"""
+
+        cache_booster_nodes_parent_tree(self.id_data)
 
         return None
     

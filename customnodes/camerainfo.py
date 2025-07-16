@@ -10,7 +10,8 @@ from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     create_new_nodegroup,
     set_ng_socket_defvalue,
-    get_all_nodes,
+    get_booster_nodes,
+    cache_booster_nodes_parent_tree,
 )
 
 # ooooo      ooo                 .o8            
@@ -111,7 +112,9 @@ class Base():
 
     def update(self):
         """generic update function"""
-        
+
+        cache_booster_nodes_parent_tree(self.id_data)
+
         return None
         
     def sync_out_values(self):
@@ -219,7 +222,7 @@ class Base():
         """search for all node instances of this type and refresh them. Will be called automatically if .auto_update's are defined"""
         
         if (using_nodes is None):
-              nodes = get_all_nodes(exactmatch_idnames={cls.bl_idname},)
+              nodes = get_booster_nodes(by_idnames={cls.bl_idname},)
         else: nodes = [n for n in using_nodes if (n.bl_idname==cls.bl_idname)]
 
         for n in nodes:

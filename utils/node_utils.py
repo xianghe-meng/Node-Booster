@@ -32,59 +32,6 @@ TREE_TO_GROUP_EQUIV = {
     'GeometryNodeTree': 'GeometryNodeGroup',
     }
 
-
-def get_all_nodes(ignore_ng_name:str="NodeBooster", approxmatch_idnames:str="", exactmatch_idnames:set=None, ngtypes:set=None,) -> set|list:
-    """get nodes instances across many nodetree editor types.
-    - ngtypes: the editor types to be supported in {'GEOMETRY','SHADER','COMPOSITING',}. will use all if None
-    - ignore_ng_name: ignore getting nodes from a nodetree containing a specific name.
-    - approxmatch_idnames: only get nodes whose include the given token.
-    - exactmatch_idnames: only get nodes included in the set of given id names.
-    """
- 
-    if (ngtypes is None):
-        ngtypes = {'GEOMETRY','SHADER','COMPOSITING',}
-
-    nodes = set()
-
-    if ('SHADER' in ngtypes):
-        #get all nodes of all materials
-        for mat in bpy.data.materials:
-            if mat.use_nodes and mat.node_tree:
-                for n in mat.node_tree.nodes:
-                    nodes.add(n)
-
-    if ('COMPOSITING' in ngtypes):
-        #get all nodes of the compositor base tree
-        for scn in bpy.data.scenes:
-            if scn.use_nodes and scn.node_tree:
-                for n in scn.node_tree.nodes:
-                    nodes.add(n)
-
-    for ng in bpy.data.node_groups:
-        
-        #does the type of the nodegroup correspond to what we need?
-        if (ng.type not in ngtypes):
-            continue
-        
-        #we ignore specific ng names?
-        if (ignore_ng_name and (ignore_ng_name in ng.name)):
-            continue
-        
-        #batch add all these nodes.
-        nodes.update(ng.nodes)
-        continue
-
-    #only node with matching exact id?
-    if (exactmatch_idnames):
-        nodes = [n for n in nodes if (n.bl_idname in exactmatch_idnames)]
-
-    #only with node with 
-    if (approxmatch_idnames):
-        nodes = [n for n in nodes if (approxmatch_idnames in n.bl_idname)]
-
-    return nodes
-
-
 def send_refresh_signal(socket):
     """lazy trick to send a refresh signal to the nodetree"""
 
@@ -897,3 +844,105 @@ def get_farest_node(node_tree, mode='BOTTOM_RIGHT',):
                     max_x, min_y = x, y
 
     return farest
+
+# oooooooooo.                                   .                      ooooo      ooo                 .o8                     
+# `888'   `Y8b                                .o8                      `888b.     `8'                "888                     
+#  888     888  .ooooo.   .ooooo.   .oooo.o .o888oo  .ooooo.  oooo d8b  8 `88b.    8   .ooooo.   .oooo888   .ooooo.   .oooo.o 
+#  888oooo888' d88' `88b d88' `88b d88(  "8   888   d88' `88b `888""8P  8   `88b.  8  d88' `88b d88' `888  d88' `88b d88(  "8 
+#  888    `88b 888   888 888   888 `"Y88b.    888   888ooo888  888      8     `88b.8  888   888 888   888  888ooo888 `"Y88b.  
+#  888    .88P 888   888 888   888 o.  )88b   888 . 888    .o  888      8       `888  888   888 888   888  888    .o o.  )88b 
+# o888bood8P'  `Y8bod8P' `Y8bod8P' 8""888P'   "888" `Y8bod8P' d888b    o8o        `8  `Y8bod8P' `Y8bod88P" `Y8bod8P' 8""888P' 
+
+#NOTE: it is a very common operation to find back all booster nodes, scatered in many different nodetrees.
+# this action is often executed, we need a system to quickly find back the created booster nodes.
+# to resolve this we store all nodes parent nodetrees.session_uid in a global here.
+#NOTE: storing node object directly in a global is a bad idea, as blender python object might change memory adress within session, 
+# storing a bpy object directly in a global is bad practice, therefore we fallback at using nt.session_uid integer..
+
+_CACHE_BOOSTER_NODES_PARENT_TREES = {
+    'ShaderNodeTree':set(),    #list of shader nodes trees session_uid
+    'CompositorNodeTree':set(), #list of compositor nodes trees session_uid
+    'GeometryNodeTree':set(),   #list of geometry nodes trees session_uid
+    }
+
+def cache_booster_nodes_parent_tree(node_tree):
+    """register a new parent nodetree of booster nodes.
+    This function should be used on every node.update()"""
+    nt_type = type(node_tree).__name__
+    assert nt_type in _CACHE_BOOSTER_NODES_PARENT_TREES.keys(), f"ERROR: cache_booster_nodes_parent_tree(): type {nt_type} not in '{_CACHE_BOOSTER_NODES_PARENT_TREES.keys()}'"
+    _CACHE_BOOSTER_NODES_PARENT_TREES[nt_type].add(node_tree.session_uid)
+    return None
+
+def cache_all_booster_nodes_parent_trees():
+    """find all parent nodetrees of booster nodes. 
+    Filling '_CACHE_BOOSTER_NODES_PARENT_TREES' cache.."""
+
+    #get all nodes of all materials
+    for mat in bpy.data.materials:
+        if (mat.use_nodes and mat.node_tree):
+            for n in mat.node_tree.nodes:
+                if n.bl_idname.startswith('NODEBOOSTER_'):
+                    _CACHE_BOOSTER_NODES_PARENT_TREES['ShaderNodeTree'].add(mat.node_tree.session_uid)
+                    break
+    #get all nodes of the compositor base tree
+    for scn in bpy.data.scenes:
+        if (scn.use_nodes and scn.node_tree):
+            for n in scn.node_tree.nodes:
+                if n.bl_idname.startswith('NODEBOOSTER_'):
+                    _CACHE_BOOSTER_NODES_PARENT_TREES['CompositorNodeTree'].add(scn.node_tree.session_uid)
+                    break
+    #search all ng
+    for ng in bpy.data.node_groups:
+        #does the type of the nodegroup correspond to what we need?
+        nt_type = type(ng).__name__
+        if (nt_type not in {'ShaderNodeTree','CompositorNodeTree','GeometryNodeTree'}):
+            print(f"ERROR: cache_all_booster_nodes_parent_trees(): type {nt_type} not in '{_CACHE_BOOSTER_NODES_PARENT_TREES.keys()}'")
+            continue
+        #we ignore specific ng names?
+        if ('NODEBOOSTER' in ng.name.upper()):
+            continue
+        for n in ng.nodes:
+            if n.bl_idname.startswith('NODEBOOSTER_'):
+                _CACHE_BOOSTER_NODES_PARENT_TREES[nt_type].add(ng.session_uid)
+                break
+        continue
+    
+    return None
+
+def get_cached_booster_nodes(by_idnames:set=None,) -> set:
+    """get all booster nodes, finding them back via their registered parent nodetrees"""
+
+    shader_tree_uids = _CACHE_BOOSTER_NODES_PARENT_TREES['ShaderNodeTree']
+    if (shader_tree_uids):
+        mat_nt = [mat.node_tree for mat in bpy.data.materials if (mat.use_nodes and mat.node_tree and (mat.node_tree.session_uid in shader_tree_uids))]
+        shd_nt = [ng for ng in bpy.data.node_groups if (ng.type=='SHADER' and (ng.session_uid in shader_tree_uids))]
+    else:
+        mat_nt = []
+        shd_nt = []
+
+    compositor_tree_uids = _CACHE_BOOSTER_NODES_PARENT_TREES['CompositorNodeTree']
+    if (compositor_tree_uids):
+        scn_nt = [scn.node_tree for scn in bpy.data.scenes if (scn.use_nodes and scn.node_tree and (scn.node_tree.session_uid in compositor_tree_uids))]
+        comp_ng = [ng for ng in bpy.data.node_groups if (ng.type=='COMPOSITING' and (ng.session_uid in compositor_tree_uids))]
+    else:
+        scn_nt = []
+        comp_ng = []
+
+    geometry_tree_uids = _CACHE_BOOSTER_NODES_PARENT_TREES['GeometryNodeTree']
+    if (geometry_tree_uids):
+        geo_ng = [ng for ng in bpy.data.node_groups if (ng.type=='GEOMETRY' and (ng.session_uid in geometry_tree_uids))]
+    else:
+        geo_ng = []
+
+    if (by_idnames):
+          return set(n for nt in set(mat_nt + shd_nt + scn_nt + comp_ng + geo_ng) for n in nt.nodes if (n.bl_idname in by_idnames))
+    else: return set(n for nt in set(mat_nt + shd_nt + scn_nt + comp_ng + geo_ng) for n in nt.nodes if n.bl_idname.startswith('NODEBOOSTER_NG_'))
+ 
+
+def get_booster_nodes(by_idnames:set=None,) -> set:
+    """get nodes instances across many nodetree editor types.
+    - 'by_idnames': only get nodes included in the set of given id names.
+    """
+    return get_cached_booster_nodes(by_idnames=by_idnames)                                                                               
+                                                                                                                            
+                                                                                                                            

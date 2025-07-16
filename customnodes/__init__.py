@@ -135,7 +135,7 @@ GN_CustomNodes = (
             NODEBOOSTER_NG_GN_PyNexScript,
             ),
         ),
-        ('Interpolation(Experimental)',(
+        ('Interpolation',(
             NODEBOOSTER_NG_GN_InterpolationInput,
             NODEBOOSTER_NG_GN_InterpolationMap,
             NODEBOOSTER_NG_GN_InterpolationRemap,
@@ -172,7 +172,7 @@ SH_CustomNodes = (
             NODEBOOSTER_NG_SH_PyNexScript,
             ),
         ),
-        ('Interpolation(Experimental)',(
+        ('Interpolation',(
             NODEBOOSTER_NG_SH_InterpolationInput,
             NODEBOOSTER_NG_SH_InterpolationMap,
             NODEBOOSTER_NG_SH_InterpolationRemap,
@@ -209,7 +209,7 @@ CP_CustomNodes = (
             NODEBOOSTER_NG_CP_PyNexScript,
             ),
         ),
-        ('Interpolation(Experimental)',(
+        ('Interpolation',(
             NODEBOOSTER_NG_CP_InterpolationInput,
             NODEBOOSTER_NG_CP_InterpolationMap,
             NODEBOOSTER_NG_CP_InterpolationRemap,

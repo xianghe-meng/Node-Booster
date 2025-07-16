@@ -13,6 +13,7 @@ from ...utils.bezier2d_utils import looped_offset_bezsegs
 from ..evaluator import evaluate_upstream_value
 from ...utils.node_utils import (
     send_refresh_signal,
+    cache_booster_nodes_parent_tree,
 )
 
 
@@ -83,7 +84,9 @@ class NODEBOOSTER_ND_InterpolationLoop(bpy.types.Node):
 
     def update(self):
         """generic update function"""
-        
+
+        cache_booster_nodes_parent_tree(self.id_data)
+
         return None
 
     def draw_label(self,):

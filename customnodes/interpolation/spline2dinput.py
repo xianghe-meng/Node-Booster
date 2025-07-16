@@ -10,6 +10,7 @@ from ...utils.bezier2d_utils import reverseengineer_curvemapping_to_bezsegs
 from ...utils.str_utils import word_wrap # Added for draw_panel
 from ...utils.node_utils import (
     send_refresh_signal,
+    cache_booster_nodes_parent_tree,
     )
 
 
@@ -79,7 +80,9 @@ class NODEBOOSTER_ND_2DCurveInput(bpy.types.Node):
 
     def update(self):
         """generic update function"""
-    
+
+        cache_booster_nodes_parent_tree(self.id_data)
+
         return None
 
     def update_trigger(self,):
