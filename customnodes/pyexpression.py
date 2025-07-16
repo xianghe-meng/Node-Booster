@@ -35,7 +35,7 @@ class Base():
     bl_description = """Evaluate a python expression as a single value output.
     • The evaluated values can be of type 'float', 'int', 'Vector', 'Color', 'Quaternion', 'Matrix', 'String', 'Object', 'Collection', 'Material' & 'list/tuple/set' up to len 16.
     • For more advanced python expression, try out the 'Nex Script' node!"""
-    auto_update = {'FRAME_PRE','DEPS_POST','AUTORIZATION_REQUIRED',}
+    auto_upd_flags = {'FRAME_PRE','DEPS_POST','AUTORIZATION_REQUIRED',}
     tree_type = "*ChildrenDefined*"
     # bl_icon = 'SCRIPT'
 
@@ -297,7 +297,7 @@ class Base():
 
     @classmethod
     def update_all(cls, using_nodes=None, signal_from_handlers=False,):
-        """search for all node instances of this type and refresh them. Will be called automatically if .auto_update's are defined"""
+        """search for all node instances of this type and refresh them. Will be called automatically if .auto_upd_flags's are defined"""
 
         if (using_nodes is None):
               nodes = get_booster_nodes(by_idnames={cls.bl_idname},)

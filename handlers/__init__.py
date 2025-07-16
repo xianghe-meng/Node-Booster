@@ -133,12 +133,12 @@ def upd_all_custom_nodes(classes:list):
     nodes = get_booster_nodes(by_idnames=matching_blid,)
     # print("upd_all_custom_nodes().nodes:", matching_blid, nodes, )
 
-    #cls with 'auto_update' property are eligible for automatic execution.
-    auto_update_nodes = [n for n in nodes if (hasattr(n,'update_all')) and (hasattr(n,'auto_update'))]
+    #cls with 'auto_upd_flags' property are eligible for automatic execution.
+    auto_update_nodes = [n for n in nodes if (hasattr(n,'update_all')) and (hasattr(n,'auto_upd_flags'))]
 
     for n in auto_update_nodes:
         #automatic re-evaluation of the Python Expression and Python Nex Nodes, for security reasons, only if the user allows it expressively.
-        if ('AUTORIZATION_REQUIRED' in n.auto_update) and \
+        if ('AUTORIZATION_REQUIRED' in n.auto_upd_flags) and \
            (not bpy.context.window_manager.nodebooster.authorize_automatic_execution):
             continue
         n.update_all(signal_from_handlers=True, using_nodes=nodes)
@@ -147,7 +147,7 @@ def upd_all_custom_nodes(classes:list):
     return None
 
 
-DEPSPOST_UPD_NODES = [cls for cls in allcustomnodes if ('DEPS_POST' in cls.auto_update)]
+DEPSPOST_UPD_NODES = [cls for cls in allcustomnodes if ('DEPS_POST' in cls.auto_upd_flags)]
 
 @bpy.app.handlers.persistent
 def nodebooster_handler_depspost(scene,desp):
@@ -169,7 +169,7 @@ def nodebooster_handler_depspost(scene,desp):
     upd_all_custom_nodes(DEPSPOST_UPD_NODES)
     return None
 
-FRAMEPRE_UPD_NODES = [cls for cls in allcustomnodes if ('FRAME_PRE' in cls.auto_update)]
+FRAMEPRE_UPD_NODES = [cls for cls in allcustomnodes if ('FRAME_PRE' in cls.auto_upd_flags)]
 
 @bpy.app.handlers.persistent
 def nodebooster_handler_framepre(scene,desp):
@@ -182,7 +182,7 @@ def nodebooster_handler_framepre(scene,desp):
     upd_all_custom_nodes(FRAMEPRE_UPD_NODES)
     return None
 
-LOADPOST_UPD_NODES = [cls for cls in allcustomnodes if ('LOAD_POST' in cls.auto_update)]
+LOADPOST_UPD_NODES = [cls for cls in allcustomnodes if ('LOAD_POST' in cls.auto_upd_flags)]
 
 @bpy.app.handlers.persistent
 def nodebooster_handler_loadpost(scene,desp):

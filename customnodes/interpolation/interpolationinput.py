@@ -52,7 +52,7 @@ class Base():
     bl_idname = "NodeBoosterInterpolationInput"
     bl_label = "Interpolation Input"
     bl_description = """Create a 2D curve from an interpolation curve mapping graph"""
-    auto_update = {'NONE',}
+    auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
 
     evaluator_properties = {'INTERPOLATION_NODE',}

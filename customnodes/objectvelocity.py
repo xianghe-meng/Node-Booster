@@ -134,7 +134,7 @@ class Base():
     • Monitors the selected object's position, rotation, and scale.
     • Calculates velocity, acceleration, and stopping power in real-time.
     • Provides damping controls to smooth the motion data."""
-    auto_update = {'FRAME_PRE',}
+    auto_upd_flags = {'FRAME_PRE',}
     tree_type = "*ChildrenDefined*"
     
     target_obj: bpy.props.PointerProperty(

@@ -184,7 +184,7 @@ class Base():
     bl_idname = "NodeBoosterXboxPadInput"
     bl_label = "Xbox Controller"
     bl_description = """Listen for a Xbox controller input and provide button and joystick data. Please note that this node is exclusive to WindowsOS and Xbox Controllers!"""
-    auto_update = {'*CUSTOM_IMPLEMENTATION*'}
+    auto_upd_flags = {'*CUSTOM_IMPLEMENTATION*'} #NOTE: This node uses a listener modal operator for the updates.
     tree_type = "*ChildrenDefined*"
 
     @classmethod

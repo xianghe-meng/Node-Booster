@@ -27,7 +27,7 @@ class NODEBOOSTER_ND_EnsureMonotonicity(bpy.types.Node):
     bl_idname = "NodeBoosterMonotonic"
     bl_label = "Monotonicity"
     bl_description = """Ensure a 2D curve is monotonic on the X axis (no segments crossovers). This will effectively convert any 2D curve into a typical 2D curve interpreted for an interpolation."""
-    auto_update = {'NONE',}
+    auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
 
     evaluator_properties = {'INTERPOLATION_NODE',}

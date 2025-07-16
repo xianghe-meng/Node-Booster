@@ -78,7 +78,7 @@ class NODEBOOSTER_ND_CustomSocketUtility(bpy.types.Node):
     bl_label = "Socket Utility (Dev)"
     bl_description = "an internal utility node, for creating our customgroups"
     bl_icon = 'NODE'
-    auto_update = {'NONE',}
+    auto_upd_flags = {'NONE',}
 
     def init(self, context):
         self.inputs.new('NodeBoosterCustomSocketInterpolation', "Interpolation")

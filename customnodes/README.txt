@@ -49,7 +49,7 @@ To contribute a custom node, follow these steps:
        - always start your class with NODEBOOSTER_ 
        - bl_idname should contain the keyword 'NodeBooster'.
        - Use _NG_ for NodeCustomGroup and _ND_ for NodeCustom. 
-     - Use the 'node.auto_update = {}' attribute to automatically run 'cls.update_all()' on depsgraph.
+     - Use the 'node.auto_upd_flags = {}' attribute to automatically run 'cls.update_all()' on depsgraph.
      - node.update() will run when the user is adding new links in the node_tree. 
        We generally dont use this for CustomNodeGroup.
   

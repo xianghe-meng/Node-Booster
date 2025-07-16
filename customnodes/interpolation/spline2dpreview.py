@@ -56,7 +56,7 @@ class NODEBOOSTER_ND_2DCurvePreview(bpy.types.Node):
     bl_label = "2D Curve Preview"
     bl_description = """Preview a 2D curve."""
     bl_width_min = 157
-    auto_update = {'NONE',}
+    auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
 
     # NOTE this node is the end of the line for our a socket type, 

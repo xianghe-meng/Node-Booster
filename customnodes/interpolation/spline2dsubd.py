@@ -30,7 +30,7 @@ class NODEBOOSTER_ND_2DCurveSubdiv(bpy.types.Node):
     bl_idname = "NodeBooster2DCurveSubdiv"
     bl_label = "Subdivide 2D Curve"
     bl_description = """Subdivide a 2D curve. Either by a specific number of subdivisions, or at a specific X location, or by projecting the curve along the reference curve tangent space."""
-    auto_update = {'NONE',}
+    auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
 
     evaluator_properties = {'INTERPOLATION_NODE',}

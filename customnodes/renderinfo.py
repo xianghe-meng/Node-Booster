@@ -29,7 +29,7 @@ class Base():
     bl_label = "Render Info"
     bl_description  = """Custom Nodgroup: Gather informations about your active scene render info.
     • Expect updates on each depsgraph post and frame_pre update signals"""
-    auto_update = {'FRAME_PRE','DEPS_POST',}
+    auto_upd_flags = {'FRAME_PRE','DEPS_POST',}
     tree_type = "*ChildrenDefined*"
 
     @classmethod
@@ -130,7 +130,7 @@ class Base():
 
     @classmethod
     def update_all(cls, using_nodes=None, signal_from_handlers=False,):
-        """search for all node instances of this type and refresh them. Will be called automatically if .auto_update's are defined"""
+        """search for all node instances of this type and refresh them. Will be called automatically if .auto_upd_flags's are defined"""
 
         if (using_nodes is None):
               nodes = get_booster_nodes(by_idnames={cls.bl_idname},)

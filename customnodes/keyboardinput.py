@@ -349,7 +349,7 @@ class Base():
     • Provides various data about input events (mouse, keyboard, etc.)
     • You can add custom key event types by entering them in a comma-separated list (e.g., "A,B,SPACE,RET"). See blender 'Event Type Items' documentation to know which kewords are supported.
     • Control the global velocity damping behavior to smooth out the mouse movement in 'N Panle > NodeBooster > Active Node > Parameters'."""
-    auto_update = {'*CUSTOM_IMPLEMENTATION*',}
+    auto_upd_flags = {'*CUSTOM_IMPLEMENTATION*',} #NOTE: This node uses a listener modal operator for the updates.
     tree_type = "*ChildrenDefined*"
 
     def get_velocity_damping(self):

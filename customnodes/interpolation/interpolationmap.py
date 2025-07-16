@@ -31,7 +31,7 @@ class Base():
     bl_idname = "NodeBoosterInterpolationMap"
     bl_label = "Interpolation Map"
     bl_description = """Map values to an interpolation curve. Similar to the 'Float Curve' node."""
-    auto_update = {'NONE',}
+    auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
 
     # NOTE this node is the end of the line for our a socket type, 

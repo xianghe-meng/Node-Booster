@@ -30,7 +30,7 @@ class NODEBOOSTER_ND_2DCurveExtend(bpy.types.Node):
     bl_idname = "NodeBooster2DCurveExtend"
     bl_label = "Extend 2D Curve"
     bl_description = """Extend a 2D curve at a specific X location by adding a new segment"""
-    auto_update = {'NONE',}
+    auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
 
     evaluator_properties = {'INTERPOLATION_NODE',}

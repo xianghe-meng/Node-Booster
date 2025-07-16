@@ -49,7 +49,7 @@ class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
 
     bl_idname = "GeometryNodeNodeBoosterIsRenderedView"
     bl_label = "Is Rendered View"
-    auto_update = {'*CUSTOM_IMPLEMENTATION*',}
+    auto_upd_flags = {'*CUSTOM_IMPLEMENTATION*',} #NOTE: This node is manually implemented at a handler level.
 
     @classmethod
     def poll(cls, context):
@@ -123,7 +123,7 @@ class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
 
     @classmethod
     def update_all(cls, using_nodes=None, signal_from_handlers=False,):
-        """search for all node instances of this type and refresh them. Will be called automatically if .auto_update's are defined"""
+        """search for all node instances of this type and refresh them. Will be called automatically if .auto_upd_flags's are defined"""
         
         # actually we don't need to update all instances. 
         # for this special node who always use the same node_tree for all nodes, 

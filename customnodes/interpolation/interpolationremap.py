@@ -31,7 +31,7 @@ class Base():
     bl_idname = "NodeBoosterInterpolationRemap"
     bl_label = "Interpolation Remap"
     bl_description = """Remap values from a chosen interpolation curve."""
-    auto_update = {'NONE',}
+    auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
 
     evaluator_properties = {'INTERPOLATION_OUTPUT',}

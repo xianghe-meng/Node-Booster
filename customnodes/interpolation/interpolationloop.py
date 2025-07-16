@@ -35,7 +35,7 @@ class NODEBOOSTER_ND_InterpolationLoop(bpy.types.Node):
     bl_idname = "NodeBooster2DCurveLoop"
     bl_label = "Loop Interpolation"
     bl_description = """Loop an interpolation 2D curve from a given offset or speed. If the passed 2D curve is not monotonic, we'll make it monotonic first."""
-    auto_update = {'NONE',}
+    auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
 
     evaluator_properties = {'INTERPOLATION_NODE',}

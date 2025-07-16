@@ -257,7 +257,7 @@ class Base():
     • Create a new text-data and initiate Nex input and output using `a:infloat` or `z:outfloat = a` for example.
     • These created input variables are SocketTypes, do math, write code with them, then assign their values to an output.
     • An example of NexCode is available in your text editor template panel."""
-    auto_update = {'FRAME_PRE','DEPS_POST','AUTORIZATION_REQUIRED',}
+    auto_upd_flags = {'FRAME_PRE','DEPS_POST','AUTORIZATION_REQUIRED',}
     tree_type = "*ChildrenDefined*"
     # bl_icon = 'SCRIPT'
 
@@ -769,7 +769,7 @@ class Base():
 
     @classmethod
     def update_all(cls, using_nodes=None, signal_from_handlers=False,):
-        """search for all node instances of this type and refresh them. Will be called automatically if .auto_update's are defined"""
+        """search for all node instances of this type and refresh them. Will be called automatically if .auto_upd_flags's are defined"""
 
         if (using_nodes is None):
               nodes = get_booster_nodes(by_idnames={cls.bl_idname},)
