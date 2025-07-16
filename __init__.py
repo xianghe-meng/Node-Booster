@@ -183,7 +183,7 @@ def register():
     from .properties import load_properties
     load_properties()
 
-    from .customnodes.deviceinput import register_listener
+    from .customnodes.keyboardinput import register_listener
     register_listener()
 
     from .customnodes.controllerinput import register_controller_listener
@@ -223,7 +223,7 @@ def unregister():
     for cls in get_addon_classes(revert=True):
         bpy.utils.unregister_class(cls)
         
-    from .customnodes.deviceinput import unregister_listener
+    from .customnodes.keyboardinput import unregister_listener
     unregister_listener()
     
     from .customnodes.controllerinput import unregister_controller_listener

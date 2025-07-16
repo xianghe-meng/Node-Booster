@@ -55,10 +55,10 @@ from . pynexscript import (
         NODEBOOSTER_NG_SH_PyNexScript,
         NODEBOOSTER_NG_CP_PyNexScript,
         )
-from . deviceinput import (
-        NODEBOOSTER_NG_GN_DeviceInput,
-        NODEBOOSTER_NG_SH_DeviceInput,
-        NODEBOOSTER_NG_CP_DeviceInput,
+from . keyboardinput import (
+        NODEBOOSTER_NG_GN_KeyboardAndMouse,
+        NODEBOOSTER_NG_SH_KeyboardAndMouse,
+        NODEBOOSTER_NG_CP_KeyboardAndMouse,
         )
 from . controllerinput import (
         NODEBOOSTER_NG_GN_XboxPadInput,
@@ -125,7 +125,7 @@ GN_CustomNodes = (
             NODEBOOSTER_NG_GN_IsRenderedView, #this one doesn't make sense in other editors.
             NODEBOOSTER_NG_GN_SequencerSound,
             None, #separator
-            NODEBOOSTER_NG_GN_DeviceInput,
+            NODEBOOSTER_NG_GN_KeyboardAndMouse,
             NODEBOOSTER_NG_GN_XboxPadInput,
             ),
         ),
@@ -162,7 +162,7 @@ SH_CustomNodes = (
             NODEBOOSTER_NG_SH_ObjectVelocity,
             NODEBOOSTER_NG_SH_SequencerSound,
             None, #separator
-            NODEBOOSTER_NG_SH_DeviceInput,
+            NODEBOOSTER_NG_SH_KeyboardAndMouse,
             NODEBOOSTER_NG_SH_XboxPadInput,
             ),
         ),
@@ -199,7 +199,7 @@ CP_CustomNodes = (
             NODEBOOSTER_NG_CP_ObjectVelocity,
             NODEBOOSTER_NG_CP_SequencerSound,
             None, #separator
-            NODEBOOSTER_NG_CP_DeviceInput,
+            NODEBOOSTER_NG_CP_KeyboardAndMouse,
             NODEBOOSTER_NG_CP_XboxPadInput,
             ),
         ),
@@ -258,9 +258,9 @@ classes = (
     NODEBOOSTER_NG_GN_PyNexScript,
     NODEBOOSTER_NG_SH_PyNexScript,
     NODEBOOSTER_NG_CP_PyNexScript,
-    NODEBOOSTER_NG_GN_DeviceInput,
-    NODEBOOSTER_NG_SH_DeviceInput,
-    NODEBOOSTER_NG_CP_DeviceInput,
+    NODEBOOSTER_NG_GN_KeyboardAndMouse,
+    NODEBOOSTER_NG_SH_KeyboardAndMouse,
+    NODEBOOSTER_NG_CP_KeyboardAndMouse,
     NODEBOOSTER_NG_GN_XboxPadInput,
     NODEBOOSTER_NG_SH_XboxPadInput,
     NODEBOOSTER_NG_CP_XboxPadInput,

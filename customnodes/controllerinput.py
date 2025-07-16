@@ -183,7 +183,7 @@ class NODEBOOSTER_OT_ControllerInputListener(bpy.types.Operator):
 class Base():
     bl_idname = "NodeBoosterXboxPadInput"
     bl_label = "Xbox Controller"
-    bl_description = """Listen for a Xbox controller input and provide button and joystick data."""
+    bl_description = """Listen for a Xbox controller input and provide button and joystick data. Please note that this node is exclusive to WindowsOS and Xbox Controllers!"""
     auto_update = {'*CUSTOM_IMPLEMENTATION*'}
     tree_type = "*ChildrenDefined*"
 

@@ -126,10 +126,10 @@ def calculate_mouse_metrics(history:list) -> tuple:
 
     return velocity, direction
 
-class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
+class NODEBOOSTER_OT_KeyboardAndMouseEventListener(bpy.types.Operator):
 
-    bl_idname = "nodebooster.device_input_listener"
-    bl_description = "Listen for input events and update DeviceInput nodes. The viewport shortcuts will not be accessible while this operator is running."
+    bl_idname = "nodebooster.keyboard_input_listener"
+    bl_description = "Listen for input events and update KeyboardAndMouse nodes. The viewport shortcuts will not be accessible while this operator is running."
     bl_label = "Listen for Input Events"
     bl_options = {'INTERNAL'}
 
@@ -207,9 +207,9 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
         """Pass the event data to the nodes"""
 
         for node in get_booster_nodes(by_idnames={
-            NODEBOOSTER_NG_GN_DeviceInput.bl_idname,
-            NODEBOOSTER_NG_SH_DeviceInput.bl_idname,
-            NODEBOOSTER_NG_CP_DeviceInput.bl_idname,
+            NODEBOOSTER_NG_GN_KeyboardAndMouse.bl_idname,
+            NODEBOOSTER_NG_SH_KeyboardAndMouse.bl_idname,
+            NODEBOOSTER_NG_CP_KeyboardAndMouse.bl_idname,
             }):
             node.sync_out_event(STORAGE.event_data)
             continue
@@ -342,10 +342,10 @@ class NODEBOOSTER_OT_DeviceInputEventListener(bpy.types.Operator):
 
 class Base():
 
-    bl_idname = "NodeBoosterDeviceInput"
+    bl_idname = "NodeBoosterKeyboardAndMouse"
     bl_label = "Keyboard & Mouse"
-    bl_description = """Listen for input device events and provide them as node outputs.
-    • First, starts the modal operator that captures all input events of the 3D active Viewport.
+    bl_description = """Listen for your keyboard and mouse input events and provide them as node outputs.
+    • First, starts the modal listener operator, this operator will capture all events within the *3D Viewport*!
     • Provides various data about input events (mouse, keyboard, etc.)
     • You can add custom key event types by entering them in a comma-separated list (e.g., "A,B,SPACE,RET"). See blender 'Event Type Items' documentation to know which kewords are supported.
     • Control the global velocity damping behavior to smooth out the mouse movement in 'N Panle > NodeBooster > Active Node > Parameters'."""
@@ -580,8 +580,8 @@ class Base():
 
         if (STORAGE.is_listening):
               animated_icon = f"W_TIME_{(STORAGE.execution_counter//4)%8}"
-              row.operator("nodebooster.device_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(animated_icon),)
-        else: row.operator("nodebooster.device_input_listener", text="Listen to Inputs", icon='PLAY')
+              row.operator("nodebooster.keyboard_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(animated_icon),)
+        else: row.operator("nodebooster.keyboard_input_listener", text="Listen to Inputs", icon='PLAY')
 
         return None
 
@@ -648,8 +648,8 @@ class Base():
         
         if (STORAGE.is_listening):
               animated_icon = f"W_TIME_{(STORAGE.execution_counter//4)%8}"
-              layout.operator("nodebooster.device_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(animated_icon),)
-        else: layout.operator("nodebooster.device_input_listener", text="Listen to Inputs", icon='PLAY')
+              layout.operator("nodebooster.keyboard_input_listener", text="Stop Listening", depress=True, icon_value=cust_icon(animated_icon),)
+        else: layout.operator("nodebooster.keyboard_input_listener", text="Listen to Inputs", icon='PLAY')
         
         layout.separator(factor=0.5)
 
@@ -659,7 +659,7 @@ class Base():
     def update_all(cls, using_nodes=None, signal_from_handlers=False,):
         """update all instances of this node in all node trees"""
 
-        # Nothing to execute for DeviceInput nodes
+        # Nothing to execute for KeyboardAndMouse nodes
         # everything is handled by the modal operator
 
         return None
@@ -668,15 +668,15 @@ class Base():
 #Per Node-Editor Children:
 #Respect _NG_ + _GN_/_SH_/_CP_ nomenclature
 
-class NODEBOOSTER_NG_GN_DeviceInput(Base, bpy.types.GeometryNodeCustomGroup):
+class NODEBOOSTER_NG_GN_KeyboardAndMouse(Base, bpy.types.GeometryNodeCustomGroup):
     tree_type = "GeometryNodeTree"
     bl_idname = "GeometryNode" + Base.bl_idname
 
-class NODEBOOSTER_NG_SH_DeviceInput(Base, bpy.types.ShaderNodeCustomGroup):
+class NODEBOOSTER_NG_SH_KeyboardAndMouse(Base, bpy.types.ShaderNodeCustomGroup):
     tree_type = "ShaderNodeTree"
     bl_idname = "ShaderNode" + Base.bl_idname
 
-class NODEBOOSTER_NG_CP_DeviceInput(Base, bpy.types.CompositorNodeCustomGroup):
+class NODEBOOSTER_NG_CP_KeyboardAndMouse(Base, bpy.types.CompositorNodeCustomGroup):
     tree_type = "CompositorNodeTree"
     bl_idname = "CompositorNode" + Base.bl_idname
 
@@ -685,7 +685,7 @@ class NODEBOOSTER_NG_CP_DeviceInput(Base, bpy.types.CompositorNodeCustomGroup):
 def register_listener():
     """register the modal operator"""
 
-    bpy.utils.register_class(NODEBOOSTER_OT_DeviceInputEventListener)
+    bpy.utils.register_class(NODEBOOSTER_OT_KeyboardAndMouseEventListener)
     return None
 
 def unregister_listener():
@@ -694,5 +694,5 @@ def unregister_listener():
     # Make sure the modal operator is stopped when unregistering
     STORAGE.is_listening = False
     
-    bpy.utils.unregister_class(NODEBOOSTER_OT_DeviceInputEventListener) 
+    bpy.utils.unregister_class(NODEBOOSTER_OT_KeyboardAndMouseEventListener) 
     return None
