@@ -1092,6 +1092,7 @@ def generalcombsepa(ng, callhistory,
     nodetype = node_types[operation_type][data_type]
     nameid = prefix_names[operation_type][data_type]
     uniquename = get_unique_name(nameid, callhistory)
+    node = None
     needs_linking = False
 
     if (uniquename):
