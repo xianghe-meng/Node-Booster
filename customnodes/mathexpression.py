@@ -117,10 +117,10 @@ def replace_superscript_exponents(expr: str, algebric_notation:bool=False,) -> s
     return expr
 
 
-def ast_function_caller(visited, node_tree=None, vareq:dict=None, consteq:dict=None):
+def ast_function_caller(visited, node_tree=None, vareq:dict=None, consteq:dict=None, tag="mathex"):
     """Recursively evaluates the transformed AST tree and calls its functions with their arguments.="""
     
-    user_functions_partials = get_nodesetter_functions(tag='mathex', partialdefaults=(node_tree,None),)
+    user_functions_partials = get_nodesetter_functions(tag=tag, partialdefaults=(node_tree,None))
     user_function_namespace = {f.func.__name__:f for f in user_functions_partials}
     
     def caller(node):
