@@ -2010,7 +2010,7 @@ def sepaxyz(ng, callhistory,
         vA = Vector((vA,vA,vA))
     return generalcombsepa(ng,callhistory,'SEPARATE','VECTORXYZ',vA)
 
-@user_domain('nexscript')
+@user_domain('mathex','nexscript')
 @user_doc(nexscript="Combine Vector.\nCombine 3 XYZ SocketFloat, SocketInt or SocketBool into a SocketVector.")
 @user_overseer()
 def combixyz(ng, callhistory,
