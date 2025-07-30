@@ -13,14 +13,10 @@ from .mathexpression import (
     DIGITS,
     ALPHABET,
     IRRATIONALS,
-    MACROS,
     SUPERSCRIPTS,
     USER_FNAMES,
-    MATHEXFUNCDOC,
-    MATHNOTATIONDOC,
 )
 from ..utils.str_utils import (
-    word_wrap,
     match_exact_tokens,
     replace_exact_tokens,
     is_float_compatible,
@@ -29,9 +25,7 @@ from ..utils.node_utils import (
     create_new_nodegroup,
     create_ng_socket,
     remove_ng_socket,
-    link_sockets,
     create_ng_constant_node,
-    cache_booster_nodes_parent_tree,
 )
 
 class VecAstTranformer(_MathAstTransformer):
@@ -256,3 +250,4 @@ class NODEBOOSTER_NG_SH_VecExpression(Base, bpy.types.ShaderNodeCustomGroup):
 class NODEBOOSTER_NG_CP_VecExpression(Base, bpy.types.CompositorNodeCustomGroup):
     tree_type = "CompositorNodeTree"
     bl_idname = "CompositorNode" + Base.bl_idname
+
