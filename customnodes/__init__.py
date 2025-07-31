@@ -45,6 +45,11 @@ from . mathexpression import (
         NODEBOOSTER_NG_SH_MathExpression,
         NODEBOOSTER_NG_CP_MathExpression,
         )
+from . arrayvector import (
+        NODEBOOSTER_NG_GN_ArrayVector,
+        NODEBOOSTER_NG_SH_ArrayVector,
+        NODEBOOSTER_NG_CP_ArrayVector,
+        )
 from . vecexpression import (
         NODEBOOSTER_NG_GN_VecExpression,
         NODEBOOSTER_NG_SH_VecExpression,
@@ -137,6 +142,7 @@ GN_CustomNodes = (
         ('Expressions',(
             NODEBOOSTER_NG_GN_MathExpression,
             NODEBOOSTER_NG_GN_VecExpression,
+            NODEBOOSTER_NG_GN_ArrayVector,
             NODEBOOSTER_NG_GN_PyExpression,
             NODEBOOSTER_NG_GN_PyNexScript,
             ),
@@ -175,6 +181,7 @@ SH_CustomNodes = (
         ('Expressions',(
             NODEBOOSTER_NG_SH_MathExpression,
             NODEBOOSTER_NG_SH_VecExpression,
+            NODEBOOSTER_NG_SH_ArrayVector,
             NODEBOOSTER_NG_SH_PyExpression,
             NODEBOOSTER_NG_SH_PyNexScript,
             ),
@@ -213,6 +220,7 @@ CP_CustomNodes = (
         ('Expressions',(
             NODEBOOSTER_NG_CP_MathExpression,
             NODEBOOSTER_NG_CP_VecExpression,
+            NODEBOOSTER_NG_CP_ArrayVector,
             NODEBOOSTER_NG_CP_PyExpression,
             NODEBOOSTER_NG_CP_PyNexScript,
             ),
@@ -263,6 +271,9 @@ classes = (
     NODEBOOSTER_NG_GN_VecExpression,
     NODEBOOSTER_NG_SH_VecExpression,
     NODEBOOSTER_NG_CP_VecExpression,
+    NODEBOOSTER_NG_GN_ArrayVector,
+    NODEBOOSTER_NG_SH_ArrayVector,
+    NODEBOOSTER_NG_CP_ArrayVector,
     NODEBOOSTER_NG_GN_PyExpression,
     NODEBOOSTER_NG_SH_PyExpression,
     NODEBOOSTER_NG_CP_PyExpression,
