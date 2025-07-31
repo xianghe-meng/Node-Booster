@@ -51,9 +51,9 @@ KMI_DEFS = (
     ( NODEBOOSTER_OT_favorite_teleport.bl_idname, "Y", "PRESS", False, False, False, (), "Loop Favorites",   "SOLO_OFF",  True, ),
     ( NODEBOOSTER_OT_draw_frame.bl_idname,        "J", "PRESS", False, False, False, (), "Draw Frame",       "ALIGN_TOP", True, ),
     ( NODEBOOSTER_OT_chamfer.bl_idname,           "B", "PRESS", True,  False, False, (), "Reroute Chamfer",  "MOD_BEVEL", True, ),
-    ( NODEBOOSTER_OT_vec_expr_nav.bl_idname,       "RET", "PRESS", False, False, False, (('direction','NEXT'),), "Vector Expr Next", "MENU_PANEL", True,),
-    ( NODEBOOSTER_OT_vec_expr_nav.bl_idname,       "DOWN_ARROW", "PRESS", False, False, False, (('direction','NEXT'),), "Vector Expr Down", "MENU_PANEL", True,),
-    ( NODEBOOSTER_OT_vec_expr_nav.bl_idname,       "UP_ARROW", "PRESS", False, False, False, (('direction','PREV'),), "Vector Expr Up", "MENU_PANEL", True,),
+    ( NODEBOOSTER_OT_vec_expr_nav.bl_idname,       "RET", "RELEASE", False, False, False, (('direction','NEXT'),), "Vector Expr Next", "MENU_PANEL", True,),
+    ( NODEBOOSTER_OT_vec_expr_nav.bl_idname,       "DOWN_ARROW", "RELEASE", False, False, False, (('direction','NEXT'),), "Vector Expr Down", "MENU_PANEL", True,),
+    ( NODEBOOSTER_OT_vec_expr_nav.bl_idname,       "UP_ARROW", "RELEASE", False, False, False, (('direction','PREV'),), "Vector Expr Up", "MENU_PANEL", True,),
     )
 
 def load_operators_keymaps():

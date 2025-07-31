@@ -7,7 +7,9 @@ class NODEBOOSTER_OT_vec_expr_nav(bpy.types.Operator):
     bl_options = {'INTERNAL'}
 
     direction: bpy.props.EnumProperty(
-        items=[('NEXT', 'Next', ''), ('PREV', 'Previous', ''), ('CONFIRM', 'Confirm', '')],
+        items=[('NEXT', 'Next', ''),
+               ('PREV', 'Previous', ''),
+               ('CONFIRM', 'Confirm', '')],
         default='NEXT'
     )
 
@@ -18,11 +20,16 @@ class NODEBOOSTER_OT_vec_expr_nav(bpy.types.Operator):
 
         idx = getattr(node, 'active_field', 0)
         if self.direction == 'NEXT':
+            if idx == 2:
+                context.area.header_text_set(None)
+                node.active_field = idx
+                return {'FINISHED'}
             idx = (idx + 1) % 3
         elif self.direction == 'PREV':
             idx = (idx - 1) % 3
-        else:
+        elif self.direction == 'CONFIRM':
             context.area.header_text_set(None)
+            node.active_field = idx
             return {'FINISHED'}
 
         node.active_field = idx
