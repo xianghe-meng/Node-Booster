@@ -15,9 +15,11 @@ class Base(_ArrayBase):
         self.apply_user_expression()
         return None
 
-    x_expr: bpy.props.StringProperty(name="X", default="", update=update_signal)
-    y_expr: bpy.props.StringProperty(name="Y", default="", update=update_signal)
-    z_expr: bpy.props.StringProperty(name="Z", default="", update=update_signal)
+    active_field: bpy.props.IntProperty(default=0, options={'HIDDEN'})
+
+    x_expr: bpy.props.StringProperty(name="X", default="", update=update_signal, options={'TEXTEDIT_UPDATE'})
+    y_expr: bpy.props.StringProperty(name="Y", default="", update=update_signal, options={'TEXTEDIT_UPDATE'})
+    z_expr: bpy.props.StringProperty(name="Z", default="", update=update_signal, options={'TEXTEDIT_UPDATE'})
 
     def draw_label(self):
         if self.label == "":
