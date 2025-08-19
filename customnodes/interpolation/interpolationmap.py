@@ -13,7 +13,7 @@ from ..evaluator import evaluate_upstream_value
 from ...utils.node_utils import (
     import_new_nodegroup, 
     set_node_socketattr,
-    set_node_socketattr,
+    set_all_sockets_enabled,
     cache_booster_nodes_parent_tree,
 )
 
@@ -81,7 +81,10 @@ class Base():
     def copy(self, node):
         """fct run when dupplicating the node"""
         
-        self.node_tree = node.node_tree.copy()
+        #NOTE: copy/paste can cause crashes, we use a timer to delay the action
+        def delayed_copy():
+            self.node_tree = node.node_tree.copy()
+        bpy.app.timers.register(delayed_copy, first_interval=0.01)
         
         return None
 
@@ -102,7 +105,9 @@ class Base():
     def evaluator(self,)->None:
         """evaluator the node required for the output evaluator"""
 
-        #1: We make some sockets invisible depending on user mode and tree type
+        set_all_sockets_enabled(self, inputs=True, outputs=True) #reset all sockets enabled status
+
+        #1: We make some sockets invisible depending on user mode and tree type        
 
         #compositor node has no factor socket for vector curves for some reasons.
         match self.tree_type:

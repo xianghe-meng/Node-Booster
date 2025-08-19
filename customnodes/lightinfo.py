@@ -12,6 +12,7 @@ from ..utils.node_utils import (
     set_ng_socket_defvalue,
     set_node_socketattr,
     get_booster_nodes,
+    set_all_sockets_enabled,
     cache_booster_nodes_parent_tree,
 )
 
@@ -125,7 +126,10 @@ class Base():
     def copy(self, node):
         """fct run when dupplicating the node"""
 
-        self.node_tree = node.node_tree.copy()
+        #NOTE: copy/paste can cause crashes, we use a timer to delay the action
+        def delayed_copy():
+            self.node_tree = node.node_tree.copy()
+        bpy.app.timers.register(delayed_copy, first_interval=0.01)
 
         return None
 
@@ -140,10 +144,14 @@ class Base():
         """sync output socket values with data"""
 
         ng = self.node_tree
+        assert ng is not None, "LightInfo.sync_out_values(): 'self.node_tree' is None"
+
         lo = self.light_obj
         ld = lo.data if lo and (lo.type=='LIGHT') else None
         is_geonode = (self.tree_type=='GeometryNodeTree')
         valid = (lo and ld)
+        
+        set_all_sockets_enabled(self, inputs=False, outputs=True) #reset all sockets enabled status
 
         #different behavior and sockets depending on editor type and light type
 

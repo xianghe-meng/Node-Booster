@@ -246,6 +246,20 @@ def set_node_socketattr(node, in_out:str='OUTPUT', socket_name:str="", attribute
         raise Exception(f"ERROR: set_node_socketattr(): socket '{socket_name}' does not have attribute '{attribute}'")
 
     setattr(sock, attribute, value)
+
+    return None
+
+
+def set_all_sockets_enabled(node, inputs=True, outputs=True):
+    """enabled all sockets of a node, resetting all 'socket.enabled' visibility status back to default"""
+
+    sockets = []
+    if inputs:  sockets.extend(node.inputs)
+    if outputs: sockets.extend(node.outputs)
+
+    for sock in sockets:
+        sock.enabled = True
+
     return None
 
 
@@ -340,6 +354,7 @@ def get_ng_socket_defvalue(ng, idx:int, in_out:str='OUTPUT',):
 def set_ng_socket_defvalue(ng, idx:int=None, socket=None, socket_name:str='', in_out:str='OUTPUT', value=None, node=None,):
     """for a NodeCustomGroup: set the value of the given nodegroups inputs or output sockets"""
 
+    assert ng is not None, "set_ng_socket_defvalue(): ng arg must'nt be None"
     assert in_out in {'INPUT','OUTPUT'}, "set_ng_socket_defvalue(): in_out arg not valid"
 
     in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]

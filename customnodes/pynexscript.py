@@ -312,7 +312,10 @@ class Base():
     def copy(self,node,):
         """fct run when dupplicating the node"""
 
-        self.node_tree = node.node_tree.copy()
+        #NOTE: copy/paste can cause crashes, we use a timer to delay the action
+        def delayed_copy():
+            self.node_tree = node.node_tree.copy()
+        bpy.app.timers.register(delayed_copy, first_interval=0.01)
 
         return None 
 
@@ -328,6 +331,7 @@ class Base():
         optional: except give list of names"""
 
         ng = self.node_tree
+        assert ng is not None, "cleanse_sockets(): 'self.node_tree' must'nt be None"
         in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
 
         for mode in ('INPUT','OUTPUT'):
@@ -368,6 +372,7 @@ class Base():
         """remove any added nodes in the nodetree"""
 
         ng = self.node_tree
+        assert ng is not None, "cleanse_nodes(): 'self.node_tree' must'nt be None"
 
         for node in list(ng.nodes).copy():
             if (node.name not in {"Group Input", "Group Output", "ScriptStorage",}):
@@ -422,6 +427,7 @@ class Base():
         and update the node group's output sockets accordingly."""
 
         ng = self.node_tree
+        assert ng is not None, "interpret_nex_script(): 'self.node_tree' must'nt be None"
         in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
         self.debug_evaluation_counter += 1 # potential issue with int limit here? idk how blender handle this
         self.error_message = ''

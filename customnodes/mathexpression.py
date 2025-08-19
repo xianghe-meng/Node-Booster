@@ -349,7 +349,10 @@ class Base():
     def copy(self,node,):
         """fct run when dupplicating the node"""
         
-        self.node_tree = node.node_tree.copy()
+        #NOTE: copy/paste can cause crashes, we use a timer to delay the action
+        def delayed_copy():
+            self.node_tree = node.node_tree.copy()
+        bpy.app.timers.register(delayed_copy, first_interval=0.01)
         
         return None 
     
@@ -548,6 +551,7 @@ class Base():
                 return None
 
         ng = self.node_tree 
+        assert ng is not None, "apply_user_expression(): 'self.node_tree' must'nt be None"
         in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
 
         # Reset error message

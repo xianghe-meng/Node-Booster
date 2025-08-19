@@ -206,7 +206,10 @@ class Base():
     def copy(self, node):
         """fct run when duplicating the node"""
 
-        self.node_tree = node.node_tree.copy()
+        #NOTE: copy/paste can cause crashes, we use a timer to delay the action
+        def delayed_copy():
+            self.node_tree = node.node_tree.copy()
+        bpy.app.timers.register(delayed_copy, first_interval=0.01)
 
         return None
 

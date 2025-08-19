@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
-import bpy 
+import bpy
 
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
@@ -105,9 +105,12 @@ class Base():
 
     def copy(self, node):
         """fct run when dupplicating the node"""
-        
-        self.node_tree = node.node_tree.copy()
-        
+
+        #NOTE: copy/paste can cause crashes, we use a timer to delay the action
+        def delayed_copy():
+            self.node_tree = node.node_tree.copy()
+        bpy.app.timers.register(delayed_copy, first_interval=0.01)
+
         return None
 
     def update(self):
@@ -137,9 +140,9 @@ class Base():
 
         #different behavior and sockets depending on editor type
         match self.tree_type:
+
             case 'GeometryNodeTree':
                 values["Sensor Type"] = cd.sensor_fit if (valid) else ""
-
                 #Support for old socket name, previous version of node.
                 camvalue = co if (valid) else None
                 if ("Camera Object" in self.outputs):
@@ -160,8 +163,10 @@ class Base():
 
     def draw_label(self,):
         """node label"""
+
         if (self.label==''):
             return 'Camera Info'
+
         return self.label
 
     def draw_buttons(self, context, layout):
