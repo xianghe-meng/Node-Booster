@@ -11,7 +11,10 @@ class Base(_ArrayBase):
     bl_description = """Evaluate three expressions (X, Y, Z) and output the resulting vector."""
 
     def update_signal(self, context):
-        self.user_mathexp = f"[{self.x_expr}, {self.y_expr}, {self.z_expr}]"
+        x = self.x_expr.strip() or "0"
+        y = self.y_expr.strip() or "0"
+        z = self.z_expr.strip() or "0"
+        self.user_mathexp = f"[{x}, {y}, {z}]"
         self.apply_user_expression()
         return None
 
