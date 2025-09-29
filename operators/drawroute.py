@@ -106,6 +106,28 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
     def poll(cls, context):
         return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
+    @staticmethod
+    def _get_scroll_step(event: bpy.types.Event) -> int:
+        """Translate scroll-related events into a direction step.
+
+        Returns 1 for downward scroll, -1 for upward scroll and 0 if the event
+        is not a scroll action. Trackpad pan gestures map to the same steps as
+        mouse wheel events so users on macOS can use two-finger scrolling to
+        loop through sockets.
+        """
+
+        if (event.type == 'WHEELDOWNMOUSE'):
+            return 1
+        if (event.type == 'WHEELUPMOUSE'):
+            return -1
+        if (event.type == 'TRACKPADPAN'):
+            delta_y = getattr(event, 'delta_y', 0)
+            if (delta_y < 0):
+                return 1
+            if (delta_y > 0):
+                return -1
+        return 0
+
     def invoke(self, context, event):
         """initialization process"""
 
@@ -329,10 +351,13 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                     if (socklen==0):
                         return {'RUNNING_MODAL'}
 
-                    #use wheel to loop to other sockets
-                    match event.type:
-                        case 'WHEELDOWNMOUSE': self.wheel_out = 0 if (self.wheel_out>=socklen-1) else self.wheel_out+1
-                        case 'WHEELUPMOUSE':   self.wheel_out = socklen-1 if (self.wheel_out<=0) else self.wheel_out-1
+                    #use wheel or trackpad to loop to other sockets
+                    scroll_step = self._get_scroll_step(event)
+                    if (scroll_step):
+                        if (scroll_step > 0):
+                            self.wheel_out = 0 if (self.wheel_out>=socklen-1) else self.wheel_out+1
+                        else:
+                            self.wheel_out = socklen-1 if (self.wheel_out<=0) else self.wheel_out-1
 
                     #find out sockets
                     outp = nearest.inputs[availsock[self.wheel_out]]
@@ -392,7 +417,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
 
                 #swap socket of initial node the first node user used
 
-                elif (event.type in {"WHEELUPMOUSE","WHEELDOWNMOUSE"}) and (len(self.created_rr)==1):
+                elif ((scroll_step := self._get_scroll_step(event)) and (len(self.created_rr)==1)):
 
                     avail_socks = [s for s in self.from_active.outputs if not s.is_unavailable]
                     if (not avail_socks):
@@ -402,7 +427,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                     current_sock = rr_socket.links[0].from_socket
 
                     #loop socket
-                    direction = 1 if (event.type=='WHEELDOWNMOUSE') else -1
+                    direction = 1 if (scroll_step > 0) else -1
                     new_sock = get_next_itm_after_active(avail_socks, active=current_sock, step=direction,)
 
                     #keep in track of the wheel input index
