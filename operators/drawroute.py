@@ -24,6 +24,35 @@ def get_next_itm_after_active(itter, active=None, step=1):
     return itter[next_index]
 
 
+def get_scroll_step(event, *, prefer_horizontal=False):
+    """Return +/-1 when the event represents a scroll gesture."""
+
+    wheel_events = {"WHEELDOWNMOUSE", "WHEELUPMOUSE", "WHEELINMOUSE", "WHEELOUTMOUSE"}
+    if event.type in wheel_events:
+        return 1 if event.type in {"WHEELDOWNMOUSE", "WHEELINMOUSE"} else -1
+
+    if event.type == "TRACKPADPAN":
+        current_x = getattr(event, "mouse_region_x", event.mouse_x)
+        previous_x = getattr(event, "mouse_prev_region_x", event.mouse_prev_x)
+        current_y = getattr(event, "mouse_region_y", event.mouse_y)
+        previous_y = getattr(event, "mouse_prev_region_y", event.mouse_prev_y)
+
+        delta_x = current_x - previous_x
+        delta_y = current_y - previous_y
+
+        if prefer_horizontal and delta_x:
+            return 1 if delta_x > 0 else -1
+        if (not prefer_horizontal) and delta_y:
+            return 1 if delta_y < 0 else -1
+
+        if delta_x:
+            return 1 if delta_x > 0 else -1
+        if delta_y:
+            return 1 if delta_y < 0 else -1
+
+    return 0
+
+
 def get_linkchain_finalsocket_type(link):
     """Given a link object with, returns the final socket type after following any reroute chain."""
     
@@ -96,11 +125,12 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
             "'Ctrl' = Snap",
             "'Mouse-Wheel' = Loop Sockets",
             ])
-        self.footer_shift = '    |    '.join([ 
+        self.footer_shift = '    |    '.join([
             "'Release Shift' = Cancel",
             "'Enter' or 'Left-Mouse' = Confirm",
             "'Mouse-Wheel' = Loop Sockets",
             ])
+        self.shift_mode = False
         
     @classmethod
     def poll(cls, context):
@@ -216,7 +246,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
 
         historycount = len(self.created_rr)
         if (historycount<2):
-            return None 
+            return None
 
         #remove last 
         last = self.created_rr[-1]
@@ -243,7 +273,106 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
             if (self.from_active is not None):
                 self.wheel_inp = 0
 
-        return None 
+        return None
+
+    def start_shift_mode(self, context, event):
+        """Prepare shift-linking state once the modifier is pressed."""
+
+        if self.shift_mode:
+            return
+
+        if (self.footer_active!='shift'):
+            context.workspace.status_text_set_internal(self.footer_shift)
+            self.footer_active = 'shift'
+
+        self.shift_mode = True
+        self.nearest = None
+        self.wheel_out = 0
+
+        if (self.from_active is not None) and (len(self.created_rr)==1):
+            last = self.created_rr[-1]
+            self.node_tree.nodes.remove(last)
+            self.created_rr.remove(last)
+            self.new_rr = self.old_rr = None
+            self.last_click = self.init_click
+        else:
+            self.backstep(context)
+
+    def stop_shift_mode(self, context, event):
+        """Restore reroute state after leaving shift-linking."""
+
+        if (not self.shift_mode):
+            return
+
+        self.shift_mode = False
+
+        if (self.out_link):
+            self.node_tree.links.remove(self.out_link)
+            self.out_link = None
+
+        self.wheel_out = 0
+        self.nearest = None
+
+        self.add_reroute(context,event)
+
+    def handle_shift_mode(self, context, event, cursor):
+        """Handle scroll cycling while shift-linking to inputs."""
+
+        if (self.footer_active!='shift'):
+            context.workspace.status_text_set_internal(self.footer_shift)
+            self.footer_active = 'shift'
+
+        if (self.out_link):
+            self.node_tree.links.remove(self.out_link)
+            self.out_link = None
+
+        nearest = get_nearest_node_at_position(
+            context, self.node_tree.nodes,
+            position=cursor,
+            forbidden=[self.from_active]+self.created_rr,
+            )
+
+        if (nearest is None):
+            return {'RUNNING_MODAL'}
+
+        self.node_tree.nodes.active = nearest
+        nearest.select = True
+
+        if (self.nearest != nearest):
+            self.nearest = nearest
+            self.wheel_out = 0
+
+        availsock = [i for i,s in enumerate(nearest.inputs) if (s.is_multi_input or len(s.links)==0) and s.enabled]
+        socklen = len(availsock)
+        if (socklen==0):
+            return {'RUNNING_MODAL'}
+
+        step = get_scroll_step(event)
+        if step:
+            self.wheel_out = (self.wheel_out + step) % socklen
+
+        outp = nearest.inputs[availsock[self.wheel_out]]
+
+        if (self.new_rr is not None):
+            inp = self.new_rr.outputs[0]
+        else:
+            inp = self.from_active.outputs[self.wheel_inp]
+
+        out_link = self.node_tree.links.new(inp, outp,)
+
+        if (inp.type=='CUSTOM' or outp.type=='CUSTOM'):
+            out_link.is_valid = True
+
+        if (out_link!=self.node_tree.links[-1]):
+            self.out_link = self.node_tree.links[-1]
+        else:
+            self.out_link = out_link
+
+        if (event.type=="RET") or ((event.type=="LEFTMOUSE") and (event.value=="PRESS")):
+            self.confirm(context)
+            return {'FINISHED'}
+
+        return {'RUNNING_MODAL'}
 
     def modal(self, context, event):     
         try:
@@ -272,112 +401,21 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
             #if user is holding shift, that means he want to finalize and connect to input, entering a sub modal state.
             if (not self.is_navigating):
                 
-                if (event.shift):
+                if self.shift_mode:
 
-                    #make sure message is correct
-                    if (self.footer_active!='shift'):
-                        context.workspace.status_text_set_internal(self.footer_shift)
-                        self.footer_active = 'shift'
-                    
-                    #initiating the shift mode, when user press for the first time
-                    if (event.type=="LEFT_SHIFT" and event.value=="PRESS"):
-                        
-                        #in this sub modal, we do not want reroute anymore, so we'll remove the latest one created upon entering
-                        if (self.from_active is not None) and (len(self.created_rr)==1):
-                            #this can be tricky if we only have one, if from_active we can use the stored input
-                            last = self.created_rr[-1]
-                            self.node_tree.nodes.remove(last)
-                            self.created_rr.remove(last)
-                            self.new_rr = self.old_rr = None
-                            self.last_click = self.init_click
-                        else:
-                            self.backstep(context)
-
-                    if (self.out_link):
-                        #remove created link from previous shift loop
-                        self.node_tree.links.remove(self.out_link)
-                        self.out_link = None
-
-                    #get nearest node
-                    nearest = get_nearest_node_at_position(
-                        context, self.node_tree.nodes,
-                        position=cursor,
-                        forbidden=[self.from_active]+self.created_rr,
-                        )
-
-                    #always reset selection
-                    # for n in [n for n in self.node_tree.nodes if n.select]: n.select = False #this cause too much slowdowns..
-                    
-                    #nothing found?
-                    if (nearest is None):
-                        return {'RUNNING_MODAL'}
-                    
-                    #reset selection for visual cue
-                    self.node_tree.nodes.active = nearest
-                    nearest.select = True
-
-                    #if switched to a new nearest node:
-                    if (self.nearest != nearest):
-                        self.nearest = nearest
-
-                        #reset wheel loop
-                        self.wheel_out = 0
-
-                    #find available sockets
-                    availsock = [i for i,s in enumerate(nearest.inputs) if (s.is_multi_input or len(s.links)==0) and s.enabled]
-                    socklen = len(availsock)
-                    if (socklen==0):
+                    if (event.type=="LEFT_SHIFT" and event.value=="RELEASE"):
+                        self.stop_shift_mode(context, event)
                         return {'RUNNING_MODAL'}
 
-                    #use wheel to loop to other sockets
-                    match event.type:
-                        case 'WHEELDOWNMOUSE': self.wheel_out = 0 if (self.wheel_out>=socklen-1) else self.wheel_out+1
-                        case 'WHEELUPMOUSE':   self.wheel_out = socklen-1 if (self.wheel_out<=0) else self.wheel_out-1
+                    result = self.handle_shift_mode(context, event, cursor)
+                    if result is not None:
+                        return result
 
-                    #find out sockets
-                    outp = nearest.inputs[availsock[self.wheel_out]]
-                    
-                    #find input socket, depends if user using initially reroute or active
-                    if (self.new_rr is not None):
-                        inp = self.new_rr.outputs[0] 
-                    else: inp = self.from_active.outputs[self.wheel_inp]
-
-                    #create the link
-                    out_link = self.node_tree.links.new(inp, outp,)
-                    
-                    # blender might think the link is false if the outp or inp is a CUSTOM, 
-                    # not the case, we are going to fix that later on confirm
-                    if (inp.type=='CUSTOM' or outp.type=='CUSTOM'):
-                        out_link.is_valid = True #Blender devs might put this to read only one of these days.. I hope not..
-                        # NOTE 'Invalid Link' message will still appear tho.
-
-                    #detect if we created a new group output by doing this check
-                    if (out_link!=self.node_tree.links[-1]):
-                        self.out_link = self.node_tree.links[-1] #forced to do so, creating link to output type is an illusion, two links are created in this special case
-                    else: self.out_link = out_link
-
-                    if (event.type=="RET") or ((event.type=="LEFTMOUSE") and (event.value=="PRESS")):
-                        self.confirm(context)
-                        return {'FINISHED'}
-                
-                    return {'RUNNING_MODAL'}
-
-                #upon quitting shift event?
-
-                elif (event.type=="LEFT_SHIFT" and event.value=="RELEASE"):
-
-                    #remove created link
-                    if (self.out_link):
-                        self.node_tree.links.remove(self.out_link)
-                        self.out_link = None
-                    
-                    #reset wheel loop
-                    self.wheel_out = 0
-
-                    #restore reroute we removed on shift init
-                    self.add_reroute(context,event)
-
-                    return {'RUNNING_MODAL'}
+                if (event.type=="LEFT_SHIFT" and event.value=="PRESS"):
+                    self.start_shift_mode(context, event)
+                    result = self.handle_shift_mode(context, event, cursor)
+                    if result is not None:
+                        return result
 
                 #switch to new reroute? 
 
@@ -392,7 +430,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
 
                 #swap socket of initial node the first node user used
 
-                elif (event.type in {"WHEELUPMOUSE","WHEELDOWNMOUSE"}) and (len(self.created_rr)==1):
+                elif (len(self.created_rr)==1) and (direction := get_scroll_step(event)):
 
                     avail_socks = [s for s in self.from_active.outputs if not s.is_unavailable]
                     if (not avail_socks):
@@ -402,7 +440,6 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                     current_sock = rr_socket.links[0].from_socket
 
                     #loop socket
-                    direction = 1 if (event.type=='WHEELDOWNMOUSE') else -1
                     new_sock = get_next_itm_after_active(avail_socks, active=current_sock, step=direction,)
 
                     #keep in track of the wheel input index
