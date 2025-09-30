@@ -359,7 +359,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                         return {'RUNNING_MODAL'}
 
                     #use wheel or trackpad to loop to other sockets
-                    step = get_scroll_step(event, prefer_horizontal=True)
+                    step = get_scroll_step(event)
                     if step:
                         self.wheel_out = (self.wheel_out + step) % socklen
 
