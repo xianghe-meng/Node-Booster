@@ -330,9 +330,9 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                         return {'RUNNING_MODAL'}
 
                     #use wheel to loop to other sockets
-                    match event.type:
-                        case 'WHEELDOWNMOUSE': self.wheel_out = 0 if (self.wheel_out>=socklen-1) else self.wheel_out+1
-                        case 'WHEELUPMOUSE':   self.wheel_out = socklen-1 if (self.wheel_out<=0) else self.wheel_out-1
+                    if (event.type in {"WHEELDOWNMOUSE", "WHEELUPMOUSE", "WHEELINMOUSE", "WHEELOUTMOUSE"}):
+                        step = 1 if (event.type in {"WHEELDOWNMOUSE", "WHEELINMOUSE"}) else -1
+                        self.wheel_out = (self.wheel_out + step) % socklen
 
                     #find out sockets
                     outp = nearest.inputs[availsock[self.wheel_out]]
@@ -392,7 +392,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
 
                 #swap socket of initial node the first node user used
 
-                elif (event.type in {"WHEELUPMOUSE","WHEELDOWNMOUSE"}) and (len(self.created_rr)==1):
+                elif (event.type in {"WHEELUPMOUSE","WHEELDOWNMOUSE","WHEELINMOUSE","WHEELOUTMOUSE"}) and (len(self.created_rr)==1):
 
                     avail_socks = [s for s in self.from_active.outputs if not s.is_unavailable]
                     if (not avail_socks):
@@ -402,7 +402,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                     current_sock = rr_socket.links[0].from_socket
 
                     #loop socket
-                    direction = 1 if (event.type=='WHEELDOWNMOUSE') else -1
+                    direction = 1 if (event.type in {"WHEELDOWNMOUSE", "WHEELINMOUSE"}) else -1
                     new_sock = get_next_itm_after_active(avail_socks, active=current_sock, step=direction,)
 
                     #keep in track of the wheel input index
