@@ -31,6 +31,7 @@ class Base():
     bl_label = "Light Info"
     bl_description = """Gather informations about any lights.
     • Expect updates on each depsgraph post and frame_pre update signals"""
+    nb_menu_path = ['NodeBooster','Inputs',bl_label,] #path in add menu
     auto_upd_flags = {'FRAME_PRE','DEPS_POST',}
     tree_type = "*ChildrenDefined*"
 

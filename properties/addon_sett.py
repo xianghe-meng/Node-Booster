@@ -41,17 +41,17 @@ class NODEBOOSTER_AddonPref(bpy.types.AddonPreferences):
         )
     
     #interpolation demo
-    interpolation_demo_mode : bpy.props.BoolProperty(
+    experimental_mode : bpy.props.BoolProperty(
         default=False,
-        name="Interpolation Nodes Demo",
-        description="Enable interpolation demo mode.",
+        name="Expermimental Mode",
+        description="Enable experimental features.",
         )
 
     def draw(self,context):
         
         layout = self.layout
         
-        layout.prop(self,"interpolation_demo_mode",)
+        layout.prop(self,"experimental_mode",)
         
         layout.separator(type='LINE')
         

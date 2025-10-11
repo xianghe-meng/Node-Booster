@@ -29,6 +29,7 @@ class Base():
     bl_description = """Gather informations about any camera.
     • By default the camera will always use the active camera.
     • Expect updates on each depsgraph post and frame_pre update signals"""
+    nb_menu_path = ['NodeBooster','Inputs',bl_label,] #path in add menu
     auto_upd_flags = {'FRAME_PRE','DEPS_POST',}
     tree_type = "*ChildrenDefined*"
 

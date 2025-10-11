@@ -282,6 +282,7 @@ class Base():
     • Please See the 'NodeBooster > Active Node > Glossary' panel to see all functions and notation available and their descriptions.\n
     • If you wish to bake this node into a nodegroup, a bake operator is available in the 'NodeBooster > Active Node' panel.\n
     • Under the hood, on each string field edit, the expression will be sanarized, then transformed into functions that will be called to create a nodetree, see the breakdown of the process in the 'NodeBooster > Active Node > Development' panel."""
+    nb_menu_path = ['NodeBooster','Expressions',bl_label,] #path in add menu
     auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
 

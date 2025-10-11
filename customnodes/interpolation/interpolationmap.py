@@ -31,6 +31,7 @@ class Base():
     bl_idname = "NodeBoosterInterpolationMap"
     bl_label = "Interpolation Map"
     bl_description = """Map values to an interpolation curve. Similar to the 'Float Curve' node."""
+    nb_menu_path = ['NodeBooster','Experimental','Interpolation',bl_label,] #path in add menu
     auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
 

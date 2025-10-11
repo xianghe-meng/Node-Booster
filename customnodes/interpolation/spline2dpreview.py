@@ -56,8 +56,9 @@ class NODEBOOSTER_ND_2DCurvePreview(bpy.types.Node):
     bl_label = "2D Curve Preview"
     bl_description = """Preview a 2D curve."""
     bl_width_min = 157
+    nb_menu_path = ['NodeBooster','Experimental','Interpolation',bl_label,] #path in add menu
     auto_upd_flags = {'NONE',}
-    tree_type = "*ChildrenDefined*"
+    tree_type = "AnyNodeTree"
 
     # NOTE this node is the end of the line for our a socket type, 
     # it has a special evaluator responsability for socket.nodebooster_socket_type == 'INTERPOLATION'.

@@ -52,6 +52,7 @@ class Base():
     bl_idname = "NodeBoosterInterpolationInput"
     bl_label = "Interpolation Input"
     bl_description = """Create a 2D curve from an interpolation curve mapping graph"""
+    nb_menu_path = ['NodeBooster','Experimental','Interpolation',bl_label,] #path in add menu
     auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
 

@@ -5,7 +5,7 @@
 import bpy
 
 from .menus import (
-    NODEBOOSTER_MT_addmenu_general,
+    #NOTE: menu is doing some procedural submenu cls registering
     NODEBOOSTER_MT_textemplate, 
     )
 
@@ -19,8 +19,6 @@ from .panels import (
     )
 
 classes = (
-
-    NODEBOOSTER_MT_addmenu_general,
     NODEBOOSTER_MT_textemplate,
     NODEBOOSTER_PT_tool_search,
     NODEBOOSTER_PT_tool_color_palette,
@@ -28,9 +26,7 @@ classes = (
     NODEBOOSTER_PT_tool_frame,
     NODEBOOSTER_PT_minimap,
     NODEBOOSTER_PT_active_node,
-
     )
-
 
 from .menus import append_menus, remove_menus
 from ..operators.favorites import favorite_popover_draw_header

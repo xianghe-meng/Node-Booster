@@ -27,6 +27,7 @@ class Base():
     bl_idname = "NodeBoosterColorPalette"
     bl_label = "Color Palette"
     bl_description = "Output the active palette color. Shows a palette UI and a Create Palette button."
+    nb_menu_path = ['NodeBooster','Inputs',bl_label,] #path in add menu
     auto_upd_flags = {'DEPS_POST','LOAD_POST',}
     tree_type = "*ChildrenDefined*"
 

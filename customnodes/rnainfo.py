@@ -39,6 +39,7 @@ class Base():
     bl_description = """Gather informations about any ID data and their properties.
     • Expect the same behavior than setting up a driver variable in the driver editor.
     • Expect updates on each depsgraph post and frame_pre update signals"""
+    nb_menu_path = ['NodeBooster','Inputs',bl_label,] #path in add menu
     auto_upd_flags = {'FRAME_PRE','DEPS_POST',}
     tree_type = "*ChildrenDefined*"
 

@@ -30,8 +30,9 @@ class NODEBOOSTER_ND_2DCurvesMix(bpy.types.Node):
     bl_idname = "NodeBooster2DCurvesMix"
     bl_label = "Mix 2D Curves"
     bl_description = """Mix two 2D curves linearly. Ideally the numbers of segments should be similar. If not, we'll try to match them by subdividing more segments at projected locations."""
+    nb_menu_path = ['NodeBooster','Experimental','Interpolation',bl_label,] #path in add menu
     auto_upd_flags = {'NONE',}
-    tree_type = "*ChildrenDefined*"
+    tree_type = "AnyNodeTree"
 
     evaluator_properties = {'INTERPOLATION_NODE',}
 

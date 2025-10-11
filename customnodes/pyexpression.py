@@ -35,6 +35,7 @@ class Base():
     bl_description = """Evaluate a python expression as a single value output.
     • The evaluated values can be of type 'float', 'int', 'Vector', 'Color', 'Quaternion', 'Matrix', 'String', 'Object', 'Collection', 'Material' & 'list/tuple/set' up to len 16.
     • For more advanced python expression, try out the 'Nex Script' node!"""
+    nb_menu_path = ['NodeBooster','Expressions',bl_label,] #path in add menu
     auto_upd_flags = {'FRAME_PRE','DEPS_POST','AUTORIZATION_REQUIRED',}
     tree_type = "*ChildrenDefined*"
     # bl_icon = 'SCRIPT'

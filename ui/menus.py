@@ -5,99 +5,10 @@
 
 import bpy 
 
+import re
 import os
 
 from ..__init__ import get_addon_prefs
-
-
-# NOTE we automatically register the submenus from that list below.
-# TODO auto registration of submenus could be improved
-# - we could use the _GN_, _SH_, _CP_ notations perhaps.
-# - we could use an attribute per node class for submenu appartenance.
-# - we could also use the poll classmethod to avoid rendundancy.
-
-from ..customnodes import (
-    GN_CustomNodes,
-    SH_CustomNodes,
-    CP_CustomNodes,
-    )
-
-
-class DynaMenu():
-    """Base class for menus that automatically draws node items"""
-
-    node_items = []  # This will be overridden by subclasses
-    tree_type = ""
-
-    def draw(self, context):
-        
-        sett_addon = get_addon_prefs()
-        layout = self.layout
-        been_drawn = []
-
-        for item in self.node_items:
-
-            # Case ['Submenu', (NodeClass1, NodeClass2, ...)]
-            if isinstance(item, tuple) or isinstance(item, list):
-                if (len(item) > 1) and isinstance(item[0], str) and isinstance(item[1], tuple):
-                    
-                    #hide interpolation submenu? not in demo mode?
-                    if (sett_addon.interpolation_demo_mode==False):
-                        if ("interpolation" in item[0].lower()):
-                            continue
-
-                    submenu_name = item[0]
-                    submenu_id = f"NODEBOOSTER_MT_{submenu_name}" + self.tree_type
-                    
-                    if (submenu_id not in been_drawn):
-                        layout.menu(submenu_id)
-                        been_drawn.append(submenu_id)
-            
-            # Case separator
-            elif item is None:
-                layout.separator()
-
-            # Case NodeClass
-            elif hasattr(item, 'bl_label') and hasattr(item, 'bl_idname'):
-                op = layout.operator("node.add_node", text=item.bl_label)
-                op.type = item.bl_idname
-                op.use_transform = True
-
-        return None
-
-
-class NODEBOOSTER_MT_GeometryNodeTree(DynaMenu, bpy.types.Menu):
-    bl_idname = "NODEBOOSTER_MT_GeometryNodeTree"
-    bl_label = "Booster Nodes"
-    node_items = GN_CustomNodes
-    tree_type = "GeometryNodeTree"
-    
-class NODEBOOSTER_MT_ShaderNodeTree(DynaMenu, bpy.types.Menu):
-    bl_idname = "NODEBOOSTER_MT_ShaderNodeTree"
-    bl_label = "Booster Nodes"
-    node_items = SH_CustomNodes
-    tree_type = "ShaderNodeTree"
-    
-class NODEBOOSTER_MT_CompositorNodeTree(DynaMenu, bpy.types.Menu):
-    bl_idname = "NODEBOOSTER_MT_CompositorNodeTree"
-    bl_label = "Booster Nodes"
-    node_items = CP_CustomNodes
-    tree_type = "CompositorNodeTree"
-
-
-class NODEBOOSTER_MT_addmenu_general(bpy.types.Menu):
-    bl_idname = "NODEBOOSTER_MT_addmenu_general"
-    bl_label  = "Booster Nodes"
-
-    @classmethod
-    def poll(cls, context):
-        tree_type = context.space_data.tree_type
-        return (tree_type in {'GeometryNodeTree','ShaderNodeTree','CompositorNodeTree',})
-
-    def draw(self, context):
-        tree_type = context.space_data.tree_type
-        menu_id = f"NODEBOOSTER_MT_{tree_type}"
-        self.layout.menu(menu_id)
 
 
 class NODEBOOSTER_MT_textemplate(bpy.types.Menu):
@@ -117,122 +28,191 @@ class NODEBOOSTER_MT_textemplate(bpy.types.Menu):
 
         return None
 
+#       .o.             .o8        .o8    ooo        ooooo                                   
+#      .888.           "888       "888    `88.       .888'                                   
+#     .8"888.      .oooo888   .oooo888     888b     d'888   .ooooo.  ooo. .oo.   oooo  oooo  
+#    .8' `888.    d88' `888  d88' `888     8 Y88. .P  888  d88' `88b `888P"Y88b  `888  `888  
+#   .88ooo8888.   888   888  888   888     8  `888'   888  888ooo888  888   888   888   888  
+#  .8'     `888.  888   888  888   888     8    Y     888  888    .o  888   888   888   888  
+# o88o     o8888o `Y8bod88P" `Y8bod88P"   o8o        o888o `Y8bod8P' o888o o888o  `V88V"V8P' 
 
-def nodebooster_templatemenu_append(self, context):
-    layout = self.layout 
-    layout.separator()
-    layout.menu("NODEBOOSTER_MT_textemplate", text="Booster Scripts",)
+from ..customnodes import allcustomnodes
+
+#list of menus class we are about to create
+PROCEDURAL_ADDMENUS = []
+#list of nodes or menus to call from 'draw_booster_nodes_add_menu'
+MAIN_LAYOUT_CONTENT = []
+
+def auto_register_submenus(self, context):
+    """all our nodes have a 'nb_menu_path', being lists of strings. 
+    The last element of the list is the name of the node, to call `layout.operator("node.add_node")` with
+    all other elements are submenus, we need to procedurally create and register these menus and drawing functions with branching menus"""
+
+    global PROCEDURAL_ADDMENUS, MAIN_LAYOUT_CONTENT
+
+    # reset any previous content
+    PROCEDURAL_ADDMENUS = []
+    MAIN_LAYOUT_CONTENT = []
+
+    def make_class_name_from_path(path_tuple):
+        def sanitize_token(token: str) -> str:
+            t = re.sub(r"[^0-9a-zA-Z]+", "_", str(token)).strip("_")
+            if (not t): t = "UNNAMED"
+            return t.upper()
+        tokens = [sanitize_token(p) for p in path_tuple]
+        return "NODEBOOSTER_MT_SUBMENU_" + "_".join(tokens)
+
+    # Collect all menu paths and node attachments
+    menu_paths_set = set()  # set[tuple[str,...]] of submenu paths
+    menu_label_map = {}     # path_tuple -> label (last token)
+    node_map = {}           # parent_menu_path_tuple -> list[(cls, node_label)]
+
+    for cls in allcustomnodes:
+        if (not hasattr(cls, 'nb_menu_path')):
+            print("WARNING: Node", getattr(cls, 'bl_label', getattr(cls, '__name__', str(cls))), "has no nb_menu_path")
+            continue
+        menu_paths = getattr(cls, 'nb_menu_path', [])
+        if (len(menu_paths) == 0):
+            print("WARNING: Node", getattr(cls, 'bl_label', getattr(cls, '__name__', str(cls))), "has empty nb_menu_path")
+            continue
+
+        # If it's a single path element, directly display this node in main layout
+        if (len(menu_paths) == 1):
+            cls.nb_menu_path = menu_paths[0]
+            MAIN_LAYOUT_CONTENT.append(cls)
+            continue
+
+        # All prefixes (except the final node label) form the submenu hierarchy
+        menus, node_operator_label = menu_paths[:-1], menu_paths[-1]
+
+        # Track all submenu prefixes
+        for i in range(1, len(menus)+0):  # +0 explicit; up to full submenu path
+            prefix = tuple(menus[:i])
+            if len(prefix) == 0:
+                continue
+            if prefix not in menu_paths_set:
+                menu_paths_set.add(prefix)
+                menu_label_map[prefix] = prefix[-1]
+
+        full_menu_path = tuple(menus)
+        if full_menu_path:
+            menu_paths_set.add(full_menu_path)
+            menu_label_map[full_menu_path] = full_menu_path[-1]
+
+        # Attach node to its direct parent submenu path
+        parent_path = tuple(menus)
+        node_map.setdefault(parent_path, []).append((cls, node_operator_label))
+
+    # Build direct-children mapping for submenus
+    children_menus_map = {}  # parent_path_tuple (or ()) -> set(child_path_tuple)
+    for path in menu_paths_set:
+        parent = tuple(path[:-1])
+        children_menus_map.setdefault(parent, set()).add(path)
+
+    # Create classes for each submenu path
+    path_to_class = {}
+    # Sort paths for deterministic creation order
+    for path in sorted(menu_paths_set, key=lambda p: (len(p), [str(x).lower() for x in p])):
+        class_name = make_class_name_from_path(path)
+        bl_label = menu_label_map.get(path, path[-1] if path else "Menu")
+
+        #procedurally gen the draw function
+        def draw(self, context):
+            layout = self.layout
+            # Draw submenu entries first
+            for cls in getattr(self, 'children_menus', []):
+                if (cls.bl_label=='Experimental' and not get_addon_prefs().experimental_mode):
+                    continue
+                layout.menu(cls.bl_idname)
+            # Then draw node entries
+            for cls, node_label in getattr(self, 'children_nodes', []):
+                if (not hasattr(cls, 'tree_type')):
+                    print(f"WARNING: Node '{cls.bl_label}' has no attribute 'tree_type'")
+                    continue
+                elif (cls.tree_type in {context.space_data.tree_type,'AnyNodeTree'}): #filter add node operator depending on the editor type..
+                    op = layout.operator("node.add_node", text=node_label)
+                    op.type = cls.bl_idname
+                    op.use_transform = True
+            return None
+
+        #build the class from attributes
+        attrs = {
+            'bl_idname': class_name,
+            'bl_label': bl_label,
+            'bl_description': "",
+            'children_menus': [],
+            'children_nodes': [],
+            'draw': draw, }
+        NewMenuClass = type(class_name, (bpy.types.Menu,), attrs)
+
+        #mark for registration
+        path_to_class[path] = NewMenuClass
+        PROCEDURAL_ADDMENUS.append(NewMenuClass)
+
+    # Wire children relationships for each submenu class
+    for path, MenuClass in path_to_class.items():
+        # child menus (direct children only)
+        child_paths = sorted(children_menus_map.get(path, []), key=lambda p: menu_label_map.get(p, p[-1]).lower())
+        MenuClass.children_menus = [path_to_class[p] for p in child_paths if p in path_to_class]
+
+        # child nodes under this submenu
+        node_entries = sorted(node_map.get(path, []), key=lambda e: str(e[1]).lower())
+        MenuClass.children_nodes = node_entries
+
+    # Add root-level menus to the main layout
+    top_level_menu_paths = sorted(children_menus_map.get((), []), key=lambda p: menu_label_map.get(p, p[-1]).lower())
+    for p in top_level_menu_paths:
+        if p in path_to_class:
+            MAIN_LAYOUT_CONTENT.append(path_to_class[p])
+    
     return None
 
-def nodebooster_addmenu_append(self, context,):
-    tree_type = context.space_data.tree_type
-    if (tree_type not in {'GeometryNodeTree','ShaderNodeTree','CompositorNodeTree',}):
+def draw_booster_nodes_add_menu(self, context):
+    """append booster nodes to the main nodetree add menu common across all nodetrees editors"""
+
+    if (context.space_data.tree_type not in {'GeometryNodeTree','ShaderNodeTree','CompositorNodeTree'}):
         return None
-    menu_id = f"NODEBOOSTER_MT_{tree_type}"
-    self.layout.menu(menu_id)
-    return None
-
-def nodebooster_nodemenu_append(self, context):
-    layout = self.layout 
+    layout = self.layout
     layout.separator()
-    layout.operator("nodebooster.node_purge_unused", text="Purge Unused Nodes",)
+
+    for cls in MAIN_LAYOUT_CONTENT:
+        is_submenu, is_nd_node, is_ng_node = cls.__name__.startswith('NODEBOOSTER_MT_SUBMENU_'), cls.__name__.startswith('NODEBOOSTER_ND_'), cls.__name__.startswith('NODEBOOSTER_NG_')
+        if (is_nd_node or is_ng_node):
+            if (not hasattr(cls, 'tree_type')):
+                print(f"WARNING: Node '{cls.bl_label}' has no attribute 'tree_type'")
+                continue
+            elif (cls.tree_type in {context.space_data.tree_type,'AnyNodeTree'}): #filter add node operator depending on the editor type..
+                op = layout.operator("node.add_node", text=cls.bl_label,)
+                op.type = cls.bl_idname
+                op.use_transform = True
+        elif (is_submenu):
+            if (cls.bl_label=='Experimental' and not get_addon_prefs().experimental_mode):
+                continue
+            layout.menu(cls.bl_idname)
+        else:
+            print("WARNING: Node", cls.bl_label, "has an unknown type")
+
     return None
-
-
-MENUS = (
-    bpy.types.NODE_MT_add,
-    bpy.types.NODE_MT_node,
-    bpy.types.TEXT_MT_templates,
-    )
-DRAWFUNCS = (
-    nodebooster_addmenu_append,
-    nodebooster_nodemenu_append,
-    nodebooster_templatemenu_append,
-    )
-
-
-DYNAMIC_MENUS = {}
-
-def register_submenus(custom_nodes, shadertype):
-    """Register all submenus found in the custom_nodes list"""
-
-    def create_submenu(menu_name, user_name, menu_items):
-        """Create submenu classes"""
-
-        # Define a new menu class that inherits from the base menu
-        menu_cls = type(
-            f"NODEBOOSTER_MT_{menu_name}",
-            (DynaMenu, bpy.types.Menu),
-            { 'bl_idname': f"NODEBOOSTER_MT_{menu_name}",
-              'bl_label': user_name,
-              'node_items': menu_items},
-            )
-        return menu_cls
-
-    
-    # Process all items in the custom_nodes list
-    for item in custom_nodes:
-
-        # ('Submenu', (NodeClass1, NodeClass2, ...))
-        if isinstance(item, tuple) and len(item) > 1 and isinstance(item[0], str) and isinstance(item[1], tuple):
-            user_name = item[0]
-            submenu_name = user_name + shadertype
-            submenu_items = item[1]
-            
-            if submenu_name not in DYNAMIC_MENUS:
-                # Create and register the submenu
-                submenu_cls = create_submenu(submenu_name, user_name, submenu_items)
-                DYNAMIC_MENUS[submenu_name] = submenu_cls
-                try:
-                    bpy.utils.register_class(submenu_cls)
-                except Exception as e:
-                    print(f"Failed to register {submenu_name}: {e}")
-    
-    return None
-
 
 def append_menus():
 
-    # append draw functions to existing menus.
-    for menu, fct in zip(MENUS, DRAWFUNCS):
-        menu.append(fct)
-    
-    # Register the main menus
-    for cls in {NODEBOOSTER_MT_GeometryNodeTree, 
-                NODEBOOSTER_MT_ShaderNodeTree, 
-                NODEBOOSTER_MT_CompositorNodeTree}:
-        bpy.utils.register_class(cls)
-        continue
+    # Build dynamic submenu classes and main layout content
+    auto_register_submenus(None, bpy.context)
 
-    # Register submenus for all tree types
-    register_submenus(GN_CustomNodes, 'GeometryNodeTree')
-    register_submenus(SH_CustomNodes, 'ShaderNodeTree')
-    register_submenus(CP_CustomNodes, 'CompositorNodeTree')
+    bpy.types.NODE_MT_add.append(draw_booster_nodes_add_menu)
+
+    # Register dynamically generated submenu classes
+    for cls in PROCEDURAL_ADDMENUS:
+        bpy.utils.register_class(cls)
 
     return None
 
-
 def remove_menus():
-    #remove draw functions from existing menus.
-    for menu in MENUS:
-        for f in menu._dyn_ui_initialize().copy():
-            if (f in DRAWFUNCS):
-                menu.remove(f)
 
-    # Unregister the main menu classes
-    for cls in {NODEBOOSTER_MT_GeometryNodeTree, 
-                NODEBOOSTER_MT_ShaderNodeTree, 
-                NODEBOOSTER_MT_CompositorNodeTree}:
+    # Unregister dynamically generated submenu classes first
+    for cls in reversed(PROCEDURAL_ADDMENUS):
         bpy.utils.unregister_class(cls)
-        continue
 
-    # Unregister all dynamic menus
-    for menu_name, menu_cls in DYNAMIC_MENUS.items():
-        try:
-            bpy.utils.unregister_class(menu_cls)
-        except Exception as e:
-            print(f"Failed to unregister {menu_name}: {e}")
-    
-    DYNAMIC_MENUS.clear()
-    
+    bpy.types.NODE_MT_add.remove(draw_booster_nodes_add_menu)
+
     return None

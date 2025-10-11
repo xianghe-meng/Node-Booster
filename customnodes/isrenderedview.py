@@ -49,6 +49,7 @@ class NODEBOOSTER_NG_GN_IsRenderedView(bpy.types.GeometryNodeCustomGroup):
 
     bl_idname = "GeometryNodeNodeBoosterIsRenderedView"
     bl_label = "Is Rendered View"
+    nb_menu_path = ['NodeBooster','Inputs',bl_label,] #path in add menu
     auto_upd_flags = {'*CUSTOM_IMPLEMENTATION*',} #NOTE: This node is manually implemented at a handler level.
 
     @classmethod

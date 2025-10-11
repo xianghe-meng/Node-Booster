@@ -31,6 +31,7 @@ class Base():
     bl_idname = "NodeBoosterInterpolationRemap"
     bl_label = "Interpolation Remap"
     bl_description = """Remap values from a chosen interpolation curve."""
+    nb_menu_path = ['NodeBooster','Experimental','Interpolation',bl_label,] #path in add menu
     auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
 

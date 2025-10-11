@@ -29,6 +29,7 @@ class Base():
     bl_label = "Render Info"
     bl_description  = """Custom Nodgroup: Gather informations about your active scene render info.
     • Expect updates on each depsgraph post and frame_pre update signals"""
+    nb_menu_path = ['NodeBooster','Inputs',bl_label,] #path in add menu
     auto_upd_flags = {'FRAME_PRE','DEPS_POST',}
     tree_type = "*ChildrenDefined*"
 

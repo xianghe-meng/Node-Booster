@@ -326,6 +326,7 @@ class Base():
     • Bass/Pitch/Treble Tones components fall within define frequencies in Hz units.
     • If you wish to view or customize these Bass/Pitch/Treble frequencies go in 'N panel > Node Booster > Active node > Parameters'.
     • Expect the value to be automatically updated on each on depsgraph post signals"""
+    nb_menu_path = ['NodeBooster','Inputs',bl_label,] #path in add menu
     auto_upd_flags = {'FRAME_PRE','DEPS_POST',}
     tree_type = "*ChildrenDefined*"
 

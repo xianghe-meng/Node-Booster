@@ -19,8 +19,9 @@ class NODEBOOSTER_ND_2DCurveInput(bpy.types.Node):
     bl_idname = "NodeBooster2DCurveInput" 
     bl_label = "2D Curve Input"
     bl_description = "Interpret a spline of a 3D curve object into a 2D curve depending on the chosen axis."
+    nb_menu_path = ['NodeBooster','Experimental','Interpolation',bl_label,] #path in add menu
     auto_upd_flags = {'NONE',}
-    tree_type = "*ChildrenDefined*"
+    tree_type = "AnyNodeTree"
 
     evaluator_properties = {'INTERPOLATION_NODE',}
 
