@@ -60,6 +60,7 @@ class NODEBOOSTER_SK_Interpolation(Base, bpy.types.NodeSocket):
     bl_idname = "NodeBoosterCustomSocketInterpolation"
     bl_label = "Interpolation"
     bl_description = "Interpolation Data Type"
+    nb_menu_path = ['NodeBooster','Experimental','Interpolation',bl_label,] #path in add menu
     nodebooster_socket_type = "INTERPOLATION"
     nodebooster_socket_color = (0.713274, 0.432440, 0.349651, 1.0)
 

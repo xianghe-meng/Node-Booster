@@ -69,11 +69,11 @@ def auto_register_submenus(self, context):
 
     for cls in allcustomnodes:
         if (not hasattr(cls, 'nb_menu_path')):
-            print("WARNING: Node", getattr(cls, 'bl_label', getattr(cls, '__name__', str(cls))), "has no nb_menu_path")
+            print("WARNING: Node", getattr(cls, 'bl_label', getattr(cls, '__name__', str(cls))), "has no 'nb_menu_path'")
             continue
         menu_paths = getattr(cls, 'nb_menu_path', [])
         if (len(menu_paths) == 0):
-            print("WARNING: Node", getattr(cls, 'bl_label', getattr(cls, '__name__', str(cls))), "has empty nb_menu_path")
+            print("WARNING: Node", getattr(cls, 'bl_label', getattr(cls, '__name__', str(cls))), "has empty 'nb_menu_path'")
             continue
 
         # If it's a single path element, directly display this node in main layout
