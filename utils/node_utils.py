@@ -21,16 +21,25 @@ from .draw_utils import get_dpifac
 from .fct_utils import ColorRGBA
 
 
-SOCK_AVAILABILITY_TABLE = {
-    'GEOMETRY':    ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketRotation', 'NodeSocketMatrix', 'NodeSocketString', 'NodeSocketMenu', 'NodeSocketObject', 'NodeSocketGeometry', 'NodeSocketCollection', 'NodeSocketTexture', 'NodeSocketImage', 'NodeSocketMaterial',),
-    'SHADER':      ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketShader', ),
-    'COMPOSITING': ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', ),
-    }
 TREE_TO_GROUP_EQUIV = {
     'ShaderNodeTree': 'ShaderNodeGroup',
     'CompositorNodeTree': 'CompositorNodeGroup',
     'GeometryNodeTree': 'GeometryNodeGroup',
     }
+
+if bpy.app.version<(5,0,0):
+    SOCK_AVAILABILITY_TABLE = {
+        'GEOMETRY':    ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketRotation', 'NodeSocketMatrix', 'NodeSocketString', 'NodeSocketMenu', 'NodeSocketObject', 'NodeSocketGeometry', 'NodeSocketCollection', 'NodeSocketTexture', 'NodeSocketImage', 'NodeSocketMaterial',),
+        'SHADER':      ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketShader', ),
+        'COMPOSITING': ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', ),
+        }
+elif (bpy.app.version>=(5,0,0)):
+    #NOTE: what about Bundle? Closure? Menu?
+    SOCK_AVAILABILITY_TABLE = {
+        'GEOMETRY':    ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketRotation', 'NodeSocketMatrix', 'NodeSocketString', 'NodeSocketMenu', 'NodeSocketObject', 'NodeSocketGeometry', 'NodeSocketCollection', 'NodeSocketTexture', 'NodeSocketImage', 'NodeSocketMaterial',),
+        'SHADER':      ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketShader', ),
+        'COMPOSITING': ('NodeSocketFloat', 'NodeSocketInt', 'NodeSocketVector', 'NodeSocketColor', 'NodeSocketBool', 'NodeSocketString', ),
+        }
 
 def send_refresh_signal(socket):
     """lazy trick to send a refresh signal to the nodetree"""
@@ -279,9 +288,10 @@ def crosseditor_socktype_adjust(socket_type:str, ngtype:str) -> str:
                 pass
 
         case 'COMPOSITING':
-            #No bool in compositor. We use int instead
-            if (socket_type=='NodeSocketBool'):
-                socket_type = 'NodeSocketInt'
+            #NOTE: before blender 5.0 compositor did not have bool type..
+            if bpy.app.version<(5,0,0):
+                if (socket_type=='NodeSocketBool'):
+                    socket_type = 'NodeSocketInt'
 
     if (socket_type not in compat):
         return f"Unavailable{socket_type}"
@@ -899,13 +909,14 @@ def cache_all_booster_nodes_parent_trees():
                 if n.bl_idname.startswith('NODEBOOSTER_'):
                     _CACHE_BOOSTER_NODES_PARENT_TREES['ShaderNodeTree'].add(mat.node_tree.session_uid)
                     break
-    #get all nodes of the compositor base tree
-    for scn in bpy.data.scenes:
-        if (scn.use_nodes and scn.node_tree):
-            for n in scn.node_tree.nodes:
-                if n.bl_idname.startswith('NODEBOOSTER_'):
-                    _CACHE_BOOSTER_NODES_PARENT_TREES['CompositorNodeTree'].add(scn.node_tree.session_uid)
-                    break
+    #blender used to use base compositing nodes in 'scene.node_tree', since 5.0 it's 'scene.compositing_node_group'
+    if (bpy.app.version<(5,0,0)):
+        for scn in bpy.data.scenes:
+            if (scn.use_nodes and scn.node_tree):
+                for n in scn.node_tree.nodes:
+                    if (n.bl_idname.startswith('NODEBOOSTER_')):
+                        _CACHE_BOOSTER_NODES_PARENT_TREES['CompositorNodeTree'].add(scn.node_tree.session_uid)
+                        break
     #search all ng
     for ng in bpy.data.node_groups:
         #does the type of the nodegroup correspond to what we need?
@@ -930,17 +941,18 @@ def get_cached_booster_nodes(by_idnames:set=None,) -> set:
     shader_tree_uids = _CACHE_BOOSTER_NODES_PARENT_TREES['ShaderNodeTree']
     if (shader_tree_uids):
         mat_nt = [mat.node_tree for mat in bpy.data.materials if (mat.use_nodes and mat.node_tree and (mat.node_tree.session_uid in shader_tree_uids))]
-        shd_nt = [ng for ng in bpy.data.node_groups if (ng.type=='SHADER' and (ng.session_uid in shader_tree_uids))]
+        shd_ng = [ng for ng in bpy.data.node_groups if (ng.type=='SHADER' and (ng.session_uid in shader_tree_uids))]
+        shd_ng = shd_ng + mat_nt
     else:
-        mat_nt = []
-        shd_nt = []
+        shd_ng = []
 
     compositor_tree_uids = _CACHE_BOOSTER_NODES_PARENT_TREES['CompositorNodeTree']
     if (compositor_tree_uids):
-        scn_nt = [scn.node_tree for scn in bpy.data.scenes if (scn.use_nodes and scn.node_tree and (scn.node_tree.session_uid in compositor_tree_uids))]
         comp_ng = [ng for ng in bpy.data.node_groups if (ng.type=='COMPOSITING' and (ng.session_uid in compositor_tree_uids))]
+        #blender used to use base compositing nodes in 'scene.node_tree', since 5.0 it's 'scene.compositing_node_group'
+        if bpy.app.version<(5,0,0):
+            comp_ng += [scn.node_tree for scn in bpy.data.scenes if (scn.use_nodes and scn.node_tree and (scn.node_tree.session_uid in compositor_tree_uids))]
     else:
-        scn_nt = []
         comp_ng = []
 
     geometry_tree_uids = _CACHE_BOOSTER_NODES_PARENT_TREES['GeometryNodeTree']
@@ -950,8 +962,8 @@ def get_cached_booster_nodes(by_idnames:set=None,) -> set:
         geo_ng = []
 
     if (by_idnames):
-          return set(n for nt in set(mat_nt + shd_nt + scn_nt + comp_ng + geo_ng) for n in nt.nodes if (n.bl_idname in by_idnames))
-    else: return set(n for nt in set(mat_nt + shd_nt + scn_nt + comp_ng + geo_ng) for n in nt.nodes if n.bl_idname.startswith('NODEBOOSTER_NG_'))
+          return set(n for ng in set(shd_ng + comp_ng + geo_ng) for n in ng.nodes if (n.bl_idname in by_idnames))
+    else: return set(n for ng in set(shd_ng + comp_ng + geo_ng) for n in ng.nodes if n.bl_idname.startswith('NODEBOOSTER_NG_'))
  
 
 def get_booster_nodes(by_idnames:set=None,) -> set:

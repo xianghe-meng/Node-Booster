@@ -60,7 +60,6 @@ class NODEBOOSTER_SK_Interpolation(Base, bpy.types.NodeSocket):
     bl_idname = "NodeBoosterCustomSocketInterpolation"
     bl_label = "Interpolation"
     bl_description = "Interpolation Data Type"
-    nb_menu_path = ['NodeBooster','Experimental','Interpolation',bl_label,] #path in add menu
     nodebooster_socket_type = "INTERPOLATION"
     nodebooster_socket_color = (0.713274, 0.432440, 0.349651, 1.0)
 
@@ -79,6 +78,7 @@ class NODEBOOSTER_ND_CustomSocketUtility(bpy.types.Node):
     bl_label = "Socket Utility (Dev)"
     bl_description = "an internal utility node, for creating our customgroups"
     bl_icon = 'NODE'
+    nb_menu_path = ['NodeBooster','Experimental','Interpolation',bl_label,] #path in add menu
     auto_upd_flags = {'NONE',}
 
     def init(self, context):

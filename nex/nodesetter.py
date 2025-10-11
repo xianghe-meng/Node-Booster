@@ -286,13 +286,11 @@ def generalfloatmath(ng, callhistory,
     ) -> sFlo:
     """generic operation for adding a float math node and linking. (also support clamp node)."""
 
-    match ng.type:
-        case 'GEOMETRY'|'SHADER':
-            MathNodeType = 'ShaderNodeMath'
-            ClampNodeType = 'ShaderNodeClamp'
-        case 'COMPOSITING':
-            MathNodeType = 'CompositorNodeMath'
-            ClampNodeType = 'NotAvailable'
+    #in blender 5.0 blender devs standardized a lot of nodes for all editors
+    if (ng.type in {'GEOMETRY','SHADER'}) or (ng.type=='COMPOSITING' and bpy.app.version>=(5,0,0)):
+        MathNodeType, ClampNodeType = 'ShaderNodeMath', 'ShaderNodeClamp'
+    elif (ng.type=='COMPOSITING' and bpy.app.version<(5,0,0)):
+        MathNodeType, ClampNodeType = 'CompositorNodeMath', 'NotAvailable'
 
     uniquename = get_unique_name('FloatMath',callhistory)
     node = None
@@ -553,18 +551,18 @@ def generalmix(ng, callhistory,
               location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
         else: location = (0,200,)
 
-        match ng.type:
-            case 'GEOMETRY'|'SHADER':
-                node = ng.nodes.new('ShaderNodeMix')
-                node.data_type = data_type
-                node.clamp_factor = False
-                #always mix non-uniform. floats will be converted to vec anyway..
-                if (data_type=='VECTOR'):
-                    node.factor_mode = 'NON_UNIFORM'
-            case 'COMPOSITING':
-                node = ng.nodes.new('CompositorNodeMixRGB')
-                node.use_clamp = False
-                data_type = '*COMPOSITORSPECIAL*'
+        #in blender 5.0 blender devs standardized a lot of nodes for all editors
+        if (ng.type in {'GEOMETRY','SHADER'}) or (ng.type=='COMPOSITING' and bpy.app.version>=(5,0,0)):
+            node = ng.nodes.new('ShaderNodeMix')
+            node.data_type = data_type
+            node.clamp_factor = False
+            #always mix non-uniform. floats will be converted to vec anyway..
+            if (data_type=='VECTOR'):
+                node.factor_mode = 'NON_UNIFORM'
+        elif (ng.type=='COMPOSITING' and bpy.app.version<(5,0,0)):
+            node = ng.nodes.new('CompositorNodeMixRGB')
+            node.use_clamp = False
+            data_type = '*COMPOSITORSPECIAL*'
 
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
@@ -711,15 +709,15 @@ def generalmaprange(ng, callhistory,
               location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
         else: location = (0,200,)
 
-        match ng.type:
-            case 'GEOMETRY'|'SHADER':
-                node = ng.nodes.new('ShaderNodeMapRange')
-                node.data_type = data_type
-                node.interpolation_type = interpolation_type
-                node.clamp = False
-            case 'COMPOSITING':
-                node = ng.nodes.new('CompositorNodeMapRange')
-                node.use_clamp = False
+    #in blender 5.0 blender devs standardized a lot of nodes for all editors
+    if (ng.type in {'GEOMETRY','SHADER'}) or (ng.type=='COMPOSITING' and bpy.app.version>=(5,0,0)):
+        node = ng.nodes.new('ShaderNodeMapRange')
+        node.data_type = data_type
+        node.interpolation_type = interpolation_type
+        node.clamp = False
+    elif (ng.type=='COMPOSITING' and bpy.app.version<(5,0,0)):
+        node = ng.nodes.new('CompositorNodeMapRange')
+        node.use_clamp = False
 
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
@@ -2615,7 +2613,8 @@ def clamp(ng, callhistory,
     b:sFlo|sInt|sBoo|float|int=1,
     ) -> sFlo|sVec|sCol:
 
-    if (ng.type=='COMPOSITING'):
+    #compositor pre 5.0 used to have different general math nodes..
+    if (ng.type=='COMPOSITING' and bpy.app.version<(5,0,0)):
         _m = generalfloatmath(ng,callhistory,'MINIMUM',v,b)
         _r = generalfloatmath(ng,callhistory,'MAXIMUM',a,_m)
         frame_nodes(ng, _m.node, _r.node, label='Clamp|CompositorSpecial',)
@@ -2638,7 +2637,8 @@ def clampauto(ng, callhistory,
     b:sFlo|sInt|sBoo|float|int,
     ) -> sFlo|sVec|sCol:
 
-    if (ng.type=='COMPOSITING'):
+    #compositor pre 5.0 used to have different general math nodes..
+    if (ng.type=='COMPOSITING' and bpy.app.version<(5,0,0)):
         _mi = generalfloatmath(ng,callhistory,'MINIMUM',v,b)
         _ma = generalfloatmath(ng,callhistory,'MAXIMUM',v,b)
         _m = generalfloatmath(ng,callhistory,'MINIMUM',v,_ma)
@@ -2676,7 +2676,7 @@ def mapl(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\n\nNot Available for the Compositor.")
 @user_doc(nexscript="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\nSupports SocketFloat and SocketVector.")
-@user_overseer(assert_editortype={'GEOMETRY','SHADER'},)
+@user_overseer(assert_editortype={'GEOMETRY','SHADER'} if bpy.app.version<(5,0,0) else None,) #blender 5.0 ported the shader map range node..
 def mapst(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -2692,7 +2692,7 @@ def mapst(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\n\nNot Available for the Compositor.")
 @user_doc(nexscript="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
-@user_overseer(assert_editortype={'GEOMETRY','SHADER'},)
+@user_overseer(assert_editortype={'GEOMETRY','SHADER'} if bpy.app.version<(5,0,0) else None,) #blender 5.0 ported the shader map range node..
 def mapsmo(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
@@ -2707,7 +2707,7 @@ def mapsmo(ng, callhistory,
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\n\nNot Available for the Compositor.")
 @user_doc(nexscript="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
-@user_overseer(assert_editortype={'GEOMETRY','SHADER'},)
+@user_overseer(assert_editortype={'GEOMETRY','SHADER'} if bpy.app.version<(5,0,0) else None,) #blender 5.0 ported the shader map range node..
 def mapsmoo(ng, callhistory,
     v:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
