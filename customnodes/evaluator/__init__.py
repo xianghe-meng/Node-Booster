@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# NOTE this module is related to the interpolation folder, experimental test of GN CustomNode and customSocketTypes..
 
 # NOTE:
 # the evaluator module role is to evaluate the value of a socket upstream.

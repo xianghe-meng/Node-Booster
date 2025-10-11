@@ -2,8 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# NOTE WARNING TO DO CHANGE bl_idname or class name in here. can break user files.
-
+# NOTE WARNING DON'T CHANGE bl_idname or class name in here. can break user files.
+# NOTE this module is related to the interpolation folder, experimental test of GN CustomNode and customSocketTypes..
 
 import bpy
 
