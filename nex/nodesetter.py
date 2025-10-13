@@ -2674,7 +2674,7 @@ def mapl(ng, callhistory,
     return generalmaprange(ng,callhistory,'FLOAT','LINEAR',v,a,b,x,y)
 
 @user_domain('mathex','nexscript')
-@user_doc(mathex="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\n\nNot Available for the Compositor.")
+@user_doc(mathex="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.")
 @user_doc(nexscript="Map Range (Stepped).\nRemap a value V from a given range A,B to another range X,Y with a given step.\nSupports SocketFloat and SocketVector.")
 @user_overseer(assert_editortype={'GEOMETRY','SHADER'} if bpy.app.version<(5,0,0) else None,) #blender 5.0 ported the shader map range node..
 def mapst(ng, callhistory,
@@ -2690,7 +2690,7 @@ def mapst(ng, callhistory,
     return generalmaprange(ng,callhistory,'FLOAT','STEPPED',v,a,b,x,y,step)
 
 @user_domain('mathex','nexscript')
-@user_doc(mathex="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\n\nNot Available for the Compositor.")
+@user_doc(mathex="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.")
 @user_doc(nexscript="Map Range (Smooth).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
 @user_overseer(assert_editortype={'GEOMETRY','SHADER'} if bpy.app.version<(5,0,0) else None,) #blender 5.0 ported the shader map range node..
 def mapsmo(ng, callhistory,
@@ -2705,7 +2705,7 @@ def mapsmo(ng, callhistory,
     return generalmaprange(ng,callhistory,'FLOAT','SMOOTHSTEP',v,a,b,x,y)
 
 @user_domain('mathex','nexscript')
-@user_doc(mathex="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\n\nNot Available for the Compositor.")
+@user_doc(mathex="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.")
 @user_doc(nexscript="Map Range (Smoother).\nRemap a value V from a given range A,B to another range X,Y.\nSupports SocketFloat and SocketVector.")
 @user_overseer(assert_editortype={'GEOMETRY','SHADER'} if bpy.app.version<(5,0,0) else None,) #blender 5.0 ported the shader map range node..
 def mapsmoo(ng, callhistory,
