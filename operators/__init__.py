@@ -22,6 +22,7 @@ from .palette import (
     NODEBOOSTER_OT_initalize_palette,
     )
 from .codetemplates import NODEBOOSTER_OT_text_templates
+from .stringswitch import NODEBOOSTER_OT_convert_menu_switch_to_string_switch
 from ..gpudraw.minimap import NODEBOOSTER_OT_MinimapInteraction
 
 classes = (
@@ -38,6 +39,7 @@ classes = (
     NODEBOOSTER_OT_palette_reset_color,
     NODEBOOSTER_OT_initalize_palette,
     NODEBOOSTER_OT_text_templates,
+    NODEBOOSTER_OT_convert_menu_switch_to_string_switch,
     NODEBOOSTER_OT_MinimapInteraction,
     )
 

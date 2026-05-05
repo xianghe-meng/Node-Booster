@@ -31,10 +31,13 @@ from ..utils.node_utils import (
     link_sockets,
     create_ng_constant_node,
     cache_booster_nodes_parent_tree,
+    get_ng_socket_by_name,
+    set_ng_socket_defvalue,
 )
 from ..nex.nodesetter import (
     get_nodesetter_functions, 
     generate_documentation,
+    sepaxyz,
 )
 
 
@@ -82,6 +85,8 @@ MATHNOTATIONDOC = {
 
 #Store the math function used to set the nodetree
 USER_FNAMES = get_nodesetter_functions(tag='mathex', get_names=True)
+VECTOR_COMPONENT_FNS = {'getx', 'gety', 'getz'}
+VECTOR_LITERAL_FNS = {'vec'}
 
 
 def replace_superscript_exponents(expr: str, algebric_notation:bool=False,) -> str:
@@ -122,6 +127,21 @@ def ast_function_caller(visited, node_tree=None, vareq:dict=None, consteq:dict=N
     
     user_functions_partials = get_nodesetter_functions(tag='mathex', partialdefaults=(node_tree,None),)
     user_function_namespace = {f.func.__name__:f for f in user_functions_partials}
+
+    def getx(socket):
+        return sepaxyz(node_tree, None, socket)[0]
+
+    def gety(socket):
+        return sepaxyz(node_tree, None, socket)[1]
+
+    def getz(socket):
+        return sepaxyz(node_tree, None, socket)[2]
+
+    user_function_namespace.update({
+        'getx': getx,
+        'gety': gety,
+        'getz': getz,
+    })
     
     def caller(node):
         
@@ -242,6 +262,25 @@ class AstTranformer(ast.NodeTransformer):
         self.generic_visit(node)
         return node
 
+    def visit_Attribute(self, node):
+        self.generic_visit(node)
+
+        match node.attr:
+            case 'x':
+                func_name = 'getx'
+            case 'y':
+                func_name = 'gety'
+            case 'z':
+                func_name = 'getz'
+            case _:
+                raise Exception(f"Attribute '.{node.attr}' not supported")
+
+        return ast.Call(
+            func=ast.Name(id=func_name, ctx=ast.Load()),
+            args=[node.value],
+            keywords=[],
+        )
+
     def visit_Name(self, node):
         return node
 
@@ -250,6 +289,18 @@ class AstTranformer(ast.NodeTransformer):
 
     def visit_Constant(self, node):
         return node
+
+    def visit_List(self, node):
+        self.generic_visit(node)
+
+        if (len(node.elts) != 3):
+            raise Exception("Vector literal must contain exactly 3 elements")
+
+        return ast.Call(
+            func=ast.Name(id='vec', ctx=ast.Load()),
+            args=node.elts,
+            keywords=[],
+        )
 
     def get_function_expression(self, math_express: str) -> str:
         """Transforms a math expression into a function-call expression.
@@ -285,6 +336,7 @@ class Base():
     nb_menu_path = ['NodeBooster','Expressions',bl_label,] #path in add menu
     auto_upd_flags = {'NONE',}
     tree_type = "*ChildrenDefined*"
+    expression_text_socket_name = "Expression"
 
     error_message : bpy.props.StringProperty(
         description="User interface error message"
@@ -309,6 +361,18 @@ class Base():
         name="Expression",
         update=update_signal,
         description="type your math expression right here",
+        )
+    user_variables_float : bpy.props.StringProperty(
+        default="",
+        name="Pinned Float Variables",
+        update=update_signal,
+        description="Comma separated float variables that stay exposed as inputs even when not used in the expression",
+        )
+    user_variables_vector : bpy.props.StringProperty(
+        default="",
+        name="Pinned Vector Variables",
+        update=update_signal,
+        description="Comma separated vector variables that stay exposed as inputs even when not used in the expression",
         )
     use_algrebric_multiplication : bpy.props.BoolProperty(
         default=False,
@@ -335,13 +399,17 @@ class Base():
         
         ng = bpy.data.node_groups.get(name)
         if (ng is None):
+            out_sockets = {"Result" : "NodeSocketFloat",}
+            if (self.supports_expression_text_output()):
+                out_sockets[self.expression_text_socket_name] = "NodeSocketString"
             ng = create_new_nodegroup(name,
                 tree_type=self.tree_type,
-                out_sockets={"Result" : "NodeSocketFloat",},
+                out_sockets=out_sockets,
                 )
 
         ng = ng.copy() #always using a copy of the original ng
         self.node_tree = ng
+        self.ensure_expression_text_output()
 
         self.width = 250
 
@@ -349,27 +417,102 @@ class Base():
 
     def copy(self,node,):
         """fct run when dupplicating the node"""
-        
-        #NOTE: copy/paste can cause crashes, we use a timer to delay the action
-        def delayed_copy():
-            self.node_tree = node.node_tree.copy()
-        bpy.app.timers.register(delayed_copy, first_interval=0.01)
+
+        from ..utils.node_utils import schedule_customnode_tree_copy
+        schedule_customnode_tree_copy(self, node)
         
         return None 
     
     def update(self):
         """generic update function"""
 
+        from ..utils.node_utils import ensure_customnode_tree_ownership
+        ensure_customnode_tree_ownership(self)
+
         cache_booster_nodes_parent_tree(self.id_data)
 
         return None
+
+    def supports_expression_text_output(self) -> bool:
+        """Only the geometry variant exposes the raw expression as a string output."""
+
+        return (self.tree_type == "GeometryNodeTree")
+
+    def ensure_expression_text_output(self):
+        """Ensure the backing node group exposes the optional string output."""
+
+        if (not self.supports_expression_text_output()):
+            return None
+
+        ng = self.node_tree
+        if (ng is None):
+            return None
+
+        socket = get_ng_socket_by_name(ng, self.expression_text_socket_name, in_out='OUTPUT')
+        if (socket is None):
+            socket = create_ng_socket(ng,
+                in_out='OUTPUT',
+                socket_type="NodeSocketString",
+                socket_name=self.expression_text_socket_name,
+                )
+
+        return socket
+
+    def get_variable_socket_type(self, var_name: str) -> str:
+        """Resolve the group input socket type for a collected variable."""
+
+        if (var_name in getattr(self, 'elemVec', ())):
+            return "NodeSocketVector"
+        if (var_name in getattr(self, 'elemManualVec', ())):
+            return "NodeSocketVector"
+        return "NodeSocketFloat"
+
+    def digest_manual_variable_list(self, raw_variables: str, kind: str) -> set[str]:
+        """Parse user-pinned variable names from a comma separated string."""
+
+        if (raw_variables is None or raw_variables == ""):
+            return set()
+
+        reserved = set(USER_FNAMES) | VECTOR_COMPONENT_FNS | VECTOR_LITERAL_FNS
+        variables = set()
+
+        for raw_var in raw_variables.split(','):
+            raw_var = raw_var.strip()
+            if (raw_var == ""):
+                continue
+            if (not re.fullmatch(r'[A-Za-z][A-Za-z0-9]*', raw_var)):
+                raise Exception(f"Invalid pinned {kind} variable '{raw_var}'")
+            if (raw_var in reserved):
+                raise Exception(f"Pinned variable '{raw_var}' is Taken")
+            variables.add(raw_var)
+
+        return variables
+
+    def digest_manual_variables(self) -> set[str]:
+        """Parse user-pinned float and vector variables."""
+
+        self.elemManualVec = self.digest_manual_variable_list(self.user_variables_vector, 'vector')
+        elem_manual_float = self.digest_manual_variable_list(self.user_variables_float, 'float')
+
+        overlap = self.elemManualVec & elem_manual_float
+        if (overlap):
+            name = sorted(overlap)[0]
+            raise Exception(f"Pinned variable '{name}' is declared as both float and vector")
+
+        return elem_manual_float | self.elemManualVec
     
     def digest_user_expression(self, expression) -> str:
         """regex transformers. We ensure the user expression is correct, if he is using correct symbols, 
         we sanatized it, transform some notations and collect a maximum of its variable to create variable sockets or constant nodes later."""
 
-        authorized_symbols = ALPHABET + DIGITS + '/*-+%.,()'
-        
+        authorized_symbols = ALPHABET + DIGITS + '/*-+%.,()[]'
+        vector_component_pattern = r'(?<!\d)([A-Za-z][A-Za-z0-9]*)\.(x|y|z)\b'
+
+        self.elemVec = set()
+
+        for match in re.finditer(vector_component_pattern, expression):
+            self.elemVec.add(match.group(1))
+         
         # Remove white spaces char
         expression = expression.replace(' ','')
         expression = expression.replace('	','')
@@ -387,9 +530,11 @@ class Base():
         if any(mached):
             expression = replace_exact_tokens(expression, IRRATIONALS)
         
-        # Gather lists of expression component outside of operand and some synthax elements
-        elemTotal = expression
-        for char in '/*-+%,()':
+        # Gather lists of expression component outside of operand and some synthax elements.
+        # Strip supported vector component suffixes here so expressions like
+        # '[a,b,c].x' or 'normalize(v).y' don't leave a stray '.x' token behind.
+        elemTotal = re.sub(r'\.(x|y|z)\b', '', expression)
+        for char in '/*-+%,()[]':
             elemTotal = elemTotal.replace(char,'|')
         self.elemTotal = set(e for e in elemTotal.split('|') if e!='')
         
@@ -407,7 +552,7 @@ class Base():
             
             # At least Support for implicit math operation on parentheses (ex: '*(' '2(a+b)' or '2.59(c²)')
             case False:
-                expression = re.sub(r"(\d+(?:\.\d+)?)(\()", r"\1*\2", expression)
+                expression = re.sub(r"(\d+(?:\.\d+)?)([\(\[])", r"\1*\2", expression)
         
         # Gather and sort our expression elements
         # they can be either variables, constants, functions, or unrecognized
@@ -420,7 +565,16 @@ class Base():
 
             case True:
                 for e in self.elemTotal:
-                    
+                    vector_access = re.fullmatch(vector_component_pattern, e)
+                    if (vector_access):
+                        self.elemVar.add(vector_access.group(1))
+                        self.elemVec.add(vector_access.group(1))
+                        continue
+
+                    if (e in getattr(self, 'elemManual', set())):
+                        self.elemVar.add(e)
+                        continue
+                     
                     #we have a function
                     if (e in USER_FNAMES):
                         if f'{e}(' in expression:
@@ -468,6 +622,15 @@ class Base():
                 
             case False:
                 for e in self.elemTotal:
+                    vector_access = re.fullmatch(vector_component_pattern, e)
+                    if (vector_access):
+                        self.elemVar.add(vector_access.group(1))
+                        self.elemVec.add(vector_access.group(1))
+                        continue
+
+                    if (e in getattr(self, 'elemManual', set())):
+                        self.elemVar.add(e)
+                        continue
 
                     #we have a function
                     if (e in USER_FNAMES):
@@ -499,6 +662,7 @@ class Base():
         
         #Order our variable alphabetically
         self.elemVar = sorted(self.elemVar)
+        self.elemVec = set(v for v in self.elemVec if v in self.elemVar)
 
         # Ensure user is using correct symbols #NOTE we do that 3 times already tho.. reperitive.
         for char in expression:
@@ -555,11 +719,22 @@ class Base():
         assert ng is not None, "apply_user_expression(): 'self.node_tree' must'nt be None"
         in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
 
+        expression_socket = self.ensure_expression_text_output()
+        if (expression_socket is not None):
+            set_ng_socket_defvalue(ng, socket=expression_socket, in_out='OUTPUT', value=self.user_mathexp)
+
         # Reset error message
         self.error_message = self.debug_sanatized = self.debug_fctexp = ""
 
         # Keepsafe the math expression within the group, might be useful later.
         self.store_equation(self.user_mathexp)
+
+        try:
+            self.elemManual = self.digest_manual_variables()
+        except Exception as e:
+            self.error_message = str(e)
+            self.debug_sanatized = 'Failed'
+            return None
 
         # First we make sure the user expression is correct, & collect the variables!
         try:
@@ -572,7 +747,9 @@ class Base():
         # We store the digested expression for debug aid.
         digested_expression = self.debug_sanatized = r
         # running 'digest_user_expression()' collected all possible constants values or socket variable.
-        elemVar, elemConst = self.elemVar, self.elemConst
+        elemVar = sorted(set(self.elemVar) | self.elemManual)
+        elemConst = self.elemConst
+        self.elemVar = elemVar
 
         # Clean up the node tree, we are about to rebuild it!
         for node in list(ng.nodes).copy():
@@ -584,7 +761,11 @@ class Base():
             current_vars = [s.name for s in in_nod.outputs]
             for var in elemVar:
                 if (var not in current_vars):
-                    create_ng_socket(ng, in_out='INPUT', socket_type="NodeSocketFloat", socket_name=var,)
+                    create_ng_socket(ng,
+                        in_out='INPUT',
+                        socket_type=self.get_variable_socket_type(var),
+                        socket_name=var,
+                        )
 
         # Remove unused sockets
         idx_to_del = []
@@ -593,6 +774,20 @@ class Base():
                 idx_to_del.append(idx)
         for idx in reversed(idx_to_del):
             remove_ng_socket(ng, idx, in_out='INPUT')
+
+        # Keep sockets in sync with inferred variable types.
+        for socket in list(in_nod.outputs):
+            if (socket.type=='CUSTOM'):
+                continue
+            expected = self.get_variable_socket_type(socket.name)
+            if (socket.bl_idname != expected):
+                idx = next(i for i, s in enumerate(in_nod.outputs) if (s == socket))
+                remove_ng_socket(ng, idx, in_out='INPUT')
+                create_ng_socket(ng,
+                    in_out='INPUT',
+                    socket_type=expected,
+                    socket_name=socket.name,
+                    )
 
         # We need to collect the equivalence between the varnames and const and their constant socket representation
         vareq, consteq = dict(), dict()
@@ -617,6 +812,9 @@ class Base():
 
         # Give it a refresh signal, when we remove/create a lot of sockets, the customnode inputs/outputs need a kick
         self.update()
+
+        if (digested_expression == ""):
+            return None
 
         # if we don't have any elements to work with, quit
         if not (elemVar or elemConst):
@@ -681,6 +879,12 @@ class Base():
             col.separator(factor=1)
             word_wrap(layout=col, alert=True, active=True, max_char=self.width/5.75, string=self.error_message,)
 
+        row = col.row(align=True)
+        row.prop(self, "user_variables_float", placeholder="a, b, speed", text="",)
+
+        row = col.row(align=True)
+        row.prop(self, "user_variables_vector", placeholder="v, velocity, normal", text="",)
+
         layout.separator(factor=0.75)
 
         return None
@@ -705,6 +909,8 @@ class Base():
                 lbl.alert = is_error
                 lbl.label(text=n.error_message)
 
+            panel.prop(n, "user_variables_float",)
+            panel.prop(n, "user_variables_vector",)
             panel.prop(n, "use_algrebric_multiplication",)
             panel.prop(n, "use_macros",)
         

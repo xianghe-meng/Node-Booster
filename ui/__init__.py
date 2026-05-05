@@ -30,6 +30,7 @@ classes = (
 
 from .menus import append_menus, remove_menus
 from ..operators.favorites import favorite_popover_draw_header
+from ..operators.stringswitch import draw_string_switch_context_menu
 
 def load_ui():
 
@@ -38,6 +39,8 @@ def load_ui():
 
     #add the favorite popover
     bpy.types.NODE_HT_header.append(favorite_popover_draw_header)
+
+    bpy.types.NODE_MT_context_menu.append(draw_string_switch_context_menu)
 
     return None
 
@@ -48,5 +51,7 @@ def unload_ui():
 
     #remove the favorite popover
     bpy.types.NODE_HT_header.remove(favorite_popover_draw_header)
+
+    bpy.types.NODE_MT_context_menu.remove(draw_string_switch_context_menu)
 
     return None

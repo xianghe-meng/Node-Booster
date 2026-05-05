@@ -1090,6 +1090,7 @@ def generalcombsepa(ng, callhistory,
     nodetype = node_types[operation_type][data_type]
     nameid = prefix_names[operation_type][data_type]
     uniquename = get_unique_name(nameid, callhistory)
+    node = None
     needs_linking = False
 
     if (uniquename):
@@ -1541,17 +1542,26 @@ def pow(ng, callhistory,
     return generalfloatmath(ng,callhistory,'POWER',a,n)
 
 @user_domain('mathex','nexscript')
-@user_doc(mathex="Logarithm A base N.")
-@user_doc(nexscript="Logarithm A base N.\nSupports SocketFloat and entry-wise SocketVector if N is float compatible.")
+@user_doc(mathex="Logarithm A base N.\nIf N is omitted, uses the natural base e.")
+@user_doc(nexscript="Logarithm A base N.\nIf N is omitted, uses the natural base e.\nSupports SocketFloat and entry-wise SocketVector if N is float compatible.")
 @user_overseer()
 def log(ng, callhistory,
     a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|Vector,
-    n:sFlo|sInt|sBoo|float|int,
+    n:sFlo|sInt|sBoo|float|int=2.7182818,
     ) -> sFlo|sVec:
     # for nexcript, math.log will be called if given param is python float or int
     if containsVecs(a):
         return generalentryfloatmath(ng,callhistory,'VECTORXYZ','LOGARITHM',a,n)
     return generalfloatmath(ng,callhistory,'LOGARITHM',a,n)
+
+@user_domain('mathex','nexscript')
+@user_doc(mathex="Exponentiation base e.\nEquivalent to e**A.")
+@user_doc(nexscript="Exponentiation base e.\nEquivalent to e**A.\nSupports SocketFloat and entry-wise SocketVector.")
+@user_overseer()
+def exp(ng, callhistory,
+    a:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
+    ) -> sFlo|sVec:
+    return pow(ng, callhistory, 2.7182818, a)
 
 @user_domain('mathex','nexscript')
 @user_doc(mathex="Square Root of A.")
@@ -1908,7 +1918,8 @@ def degrees(ng, callhistory,
 #   YbdP   88""   Yb        88   Yb   dP 88"Yb  
 #    YP    888888  YboodP   88    YbodP  88  Yb 
 
-@user_domain('nexscript')
+@user_domain('mathex','nexscript')
+@user_doc(mathex="Vector Cross Product.\nThe cross product between vectors A and B.")
 @user_doc(nexscript="Vector Cross Product.\nThe cross product between vector A an B.")
 @user_overseer()
 def cross(ng, callhistory,
@@ -1917,16 +1928,18 @@ def cross(ng, callhistory,
     ) -> sVec:
     return generalvecmath(ng,callhistory,'CROSS_PRODUCT',vA,vB)
 
-@user_domain('nexscript')
+@user_domain('mathex','nexscript')
+@user_doc(mathex="Vector Dot Product.\nThe scalar dot product of vectors A and B.")
 @user_doc(nexscript="Vector Dot Product.\nA dot B.")
 @user_overseer()
 def dot(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
-    ) -> sVec:
+    ) -> sFlo:
     return generalvecmath(ng,callhistory,'DOT_PRODUCT',vA,vB)
 
-@user_domain('nexscript')
+@user_domain('mathex','nexscript')
+@user_doc(mathex="Vector Projection.\nProject vector A onto vector B.")
 @user_doc(nexscript="Vector Projection.\nProject A onto B.")
 @user_overseer()
 def project(ng, callhistory,
@@ -1935,7 +1948,8 @@ def project(ng, callhistory,
     ) -> sVec:
     return generalvecmath(ng,callhistory,'PROJECT',vA,vB)
 
-@user_domain('nexscript')
+@user_domain('mathex','nexscript')
+@user_doc(mathex="Vector Faceforward.\nFaceforward operation between vector A, incident I, and reference R.")
 @user_doc(nexscript="Vector Faceforward.\nFaceforward operation between a given vector, an incident and a reference.")
 @user_overseer()
 def faceforward(ng, callhistory,
@@ -1945,16 +1959,29 @@ def faceforward(ng, callhistory,
     ) -> sVec:
     return generalvecmath(ng,callhistory,'FACEFORWARD',vA,vI,vR)
 
-@user_domain('nexscript')
+@user_domain('mathex','nexscript')
+@user_doc(mathex="Vector Reflection.\nReflect vector A around normal B.")
 @user_doc(nexscript="Vector Reflection.\nReflect A onto B.")
 @user_overseer()
 def reflect(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     vB:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
     ) -> sVec:
-    return generalvecmath(ng,callhistory,'PROJECT',vA,vB)
+    return generalvecmath(ng,callhistory,'REFLECT',vA,vB)
 
-@user_domain('nexscript')
+@user_domain('mathex','nexscript')
+@user_doc(mathex="Vector Refract.\nRefract incident vector A through normal B using eta E.")
+@user_doc(nexscript="Vector Refract.\nRefract incident vector A through normal B using eta E.")
+@user_overseer()
+def refract(ng, callhistory,
+    vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
+    vB:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
+    eta:sFlo|sInt|sBoo|float|int,
+    ) -> sVec:
+    return generalvecmath(ng,callhistory,'REFRACT',vA,vB,eta)
+
+@user_domain('mathex','nexscript')
+@user_doc(mathex="Vector Distance.\nThe distance between vectors A and B.")
 @user_doc(nexscript="Vector Distance.\nThe distance between location A & B.")
 @user_overseer()
 def distance(ng, callhistory,
@@ -1963,7 +1990,8 @@ def distance(ng, callhistory,
     ) -> sFlo:
     return generalvecmath(ng,callhistory,'DISTANCE',vA,vB)
 
-@user_domain('nexscript')
+@user_domain('mathex','nexscript')
+@user_doc(mathex="Vector Normalize.\nNormalize vector A to unit length.")
 @user_doc(nexscript="Vector Normalization.\nNormalize the values of a vector A to fit a 0-1 range.")
 @user_overseer()
 def normalize(ng, callhistory,
@@ -1991,7 +2019,8 @@ def vectorot(ng, callhistory,
     return generalnewnode(ng,callhistory,'VecToRot','FunctionNodeEulerToRotation',vA)[0]
 
 #covered internally in nexscript via property or function
-@user_domain('nexclassmethod')
+@user_domain('mathex','nexclassmethod')
+@user_doc(mathex="Vector Length.\nThe length or magnitude of vector A.")
 @user_overseer()
 def length(ng, callhistory,
     vA:sFlo|sInt|sBoo|sVec|sVecXYZ|sVecT|float|int|Vector,
