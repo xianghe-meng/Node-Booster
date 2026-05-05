@@ -64,6 +64,40 @@ def send_refresh_signal(socket):
     return None
 
 
+def ensure_customnode_tree_ownership(node):
+    """Ensure a custom node owns a private copy of its internal node tree."""
+
+    try:
+        node_tree = node.node_tree
+    except ReferenceError:
+        return None
+
+    if (node_tree is None):
+        return None
+
+    try:
+        if (node_tree.users <= 1):
+            return None
+        node.node_tree = node_tree.copy()
+    except ReferenceError:
+        pass
+    except Exception:
+        pass
+
+    return None
+
+
+def schedule_customnode_tree_copy(target_node, source_node, first_interval:float=0.01):
+    """Legacy copy hook kept intentionally inert.
+
+    Writing ``node_tree`` inside ``copy()`` or a timer spawned from ``copy()``
+    is unstable during Blender clipboard duplication. Tree privatization now
+    happens from the node's normal ``update()`` path instead.
+    """
+
+    return None
+
+
 def socket_intersections(socket, direction:str='LEFT',) -> dict:
     """ parcour a nodetree from a given socket with given direction. 
     Will return a dictionary of colliding sockets and their links route.

@@ -45,6 +45,12 @@ from . mathexpression import (
         NODEBOOSTER_NG_SH_MathExpression,
         NODEBOOSTER_NG_CP_MathExpression,
         )
+from . vectorexpression import (
+        NODEBOOSTER_NG_GN_VectorExpression,
+        )
+from . expression import (
+        NODEBOOSTER_NG_GN_Expression,
+        )
 from . pyexpression import (
         NODEBOOSTER_NG_GN_PyExpression,
         NODEBOOSTER_NG_SH_PyExpression,
@@ -140,6 +146,8 @@ classes = (
     NODEBOOSTER_NG_GN_MathExpression,
     NODEBOOSTER_NG_SH_MathExpression,
     NODEBOOSTER_NG_CP_MathExpression,
+    NODEBOOSTER_NG_GN_VectorExpression,
+    NODEBOOSTER_NG_GN_Expression,
     NODEBOOSTER_NG_GN_PyExpression,
     NODEBOOSTER_NG_SH_PyExpression,
     NODEBOOSTER_NG_CP_PyExpression,
